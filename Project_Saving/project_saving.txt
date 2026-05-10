@@ -1,0 +1,71 @@
+Project Specification: Project_Saving
+
+Core Objective: Build a mobile-first web application designed for a shared "Gamified Savings Battle" between two users (Fan and Art) to save for a Japan trip in November 2027.
+
+1. Technical Architecture
+
+Frontend: React (Vite) + TypeScript
+
+Styling: Tailwind CSS (Utility-first approach)
+
+Backend/Database: Supabase (PostgreSQL)
+
+Real-time: Supabase Real-time (Broadcast & Presence)
+
+Authentication: Supabase Auth (Email/Magic Link)
+
+Deployment: Vercel (Optimized for zero-cost maintenance)
+
+Performance: Mobile-First, Serverless Client-side Rendering
+
+2. Visual & Design System (Minimal-Terracotta)
+
+Aesthetic: Clean, professional, and warm.
+
+Color Palette:
+
+Background: Warm Off-white (#FDFCFB or similar)
+
+Primary Accent: Terracotta Orange (Targeting the shade in portfolio design)
+
+Text: Dark Charcoal for readability (Avoid pure black)
+
+Typography: Modern Sans-serif (e.g., Inter or Poppins)
+
+UX Pattern: Mobile-optimized interactions, generous spacing, and subtle micro-animations.
+
+3. Core Feature Requirements
+
+A. Dynamic Goal & Smart Timeline
+
+Individual Settings: Each user can set their own 'Target Amount', 'Start Date', and 'End Date'.
+
+Calculated Insights:
+
+Trip Countdown: Display days remaining until Nov 2027.
+
+Savings Forecast: Calculate "Daily Required Amount" and "Predicted Completion Date" based on current saving velocity.
+
+B. Frictionless Daily Logging
+
+One-Tap Quick Log: Implement pre-set buttons for common amounts (e.g., +100, +500, +1000).
+
+Manual Entry: Allow custom amount input with a brief note.
+
+Real-time Sync: All entries must instantly update the shared dashboard.
+
+C. Gamified Battle Mechanics
+
+Battle Dashboard: A head-to-head visual comparison using minimal progress bars.
+
+Daily Streak System: A "Flame" icon that ignites when a user logs savings daily. Streak resets if a day is missed.
+
+Encouragement Nudges: Interactive real-time reactions (🔥, ❤️, 👏) in the transaction history feed using Supabase Broadcast.
+
+D. PWA & Mobile Integration
+
+PWA Setup: Use vite-plugin-pwa for "Add to Home Screen" support.
+
+Manifest & Icons: Ensure full-screen display (standalone mode) without URL bars.
+
+Splash Screen: Custom branded splash screen for a native app feel. and 

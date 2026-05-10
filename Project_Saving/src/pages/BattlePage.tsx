@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useGoal } from '../hooks/useGoal';
 import { useLogs } from '../hooks/useLogs';
@@ -15,8 +14,8 @@ import { ManualLogForm } from '../components/ManualLogForm/ManualLogForm';
 import { LogList } from '../components/LogList/LogList';
 import { ReactionFloater } from '../components/ReactionFloater/ReactionFloater';
 
-export function Dashboard() {
-  const { profile, signOut } = useAuth();
+export function BattlePage() {
+  const { profile } = useAuth();
   const { goal, loading: goalLoading } = useGoal();
   const { logs, loading: logsLoading, insert } = useLogs(30);
   const { total } = useSavingsTotal(profile?.id, logs);
@@ -30,7 +29,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-canvas pb-10">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-sm mx-auto px-4 pt-6 flex flex-col gap-5">
 
         {/* Header */}
@@ -38,13 +37,9 @@ export function Dashboard() {
           <h1 className="text-xl text-ink font-semibold">
             Hey, {profile?.display_name ?? '…'} 👋
           </h1>
-          <div className="flex items-center gap-3">
-            <Link to="/settings" className="text-ink-muted text-sm">Settings</Link>
-            <button onClick={signOut} className="text-ink-muted text-sm">Sign out</button>
-          </div>
         </div>
 
-        {/* Hero: Leaderboard */}
+        {/* Leaderboard */}
         <Leaderboard state={leaderboardState} />
 
         {/* Log composer + Battle Nudge */}

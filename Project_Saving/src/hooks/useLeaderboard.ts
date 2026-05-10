@@ -42,29 +42,38 @@ export function useLeaderboard(
     }
 
     setLoading(true);
-    Promise.all([
-      // Fetch profiles for all members of this room
-      supabase
-        .from('room_members')
-        .select('profiles!room_members_user_id_fkey(id, display_name)')
-        .eq('room_id', roomId),
-      // Fetch goals scoped to this room
-      supabase
-        .from('goals')
-        .select('user_id, target_amount')
-        .eq('room_id', roomId),
-    ]).then(([{ data: members }, { data: g }]) => {
-      const rawProfiles: RawProfile[] = (members ?? [])
-        .map((m: { profiles: RawProfile | RawProfile[] | null }) => {
-          const p = m.profiles;
-          return Array.isArray(p) ? p[0] : p;
-        })
-        .filter(Boolean) as RawProfile[];
 
-      setProfiles(rawProfiles);
-      setGoals(g ?? []);
-      setLoading(false);
-    });
+    // Step 1: get user_ids for this room
+    // (room_members.user_id → auth.users, NOT profiles, so we can't FK-join directly)
+    supabase
+      .from('room_members')
+      .select('user_id')
+      .eq('room_id', roomId)
+      .then(({ data: memberRows }) => {
+        const userIds = (memberRows ?? []).map((r: { user_id: string }) => r.user_id);
+        if (userIds.length === 0) {
+          setProfiles([]);
+          setGoals([]);
+          setLoading(false);
+          return;
+        }
+
+        // Step 2: fetch profiles + goals in parallel
+        Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, display_name')
+            .in('id', userIds),
+          supabase
+            .from('goals')
+            .select('user_id, target_amount')
+            .eq('room_id', roomId),
+        ]).then(([{ data: p }, { data: g }]) => {
+          setProfiles((p ?? []) as RawProfile[]);
+          setGoals(g ?? []);
+          setLoading(false);
+        });
+      });
 
     const id = setInterval(() => {
       const current = localDateKey(new Date().toISOString(), APP_TZ);

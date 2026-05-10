@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useGoal } from '../hooks/useGoal';
 import { useLogs } from '../hooks/useLogs';
+import { useBuckets } from '../hooks/useBuckets';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useReactionBroadcast } from '../hooks/useReactionBroadcast';
@@ -28,6 +29,7 @@ export function BattlePage() {
 
   const { goal, loading: goalLoading } = useGoal(activeRoomId);
   const { logs, loading: logsLoading, insert } = useLogs(5, activeRoomId);
+  const { buckets } = useBuckets(activeRoomId);
   const { total } = useSavingsTotal(profile?.id, logs);
   const leaderboardState = useLeaderboard(logs, profile?.id, activeRoomId);
   const { sendPing } = useReactionBroadcast(() => {});
@@ -37,9 +39,9 @@ export function BattlePage() {
 
   const { logs: allLogs } = useAllLogs(activeRoomId);
 
-  function handleInsert(amount: number, note?: string) {
+  function handleInsert(amount: number, bucketId: string, note?: string) {
     setPendingAmount(0);
-    return insert(amount, note);
+    return insert(amount, bucketId, note);
   }
 
   const players = leaderboardState.entries.map(e => ({
@@ -90,13 +92,17 @@ export function BattlePage() {
         {/* Log composer + Battle Nudge */}
         <div className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-5">
           <QuickLogBar
-            onInsert={amount => handleInsert(amount)}
+            onInsert={(amount, bucketId) => handleInsert(amount, bucketId)}
             onPreview={setPendingAmount}
+            buckets={buckets}
+            roomId={activeRoomId ?? ''}
           />
           <div className="border-t border-border" />
           <ManualLogForm
-            onInsert={(amount, note) => handleInsert(amount, note)}
+            onInsert={(amount, bucketId, note) => handleInsert(amount, bucketId, note)}
             onPreview={setPendingAmount}
+            buckets={buckets}
+            roomId={activeRoomId ?? ''}
           />
           {profile?.id && leaderboardState.entries.length > 0 && (
             <BattleNudge

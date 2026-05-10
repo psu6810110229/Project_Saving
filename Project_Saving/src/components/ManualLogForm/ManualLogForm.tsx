@@ -1,13 +1,18 @@
 import { useState } from 'react';
+import { BucketSelector } from '../BucketSelector/BucketSelector';
+import type { Bucket } from '../../types';
 
 interface Props {
-  onInsert: (amount: number, note?: string) => Promise<{ error?: string }>;
+  onInsert: (amount: number, bucketId: string, note?: string) => Promise<{ error?: string }>;
   onPreview?: (amount: number) => void;
+  buckets: Bucket[];
+  roomId: string;
 }
 
-export function ManualLogForm({ onInsert, onPreview }: Props) {
+export function ManualLogForm({ onInsert, onPreview, buckets, roomId }: Props) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -25,8 +30,13 @@ export function ManualLogForm({ onInsert, onPreview }: Props) {
       setStatus('error');
       return;
     }
+    if (!selectedBucket) {
+      setErrorMsg('Select a bucket first.');
+      setStatus('error');
+      return;
+    }
     setStatus('saving');
-    const { error } = await onInsert(n, note.trim() || undefined);
+    const { error } = await onInsert(n, selectedBucket, note.trim() || undefined);
     if (error) { setErrorMsg(error); setStatus('error'); }
     else { setAmount(''); setNote(''); setStatus('idle'); onPreview?.(0); }
   }
@@ -34,6 +44,12 @@ export function ManualLogForm({ onInsert, onPreview }: Props) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <span className="text-xs text-ink-muted uppercase tracking-widest font-semibold">Manual entry</span>
+      <BucketSelector
+        buckets={buckets}
+        roomId={roomId}
+        selected={selectedBucket}
+        onChange={setSelectedBucket}
+      />
       <div className="flex gap-2">
         <input
           type="number"

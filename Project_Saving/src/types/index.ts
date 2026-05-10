@@ -36,4 +36,24 @@ export interface SavingsLog {
   note: string | null;
   created_at: string;
   display_name?: string;
+  bucket_id?: string;
+  bucket_name?: string;
+}
+
+export interface Bucket {
+  id: string;
+  user_id: string;
+  room_id: string;
+  name: string;
+  target_amount: number;
+  position: number;
+  created_at: string;
+}
+
+/** Working copy used inside BucketEditor before saving */
+export interface BucketDraft {
+  /** undefined = new row (not yet in DB) */
+  id: string | undefined;
+  name: string;
+  target_amount: number;
 }

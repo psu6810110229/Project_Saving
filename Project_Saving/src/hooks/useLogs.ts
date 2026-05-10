@@ -24,22 +24,28 @@ export function useLogs(limit = 30, roomId: string | null = null) {
     if (!roomId) { setLogs([]); setLoading(false); return; }
     let query = supabase
       .from('savings_logs')
-      .select('id, user_id, amount, note, created_at, room_id, profiles!savings_logs_user_id_fkey(display_name)')
+      .select('id, user_id, amount, note, created_at, room_id, bucket_id, profiles!savings_logs_user_id_fkey(display_name), buckets(name)')
       .eq('room_id', roomId)
       .order('created_at', { ascending: false })
       .limit(LIMIT);
 
     const { data, error: err } = await query;
     if (err) { setError(err.message); return; }
-    setLogs((data ?? []).map(row => ({
-      id: row.id,
-      user_id: row.user_id,
-      room_id: row.room_id,
-      amount: Number(row.amount),
-      note: row.note,
-      created_at: row.created_at,
-      display_name: extractDisplayName(row.profiles as RawProfile),
-    })));
+    setLogs((data ?? []).map(row => {
+      const rawBucket = row.buckets as { name: string } | { name: string }[] | null;
+      const bucket_name = Array.isArray(rawBucket) ? rawBucket[0]?.name : rawBucket?.name;
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        room_id: row.room_id,
+        amount: Number(row.amount),
+        note: row.note,
+        created_at: row.created_at,
+        display_name: extractDisplayName(row.profiles as RawProfile),
+        bucket_id: row.bucket_id ?? undefined,
+        bucket_name,
+      };
+    }));
   }
 
   useEffect(() => {
@@ -81,9 +87,10 @@ export function useLogs(limit = 30, roomId: string | null = null) {
     return () => { supabase.removeChannel(channel); };
   }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function insert(amount: number, note?: string): Promise<{ error?: string }> {
+  async function insert(amount: number, bucketId: string, note?: string): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };
     if (!roomId) return { error: 'No active room' };
+    if (!bucketId) return { error: 'No bucket selected' };
     if (cooldown.current) return {};
     cooldown.current = true;
     setTimeout(() => { cooldown.current = false; }, 300);
@@ -97,13 +104,14 @@ export function useLogs(limit = 30, roomId: string | null = null) {
       note: note ?? null,
       created_at: new Date().toISOString(),
       display_name: undefined,
+      bucket_id: bucketId,
     };
 
     setLogs(prev => [tempLog, ...prev]);
 
     const { error: err } = await supabase
       .from('savings_logs')
-      .insert({ id: tempId, user_id: user.id, room_id: roomId, amount, note: note ?? null });
+      .insert({ id: tempId, user_id: user.id, room_id: roomId, bucket_id: bucketId, amount, note: note ?? null });
 
     if (err) {
       setLogs(prev => prev.filter(l => l.id !== tempId));

@@ -18,7 +18,14 @@ export function LogItem({ log, onSendPing }: Props) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-terracotta">{formatCurrency(log.amount)}</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm font-medium text-terracotta shrink-0">{formatCurrency(log.amount)}</span>
+            {log.bucket_name && (
+              <span className="text-xs bg-surface border border-border rounded-full px-2 py-0.5 text-ink-muted max-w-[8rem] truncate">
+                {log.bucket_name}
+              </span>
+            )}
+          </div>
           <span className="text-xs text-ink-dim shrink-0">{formatRelativeTime(log.created_at)}</span>
         </div>
         {log.note && (

@@ -5,6 +5,7 @@ import { useLogs } from '../hooks/useLogs';
 import { useStreak } from '../hooks/useStreak';
 import { useRoom } from '../components/RoomContext/RoomContext';
 import { GoalForm } from '../components/GoalForm/GoalForm';
+import { BucketEditor } from '../components/BucketEditor/BucketEditor';
 import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/format';
 import {
@@ -126,6 +127,17 @@ export function ProfilePage() {
             <GoalForm initial={null} onSave={async v => { const r = await saveGoal(v); if (!r.error) setGoalOpen(false); return r; }} />
           )}
         </section>
+
+        {/* Buckets */}
+        {activeRoomId && goal && (
+          <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3">
+            <BucketEditor
+              roomId={activeRoomId}
+              goalTarget={goal.target_amount}
+              logs={myLogs}
+            />
+          </section>
+        )}
 
         {/* Stats */}
         <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3">

@@ -71,6 +71,9 @@ alter table public.savings_logs enable row level security;
 alter table public.reactions   enable row level security;
 
 -- profiles
+drop policy if exists "profiles: authenticated users can read" on public.profiles;
+drop policy if exists "profiles: owner can update"             on public.profiles;
+
 create policy "profiles: authenticated users can read"
   on public.profiles for select
   to authenticated using (true);
@@ -80,6 +83,10 @@ create policy "profiles: owner can update"
   to authenticated using (auth.uid() = id);
 
 -- goals
+drop policy if exists "goals: authenticated users can read" on public.goals;
+drop policy if exists "goals: owner can insert"            on public.goals;
+drop policy if exists "goals: owner can update"            on public.goals;
+
 create policy "goals: authenticated users can read"
   on public.goals for select
   to authenticated using (true);
@@ -93,6 +100,11 @@ create policy "goals: owner can update"
   to authenticated using (auth.uid() = user_id);
 
 -- savings_logs
+drop policy if exists "savings_logs: authenticated users can read" on public.savings_logs;
+drop policy if exists "savings_logs: owner can insert"            on public.savings_logs;
+drop policy if exists "savings_logs: owner can update"            on public.savings_logs;
+drop policy if exists "savings_logs: owner can delete"            on public.savings_logs;
+
 create policy "savings_logs: authenticated users can read"
   on public.savings_logs for select
   to authenticated using (true);
@@ -110,6 +122,10 @@ create policy "savings_logs: owner can delete"
   to authenticated using (auth.uid() = user_id);
 
 -- reactions
+drop policy if exists "reactions: authenticated users can read" on public.reactions;
+drop policy if exists "reactions: owner can insert"            on public.reactions;
+drop policy if exists "reactions: owner can delete"            on public.reactions;
+
 create policy "reactions: authenticated users can read"
   on public.reactions for select
   to authenticated using (true);

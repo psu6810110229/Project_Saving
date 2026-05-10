@@ -5,8 +5,8 @@ Encode the visual language (colors, typography, spacing) once in `tailwind.confi
 
 ## Files Edited / Created
 - `tailwind.config.ts` (extend theme)
-- `src/styles/global.css` (font import + base resets + body defaults)
-- `index.html` (preconnect Google Fonts)
+- `src/styles/global.css` (base resets + body defaults — NO @import here)
+- `index.html` (preconnect + `<link>` stylesheet for Google Fonts — do NOT use @import in CSS, PostCSS conflicts with @tailwind directives)
 - `src/types/index.ts` (optional: shared `ColorToken` type if needed later)
 
 ## tailwind.config.ts — `theme.extend`

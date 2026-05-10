@@ -21,7 +21,7 @@ export function useLogs(limit = 30) {
   useEffect(() => {
     supabase
       .from('savings_logs')
-      .select('id, user_id, amount, note, created_at, profiles(display_name)')
+      .select('id, user_id, amount, note, created_at, profiles!savings_logs_user_id_fkey(display_name)')
       .order('created_at', { ascending: false })
       .limit(limit)
       .then(({ data, error: err }) => {
@@ -61,7 +61,7 @@ export function useLogs(limit = 30) {
     const { data, error: err } = await supabase
       .from('savings_logs')
       .insert({ id: tempId, user_id: user.id, amount, note: note ?? null })
-      .select('id, user_id, amount, note, created_at, profiles(display_name)')
+      .select('id, user_id, amount, note, created_at, profiles!savings_logs_user_id_fkey(display_name)')
       .single();
 
     if (err) {

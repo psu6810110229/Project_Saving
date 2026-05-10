@@ -13,7 +13,10 @@ import { QuickLogBar } from '../components/QuickLogBar/QuickLogBar';
 import { ManualLogForm } from '../components/ManualLogForm/ManualLogForm';
 import { LogList } from '../components/LogList/LogList';
 import { LogPopup } from '../components/LogPopup/LogPopup';
+import { CompareButton } from '../components/CompareButton/CompareButton';
+import { ComparePopup } from '../components/ComparePopup/ComparePopup';
 import { ReactionFloater } from '../components/ReactionFloater/ReactionFloater';
+import { useAllLogs } from '../hooks/useAllLogs';
 
 export function BattlePage() {
   const { profile } = useAuth();
@@ -23,7 +26,11 @@ export function BattlePage() {
   const leaderboardState = useLeaderboard(logs, profile?.id);
   const { sendPing } = useReactionBroadcast(() => {});
   const [pendingAmount, setPendingAmount] = useState(0);
-  const [popupOpen, setPopupOpen] = useState(false);
+  const [logPopupOpen, setLogPopupOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+
+  // For ComparePopup — all logs needed for chart + stats. Only mounted when compare is open.
+  const { logs: allLogs } = useAllLogs();
 
   function handleInsert(amount: number, note?: string) {
     setPendingAmount(0);
@@ -35,6 +42,15 @@ export function BattlePage() {
     displayName: e.displayName,
   }));
 
+  // My leaderboard entry
+  const myEntry = leaderboardState.entries.find(e => e.isYou);
+  // Others = all entries except me
+  const otherEntries = leaderboardState.entries.filter(e => !e.isYou);
+  // Default compare target: the leader (if not me), else first other
+  const defaultTargetId = otherEntries.find(e => e.rank === 1)?.userId ?? otherEntries[0]?.userId;
+
+  const canCompare = !leaderboardState.loading && !!myEntry && otherEntries.length > 0;
+
   return (
     <div className="min-h-screen bg-canvas">
       <div className="max-w-sm mx-auto px-4 pt-6 flex flex-col gap-5">
@@ -44,6 +60,10 @@ export function BattlePage() {
           <h1 className="text-xl text-ink font-semibold">
             Hey, {profile?.display_name ?? '…'} 👋
           </h1>
+          <CompareButton
+            onClick={() => setCompareOpen(true)}
+            disabled={!canCompare}
+          />
         </div>
 
         {/* Leaderboard */}
@@ -90,7 +110,7 @@ export function BattlePage() {
               onSendPing={sendPing}
               footer={
                 <button
-                  onClick={() => setPopupOpen(true)}
+                  onClick={() => setLogPopupOpen(true)}
                   className="text-sm text-terracotta font-medium hover:underline"
                 >
                   See all logs →
@@ -102,13 +122,25 @@ export function BattlePage() {
 
       </div>
 
-      {/* Full-history popup — mounts only when open */}
-      {popupOpen && (
+      {/* Full-history popup */}
+      {logPopupOpen && (
         <LogPopup
-          open={popupOpen}
-          onClose={() => setPopupOpen(false)}
+          open={logPopupOpen}
+          onClose={() => setLogPopupOpen(false)}
           onSendPing={sendPing}
           players={players}
+        />
+      )}
+
+      {/* Compare popup — mounts allLogs subscription only while open */}
+      {compareOpen && myEntry && (
+        <ComparePopup
+          open={compareOpen}
+          onClose={() => setCompareOpen(false)}
+          me={myEntry}
+          others={otherEntries}
+          allLogs={allLogs}
+          defaultTargetId={defaultTargetId}
         />
       )}
 

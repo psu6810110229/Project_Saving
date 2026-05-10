@@ -1,18 +1,25 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useGoal } from '../hooks/useGoal';
-import { useSavingsTotal } from '../hooks/useSavingsTotal';
+import { useLogs } from '../hooks/useLogs';
 import { CountdownCard } from '../components/CountdownCard/CountdownCard';
 import { ForecastCard } from '../components/ForecastCard/ForecastCard';
+import { QuickLogBar } from '../components/QuickLogBar/QuickLogBar';
+import { ManualLogForm } from '../components/ManualLogForm/ManualLogForm';
+import { LogList } from '../components/LogList/LogList';
 
 export function Dashboard() {
   const { profile, signOut } = useAuth();
   const { goal, loading: goalLoading } = useGoal();
-  const { total } = useSavingsTotal(profile?.id);
+  const { logs, loading: logsLoading, insert } = useLogs(30);
+
+  const total = logs
+    .filter(l => l.user_id === profile?.id)
+    .reduce((sum, l) => sum + l.amount, 0);
 
   return (
-    <div className="min-h-screen bg-canvas p-6">
-      <div className="max-w-sm mx-auto flex flex-col gap-5">
+    <div className="min-h-screen bg-canvas pb-10">
+      <div className="max-w-sm mx-auto px-4 pt-6 flex flex-col gap-5">
 
         <div className="flex items-center justify-between">
           <h1 className="text-xl text-ink font-semibold">
@@ -33,6 +40,19 @@ export function Dashboard() {
         ) : (
           <ForecastCard goal={goal} savedSoFar={total} />
         )}
+
+        <div className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-5">
+          <QuickLogBar onInsert={amount => insert(amount)} />
+          <div className="border-t border-border" />
+          <ManualLogForm onInsert={insert} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-xs text-ink-muted uppercase tracking-widest">Recent activity</span>
+          <div className="bg-surface border border-border rounded-xl px-4">
+            <LogList logs={logs} loading={logsLoading} />
+          </div>
+        </div>
 
       </div>
     </div>

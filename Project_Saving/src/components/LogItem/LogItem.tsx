@@ -1,0 +1,28 @@
+import { formatCurrency, formatRelativeTime } from '../../lib/format';
+import type { SavingsLog } from '../../types';
+
+interface Props {
+  log: SavingsLog;
+}
+
+export function LogItem({ log }: Props) {
+  const initial = (log.display_name ?? '?')[0].toUpperCase();
+
+  return (
+    <div className="flex items-start gap-3 py-3">
+      <div className="w-8 h-8 rounded-full bg-terracotta flex items-center justify-center text-white text-xs font-semibold shrink-0">
+        {initial}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-medium text-terracotta">{formatCurrency(log.amount)}</span>
+          <span className="text-xs text-ink-dim shrink-0">{formatRelativeTime(log.created_at)}</span>
+        </div>
+        {log.note && (
+          <p className="text-xs text-ink-muted mt-0.5 truncate">{log.note}</p>
+        )}
+        <p className="text-xs text-ink-dim mt-0.5">{log.display_name ?? '—'}</p>
+      </div>
+    </div>
+  );
+}

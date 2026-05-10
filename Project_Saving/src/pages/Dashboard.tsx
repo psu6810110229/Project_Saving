@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useGoal } from '../hooks/useGoal';
 import { useLogs } from '../hooks/useLogs';
+import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { CountdownCard } from '../components/CountdownCard/CountdownCard';
 import { ForecastCard } from '../components/ForecastCard/ForecastCard';
 import { QuickLogBar } from '../components/QuickLogBar/QuickLogBar';
@@ -12,10 +13,7 @@ export function Dashboard() {
   const { profile, signOut } = useAuth();
   const { goal, loading: goalLoading } = useGoal();
   const { logs, loading: logsLoading, insert } = useLogs(30);
-
-  const total = logs
-    .filter(l => l.user_id === profile?.id)
-    .reduce((sum, l) => sum + l.amount, 0);
+  const { total } = useSavingsTotal(profile?.id, logs);
 
   return (
     <div className="min-h-screen bg-canvas pb-10">

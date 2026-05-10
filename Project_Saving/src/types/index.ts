@@ -1,2 +1,5 @@
-// Shared TypeScript interfaces — populated in later tasks
-export {};
+export interface Profile {
+  id: string;
+  display_name: string;
+  created_at: string;
+}

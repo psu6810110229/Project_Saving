@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const u = s.user;
         const meta = u.user_metadata as { full_name?: string; name?: string };
         const display_name = meta.full_name ?? meta.name ?? u.email?.split('@')[0] ?? 'User';
-        supabase.from('profiles').upsert({ id: u.id, display_name }).then(() => {});
+        supabase.from('profiles').update({ display_name }).eq('id', u.id).then(() => {});
       }
     });
 

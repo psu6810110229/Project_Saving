@@ -12,15 +12,14 @@ import { useRoom } from '../components/RoomContext/RoomContext';
 import { CountdownCard } from '../components/CountdownCard/CountdownCard';
 import { ForecastCard } from '../components/ForecastCard/ForecastCard';
 import { Leaderboard } from '../components/Leaderboard/Leaderboard';
-import { BattleNudge } from '../components/BattleNudge/BattleNudge';
-import { QuickLogBar } from '../components/QuickLogBar/QuickLogBar';
-import { ManualLogForm } from '../components/ManualLogForm/ManualLogForm';
 import { LogList } from '../components/LogList/LogList';
 import { LogPopup } from '../components/LogPopup/LogPopup';
 import { CompareButton } from '../components/CompareButton/CompareButton';
 import { ComparePopup } from '../components/ComparePopup/ComparePopup';
 import { RoomSwitcher } from '../components/RoomSwitcher/RoomSwitcher';
 import { ReactionFloater } from '../components/ReactionFloater/ReactionFloater';
+import { BucketGrid } from '../components/BucketGrid/BucketGrid';
+import { LogAmountModal } from '../components/LogAmountModal/LogAmountModal';
 
 export function BattlePage() {
   const { profile } = useAuth();
@@ -33,14 +32,13 @@ export function BattlePage() {
   const { total } = useSavingsTotal(profile?.id, logs);
   const leaderboardState = useLeaderboard(logs, profile?.id, activeRoomId);
   const { sendPing } = useReactionBroadcast(() => {});
-  const [pendingAmount, setPendingAmount] = useState(0);
   const [logPopupOpen, setLogPopupOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [selectedBucketForLog, setSelectedBucketForLog] = useState<any | null>(null);
 
   const { logs: allLogs } = useAllLogs(activeRoomId);
 
   function handleInsert(amount: number, bucketId: string, note?: string) {
-    setPendingAmount(0);
     return insert(amount, bucketId, note);
   }
 
@@ -58,7 +56,7 @@ export function BattlePage() {
   if (!activeRoomId && rooms.length === 0 && !leaderboardState.loading) {
     return (
       <div className="min-h-screen bg-canvas flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <span className="text-5xl">🎯</span>
+        <span className="text-5xl"></span>
         <p className="text-lg font-semibold text-ink">No battle room yet</p>
         <p className="text-sm text-ink-muted">Create or join a room to start saving with friends.</p>
         <button
@@ -72,60 +70,52 @@ export function BattlePage() {
   }
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen">
       <div className="max-w-sm mx-auto px-4 pt-6 flex flex-col gap-5">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 animate-fade-in-up">
           <div className="flex flex-col min-w-0">
             <h1 className="text-xl text-ink font-semibold truncate">
-              Hey, {profile?.display_name ?? '…'} 👋
+              Hey, {profile?.display_name ?? '…'} 
             </h1>
             <RoomSwitcher />
           </div>
+        </div>
+
+        {/* 1. Timeline context (Japan trip) */}
+        <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+          <CountdownCard goal={goal} />
+        </div>
+
+        {/* 2. Leaderboard */}
+        <div className="flex flex-col gap-4 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+          <Leaderboard state={leaderboardState} />
           <CompareButton onClick={() => setCompareOpen(true)} disabled={!canCompare} />
         </div>
 
-        {/* Leaderboard */}
-        <Leaderboard state={leaderboardState} />
-
-        {/* Log composer + Battle Nudge */}
-        <div className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-5">
-          <QuickLogBar
-            onInsert={(amount, bucketId) => handleInsert(amount, bucketId)}
-            onPreview={setPendingAmount}
-            buckets={buckets}
-            roomId={activeRoomId ?? ''}
-          />
-          <div className="border-t border-border" />
-          <ManualLogForm
-            onInsert={(amount, bucketId, note) => handleInsert(amount, bucketId, note)}
-            onPreview={setPendingAmount}
-            buckets={buckets}
-            roomId={activeRoomId ?? ''}
-          />
-          {profile?.id && leaderboardState.entries.length > 0 && (
-            <BattleNudge
-              leaderboard={leaderboardState.entries}
-              myUserId={profile.id}
-              pendingAmount={pendingAmount}
-            />
-          )}
-        </div>
-
-        {/* Timeline context */}
-        <CountdownCard />
-
+        {/* 3. Progress (ForecastCard) */}
         {goalLoading ? (
-          <div className="bg-surface border border-border rounded-xl p-5 flex justify-center">
+          <div className="bg-surface border border-border rounded-xl p-5 flex justify-center animate-fade-in-up" style={{ animationDelay: '300ms' }}>
             <div className="w-6 h-6 rounded-full border-2 border-terracotta border-t-transparent animate-spin" />
           </div>
         ) : (
-          <ForecastCard goal={goal} savedSoFar={total} />
+          <div className="animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+            <ForecastCard goal={goal} savedSoFar={total} />
+          </div>
         )}
 
-        {/* Activity feed */}
-        <div className="flex flex-col gap-2">
+        {/* 4. Bucket Selection Grid */}
+        <div className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-5 shadow-sm hover:shadow-md transition-shadow animate-fade-in-up" style={{ animationDelay: '400ms' }}>
+          <BucketGrid 
+            buckets={buckets} 
+            allLogs={allLogs} 
+            onSelect={setSelectedBucketForLog} 
+          />
+        </div>
+
+        {/* 5. Activity feed */}
+        <div className="flex flex-col gap-2 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
           <span className="text-xs text-ink-muted uppercase tracking-widest">Recent activity</span>
           <div className="bg-surface border border-border rounded-xl px-4">
             <LogList
@@ -168,6 +158,15 @@ export function BattlePage() {
       )}
 
       <ReactionFloater onPing={() => {}} />
+
+      {/* Log Modal */}
+      <LogAmountModal
+        open={!!selectedBucketForLog}
+        onClose={() => setSelectedBucketForLog(null)}
+        bucket={selectedBucketForLog}
+        onInsert={handleInsert}
+        leaderboardState={leaderboardState}
+      />
     </div>
   );
 }

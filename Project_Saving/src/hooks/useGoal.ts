@@ -36,7 +36,10 @@ export function useGoal(roomId: string | null = null) {
     if (!roomId) return { error: 'No active room' };
     const { error: err } = await supabase
       .from('goals')
-      .upsert({ user_id: user.id, room_id: roomId, ...values, updated_at: new Date().toISOString() });
+      .upsert(
+        { user_id: user.id, room_id: roomId, ...values, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,room_id' }
+      );
     if (err) return { error: err.message };
     setGoal({ user_id: user.id, room_id: roomId, ...values, updated_at: new Date().toISOString() });
     return {};

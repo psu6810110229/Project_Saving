@@ -35,7 +35,7 @@ export function GoalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen">
       <div className="max-w-sm mx-auto px-4 pt-6 flex flex-col gap-5">
 
         <h1 className="text-xl text-ink font-semibold">Your battle rooms</h1>
@@ -46,7 +46,7 @@ export function GoalPage() {
           </div>
         ) : rooms.length === 0 ? (
           <div className="bg-surface border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 text-center">
-            <span className="text-4xl">🎯</span>
+            <span className="text-4xl"></span>
             <p className="text-ink font-semibold">No rooms yet</p>
             <p className="text-sm text-ink-muted">Create a room to start a savings battle, or join one with an invite code.</p>
           </div>

@@ -25,23 +25,23 @@ export function BucketRow({ bucket, logs, onNameChange, onTargetChange, onDelete
           value={bucket.name}
           onChange={e => onNameChange(e.target.value)}
           placeholder="Bucket name"
-          className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-terracotta transition-colors"
+          className="flex-1 min-w-0 bg-surface border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-terracotta transition-colors"
         />
-        <div className="flex items-center gap-1 border border-border rounded-lg px-3 py-2 bg-surface">
+        <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-2 bg-surface shrink-0">
           <span className="text-xs text-ink-muted">฿</span>
           <input
             type="number"
             min="1"
             value={bucket.target_amount}
             onChange={e => onTargetChange(Number(e.target.value) || 0)}
-            className="w-20 bg-transparent text-sm text-ink outline-none text-right"
+            className="w-16 sm:w-20 bg-transparent text-sm text-ink outline-none text-right"
           />
         </div>
         <button
           onClick={onDelete}
           disabled={!canDelete}
           title={canDelete ? 'Remove bucket' : 'Cannot remove the only bucket'}
-          className="w-7 h-7 flex items-center justify-center rounded-full text-ink-muted hover:bg-red-100 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-base"
+          className="w-7 h-7 shrink-0 flex items-center justify-center rounded-full text-ink-muted hover:bg-red-100 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-base"
         >
           ✕
         </button>

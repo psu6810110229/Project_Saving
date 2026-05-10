@@ -67,7 +67,7 @@ export function RoomCard({ room, memberCount, onLeave }: Props) {
           onClick={handleCopy}
           className="text-xs text-terracotta hover:underline ml-auto"
         >
-          {copied ? '✓ Copied!' : '📋 Copy'}
+          {copied ? '✓ Copied!' : '� Copy'}
         </button>
       </div>
 

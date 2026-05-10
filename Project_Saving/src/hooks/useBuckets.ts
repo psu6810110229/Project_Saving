@@ -61,9 +61,9 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       if (delErr) return { error: delErr.message };
     }
 
-    // Upsert all remaining / new rows
-    const rows = next.map((d, i) => ({
-      ...(d.id ? { id: d.id } : {}),
+    // Separate updates (with IDs) and inserts (without IDs)
+    const updates = next.filter(d => d.id !== undefined).map((d, i) => ({
+      id: d.id as string,
       user_id: user.id,
       room_id: roomId,
       name: d.name,
@@ -71,11 +71,30 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       position: i,
     }));
 
-    const { error: upsertErr } = await supabase
-      .from('buckets')
-      .upsert(rows, { onConflict: 'id' });
+    const inserts = next.filter(d => d.id === undefined).map((d, i) => ({
+      user_id: user.id,
+      room_id: roomId,
+      name: d.name,
+      target_amount: d.target_amount,
+      position: i + updates.length,
+    }));
 
-    if (upsertErr) return { error: upsertErr.message };
+    // Execute updates
+    if (updates.length > 0) {
+      const { error: upErr } = await supabase
+        .from('buckets')
+        .upsert(updates, { onConflict: 'id' });
+      if (upErr) return { error: upErr.message };
+    }
+
+    // Execute inserts
+    if (inserts.length > 0) {
+      const { error: insErr } = await supabase
+        .from('buckets')
+        .insert(inserts);
+      if (insErr) return { error: insErr.message };
+    }
+
     await fetchBuckets();
     return {};
   }

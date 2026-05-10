@@ -54,8 +54,14 @@ export function Leaderboard({ state }: Props) {
       )}
 
       {/* Rows */}
-      {!loading && entries.map(entry => (
-        <PlayerRow key={entry.userId} entry={entry} />
+      {!loading && entries.map((entry, i) => (
+        <div 
+          key={entry.userId} 
+          className="animate-slide-in-right" 
+          style={{ animationDelay: `${150 + i * 150}ms` }}
+        >
+          <PlayerRow entry={entry} />
+        </div>
       ))}
 
       {/* Waiting placeholder if only 1 player */}

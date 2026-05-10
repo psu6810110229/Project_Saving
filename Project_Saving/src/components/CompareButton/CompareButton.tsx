@@ -9,14 +9,17 @@ export function CompareButton({ onClick, disabled }: Props) {
       onClick={onClick}
       disabled={disabled}
       className="
-        text-xs bg-surface border border-border px-3 py-1.5 rounded-full
-        text-ink-muted
-        hover:text-terracotta hover:border-terracotta
+        w-full flex items-center justify-center gap-2
+        bg-white border-2 border-border/80 rounded-xl px-5 py-3.5
+        text-sm font-bold text-ink shadow-sm
+        hover:border-terracotta hover:text-terracotta hover:shadow-md
+        active:scale-95
         disabled:opacity-40 disabled:cursor-not-allowed
-        transition-colors duration-150
+        transition-all duration-200 group
       "
     >
-      🔀 Compare with…
+      <span className="text-lg group-hover:scale-110 transition-transform"></span>
+      Compare with partner
     </button>
   );
 }

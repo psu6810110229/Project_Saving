@@ -51,16 +51,16 @@ export function JoinRoomModal({ open, onClose, onJoined }: Props) {
   return (
     <Modal open={open} onClose={handleClose} title="Join a room">
       <form onSubmit={handleSubmit} className="px-5 py-4 flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-ink-muted uppercase tracking-widest">Invite code</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] text-slate-500 uppercase tracking-[0.1em] font-bold ml-1">Invite code</label>
           <input
             type="text"
             maxLength={6}
             required
-            placeholder="e.g. A4B7C2"
+            placeholder="A4B7C2"
             value={code}
             onChange={e => { setCode(e.target.value.toUpperCase()); setStatus('idle'); }}
-            className="bg-surface border-2 border-border rounded-xl px-4 py-3 text-ink text-base font-mono tracking-widest text-center outline-none focus:border-terracotta transition-colors uppercase"
+            className="bg-slate-100/80 border border-slate-200 rounded-[1.25rem] px-5 py-4 text-slate-900 text-xl font-mono font-bold tracking-[0.3em] text-center outline-none focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta transition-all placeholder:text-slate-300 shadow-inner uppercase"
           />
         </div>
         {status === 'error' && <p className="text-red-500 text-xs text-center">{errorMsg}</p>}

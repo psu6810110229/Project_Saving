@@ -7,6 +7,7 @@ export interface LeaderboardEntry {
   rank: number;
   userId: string;
   displayName: string;
+  avatarUrl?: string | null;
   saved: number;
   target: number | null;
   percent: number;
@@ -20,7 +21,7 @@ export interface LeaderboardState {
   loading: boolean;
 }
 
-interface RawProfile { id: string; display_name: string; }
+interface RawProfile { id: string; display_name: string; avatar_url?: string | null; }
 interface RawGoal { user_id: string; target_amount: string | number; }
 
 export function useLeaderboard(
@@ -62,7 +63,7 @@ export function useLeaderboard(
         Promise.all([
           supabase
             .from('profiles')
-            .select('id, display_name')
+            .select('id, display_name, avatar_url')
             .in('id', userIds),
           supabase
             .from('goals')
@@ -95,7 +96,7 @@ export function useLeaderboard(
       const hasGoal = target !== null && target > 0;
       const streak = calcStreak(userLogs, today);
       const hasLoggedToday = userLogs.some(l => localDateKey(l.created_at) === today);
-      return { userId: p.id, displayName: p.display_name, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou: p.id === myUserId };
+      return { userId: p.id, displayName: p.display_name, avatarUrl: p.avatar_url, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou: p.id === myUserId };
     });
 
     const sorted = [...raw].sort((a, b) => {
@@ -110,6 +111,7 @@ export function useLeaderboard(
       rank: i + 1,
       userId: p.userId,
       displayName: p.displayName,
+      avatarUrl: p.avatarUrl,
       saved: p.saved,
       target: p.target,
       percent: p.percent,

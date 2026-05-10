@@ -109,15 +109,15 @@ export function ComparePopup({ open, onClose, me, others, allLogs, defaultTarget
             />
             <StatRow
               label="Streak"
-              myVal={mySummary.currentStreak > 0 ? `🔥 ${mySummary.currentStreak}` : '—'}
-              theirVal={theirSummary.currentStreak > 0 ? `🔥 ${theirSummary.currentStreak}` : '—'}
+              myVal={mySummary.currentStreak > 0 ? ` ${mySummary.currentStreak}` : '—'}
+              theirVal={theirSummary.currentStreak > 0 ? ` ${theirSummary.currentStreak}` : '—'}
               myWins={mySummary.currentStreak > theirSummary.currentStreak}
               theirWins={theirSummary.currentStreak > mySummary.currentStreak}
             />
             <StatRow
               label="Longest"
-              myVal={mySummary.longestStreak > 0 ? `🔥 ${mySummary.longestStreak}` : '—'}
-              theirVal={theirSummary.longestStreak > 0 ? `🔥 ${theirSummary.longestStreak}` : '—'}
+              myVal={mySummary.longestStreak > 0 ? ` ${mySummary.longestStreak}` : '—'}
+              theirVal={theirSummary.longestStreak > 0 ? ` ${theirSummary.longestStreak}` : '—'}
               myWins={mySummary.longestStreak > theirSummary.longestStreak}
               theirWins={theirSummary.longestStreak > mySummary.longestStreak}
             />

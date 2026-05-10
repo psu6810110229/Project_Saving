@@ -61,11 +61,11 @@ export function computeNudge({ leaderboard, myUserId, pendingAmount }: NudgeInpu
     if (currentRank === 1) {
       // Lead over rank #2
       const second = leaderboard.find(e => e.rank === 2);
-      if (!second) return `You lead the board — keep the heat 🔥`;
+      if (!second) return `You lead the board — keep the heat `;
       const myPct = me.target && me.target > 0 ? me.saved / me.target : 0;
       const secondPct = second.target && second.target > 0 ? second.saved / second.target : 0;
       const diff = (myPct - secondPct) * 100;
-      return `You lead ${second.displayName} by ${formatPercent(diff)} — keep the heat 🔥`;
+      return `You lead ${second.displayName} by ${formatPercent(diff)} — keep the heat `;
     } else {
       const above = leaderboard.find(e => e.rank === currentRank - 1)!;
       const delta = deltaToOvertake(above);
@@ -77,11 +77,11 @@ export function computeNudge({ leaderboard, myUserId, pendingAmount }: NudgeInpu
   const rankImproved = newRank < currentRank;
 
   if (rankImproved) {
-    return `฿${amount.toLocaleString('th-TH')} jumps you to #${newRank} 🔥`;
+    return `฿${amount.toLocaleString('th-TH')} jumps you to #${newRank} `;
   }
 
   if (newRank === 1) {
-    return `฿${amount.toLocaleString('th-TH')} extends your lead — keep stacking 🔥`;
+    return `฿${amount.toLocaleString('th-TH')} extends your lead — keep stacking `;
   }
 
   // Check if it would cause a tie
@@ -98,5 +98,5 @@ export function computeNudge({ leaderboard, myUserId, pendingAmount }: NudgeInpu
     return `฿${amount.toLocaleString('th-TH')} closes the gap — ${formatCurrency(delta - amount > 0 ? delta - amount : delta)} more to overtake ${aboveEntry.displayName}`;
   }
 
-  return `฿${amount.toLocaleString('th-TH')} closes the gap — keep going 🔥`;
+  return `฿${amount.toLocaleString('th-TH')} closes the gap — keep going `;
 }

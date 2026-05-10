@@ -39,14 +39,14 @@ export function Modal({ open, onClose, children, title }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col md:items-center md:justify-center"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6"
       aria-modal="true"
       role="dialog"
       aria-label={title}
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-[#161311]/80 backdrop-blur-md animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -56,20 +56,21 @@ export function Modal({ open, onClose, children, title }: ModalProps) {
         ref={panelRef}
         tabIndex={-1}
         className="
-          relative z-10 flex flex-col bg-canvas outline-none
-          w-full h-full
-          md:w-auto md:h-auto md:max-w-md md:w-full md:max-h-[90vh]
-          md:rounded-2xl md:shadow-lg md:mx-auto md:my-8
+          relative z-10 flex flex-col bg-white/95 backdrop-blur-2xl outline-none
+          w-full max-w-sm max-h-[90vh] rounded-[3rem] shadow-2xl
+          border border-white/30
           overflow-hidden
+          animate-scale-in
+          text-slate-900
         "
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border shrink-0">
-            <h2 className="text-base font-semibold text-ink">{title}</h2>
+          <div className="flex items-center justify-between px-8 pt-8 pb-4 shrink-0">
+            <h2 className="text-xl font-bold text-slate-800 tracking-tight">{title}</h2>
             <button
               onClick={onClose}
-              className="text-ink-muted hover:text-ink text-xl leading-none p-1 transition-colors"
+              className="text-slate-400 hover:text-slate-600 text-3xl leading-none p-1 transition-colors"
               aria-label="Close"
             >
               ✕
@@ -78,7 +79,7 @@ export function Modal({ open, onClose, children, title }: ModalProps) {
         )}
 
         {/* Content — scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-8 pb-8">
           {children}
         </div>
       </div>

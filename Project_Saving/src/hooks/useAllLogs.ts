@@ -20,21 +20,27 @@ export function useAllLogs(roomId: string | null = null) {
     if (!roomId) { setLogs([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from('savings_logs')
-      .select('id, user_id, amount, note, created_at, room_id, profiles!savings_logs_user_id_fkey(display_name)')
+      .select('id, user_id, amount, note, created_at, room_id, bucket_id, profiles!savings_logs_user_id_fkey(display_name), buckets(name)')
       .eq('room_id', roomId)
       .order('created_at', { ascending: false })
       .limit(CAP);
 
     if (error) return;
-    setLogs((data ?? []).map(row => ({
-      id: row.id,
-      user_id: row.user_id,
-      room_id: row.room_id,
-      amount: Number(row.amount),
-      note: row.note,
-      created_at: row.created_at,
-      display_name: extractDisplayName(row.profiles as RawProfile),
-    })));
+    setLogs((data ?? []).map(row => {
+      const rawBucket = row.buckets as { name: string } | { name: string }[] | null;
+      const bucket_name = Array.isArray(rawBucket) ? rawBucket[0]?.name : rawBucket?.name;
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        room_id: row.room_id,
+        amount: Number(row.amount),
+        note: row.note,
+        created_at: row.created_at,
+        display_name: extractDisplayName(row.profiles as RawProfile),
+        bucket_id: row.bucket_id ?? undefined,
+        bucket_name,
+      };
+    }));
   }
 
   useEffect(() => {
@@ -43,8 +49,8 @@ export function useAllLogs(roomId: string | null = null) {
 
     if (!roomId) return;
 
-    const channel = supabase
-      .channel(`all-logs-popup:${roomId}`)
+    const channelId = `all-logs-popup:${roomId}-${Math.random().toString(36).slice(2, 9)}`;
+    const channel = supabase.channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'savings_logs', filter: `room_id=eq.${roomId}` },

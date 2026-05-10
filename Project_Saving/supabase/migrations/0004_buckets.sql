@@ -52,16 +52,22 @@ alter table savings_logs add column bucket_id uuid references buckets(id) on del
 do $$
 declare
   rec record;
-  bucket_id uuid;
+  v_bucket_id uuid;
   goal_amount numeric;
 begin
+  -- ── Cleanup: Remove any logs/goals referencing non-existent rooms ──
+  -- This handles cases where data might have become orphaned if FKs weren't strictly enforced.
+  delete from savings_logs where room_id not in (select id from rooms);
+  delete from goals where room_id not in (select id from rooms);
+
   for rec in
-    select distinct user_id, room_id
+    select distinct combined.user_id, combined.room_id
     from (
       select user_id, room_id from savings_logs
       union
       select user_id, room_id from goals
     ) combined
+    inner join rooms r on r.id = combined.room_id
   loop
     -- Get goal target (fallback 1 if user has no goal yet)
     select target_amount into goal_amount
@@ -77,18 +83,18 @@ begin
     insert into buckets (user_id, room_id, name, target_amount, position)
     values (rec.user_id, rec.room_id, 'General', goal_amount, 0)
     on conflict (user_id, room_id, name) do nothing
-    returning id into bucket_id;
+    returning id into v_bucket_id;
 
     -- If we did a skip (on conflict), look up the existing id
-    if bucket_id is null then
-      select id into bucket_id
+    if v_bucket_id is null then
+      select id into v_bucket_id
       from buckets
       where user_id = rec.user_id and room_id = rec.room_id and name = 'General';
     end if;
 
     -- Assign logs that don't yet have a bucket
     update savings_logs
-    set bucket_id = bucket_id
+    set bucket_id = v_bucket_id
     where user_id = rec.user_id
       and room_id = rec.room_id
       and bucket_id is null;

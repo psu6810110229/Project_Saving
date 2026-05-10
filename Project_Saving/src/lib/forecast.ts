@@ -6,8 +6,8 @@ export function daysBetween(a: Date, b: Date): number {
   return Math.floor((b.getTime() - a.getTime()) / 86_400_000);
 }
 
-export function tripCountdown(today: Date): number {
-  const trip = new Date(TRIP_DATE + 'T00:00:00');
+export function tripCountdown(today: Date, targetDate?: string): number {
+  const trip = new Date((targetDate || TRIP_DATE) + 'T00:00:00');
   return Math.max(0, daysBetween(today, trip));
 }
 

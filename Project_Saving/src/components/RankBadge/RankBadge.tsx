@@ -17,7 +17,7 @@ export function RankBadge({ rank }: Props) {
         #{rank}
       </div>
       {isFirst && (
-        <span aria-hidden="true" className="text-base leading-none">👑</span>
+        <span aria-hidden="true" className="text-base leading-none"></span>
       )}
     </div>
   );

@@ -10,11 +10,21 @@
 @layer base {
   html, body, #root {
     height: 100%;
+    font-size: 112.5%; /* 18px base text size, enlarges everything using rem */
   }
   body {
     @apply bg-canvas text-ink font-sans antialiased;
   }
   h1, h2, h3 {
     @apply font-semibold;
+  }
+}
+
+@layer utilities {
+  .bg-surface {
+    @apply backdrop-blur-xl border border-white/20;
+  }
+  .bg-terracotta {
+    @apply backdrop-blur-md border border-white/20;
   }
 }

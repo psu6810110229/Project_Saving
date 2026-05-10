@@ -54,8 +54,8 @@ export function useLogs(limit = 30, roomId: string | null = null) {
 
     if (!roomId) return;
 
-    const channel = supabase
-      .channel(`logs:${roomId}`)
+    const channelId = `logs:${roomId}-${Math.random().toString(36).slice(2, 9)}`;
+    const channel = supabase.channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'savings_logs', filter: `room_id=eq.${roomId}` },

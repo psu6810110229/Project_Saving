@@ -77,13 +77,13 @@ export function CreateRoomModal({ open, onClose, onCreated }: Props) {
       <div className="px-5 py-4 flex flex-col gap-4">
         {status === 'done' ? (
           <div className="flex flex-col gap-3 items-center text-center py-4">
-            <span className="text-3xl">🎉</span>
+            <span className="text-3xl"></span>
             <p className="text-base font-semibold text-ink">Room created!</p>
             <p className="text-sm text-ink-muted">Share this code with friends:</p>
             <div className="flex items-center gap-3">
               <span className="text-2xl font-mono font-bold text-terracotta tracking-widest">{createdCode}</span>
               <button onClick={handleCopyCode} className="text-sm text-terracotta hover:underline">
-                {codeCopied ? '✓ Copied!' : '📋 Copy'}
+                {codeCopied ? '✓ Copied!' : '� Copy'}
               </button>
             </div>
             <button
@@ -96,25 +96,25 @@ export function CreateRoomModal({ open, onClose, onCreated }: Props) {
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-ink-muted uppercase tracking-widest">Room name</label>
+              <label className="text-[10px] text-slate-500 uppercase tracking-[0.1em] font-bold ml-1">Room name</label>
               <input
                 type="text"
                 maxLength={40}
                 required
-                placeholder="e.g. 🇯🇵 Japan 2027"
+                placeholder="e.g. �� Japan 2027"
                 value={name}
                 onChange={e => { setName(e.target.value); setStatus('idle'); }}
-                className="bg-surface border-2 border-border rounded-xl px-4 py-3 text-ink text-base outline-none focus:border-terracotta transition-colors"
+                className="bg-slate-100/80 border border-slate-200 rounded-[1.25rem] px-5 py-4 text-slate-900 text-base outline-none focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta transition-all placeholder:text-slate-400 shadow-inner"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-ink-muted uppercase tracking-widest">End date</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-slate-500 uppercase tracking-[0.1em] font-bold ml-1">End date</label>
               <input
                 type="date"
                 required
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="bg-surface border-2 border-border rounded-xl px-4 py-3 text-ink text-base outline-none focus:border-terracotta transition-colors"
+                className="bg-slate-100/80 border border-slate-200 rounded-[1.25rem] px-5 py-4 text-slate-900 text-base outline-none focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta transition-all"
               />
             </div>
             {status === 'error' && <p className="text-red-500 text-xs">{errorMsg}</p>}

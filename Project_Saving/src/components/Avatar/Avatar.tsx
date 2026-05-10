@@ -18,23 +18,30 @@ export function colorForUserId(userId: string): string {
 interface Props {
   userId: string;
   displayName: string;
+  avatarUrl?: string | null;
   /** Size in pixels. Default 40. */
   size?: number;
 }
 
-export function Avatar({ userId, displayName, size = 40 }: Props) {
+export function Avatar({ userId, displayName, avatarUrl, size = 40 }: Props) {
   const bg = colorForUserId(userId);
   const initial = (displayName.trim()[0] ?? '?').toUpperCase();
 
   return (
     <div
-      className={`${bg} rounded-full flex items-center justify-center shrink-0`}
-      style={{ width: size, height: size }}
+      className={`${bg} rounded-full flex items-center justify-center shrink-0 overflow-hidden bg-cover bg-center`}
+      style={{ 
+        width: size, 
+        height: size,
+        backgroundImage: avatarUrl ? `url(${avatarUrl})` : 'none'
+      }}
       aria-label={displayName}
     >
-      <span className="text-white font-bold leading-none" style={{ fontSize: size * 0.4 }}>
-        {initial}
-      </span>
+      {!avatarUrl && (
+        <span className="text-white font-bold leading-none" style={{ fontSize: size * 0.4 }}>
+          {initial}
+        </span>
+      )}
     </div>
   );
 }

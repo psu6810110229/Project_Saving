@@ -46,6 +46,8 @@ export function ProfilePage() {
       .from('profiles')
       .update({ display_name: trimmed })
       .eq('id', profile.id);
+      
+    await supabase.auth.updateUser({ data: { full_name: trimmed, name: trimmed } });
     setNameSaving(false);
     if (error) { setNameError(error.message); }
     else { setNameSaved(true); setTimeout(() => setNameSaved(false), 2000); }
@@ -55,16 +57,50 @@ export function ProfilePage() {
   const [goalOpen, setGoalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen">
       <div className="max-w-sm mx-auto px-4 pt-6 flex flex-col gap-5">
 
-        {/* Header */}
-        <h1 className="text-xl text-ink font-semibold">
-          Hey, {profile?.display_name ?? '…'} 👋
-        </h1>
+        {/* Header & Avatar */}
+        <div className="flex items-center gap-4 animate-fade-in-up">
+          <label className="relative cursor-pointer group">
+            <div className="w-16 h-16 rounded-full overflow-hidden shadow-sm">
+              <img 
+                src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.display_name || 'U')}&background=D4651A&color=fff`} 
+                alt="Avatar"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center group-hover:opacity-100 transition-opacity">
+              <span className="text-[10px] text-white font-bold tracking-widest uppercase">Edit</span>
+            </div>
+            <input 
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || !profile) return;
+                try {
+                  const ext = file.name.split('.').pop();
+                  const filePath = `${profile.id}/avatar_${Date.now()}.${ext}`;
+                  const { error: upErr } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+                  if (upErr) throw upErr;
+                  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+                  await supabase.auth.updateUser({ data: { avatar_url: data.publicUrl } });
+                  await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', profile.id);
+                } catch (err: any) {
+                  alert('Error uploading avatar: ' + err.message);
+                }
+              }} 
+            />
+          </label>
+          <h1 className="text-2xl text-ink font-semibold">
+            Hey, {profile?.display_name ?? '…'} 
+          </h1>
+        </div>
 
         {/* Display name */}
-        <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3">
+        <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           <span className="text-xs text-ink-muted uppercase tracking-widest font-semibold">Display name</span>
           <div className="flex gap-2">
             <input
@@ -86,7 +122,7 @@ export function ProfilePage() {
         </section>
 
         {/* Goal */}
-        <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3">
+        <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           <div className="flex items-center justify-between">
             <span className="text-xs text-ink-muted uppercase tracking-widest font-semibold">Your goal</span>
             <button
@@ -130,7 +166,7 @@ export function ProfilePage() {
 
         {/* Buckets */}
         {activeRoomId && goal && (
-          <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3">
+          <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
             <BucketEditor
               roomId={activeRoomId}
               goalTarget={goal.target_amount}
@@ -140,7 +176,7 @@ export function ProfilePage() {
         )}
 
         {/* Stats */}
-        <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3">
+        <section className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-3 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
           <span className="text-xs text-ink-muted uppercase tracking-widest font-semibold">Your stats</span>
           {logsLoading ? (
             <div className="flex justify-center py-4">
@@ -149,8 +185,8 @@ export function ProfilePage() {
           ) : (
             <div className="flex flex-col gap-2 text-sm">
               <StatRow label="Total saved" value={formatCurrency(total)} />
-              <StatRow label="Current streak" value={`🔥 ${streak} day${streak !== 1 ? 's' : ''}`} />
-              <StatRow label="Longest streak" value={`🔥 ${longest} day${longest !== 1 ? 's' : ''}`} />
+              <StatRow label="Current streak" value={` ${streak} day${streak !== 1 ? 's' : ''}`} />
+              <StatRow label="Longest streak" value={` ${longest} day${longest !== 1 ? 's' : ''}`} />
               <StatRow label="Biggest single" value={formatCurrency(biggest)} />
               <StatRow label="Total logs" value={String(logCount)} />
             </div>
@@ -158,12 +194,14 @@ export function ProfilePage() {
         </section>
 
         {/* Sign out */}
-        <button
-          onClick={signOut}
-          className="w-full bg-surface border border-border rounded-xl py-3 text-sm font-medium text-ink-muted hover:text-red-500 hover:border-red-300 transition-colors"
-        >
-          Sign out
-        </button>
+        <div className="animate-fade-in-up" style={{ animationDelay: '500ms' }}>
+          <button
+            onClick={signOut}
+            className="w-full bg-surface border border-border rounded-xl py-3 text-sm font-medium text-ink-muted hover:text-red-500 hover:border-red-300 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
 
       </div>
     </div>

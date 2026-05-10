@@ -3,7 +3,7 @@
 
 DO $$
 DECLARE
-  art_id uuid := '00000000-0000-0000-0000-000000000art';
+  art_id uuid := '00000000-0000-0000-0000-000000000a47';
 BEGIN
   DELETE FROM public.savings_logs WHERE user_id = art_id;
   DELETE FROM public.goals         WHERE user_id = art_id;

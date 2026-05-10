@@ -4,7 +4,7 @@
 
 DO $$
 DECLARE
-  art_id uuid := '00000000-0000-0000-0000-000000000art';
+  art_id uuid := '00000000-0000-0000-0000-000000000a47';
 BEGIN
 
   -- 1. Insert mock auth user for Art

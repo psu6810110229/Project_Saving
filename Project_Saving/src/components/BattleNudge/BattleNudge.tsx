@@ -1,16 +1,17 @@
 import { computeNudge } from '../../lib/battleNudge';
+import type { LeaderboardEntry } from '../../hooks/useLeaderboard';
 
 interface Props {
-  myTotal: number;
-  partnerTotal: number;
-  partnerName: string;
+  leaderboard: LeaderboardEntry[];
+  myUserId: string;
   pendingAmount: number;
 }
 
-export function BattleNudge({ myTotal, partnerTotal, partnerName, pendingAmount }: Props) {
-  const text = computeNudge({ myTotal, partnerTotal, partnerName, pendingAmount });
-  const projected = myTotal + Math.max(0, pendingAmount);
-  const isAhead = projected > partnerTotal;
+export function BattleNudge({ leaderboard, myUserId, pendingAmount }: Props) {
+  const text = computeNudge({ leaderboard, myUserId, pendingAmount });
+
+  const me = leaderboard.find(e => e.userId === myUserId);
+  const isAhead = me?.rank === 1;
 
   return (
     <p className={`text-sm transition-all duration-200 ${isAhead ? 'text-terracotta font-medium' : 'text-ink-muted'}`}>

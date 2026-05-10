@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(Get-Content \"C:\\\\Users\\\\farnp\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--Fran-s-Folder-Project-Project-Saving\\\\c8ed6199-23b6-46a8-8cee-a74db7b955bb\\\\tasks\\\\b8fh1p247.output\" -Wait -Tail 30)",
+      "Bash(Start-Sleep -Seconds 30)",
+      "Bash(Get-Content \"C:\\\\Users\\\\farnp\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--Fran-s-Folder-Project-Project-Saving\\\\c8ed6199-23b6-46a8-8cee-a74db7b955bb\\\\tasks\\\\b8fh1p247.output\")",
+      "PowerShell(Get-ChildItem \"D:\\\\Fran's Folder\\\\Project\\\\Project_Saving\\\\public\" -Recurse | Select-Object Name, @{N='Size\\(KB\\)';E={[math]::Round\\($_.Length/1KB,1\\)}})"
+    ]
+  }
+}

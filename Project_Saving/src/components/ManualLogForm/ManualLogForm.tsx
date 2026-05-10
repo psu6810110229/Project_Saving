@@ -33,7 +33,7 @@ export function ManualLogForm({ onInsert, onPreview }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <span className="text-xs text-ink-muted uppercase tracking-widest">Manual entry</span>
+      <span className="text-xs text-ink-muted uppercase tracking-widest font-semibold">Manual entry</span>
       <div className="flex gap-2">
         <input
           type="number"
@@ -43,12 +43,24 @@ export function ManualLogForm({ onInsert, onPreview }: Props) {
           placeholder="Amount (฿)"
           value={amount}
           onChange={handleAmountChange}
-          className="flex-1 bg-surface border border-border rounded-lg px-4 py-3 text-ink text-sm placeholder:text-ink-dim outline-none focus:border-terracotta"
+          className="
+            flex-1 bg-surface border-2 border-border rounded-xl px-4 py-4
+            text-ink text-base placeholder:text-ink-dim
+            outline-none focus:border-terracotta
+            transition-colors duration-150
+          "
         />
         <button
           type="submit"
           disabled={status === 'saving'}
-          className="bg-terracotta text-white rounded-lg px-4 py-3 text-sm font-medium disabled:opacity-50"
+          className="
+            bg-terracotta text-white rounded-xl px-6 py-4
+            text-base font-bold shadow-sm
+            hover:shadow-md hover:brightness-105
+            active:scale-95
+            disabled:opacity-50
+            transition-all duration-150
+          "
         >
           {status === 'saving' ? '…' : 'Log'}
         </button>
@@ -59,7 +71,12 @@ export function ManualLogForm({ onInsert, onPreview }: Props) {
         placeholder="Note (optional)"
         value={note}
         onChange={e => setNote(e.target.value)}
-        className="bg-surface border border-border rounded-lg px-4 py-3 text-ink text-sm placeholder:text-ink-dim outline-none focus:border-terracotta"
+        className="
+          bg-surface border-2 border-border rounded-xl px-4 py-4
+          text-ink text-base placeholder:text-ink-dim
+          outline-none focus:border-terracotta
+          transition-colors duration-150
+        "
       />
       {note.length > 0 && (
         <span className="text-xs text-ink-dim text-right">{note.length}/140</span>

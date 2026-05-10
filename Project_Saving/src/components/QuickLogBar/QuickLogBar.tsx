@@ -18,16 +18,23 @@ export function QuickLogBar({ onInsert, onPreview }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-xs text-ink-muted uppercase tracking-widest">Quick log</span>
-      <div className="flex gap-2">
+    <div className="flex flex-col gap-3">
+      <span className="text-xs text-ink-muted uppercase tracking-widest font-semibold">Quick log</span>
+      <div className="flex gap-3">
         {PRESETS.map(amount => (
           <button
             key={amount}
             onClick={() => handleClick(amount)}
             onPointerEnter={() => onPreview?.(amount)}
             onPointerLeave={() => onPreview?.(0)}
-            className="flex-1 bg-surface border border-border rounded-lg py-3 text-sm font-medium text-ink active:bg-border transition-colors hover:border-terracotta hover:text-terracotta"
+            className="
+              flex-1 bg-surface border border-border rounded-xl py-4
+              text-base font-bold text-ink
+              shadow-sm
+              hover:bg-terracotta hover:text-white hover:border-terracotta hover:shadow-md
+              active:scale-95
+              transition-all duration-150
+            "
           >
             +{formatCurrency(amount)}
           </button>

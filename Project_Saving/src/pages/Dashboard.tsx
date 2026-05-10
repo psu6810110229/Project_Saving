@@ -4,11 +4,11 @@ import { useAuth } from '../hooks/useAuth';
 import { useGoal } from '../hooks/useGoal';
 import { useLogs } from '../hooks/useLogs';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
-import { useBattleStats } from '../hooks/useBattleStats';
+import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useReactionBroadcast } from '../hooks/useReactionBroadcast';
 import { CountdownCard } from '../components/CountdownCard/CountdownCard';
 import { ForecastCard } from '../components/ForecastCard/ForecastCard';
-import { BattleDashboard } from '../components/BattleDashboard/BattleDashboard';
+import { Leaderboard } from '../components/Leaderboard/Leaderboard';
 import { BattleNudge } from '../components/BattleNudge/BattleNudge';
 import { QuickLogBar } from '../components/QuickLogBar/QuickLogBar';
 import { ManualLogForm } from '../components/ManualLogForm/ManualLogForm';
@@ -20,12 +20,9 @@ export function Dashboard() {
   const { goal, loading: goalLoading } = useGoal();
   const { logs, loading: logsLoading, insert } = useLogs(30);
   const { total } = useSavingsTotal(profile?.id, logs);
-  const battleStats = useBattleStats(logs);
+  const leaderboardState = useLeaderboard(logs, profile?.id);
   const { sendPing } = useReactionBroadcast(() => {});
   const [pendingAmount, setPendingAmount] = useState(0);
-
-  const myPlayer = battleStats.players?.find(p => p.userId === profile?.id);
-  const partnerPlayer = battleStats.players?.find(p => p.userId !== profile?.id);
 
   function handleInsert(amount: number, note?: string) {
     setPendingAmount(0);
@@ -47,8 +44,8 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Hero: Battle progress */}
-        <BattleDashboard stats={battleStats} />
+        {/* Hero: Leaderboard */}
+        <Leaderboard state={leaderboardState} />
 
         {/* Log composer + Battle Nudge */}
         <div className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-5">
@@ -61,11 +58,10 @@ export function Dashboard() {
             onInsert={(amount, note) => handleInsert(amount, note)}
             onPreview={setPendingAmount}
           />
-          {myPlayer && partnerPlayer && (
+          {profile?.id && leaderboardState.entries.length > 0 && (
             <BattleNudge
-              myTotal={myPlayer.saved}
-              partnerTotal={partnerPlayer.saved}
-              partnerName={partnerPlayer.displayName}
+              leaderboard={leaderboardState.entries}
+              myUserId={profile.id}
               pendingAmount={pendingAmount}
             />
           )}

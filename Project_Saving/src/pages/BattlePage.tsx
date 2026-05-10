@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useGoal } from '../hooks/useGoal';
 import { useLogs } from '../hooks/useLogs';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useReactionBroadcast } from '../hooks/useReactionBroadcast';
+import { useAllLogs } from '../hooks/useAllLogs';
+import { useRoom } from '../components/RoomContext/RoomContext';
 import { CountdownCard } from '../components/CountdownCard/CountdownCard';
 import { ForecastCard } from '../components/ForecastCard/ForecastCard';
 import { Leaderboard } from '../components/Leaderboard/Leaderboard';
@@ -15,22 +18,24 @@ import { LogList } from '../components/LogList/LogList';
 import { LogPopup } from '../components/LogPopup/LogPopup';
 import { CompareButton } from '../components/CompareButton/CompareButton';
 import { ComparePopup } from '../components/ComparePopup/ComparePopup';
+import { RoomSwitcher } from '../components/RoomSwitcher/RoomSwitcher';
 import { ReactionFloater } from '../components/ReactionFloater/ReactionFloater';
-import { useAllLogs } from '../hooks/useAllLogs';
 
 export function BattlePage() {
   const { profile } = useAuth();
-  const { goal, loading: goalLoading } = useGoal();
-  const { logs, loading: logsLoading, insert } = useLogs(5);
+  const { activeRoomId, rooms } = useRoom();
+  const navigate = useNavigate();
+
+  const { goal, loading: goalLoading } = useGoal(activeRoomId);
+  const { logs, loading: logsLoading, insert } = useLogs(5, activeRoomId);
   const { total } = useSavingsTotal(profile?.id, logs);
-  const leaderboardState = useLeaderboard(logs, profile?.id);
+  const leaderboardState = useLeaderboard(logs, profile?.id, activeRoomId);
   const { sendPing } = useReactionBroadcast(() => {});
   const [pendingAmount, setPendingAmount] = useState(0);
   const [logPopupOpen, setLogPopupOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
 
-  // For ComparePopup — all logs needed for chart + stats. Only mounted when compare is open.
-  const { logs: allLogs } = useAllLogs();
+  const { logs: allLogs } = useAllLogs(activeRoomId);
 
   function handleInsert(amount: number, note?: string) {
     setPendingAmount(0);
@@ -42,28 +47,41 @@ export function BattlePage() {
     displayName: e.displayName,
   }));
 
-  // My leaderboard entry
   const myEntry = leaderboardState.entries.find(e => e.isYou);
-  // Others = all entries except me
   const otherEntries = leaderboardState.entries.filter(e => !e.isYou);
-  // Default compare target: the leader (if not me), else first other
   const defaultTargetId = otherEntries.find(e => e.rank === 1)?.userId ?? otherEntries[0]?.userId;
-
   const canCompare = !leaderboardState.loading && !!myEntry && otherEntries.length > 0;
+
+  // No room yet — direct to Goal tab
+  if (!activeRoomId && rooms.length === 0 && !leaderboardState.loading) {
+    return (
+      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <span className="text-5xl">🎯</span>
+        <p className="text-lg font-semibold text-ink">No battle room yet</p>
+        <p className="text-sm text-ink-muted">Create or join a room to start saving with friends.</p>
+        <button
+          onClick={() => navigate('/goal')}
+          className="bg-terracotta text-white rounded-xl px-6 py-3 text-sm font-bold shadow-sm hover:shadow-md active:scale-95 transition-all"
+        >
+          Go to Goal tab
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-canvas">
       <div className="max-w-sm mx-auto px-4 pt-6 flex flex-col gap-5">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl text-ink font-semibold">
-            Hey, {profile?.display_name ?? '…'} 👋
-          </h1>
-          <CompareButton
-            onClick={() => setCompareOpen(true)}
-            disabled={!canCompare}
-          />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col min-w-0">
+            <h1 className="text-xl text-ink font-semibold truncate">
+              Hey, {profile?.display_name ?? '…'} 👋
+            </h1>
+            <RoomSwitcher />
+          </div>
+          <CompareButton onClick={() => setCompareOpen(true)} disabled={!canCompare} />
         </div>
 
         {/* Leaderboard */}
@@ -100,7 +118,7 @@ export function BattlePage() {
           <ForecastCard goal={goal} savedSoFar={total} />
         )}
 
-        {/* Activity feed — 5-log preview */}
+        {/* Activity feed */}
         <div className="flex flex-col gap-2">
           <span className="text-xs text-ink-muted uppercase tracking-widest">Recent activity</span>
           <div className="bg-surface border border-border rounded-xl px-4">
@@ -122,17 +140,16 @@ export function BattlePage() {
 
       </div>
 
-      {/* Full-history popup */}
       {logPopupOpen && (
         <LogPopup
           open={logPopupOpen}
           onClose={() => setLogPopupOpen(false)}
           onSendPing={sendPing}
           players={players}
+          roomId={activeRoomId}
         />
       )}
 
-      {/* Compare popup — mounts allLogs subscription only while open */}
       {compareOpen && myEntry && (
         <ComparePopup
           open={compareOpen}

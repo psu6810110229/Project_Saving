@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useGoal } from '../hooks/useGoal';
 import { useLogs } from '../hooks/useLogs';
 import { useStreak } from '../hooks/useStreak';
+import { useRoom } from '../components/RoomContext/RoomContext';
 import { GoalForm } from '../components/GoalForm/GoalForm';
 import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/format';
@@ -14,8 +15,9 @@ import {
 
 export function ProfilePage() {
   const { profile, signOut } = useAuth();
-  const { goal, loading: goalLoading, save: saveGoal } = useGoal();
-  const { logs, loading: logsLoading } = useLogs(500); // load more for stats
+  const { activeRoomId } = useRoom();
+  const { goal, loading: goalLoading, save: saveGoal } = useGoal(activeRoomId);
+  const { logs, loading: logsLoading } = useLogs(500, activeRoomId); // load more for stats
   const myLogs = useMemo(
     () => logs.filter(l => l.user_id === profile?.id),
     [logs, profile?.id],

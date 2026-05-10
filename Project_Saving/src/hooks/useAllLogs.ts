@@ -12,14 +12,16 @@ function extractDisplayName(profiles: RawProfile): string | undefined {
   return profiles.display_name;
 }
 
-export function useAllLogs() {
+export function useAllLogs(roomId: string | null = null) {
   const [logs, setLogs] = useState<SavingsLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function fetchLogs() {
+    if (!roomId) { setLogs([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from('savings_logs')
-      .select('id, user_id, amount, note, created_at, profiles!savings_logs_user_id_fkey(display_name)')
+      .select('id, user_id, amount, note, created_at, room_id, profiles!savings_logs_user_id_fkey(display_name)')
+      .eq('room_id', roomId)
       .order('created_at', { ascending: false })
       .limit(CAP);
 
@@ -27,6 +29,7 @@ export function useAllLogs() {
     setLogs((data ?? []).map(row => ({
       id: row.id,
       user_id: row.user_id,
+      room_id: row.room_id,
       amount: Number(row.amount),
       note: row.note,
       created_at: row.created_at,
@@ -35,13 +38,16 @@ export function useAllLogs() {
   }
 
   useEffect(() => {
+    setLoading(true);
     fetchLogs().then(() => setLoading(false));
 
+    if (!roomId) return;
+
     const channel = supabase
-      .channel('all-logs-popup')
+      .channel(`all-logs-popup:${roomId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'savings_logs' },
+        { event: '*', schema: 'public', table: 'savings_logs', filter: `room_id=eq.${roomId}` },
         payload => {
           if (payload.eventType === 'INSERT') {
             const row = payload.new as SavingsLog;
@@ -63,7 +69,7 @@ export function useAllLogs() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { logs, loading };
 }

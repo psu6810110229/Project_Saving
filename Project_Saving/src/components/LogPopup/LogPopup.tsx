@@ -15,10 +15,11 @@ interface Props {
   onSendPing: (ping: ReactionPing) => void;
   /** Available players for the filter dropdown, derived from leaderboard entries. */
   players: PlayerOption[];
+  roomId: string | null;
 }
 
-export function LogPopup({ open, onClose, onSendPing, players }: Props) {
-  const { logs, loading } = useAllLogs();
+export function LogPopup({ open, onClose, onSendPing, players, roomId }: Props) {
+  const { logs, loading } = useAllLogs(roomId);
   const [order, setOrder] = useState<'desc' | 'asc'>('desc');
   const [filterUserId, setFilterUserId] = useState<string>('');
 

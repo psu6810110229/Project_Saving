@@ -120,6 +120,7 @@ export function compareSummary(
     // Build a minimal Goal-shaped object for the reused helper
     const fakeGoal = {
       user_id: '',
+      room_id: '',  // not used in predictedCompletion calc
       target_amount: target,
       start_date: startedAt,
       end_date: addDays(todayKey, 365 * 10), // far-future sentinel

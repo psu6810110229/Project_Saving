@@ -4,15 +4,15 @@ import { calcStreak, localDateKey, APP_TZ } from '../lib/streak';
 import type { SavingsLog } from '../types';
 
 export interface LeaderboardEntry {
-  rank: number;          // 1-based, 1 = leader
+  rank: number;
   userId: string;
   displayName: string;
   saved: number;
   target: number | null;
-  percent: number;       // 0..100 clamped for display; raw value used for sort
+  percent: number;
   streak: number;
   hasLoggedToday: boolean;
-  isYou: boolean;        // userId === current auth user
+  isYou: boolean;
 }
 
 export interface LeaderboardState {
@@ -23,18 +23,45 @@ export interface LeaderboardState {
 interface RawProfile { id: string; display_name: string; }
 interface RawGoal { user_id: string; target_amount: string | number; }
 
-export function useLeaderboard(logs: SavingsLog[], myUserId: string | undefined): LeaderboardState {
+export function useLeaderboard(
+  logs: SavingsLog[],
+  myUserId: string | undefined,
+  roomId: string | null = null,
+): LeaderboardState {
   const [profiles, setProfiles] = useState<RawProfile[]>([]);
   const [goals, setGoals] = useState<RawGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [today, setToday] = useState(() => localDateKey(new Date().toISOString(), APP_TZ));
 
   useEffect(() => {
+    if (!roomId) {
+      setProfiles([]);
+      setGoals([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     Promise.all([
-      supabase.from('profiles').select('id, display_name'),
-      supabase.from('goals').select('user_id, target_amount'),
-    ]).then(([{ data: p }, { data: g }]) => {
-      setProfiles(p ?? []);
+      // Fetch profiles for all members of this room
+      supabase
+        .from('room_members')
+        .select('profiles!room_members_user_id_fkey(id, display_name)')
+        .eq('room_id', roomId),
+      // Fetch goals scoped to this room
+      supabase
+        .from('goals')
+        .select('user_id, target_amount')
+        .eq('room_id', roomId),
+    ]).then(([{ data: members }, { data: g }]) => {
+      const rawProfiles: RawProfile[] = (members ?? [])
+        .map((m: { profiles: RawProfile | RawProfile[] | null }) => {
+          const p = m.profiles;
+          return Array.isArray(p) ? p[0] : p;
+        })
+        .filter(Boolean) as RawProfile[];
+
+      setProfiles(rawProfiles);
       setGoals(g ?? []);
       setLoading(false);
     });
@@ -44,12 +71,11 @@ export function useLeaderboard(logs: SavingsLog[], myUserId: string | undefined)
       setToday(prev => prev !== current ? current : prev);
     }, 30_000);
     return () => clearInterval(id);
-  }, []);
+  }, [roomId]);
 
   return useMemo((): LeaderboardState => {
     if (loading) return { entries: [], loading: true };
 
-    // Build raw stats for every profile
     const raw = profiles.map(p => {
       const userLogs = logs.filter(l => l.user_id === p.id);
       const saved = userLogs.reduce((sum, l) => sum + l.amount, 0);
@@ -60,31 +86,14 @@ export function useLeaderboard(logs: SavingsLog[], myUserId: string | undefined)
       const hasGoal = target !== null && target > 0;
       const streak = calcStreak(userLogs, today);
       const hasLoggedToday = userLogs.some(l => localDateKey(l.created_at) === today);
-      return {
-        userId: p.id,
-        displayName: p.display_name,
-        saved,
-        target,
-        _rawPercent: rawPercent,
-        percent,
-        hasGoal,
-        streak,
-        hasLoggedToday,
-        isYou: p.id === myUserId,
-      };
+      return { userId: p.id, displayName: p.display_name, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou: p.id === myUserId };
     });
 
-    // Sort: players with a goal first (by percent desc), then saved desc, then name asc.
-    // Players without a goal go to the bottom (percent stays 0).
     const sorted = [...raw].sort((a, b) => {
-      // No-goal players sink to the bottom
       if (a.hasGoal && !b.hasGoal) return -1;
       if (!a.hasGoal && b.hasGoal) return 1;
-      // Both have goal or both don't: sort by rawPercent desc
       if (b._rawPercent !== a._rawPercent) return b._rawPercent - a._rawPercent;
-      // Tie-break 1: saved desc
       if (b.saved !== a.saved) return b.saved - a.saved;
-      // Tie-break 2: displayName asc (deterministic)
       return a.displayName.localeCompare(b.displayName);
     });
 

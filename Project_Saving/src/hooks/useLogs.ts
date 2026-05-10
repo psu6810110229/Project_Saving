@@ -13,7 +13,7 @@ function extractDisplayName(profiles: RawProfile): string | undefined {
 
 const LIMIT = 100;
 
-export function useLogs(limit = 30) {
+export function useLogs(limit = 30, roomId: string | null = null) {
   const { user } = useAuth();
   const [logs, setLogs] = useState<SavingsLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,16 +21,20 @@ export function useLogs(limit = 30) {
   const cooldown = useRef(false);
 
   async function fetchLogs() {
-    const { data, error: err } = await supabase
+    if (!roomId) { setLogs([]); setLoading(false); return; }
+    let query = supabase
       .from('savings_logs')
-      .select('id, user_id, amount, note, created_at, profiles!savings_logs_user_id_fkey(display_name)')
+      .select('id, user_id, amount, note, created_at, room_id, profiles!savings_logs_user_id_fkey(display_name)')
+      .eq('room_id', roomId)
       .order('created_at', { ascending: false })
       .limit(LIMIT);
 
+    const { data, error: err } = await query;
     if (err) { setError(err.message); return; }
     setLogs((data ?? []).map(row => ({
       id: row.id,
       user_id: row.user_id,
+      room_id: row.room_id,
       amount: Number(row.amount),
       note: row.note,
       created_at: row.created_at,
@@ -39,33 +43,30 @@ export function useLogs(limit = 30) {
   }
 
   useEffect(() => {
+    setLoading(true);
     fetchLogs().then(() => setLoading(false));
 
+    if (!roomId) return;
+
     const channel = supabase
-      .channel('public:savings_logs')
+      .channel(`logs:${roomId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'savings_logs' },
+        { event: '*', schema: 'public', table: 'savings_logs', filter: `room_id=eq.${roomId}` },
         payload => {
           if (payload.eventType === 'INSERT') {
             const row = payload.new as SavingsLog;
             setLogs(prev => {
-              // Replace optimistic temp row if id matches, otherwise prepend
               const exists = prev.some(l => l.id === row.id);
               if (exists) {
-                return prev.map(l => l.id === row.id
-                  ? { ...l, ...row, amount: Number(row.amount) }
-                  : l
-                );
+                return prev.map(l => l.id === row.id ? { ...l, ...row, amount: Number(row.amount) } : l);
               }
               return [{ ...row, amount: Number(row.amount) }, ...prev].slice(0, LIMIT);
             });
           }
           if (payload.eventType === 'UPDATE') {
             const row = payload.new as SavingsLog;
-            setLogs(prev => prev.map(l =>
-              l.id === row.id ? { ...l, ...row, amount: Number(row.amount) } : l
-            ));
+            setLogs(prev => prev.map(l => l.id === row.id ? { ...l, ...row, amount: Number(row.amount) } : l));
           }
           if (payload.eventType === 'DELETE') {
             setLogs(prev => prev.filter(l => l.id !== payload.old.id));
@@ -73,16 +74,16 @@ export function useLogs(limit = 30) {
         }
       )
       .on('system', {}, evt => {
-        // Re-fetch on reconnect to fill any gaps missed during disconnect
         if ((evt as { status?: string }).status === 'SUBSCRIBED') fetchLogs();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function insert(amount: number, note?: string): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };
+    if (!roomId) return { error: 'No active room' };
     if (cooldown.current) return {};
     cooldown.current = true;
     setTimeout(() => { cooldown.current = false; }, 300);
@@ -91,6 +92,7 @@ export function useLogs(limit = 30) {
     const tempLog: SavingsLog = {
       id: tempId,
       user_id: user.id,
+      room_id: roomId,
       amount,
       note: note ?? null,
       created_at: new Date().toISOString(),
@@ -101,13 +103,12 @@ export function useLogs(limit = 30) {
 
     const { error: err } = await supabase
       .from('savings_logs')
-      .insert({ id: tempId, user_id: user.id, amount, note: note ?? null });
+      .insert({ id: tempId, user_id: user.id, room_id: roomId, amount, note: note ?? null });
 
     if (err) {
       setLogs(prev => prev.filter(l => l.id !== tempId));
       return { error: err.message };
     }
-    // Realtime echo will replace the temp row automatically via the subscription
     return {};
   }
 

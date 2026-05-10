@@ -8,15 +8,19 @@ interface Props {
 export function GapBadge({ leaderName, gapAmount }: Props) {
   if (gapAmount === 0) {
     return (
-      <p className="text-xs text-ink-muted text-center py-1">
-        Tied — keep going!
-      </p>
+      <div className="flex justify-center py-1">
+        <span className="bg-surface border border-border text-ink-muted text-xs font-medium px-4 py-1.5 rounded-full">
+          Dead heat — keep going!
+        </span>
+      </div>
     );
   }
 
   return (
-    <p className="text-xs text-terracotta font-medium text-center py-1">
-      {leaderName} leads by {formatCurrency(gapAmount)}
-    </p>
+    <div className="flex justify-center py-1">
+      <span className="bg-terracotta text-white text-xs font-semibold px-4 py-1.5 rounded-full">
+        {leaderName} leads by {formatCurrency(gapAmount)}
+      </span>
+    </div>
   );
 }

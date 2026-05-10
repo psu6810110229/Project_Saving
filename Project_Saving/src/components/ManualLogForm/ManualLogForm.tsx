@@ -2,13 +2,20 @@ import { useState } from 'react';
 
 interface Props {
   onInsert: (amount: number, note?: string) => Promise<{ error?: string }>;
+  onPreview?: (amount: number) => void;
 }
 
-export function ManualLogForm({ onInsert }: Props) {
+export function ManualLogForm({ onInsert, onPreview }: Props) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+
+  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setAmount(e.target.value);
+    setStatus('idle');
+    onPreview?.(Number(e.target.value) || 0);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,7 +28,7 @@ export function ManualLogForm({ onInsert }: Props) {
     setStatus('saving');
     const { error } = await onInsert(n, note.trim() || undefined);
     if (error) { setErrorMsg(error); setStatus('error'); }
-    else { setAmount(''); setNote(''); setStatus('idle'); }
+    else { setAmount(''); setNote(''); setStatus('idle'); onPreview?.(0); }
   }
 
   return (
@@ -35,7 +42,7 @@ export function ManualLogForm({ onInsert }: Props) {
           required
           placeholder="Amount (฿)"
           value={amount}
-          onChange={e => { setAmount(e.target.value); setStatus('idle'); }}
+          onChange={handleAmountChange}
           className="flex-1 bg-surface border border-border rounded-lg px-4 py-3 text-ink text-sm placeholder:text-ink-dim outline-none focus:border-terracotta"
         />
         <button

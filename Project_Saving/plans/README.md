@@ -16,6 +16,7 @@ One detailed plan per task in the 12-step roadmap from `CLAUDE.md`. Each plan mu
 | 10 | Encouragement reactions | [10-reactions-broadcast.md](10-reactions-broadcast.md) |
 | 11 | PWA setup | [11-pwa-setup.md](11-pwa-setup.md) |
 | 12 | Deploy to Vercel | [12-deploy-vercel.md](12-deploy-vercel.md) |
+| 13 | Dashboard UX overhaul + Battle Nudge | [13-dashboard-ux-overhaul.md](13-dashboard-ux-overhaul.md) |
 
 ## How to use these plans
 1. Open the plan for the next pending task.

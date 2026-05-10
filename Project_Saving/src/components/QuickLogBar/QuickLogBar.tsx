@@ -5,9 +5,10 @@ const PRESETS = [100, 500, 1000];
 
 interface Props {
   onInsert: (amount: number) => Promise<{ error?: string }>;
+  onPreview?: (amount: number) => void;
 }
 
-export function QuickLogBar({ onInsert }: Props) {
+export function QuickLogBar({ onInsert, onPreview }: Props) {
   const [errorMsg, setErrorMsg] = useState('');
 
   async function handleClick(amount: number) {
@@ -24,7 +25,9 @@ export function QuickLogBar({ onInsert }: Props) {
           <button
             key={amount}
             onClick={() => handleClick(amount)}
-            className="flex-1 bg-surface border border-border rounded-lg py-3 text-sm font-medium text-ink active:bg-border"
+            onPointerEnter={() => onPreview?.(amount)}
+            onPointerLeave={() => onPreview?.(0)}
+            className="flex-1 bg-surface border border-border rounded-lg py-3 text-sm font-medium text-ink active:bg-border transition-colors hover:border-terracotta hover:text-terracotta"
           >
             +{formatCurrency(amount)}
           </button>

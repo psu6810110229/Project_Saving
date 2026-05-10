@@ -22,6 +22,7 @@ One detailed plan per task in the 12-step roadmap from `CLAUDE.md`. Each plan mu
 | 16 | Log popup with filters & sorting | [16-log-popup-and-filters.md](16-log-popup-and-filters.md) |
 | 17 | Compare modal (player vs player) | [17-compare-modal.md](17-compare-modal.md) |
 | 18 | Rooms + Goal page (data model) | [18-rooms-and-goal-page.md](18-rooms-and-goal-page.md) |
+| 19 | Buckets / sub-goals (10 max per room) | [19-buckets-sub-goals.md](19-buckets-sub-goals.md) |
 
 ## How to use these plans
 1. Open the plan for the next pending task.

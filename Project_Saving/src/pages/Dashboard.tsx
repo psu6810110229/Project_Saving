@@ -3,8 +3,10 @@ import { useAuth } from '../hooks/useAuth';
 import { useGoal } from '../hooks/useGoal';
 import { useLogs } from '../hooks/useLogs';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
+import { useBattleStats } from '../hooks/useBattleStats';
 import { CountdownCard } from '../components/CountdownCard/CountdownCard';
 import { ForecastCard } from '../components/ForecastCard/ForecastCard';
+import { BattleDashboard } from '../components/BattleDashboard/BattleDashboard';
 import { QuickLogBar } from '../components/QuickLogBar/QuickLogBar';
 import { ManualLogForm } from '../components/ManualLogForm/ManualLogForm';
 import { LogList } from '../components/LogList/LogList';
@@ -14,6 +16,7 @@ export function Dashboard() {
   const { goal, loading: goalLoading } = useGoal();
   const { logs, loading: logsLoading, insert } = useLogs(30);
   const { total } = useSavingsTotal(profile?.id, logs);
+  const battleStats = useBattleStats(logs);
 
   return (
     <div className="min-h-screen bg-canvas pb-10">
@@ -30,6 +33,8 @@ export function Dashboard() {
         </div>
 
         <CountdownCard />
+
+        <BattleDashboard stats={battleStats} />
 
         {goalLoading ? (
           <div className="bg-surface border border-border rounded-xl p-5 flex justify-center">

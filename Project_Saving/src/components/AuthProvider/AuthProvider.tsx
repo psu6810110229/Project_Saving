@@ -22,37 +22,46 @@ export const AuthContext = createContext<AuthContextValue>({
   signOut: async () => {},
 });
 
+function profileFromUser(user: User): Profile {
+  const meta = user.user_metadata as { full_name?: string; name?: string; email?: string };
+  return {
+    id: user.id,
+    display_name: meta.full_name ?? meta.name ?? user.email?.split('@')[0] ?? 'User',
+    created_at: user.created_at,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  function applySession(s: Session | null) {
+    setSession(s);
+    const u = s?.user ?? null;
+    setUser(u);
+    // Instant profile from JWT metadata — no extra DB call
+    setProfile(u ? profileFromUser(u) : null);
+    setLoading(false);
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth.getSession().then(({ data }) => applySession(data.session));
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      setLoading(false);
+      applySession(s);
+      // Sync display_name to profiles table in the background
+      if (s?.user) {
+        const u = s.user;
+        const meta = u.user_metadata as { full_name?: string; name?: string };
+        const display_name = meta.full_name ?? meta.name ?? u.email?.split('@')[0] ?? 'User';
+        supabase.from('profiles').upsert({ id: u.id, display_name }).then(() => {});
+      }
     });
 
     return () => listener.subscription.unsubscribe();
   }, []);
-
-  useEffect(() => {
-    if (!user) { setProfile(null); return; }
-    supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }) => setProfile(data));
-  }, [user]);
 
   async function signInWithGoogle() {
     await supabase.auth.signInWithOAuth({

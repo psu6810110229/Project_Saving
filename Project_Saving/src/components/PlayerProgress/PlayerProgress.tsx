@@ -1,4 +1,5 @@
 import { formatCurrency } from '../../lib/format';
+import { StreakFlame } from '../StreakFlame/StreakFlame';
 import type { PlayerStat } from '../../hooks/useBattleStats';
 
 interface Props {
@@ -9,10 +10,13 @@ export function PlayerProgress({ player }: Props) {
   return (
     <div className="flex flex-col gap-2 flex-1">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-ink">{player.displayName}</span>
-        {player.isLeader && (
-          <span className="text-xs bg-terracotta text-white rounded-full px-2 py-0.5">Leading</span>
-        )}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-ink">{player.displayName}</span>
+          {player.isLeader && (
+            <span className="text-xs bg-terracotta text-white rounded-full px-2 py-0.5">Leading</span>
+          )}
+        </div>
+        <StreakFlame streak={player.streak} hasLoggedToday={player.hasLoggedToday} />
       </div>
 
       <div className="w-full bg-border rounded-full h-2">

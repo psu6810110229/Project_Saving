@@ -6,9 +6,20 @@ export function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      navigate(data.session ? '/' : '/login', { replace: true });
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        navigate('/', { replace: true });
+      } else if (event === 'SIGNED_OUT' || !session) {
+        navigate('/login', { replace: true });
+      }
     });
+
+    // Fallback: if already signed in when this page loads
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate('/', { replace: true });
+    });
+
+    return () => listener.subscription.unsubscribe();
   }, [navigate]);
 
   return (

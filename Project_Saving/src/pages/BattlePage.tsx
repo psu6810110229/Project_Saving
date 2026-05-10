@@ -12,21 +12,28 @@ import { BattleNudge } from '../components/BattleNudge/BattleNudge';
 import { QuickLogBar } from '../components/QuickLogBar/QuickLogBar';
 import { ManualLogForm } from '../components/ManualLogForm/ManualLogForm';
 import { LogList } from '../components/LogList/LogList';
+import { LogPopup } from '../components/LogPopup/LogPopup';
 import { ReactionFloater } from '../components/ReactionFloater/ReactionFloater';
 
 export function BattlePage() {
   const { profile } = useAuth();
   const { goal, loading: goalLoading } = useGoal();
-  const { logs, loading: logsLoading, insert } = useLogs(30);
+  const { logs, loading: logsLoading, insert } = useLogs(5);
   const { total } = useSavingsTotal(profile?.id, logs);
   const leaderboardState = useLeaderboard(logs, profile?.id);
   const { sendPing } = useReactionBroadcast(() => {});
   const [pendingAmount, setPendingAmount] = useState(0);
+  const [popupOpen, setPopupOpen] = useState(false);
 
   function handleInsert(amount: number, note?: string) {
     setPendingAmount(0);
     return insert(amount, note);
   }
+
+  const players = leaderboardState.entries.map(e => ({
+    userId: e.userId,
+    displayName: e.displayName,
+  }));
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -73,15 +80,38 @@ export function BattlePage() {
           <ForecastCard goal={goal} savedSoFar={total} />
         )}
 
-        {/* Activity feed */}
+        {/* Activity feed — 5-log preview */}
         <div className="flex flex-col gap-2">
           <span className="text-xs text-ink-muted uppercase tracking-widest">Recent activity</span>
           <div className="bg-surface border border-border rounded-xl px-4">
-            <LogList logs={logs} loading={logsLoading} onSendPing={sendPing} />
+            <LogList
+              logs={logs}
+              loading={logsLoading}
+              onSendPing={sendPing}
+              footer={
+                <button
+                  onClick={() => setPopupOpen(true)}
+                  className="text-sm text-terracotta font-medium hover:underline"
+                >
+                  See all logs →
+                </button>
+              }
+            />
           </div>
         </div>
 
       </div>
+
+      {/* Full-history popup — mounts only when open */}
+      {popupOpen && (
+        <LogPopup
+          open={popupOpen}
+          onClose={() => setPopupOpen(false)}
+          onSendPing={sendPing}
+          players={players}
+        />
+      )}
+
       <ReactionFloater onPing={() => {}} />
     </div>
   );

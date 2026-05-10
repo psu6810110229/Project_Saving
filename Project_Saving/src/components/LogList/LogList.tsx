@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { localDateLabel } from '../../lib/format';
 import { LogItem } from '../LogItem/LogItem';
 import type { SavingsLog } from '../../types';
@@ -7,9 +8,25 @@ interface Props {
   logs: SavingsLog[];
   loading: boolean;
   onSendPing: (ping: ReactionPing) => void;
+  /** Optional node rendered below the last group (e.g. "See all" button). */
+  footer?: ReactNode;
+  /** When set, only logs from this user_id are shown. */
+  filterUserId?: string;
+  /** Sort order. Default 'desc' (newest first). */
+  order?: 'desc' | 'asc';
+  /** Empty-state message when filter returns no logs. */
+  emptyMessage?: string;
 }
 
-export function LogList({ logs, loading, onSendPing }: Props) {
+export function LogList({
+  logs,
+  loading,
+  onSendPing,
+  footer,
+  filterUserId,
+  order = 'desc',
+  emptyMessage = 'No logs yet — start saving!',
+}: Props) {
   if (loading) {
     return (
       <div className="flex justify-center py-6">
@@ -18,20 +35,36 @@ export function LogList({ logs, loading, onSendPing }: Props) {
     );
   }
 
-  if (logs.length === 0) {
-    return <p className="text-sm text-ink-muted text-center py-6">No logs yet — start saving!</p>;
+  // Apply filter
+  const filtered = filterUserId ? logs.filter(l => l.user_id === filterUserId) : logs;
+
+  // Sort by timestamp
+  const sorted = [...filtered].sort((a, b) => {
+    const aTime = new Date(a.created_at).getTime();
+    const bTime = new Date(b.created_at).getTime();
+    return order === 'desc' ? bTime - aTime : aTime - bTime;
+  });
+
+  if (sorted.length === 0) {
+    return (
+      <>
+        <p className="text-sm text-ink-muted text-center py-6">{emptyMessage}</p>
+        {footer && <div className="pb-4">{footer}</div>}
+      </>
+    );
   }
 
-  const groups = logs.reduce<Record<string, SavingsLog[]>>((acc, log) => {
+  // Build date groups preserving sort order
+  const groupMap = new Map<string, SavingsLog[]>();
+  for (const log of sorted) {
     const label = localDateLabel(log.created_at);
-    if (!acc[label]) acc[label] = [];
-    acc[label].push(log);
-    return acc;
-  }, {});
+    if (!groupMap.has(label)) groupMap.set(label, []);
+    groupMap.get(label)!.push(log);
+  }
 
   return (
     <div className="flex flex-col">
-      {Object.entries(groups).map(([label, items]) => (
+      {Array.from(groupMap.entries()).map(([label, items]) => (
         <div key={label}>
           <p className="text-xs text-ink-dim uppercase tracking-widest py-2">{label}</p>
           <div className="divide-y divide-border">
@@ -41,6 +74,11 @@ export function LogList({ logs, loading, onSendPing }: Props) {
           </div>
         </div>
       ))}
+      {footer && (
+        <div className="border-t border-border py-3 flex justify-center">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }

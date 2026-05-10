@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useReactionBroadcast } from '../../hooks/useReactionBroadcast';
 import { EMOJI_MAP } from '../../lib/reactions';

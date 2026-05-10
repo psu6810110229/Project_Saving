@@ -1,11 +1,14 @@
 import { formatCurrency, formatRelativeTime } from '../../lib/format';
+import { ReactionBar } from '../ReactionBar/ReactionBar';
 import type { SavingsLog } from '../../types';
+import type { ReactionPing } from '../../lib/reactions';
 
 interface Props {
   log: SavingsLog;
+  onSendPing: (ping: ReactionPing) => void;
 }
 
-export function LogItem({ log }: Props) {
+export function LogItem({ log, onSendPing }: Props) {
   const initial = (log.display_name ?? '?')[0].toUpperCase();
 
   return (
@@ -22,6 +25,7 @@ export function LogItem({ log }: Props) {
           <p className="text-xs text-ink-muted mt-0.5 truncate">{log.note}</p>
         )}
         <p className="text-xs text-ink-dim mt-0.5">{log.display_name ?? '—'}</p>
+        <ReactionBar logId={log.id} logUserId={log.user_id} onSendPing={onSendPing} />
       </div>
     </div>
   );

@@ -1,13 +1,15 @@
 import { localDateLabel } from '../../lib/format';
 import { LogItem } from '../LogItem/LogItem';
 import type { SavingsLog } from '../../types';
+import type { ReactionPing } from '../../lib/reactions';
 
 interface Props {
   logs: SavingsLog[];
   loading: boolean;
+  onSendPing: (ping: ReactionPing) => void;
 }
 
-export function LogList({ logs, loading }: Props) {
+export function LogList({ logs, loading, onSendPing }: Props) {
   if (loading) {
     return (
       <div className="flex justify-center py-6">
@@ -33,7 +35,9 @@ export function LogList({ logs, loading }: Props) {
         <div key={label}>
           <p className="text-xs text-ink-dim uppercase tracking-widest py-2">{label}</p>
           <div className="divide-y divide-border">
-            {items.map(log => <LogItem key={log.id} log={log} />)}
+            {items.map(log => (
+              <LogItem key={log.id} log={log} onSendPing={onSendPing} />
+            ))}
           </div>
         </div>
       ))}

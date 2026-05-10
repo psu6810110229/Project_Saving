@@ -10,6 +10,8 @@ import { BattleDashboard } from '../components/BattleDashboard/BattleDashboard';
 import { QuickLogBar } from '../components/QuickLogBar/QuickLogBar';
 import { ManualLogForm } from '../components/ManualLogForm/ManualLogForm';
 import { LogList } from '../components/LogList/LogList';
+import { ReactionFloater } from '../components/ReactionFloater/ReactionFloater';
+import { useReactionBroadcast } from '../hooks/useReactionBroadcast';
 
 export function Dashboard() {
   const { profile, signOut } = useAuth();
@@ -17,6 +19,7 @@ export function Dashboard() {
   const { logs, loading: logsLoading, insert } = useLogs(30);
   const { total } = useSavingsTotal(profile?.id, logs);
   const battleStats = useBattleStats(logs);
+  const { sendPing } = useReactionBroadcast(() => {});
 
   return (
     <div className="min-h-screen bg-canvas pb-10">
@@ -53,11 +56,12 @@ export function Dashboard() {
         <div className="flex flex-col gap-2">
           <span className="text-xs text-ink-muted uppercase tracking-widest">Recent activity</span>
           <div className="bg-surface border border-border rounded-xl px-4">
-            <LogList logs={logs} loading={logsLoading} />
+            <LogList logs={logs} loading={logsLoading} onSendPing={sendPing} />
           </div>
         </div>
 
       </div>
+      <ReactionFloater onPing={() => {}} />
     </div>
   );
 }

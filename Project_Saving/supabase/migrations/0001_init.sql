@@ -72,11 +72,16 @@ alter table public.reactions   enable row level security;
 
 -- profiles
 drop policy if exists "profiles: authenticated users can read" on public.profiles;
+drop policy if exists "profiles: owner can insert"             on public.profiles;
 drop policy if exists "profiles: owner can update"             on public.profiles;
 
 create policy "profiles: authenticated users can read"
   on public.profiles for select
   to authenticated using (true);
+
+create policy "profiles: owner can insert"
+  on public.profiles for insert
+  to authenticated with check (auth.uid() = id);
 
 create policy "profiles: owner can update"
   on public.profiles for update

@@ -1,3 +1,5 @@
+begin;
+
 -- Add avatar_url to profiles
 alter table public.profiles add column if not exists avatar_url text;
 
@@ -22,3 +24,5 @@ drop policy if exists "Users can update their own avatar." on storage.objects;
 create policy "Users can update their own avatar."
   on storage.objects for update
   using ( bucket_id = 'avatars' and auth.uid() = owner );
+
+commit;

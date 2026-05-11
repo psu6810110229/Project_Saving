@@ -5,13 +5,13 @@
 
 begin;
 
-alter table rooms
+alter table public.rooms
   add column if not exists category text not null default 'travel';
 
-alter table rooms
+alter table public.rooms
   drop constraint if exists rooms_category_check;
 
-alter table rooms
+alter table public.rooms
   add constraint rooms_category_check
   check (category in ('travel', 'gadget', 'wedding', 'home', 'other'));
 

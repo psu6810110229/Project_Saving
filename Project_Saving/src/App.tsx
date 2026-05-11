@@ -7,6 +7,7 @@ import { AuthCallback } from './pages/AuthCallback';
 import { RewriteInProgress } from './pages/RewriteInProgress';
 import { AtomsPreview } from './pages/AtomsPreview';
 import { MoleculesPreview } from './pages/MoleculesPreview';
+import { OrganismsPreview } from './pages/OrganismsPreview';
 
 function App() {
   return (
@@ -20,6 +21,8 @@ function App() {
             <Route path="/atoms" element={<AtomsPreview />} />
             {/* Dev-only molecule catalog — same idea, one step up the hierarchy. */}
             <Route path="/molecules" element={<MoleculesPreview />} />
+            {/* Dev-only organism catalog — composed page sections. */}
+            <Route path="/organisms" element={<OrganismsPreview />} />
 
             {/* Placeholder root while the new UI is being rebuilt (Steps 5–7). */}
             <Route

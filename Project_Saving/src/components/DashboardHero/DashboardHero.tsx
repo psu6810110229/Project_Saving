@@ -1,0 +1,64 @@
+import type { ReactNode } from 'react';
+import type { ThemeSwatch } from '../../lib/theme';
+import { HeadToHeadCard } from '../HeadToHeadCard/HeadToHeadCard';
+import { MicroGoalCard } from '../MicroGoalCard/MicroGoalCard';
+import { MomentumChart } from '../MomentumChart/MomentumChart';
+import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { TotalVaultCard } from '../TotalVaultCard/TotalVaultCard';
+
+interface DashboardPlayer {
+  name: string;
+  fallback: string;
+  imageUrl?: string | null;
+  saved: number;
+  target: number;
+  themeColor?: ThemeSwatch;
+}
+
+interface DashboardMicroGoal {
+  icon: ReactNode;
+  title: string;
+  remaining: number;
+  pct: number;
+  subtitle?: string;
+}
+
+interface DashboardHeroProps {
+  title: string;
+  subtitle?: string;
+  leftPlayer: DashboardPlayer;
+  rightPlayer: DashboardPlayer;
+  saved: number;
+  target: number;
+  trendPct?: number;
+  momentumSeries: number[];
+  momentumLabels?: string[];
+  microGoal: DashboardMicroGoal;
+}
+
+export function DashboardHero({
+  title,
+  subtitle,
+  leftPlayer,
+  rightPlayer,
+  saved,
+  target,
+  trendPct,
+  momentumSeries,
+  momentumLabels,
+  microGoal,
+}: DashboardHeroProps) {
+  return (
+    <section className="flex flex-col gap-3">
+      <header>
+        <SectionLabel tone="brand">Dashboard</SectionLabel>
+        <h2 className="mt-2 font-mono text-3xl font-bold text-ink">{title}</h2>
+        {subtitle && <p className="mt-1 font-mono text-xs text-ink-muted">{subtitle}</p>}
+      </header>
+      <HeadToHeadCard left={leftPlayer} right={rightPlayer} />
+      <TotalVaultCard saved={saved} target={target} trendPct={trendPct} />
+      <MomentumChart series={momentumSeries} labels={momentumLabels} />
+      <MicroGoalCard {...microGoal} />
+    </section>
+  );
+}

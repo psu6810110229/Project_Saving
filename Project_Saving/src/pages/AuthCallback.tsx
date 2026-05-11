@@ -23,8 +23,8 @@ export function AuthCallback() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center">
-      <div className="w-8 h-8 rounded-full border-2 border-terracotta border-t-transparent animate-spin" />
+    <div className="min-h-[100dvh] flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
     </div>
   );
 }

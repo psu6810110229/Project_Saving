@@ -177,6 +177,7 @@ The active task is also tracked in the session task list. Mark each step done be
 
 - You MAY run automatically: `git add`, `git commit`.
 - You MUST show commit message and wait for approval before running: `git push`.
+- You MUST NOT create or open pull requests unless explicitly requested. Pushing a branch is allowed only when requested or approved; ignore GitHub's automatic PR suggestion link after push.
 - You MUST ask before running: `git merge`.
 - You MUST NOT touch `main` branch directly under any circumstance.
 - If unsure which branch is active → run `git branch` and confirm before doing anything.

@@ -1,7 +1,4 @@
-﻿{
-  "installCommand": "cd Project_Saving && npm install",
-  "buildCommand": "cd Project_Saving && npm run build",
-  "outputDirectory": "Project_Saving/dist",
+{
   "rewrites": [
     {
       "source": "/(.*)",

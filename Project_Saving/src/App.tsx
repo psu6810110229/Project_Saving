@@ -1,58 +1,33 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './components/AuthProvider/AuthProvider';
+import { RoomProvider } from './components/RoomContext/RoomContext';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
-import { AppLayout } from './components/AppLayout/AppLayout';
 import { Login } from './pages/Login';
 import { AuthCallback } from './pages/AuthCallback';
-import { BattlePage } from './pages/BattlePage';
-import { ProfilePage } from './pages/ProfilePage';
-import { GoalPage } from './pages/GoalPage';
+import { RewriteInProgress } from './pages/RewriteInProgress';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          {/* Auth pages — no TabBar */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
+        <RoomProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
 
-          {/* Protected tab pages — with TabBar via AppLayout */}
-          <Route
-            path="/battle"
-            element={
-              <AppLayout>
-                <BattlePage />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <AppLayout>
-                <ProfilePage />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/goal"
-            element={
-              <AppLayout>
-                <GoalPage />
-              </AppLayout>
-            }
-          />
+            {/* Placeholder root while the new UI is being rebuilt (Steps 5–7). */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <RewriteInProgress />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Back-compat redirects */}
-          <Route path="/dashboard" element={<ProtectedRoute><Navigate to="/battle" replace /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><Navigate to="/profile" replace /></ProtectedRoute>} />
-
-          {/* Default: redirect root → /battle (AppLayout handles auth check) */}
-          <Route path="/" element={<Navigate to="/battle" replace />} />
-
-          {/* Unknown routes → /battle */}
-          <Route path="*" element={<Navigate to="/battle" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </RoomProvider>
       </AuthProvider>
     </BrowserRouter>
   );

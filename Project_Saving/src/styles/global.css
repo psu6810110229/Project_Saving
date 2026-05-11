@@ -2,29 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes floatUp {
-  0%   { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-120px) scale(1.4); }
-}
-
 @layer base {
   html, body, #root {
     height: 100%;
-    font-size: 112.5%; /* 18px base text size, enlarges everything using rem */
+  }
+  html {
+    /* Slightly larger base for mobile-first comfort; everything below uses rem */
+    font-size: 100%;
   }
   body {
-    @apply bg-canvas text-ink font-sans antialiased;
+    @apply bg-bg text-ink font-sans antialiased;
+    /* Subtle warm vertical wash so cream canvas doesn't read flat */
+    background-image:
+      radial-gradient(1200px 600px at 50% -10%, rgba(242,107,26,0.05), transparent 60%),
+      radial-gradient(800px 400px at 100% 100%, rgba(142,63,13,0.04), transparent 60%);
+    background-attachment: fixed;
   }
-  h1, h2, h3 {
-    @apply font-semibold;
+  h1, h2, h3, h4 {
+    @apply font-mono font-bold text-ink tracking-tight;
+  }
+  /* The brand logotype and CTA labels use the typewriter face from the mockups */
+  button, input, select, textarea {
+    @apply font-mono;
   }
 }
 
 @layer utilities {
-  .bg-surface {
-    @apply backdrop-blur-xl border border-white/20;
+  /* Neumorphic surface helpers — composed from tokens, not bespoke colors */
+  .surface-raised {
+    @apply bg-surface shadow-neuRaised;
   }
-  .bg-terracotta {
-    @apply backdrop-blur-md border border-white/20;
+  .surface-inset {
+    @apply bg-well shadow-neuPressed;
+  }
+  /* Halo glow used under the orange "Confirm Deposit" CTA in the mockups */
+  .glow-orange {
+    @apply shadow-haloOrange;
+  }
+  /* Hairline divider tinted to the warm palette */
+  .divider-warm {
+    @apply border-t border-brand-100/60;
   }
 }

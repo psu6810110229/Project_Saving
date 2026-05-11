@@ -45,6 +45,7 @@ export function useAllLogs(roomId: string | null = null) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetchLogs().then(() => setLoading(false));
 

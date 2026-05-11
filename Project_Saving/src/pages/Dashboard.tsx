@@ -15,12 +15,12 @@ import {
   IconSmartphone,
   IconTicket,
 } from '../components/Icon/Icon';
-import { useRoom } from '../components/RoomContext/RoomContext';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLogs } from '../hooks/useLogs';
+import { useRoom } from '../hooks/useRoom';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { bucketSaved } from '../lib/buckets';
 import { dailyAmountSeries, fallbackInitial, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
-import { useRoom } from '../components/RoomContext/RoomContext';
+import { useRoom } from './useRoom';
 import { generateInviteCode } from '../lib/inviteCode';
 import type { ProjectCategory, Room } from '../types';
 
@@ -135,6 +135,7 @@ export function useRooms() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRooms();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 

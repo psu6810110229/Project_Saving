@@ -1,21 +1,6 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Room } from '../../types';
-
-interface RoomContextValue {
-  activeRoomId: string | null;
-  activeRoom: Room | null;
-  setActiveRoomId: (id: string | null) => void;
-  rooms: Room[];
-  setRooms: (rooms: Room[]) => void;
-}
-
-export const RoomContext = createContext<RoomContextValue>({
-  activeRoomId: null,
-  activeRoom: null,
-  setActiveRoomId: () => {},
-  rooms: [],
-  setRooms: () => {},
-});
+import { RoomContext } from './RoomContextValue';
 
 const STORAGE_KEY = 'activeRoomId';
 
@@ -37,6 +22,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     if (rooms.length === 0) return;
     const stillExists = rooms.some(r => r.id === activeRoomId);
     if (!stillExists) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveRoomId(rooms[0].id);
     }
   }, [rooms, activeRoomId]);
@@ -48,8 +34,4 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       {children}
     </RoomContext.Provider>
   );
-}
-
-export function useRoom() {
-  return useContext(RoomContext);
 }

@@ -27,7 +27,10 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
     if (!error) setBuckets(data ?? []);
   }, [roomId, user]);
 
-  useEffect(() => { fetchBuckets(); }, [fetchBuckets]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchBuckets();
+  }, [fetchBuckets]);
 
   async function saveBuckets(next: BucketDraft[]): Promise<{ error?: string }> {
     if (!user || !roomId) return { error: 'Not authenticated or no room' };

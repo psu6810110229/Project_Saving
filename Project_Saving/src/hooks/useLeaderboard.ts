@@ -37,6 +37,7 @@ export function useLeaderboard(
 
   useEffect(() => {
     if (!roomId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProfiles([]);
       setGoals([]);
       setLoading(false);

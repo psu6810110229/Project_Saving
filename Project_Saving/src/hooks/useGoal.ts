@@ -16,6 +16,7 @@ export function useGoal(roomId: string | null = null) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!user || !roomId) { setGoal(null); setLoading(false); return; }
     setLoading(true);
     supabase

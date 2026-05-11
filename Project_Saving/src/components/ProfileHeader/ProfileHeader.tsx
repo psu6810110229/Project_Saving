@@ -1,0 +1,40 @@
+import type { ThemeSwatch } from '../../lib/theme';
+import { Avatar } from '../Avatar/Avatar';
+import { Chip } from '../Chip/Chip';
+import { IconEdit } from '../Icon/Icon';
+import { IconButton } from '../IconButton/IconButton';
+import { SectionLabel } from '../SectionLabel/SectionLabel';
+
+interface ProfileHeaderProps {
+  name: string;
+  fallback: string;
+  avatarUrl?: string | null;
+  memberLabel: string;
+  themeColor?: ThemeSwatch;
+  onEdit: () => void;
+}
+
+export function ProfileHeader({
+  name,
+  fallback,
+  avatarUrl,
+  memberLabel,
+  themeColor,
+  onEdit,
+}: ProfileHeaderProps) {
+  return (
+    <section className="rounded-3xl bg-surface shadow-soft p-5 flex items-center gap-4">
+      <Avatar size="lg" fallback={fallback} imageUrl={avatarUrl} ring="theme" themeColor={themeColor} />
+      <div className="flex-1 min-w-0">
+        <SectionLabel tone="muted">Profile</SectionLabel>
+        <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{name}</h2>
+        <div className="mt-2">
+          <Chip tone="peach">{memberLabel}</Chip>
+        </div>
+      </div>
+      <IconButton ariaLabel="Edit profile" onClick={onEdit}>
+        <IconEdit size={18} />
+      </IconButton>
+    </section>
+  );
+}

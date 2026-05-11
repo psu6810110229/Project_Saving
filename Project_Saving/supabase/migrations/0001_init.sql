@@ -29,6 +29,19 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+-- Backfill profiles for users that existed before this trigger/migration ran.
+insert into public.profiles (id, display_name)
+select
+  id,
+  coalesce(
+    raw_user_meta_data ->> 'full_name',
+    raw_user_meta_data ->> 'name',
+    split_part(email, '@', 1),
+    'User'
+  )
+from auth.users
+on conflict (id) do nothing;
+
 -- ── goals ────────────────────────────────────────────────────
 create table if not exists public.goals (
   user_id       uuid primary key references public.profiles(id) on delete cascade,

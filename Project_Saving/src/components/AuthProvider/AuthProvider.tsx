@@ -1,26 +1,9 @@
-import { createContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
-
-interface AuthContextValue {
-  session: Session | null;
-  user: User | null;
-  profile: Profile | null;
-  loading: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signOut: () => Promise<void>;
-}
-
-export const AuthContext = createContext<AuthContextValue>({
-  session: null,
-  user: null,
-  profile: null,
-  loading: true,
-  signInWithGoogle: async () => {},
-  signOut: async () => {},
-});
+import { AuthContext } from './AuthContext';
 
 function profileFromUser(user: User): Profile {
   const meta = user.user_metadata as { full_name?: string; name?: string; email?: string; avatar_url?: string };

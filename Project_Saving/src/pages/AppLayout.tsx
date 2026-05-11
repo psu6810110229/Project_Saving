@@ -13,7 +13,7 @@ import {
   IconPlane,
   IconSmartphone,
 } from '../components/Icon/Icon';
-import { useRoom } from '../components/RoomContext/RoomContext';
+import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import type { ProjectCategory } from '../types';
 

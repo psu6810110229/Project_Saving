@@ -16,11 +16,11 @@ import {
   IconSmartphone,
   IconTicket,
 } from '../components/Icon/Icon';
-import { useRoom } from '../components/RoomContext/RoomContext';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLogs } from '../hooks/useLogs';
+import { useRoom } from '../hooks/useRoom';
 import { bucketSaved } from '../lib/buckets';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';

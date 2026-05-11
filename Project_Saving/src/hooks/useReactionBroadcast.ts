@@ -6,7 +6,10 @@ type PingHandler = (ping: ReactionPing) => void;
 
 export function useReactionBroadcast(onPing: PingHandler) {
   const handlerRef = useRef(onPing);
-  handlerRef.current = onPing;
+
+  useEffect(() => {
+    handlerRef.current = onPing;
+  }, [onPing]);
 
   useEffect(() => {
     const channel = supabase

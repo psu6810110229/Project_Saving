@@ -49,7 +49,8 @@ export function useReactions(logId: string) {
     setCounts(prev => ({ ...prev, [emoji]: Math.max(0, prev[emoji] + (isMine ? -1 : 1)) }));
     setMyReactions(prev => {
       const next = new Set(prev);
-      isMine ? next.delete(emoji) : next.add(emoji);
+      if (isMine) next.delete(emoji);
+      else next.add(emoji);
       return next;
     });
 

@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { calcStreak, localDateKey, APP_TZ } from '../lib/streak';
-import type { SavingsLog } from '../types';
+import type { ProfileTheme, SavingsLog } from '../types';
 
 export interface LeaderboardEntry {
   rank: number;
   userId: string;
   displayName: string;
   avatarUrl?: string | null;
+  themeColor?: ProfileTheme;
   saved: number;
   target: number | null;
   percent: number;
@@ -21,7 +22,7 @@ export interface LeaderboardState {
   loading: boolean;
 }
 
-interface RawProfile { id: string; display_name: string; avatar_url?: string | null; }
+interface RawProfile { id: string; display_name: string; avatar_url?: string | null; theme_color?: ProfileTheme; }
 interface RawGoal { user_id: string; target_amount: string | number; }
 
 export function useLeaderboard(
@@ -63,7 +64,7 @@ export function useLeaderboard(
         Promise.all([
           supabase
             .from('profiles')
-            .select('id, display_name, avatar_url')
+            .select('id, display_name, avatar_url, theme_color')
             .in('id', userIds),
           supabase
             .from('goals')
@@ -96,7 +97,7 @@ export function useLeaderboard(
       const hasGoal = target !== null && target > 0;
       const streak = calcStreak(userLogs, today);
       const hasLoggedToday = userLogs.some(l => localDateKey(l.created_at) === today);
-      return { userId: p.id, displayName: p.display_name, avatarUrl: p.avatar_url, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou: p.id === myUserId };
+      return { userId: p.id, displayName: p.display_name, avatarUrl: p.avatar_url, themeColor: p.theme_color, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou: p.id === myUserId };
     });
 
     const sorted = [...raw].sort((a, b) => {
@@ -112,6 +113,7 @@ export function useLeaderboard(
       userId: p.userId,
       displayName: p.displayName,
       avatarUrl: p.avatarUrl,
+      themeColor: p.themeColor,
       saved: p.saved,
       target: p.target,
       percent: p.percent,

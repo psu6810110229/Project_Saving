@@ -20,7 +20,7 @@ export function useAllLogs(roomId: string | null = null) {
     if (!roomId) { setLogs([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from('savings_logs')
-      .select('id, user_id, amount, note, created_at, room_id, bucket_id, profiles!savings_logs_user_id_fkey(display_name), buckets(name)')
+      .select('id, user_id, amount, note, created_at, room_id, bucket_id, slip_url, profiles!savings_logs_user_id_fkey(display_name), buckets(name)')
       .eq('room_id', roomId)
       .order('created_at', { ascending: false })
       .limit(CAP);
@@ -39,6 +39,7 @@ export function useAllLogs(roomId: string | null = null) {
         display_name: extractDisplayName(row.profiles as RawProfile),
         bucket_id: row.bucket_id ?? undefined,
         bucket_name,
+        slip_url: row.slip_url,
       };
     }));
   }

@@ -5,10 +5,10 @@
 
 begin;
 
-alter table buckets
+alter table public.buckets
   add column if not exists category text not null default 'other';
 
-update buckets
+update public.buckets
 set category = case
   when lower(name) like '%flight%' then 'flight'
   when lower(name) like '%accom%' or lower(name) like '%stay%' or lower(name) like '%hotel%' then 'accom'
@@ -20,10 +20,10 @@ set category = case
   else category
 end;
 
-alter table buckets
+alter table public.buckets
   drop constraint if exists buckets_category_check;
 
-alter table buckets
+alter table public.buckets
   add constraint buckets_category_check
   check (category in ('travel', 'flight', 'accom', 'dining', 'transport', 'activities', 'gear', 'home', 'other'));
 

@@ -1,13 +1,15 @@
 -- ============================================================
--- Task 18 — Rooms (Battle Circles)
+-- Task 18 - Rooms (Battle Circles)
 -- supabase/migrations/0002_rooms.sql
+--
+-- Repair-friendly: safe to rerun after a partial/manual Supabase reset.
 -- ============================================================
 
 begin;
 
--- ── 1. New tables ─────────────────────────────────────────────
+-- 1. New tables
 
-create table rooms (
+create table if not exists public.rooms (
   id          uuid primary key default gen_random_uuid(),
   name        text not null,
   invite_code text not null unique,
@@ -16,152 +18,176 @@ create table rooms (
   created_at  timestamptz not null default now()
 );
 
-create table room_members (
-  room_id   uuid not null references rooms(id) on delete cascade,
+create table if not exists public.room_members (
+  room_id   uuid not null references public.rooms(id) on delete cascade,
   user_id   uuid not null references auth.users(id) on delete cascade,
   joined_at timestamptz not null default now(),
   primary key (room_id, user_id)
 );
 
-create index idx_room_members_user on room_members(user_id);
+create index if not exists idx_room_members_user on public.room_members(user_id);
 
--- ── 2. Schema changes ─────────────────────────────────────────
+-- 2. Schema changes
 
-alter table goals       add column room_id uuid references rooms(id) on delete cascade;
-alter table savings_logs add column room_id uuid references rooms(id) on delete cascade;
+alter table public.goals
+  add column if not exists room_id uuid references public.rooms(id) on delete cascade;
 
--- ── 3. Backfill existing data into default "Japan 2027" room ──
+alter table public.savings_logs
+  add column if not exists room_id uuid references public.rooms(id) on delete cascade;
+
+-- 3. Backfill existing data into default "Japan 2027" room
 
 do $$
 declare
   default_room_id uuid;
+  first_user_id uuid;
 begin
-  -- Create one default room
-  insert into rooms (name, invite_code, end_date, created_by)
-  select
-    'Japan 2027',
-    'JAPAN7',
-    '2027-11-01',
-    id
+  select id into first_user_id
   from auth.users
   order by created_at asc
-  limit 1
-  returning id into default_room_id;
+  limit 1;
 
-  -- Add every existing user as a member
-  insert into room_members (room_id, user_id)
-  select default_room_id, id
-  from auth.users
-  on conflict do nothing;
+  select id into default_room_id
+  from public.rooms
+  where invite_code = 'JAPAN7'
+  limit 1;
 
-  -- Backfill goals
-  update goals set room_id = default_room_id where room_id is null;
+  if default_room_id is null and first_user_id is not null then
+    insert into public.rooms (name, invite_code, end_date, created_by)
+    values ('Japan 2027', 'JAPAN7', '2027-11-01', first_user_id)
+    returning id into default_room_id;
+  end if;
 
-  -- Backfill savings_logs
-  update savings_logs set room_id = default_room_id where room_id is null;
+  if default_room_id is not null then
+    insert into public.room_members (room_id, user_id)
+    select default_room_id, id
+    from auth.users
+    on conflict do nothing;
+
+    update public.goals
+    set room_id = default_room_id
+    where room_id is null;
+
+    update public.savings_logs
+    set room_id = default_room_id
+    where room_id is null;
+  end if;
 end $$;
 
--- ── 4. Make room_id not null after backfill ───────────────────
+-- 4. Make room_id not null when the backfill is complete
 
-alter table goals        alter column room_id set not null;
-alter table savings_logs alter column room_id set not null;
+do $$
+begin
+  if not exists (select 1 from public.goals where room_id is null) then
+    alter table public.goals alter column room_id set not null;
+  end if;
 
--- ── 5. RLS ────────────────────────────────────────────────────
+  if not exists (select 1 from public.savings_logs where room_id is null) then
+    alter table public.savings_logs alter column room_id set not null;
+  end if;
+end $$;
 
-alter table rooms        enable row level security;
-alter table room_members enable row level security;
+-- 5. RLS
 
--- rooms: select if you are a member
+alter table public.rooms enable row level security;
+alter table public.room_members enable row level security;
+
+drop policy if exists "rooms_select_member"  on public.rooms;
+drop policy if exists "rooms_select_creator" on public.rooms;
+drop policy if exists "rooms_insert_authed"  on public.rooms;
+drop policy if exists "rooms_update_creator" on public.rooms;
+drop policy if exists "rooms_delete_creator" on public.rooms;
+
 create policy "rooms_select_member"
-  on rooms for select
+  on public.rooms for select
   using (
     exists (
-      select 1 from room_members rm
+      select 1 from public.room_members rm
       where rm.room_id = rooms.id and rm.user_id = auth.uid()
     )
   );
 
--- rooms: any authed user can create
+create policy "rooms_select_creator"
+  on public.rooms for select
+  using (created_by = auth.uid());
+
 create policy "rooms_insert_authed"
-  on rooms for insert
+  on public.rooms for insert
   with check (auth.uid() is not null);
 
--- rooms: only creator can update/delete
 create policy "rooms_update_creator"
-  on rooms for update
+  on public.rooms for update
   using (created_by = auth.uid());
 
 create policy "rooms_delete_creator"
-  on rooms for delete
+  on public.rooms for delete
   using (created_by = auth.uid());
 
--- room_members: select if you are a member of the same room
+drop policy if exists "room_members_select"      on public.room_members;
+drop policy if exists "room_members_insert_self" on public.room_members;
+drop policy if exists "room_members_delete_self" on public.room_members;
+
 create policy "room_members_select"
-  on room_members for select
-  using (
-    exists (
-      select 1 from room_members rm2
-      where rm2.room_id = room_members.room_id and rm2.user_id = auth.uid()
-    )
-  );
-
--- room_members: self-insert allowed (handled via RPC, but allow direct for creator)
-create policy "room_members_insert_self"
-  on room_members for insert
-  with check (user_id = auth.uid());
-
--- room_members: self-delete (leave)
-create policy "room_members_delete_self"
-  on room_members for delete
+  on public.room_members for select
   using (user_id = auth.uid());
 
--- goals: extend existing policies to require room membership
--- (Drop old permissive policies if they exist, add room-scoped ones)
-drop policy if exists "Users can insert their own goal" on goals;
-drop policy if exists "Users can select their own goal" on goals;
-drop policy if exists "Users can update their own goal" on goals;
-drop policy if exists "Users can upsert their own goal" on goals;
-drop policy if exists "Users can read all goals" on goals;
-drop policy if exists "Members can read goals in their rooms" on goals;
+create policy "room_members_insert_self"
+  on public.room_members for insert
+  with check (user_id = auth.uid());
+
+create policy "room_members_delete_self"
+  on public.room_members for delete
+  using (user_id = auth.uid());
+
+drop policy if exists "Users can insert their own goal" on public.goals;
+drop policy if exists "Users can select their own goal" on public.goals;
+drop policy if exists "Users can update their own goal" on public.goals;
+drop policy if exists "Users can upsert their own goal" on public.goals;
+drop policy if exists "Users can read all goals" on public.goals;
+drop policy if exists "Members can read goals in their rooms" on public.goals;
+drop policy if exists "goals_member_select" on public.goals;
+drop policy if exists "goals_own_upsert" on public.goals;
+drop policy if exists "goals_own_update" on public.goals;
 
 create policy "goals_member_select"
-  on goals for select
+  on public.goals for select
   using (
     exists (
-      select 1 from room_members rm
+      select 1 from public.room_members rm
       where rm.room_id = goals.room_id and rm.user_id = auth.uid()
     )
   );
 
 create policy "goals_own_upsert"
-  on goals for insert
+  on public.goals for insert
   with check (user_id = auth.uid());
 
 create policy "goals_own_update"
-  on goals for update
+  on public.goals for update
   using (user_id = auth.uid());
 
--- savings_logs: extend to require room membership
-drop policy if exists "Users can insert their own logs" on savings_logs;
-drop policy if exists "Users can select all logs" on savings_logs;
-drop policy if exists "Members can read logs in their rooms" on savings_logs;
+drop policy if exists "Users can insert their own logs" on public.savings_logs;
+drop policy if exists "Users can select all logs" on public.savings_logs;
+drop policy if exists "Members can read logs in their rooms" on public.savings_logs;
+drop policy if exists "logs_member_select" on public.savings_logs;
+drop policy if exists "logs_own_insert" on public.savings_logs;
 
 create policy "logs_member_select"
-  on savings_logs for select
+  on public.savings_logs for select
   using (
     exists (
-      select 1 from room_members rm
+      select 1 from public.room_members rm
       where rm.room_id = savings_logs.room_id and rm.user_id = auth.uid()
     )
   );
 
 create policy "logs_own_insert"
-  on savings_logs for insert
+  on public.savings_logs for insert
   with check (user_id = auth.uid());
 
--- ── 6. join_room_by_code RPC ──────────────────────────────────
+-- 6. join_room_by_code RPC
 
-create or replace function join_room_by_code(code text)
+create or replace function public.join_room_by_code(code text)
 returns uuid
 language plpgsql
 security definer
@@ -171,7 +197,7 @@ declare
   target_room_id uuid;
 begin
   select id into target_room_id
-  from rooms
+  from public.rooms
   where invite_code = upper(trim(code))
   limit 1;
 
@@ -179,7 +205,7 @@ begin
     return null;
   end if;
 
-  insert into room_members (room_id, user_id)
+  insert into public.room_members (room_id, user_id)
   values (target_room_id, auth.uid())
   on conflict do nothing;
 

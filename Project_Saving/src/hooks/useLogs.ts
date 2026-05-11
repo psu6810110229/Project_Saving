@@ -22,9 +22,9 @@ export function useLogs(limit = 30, roomId: string | null = null) {
 
   async function fetchLogs() {
     if (!roomId) { setLogs([]); setLoading(false); return; }
-    let query = supabase
+    const query = supabase
       .from('savings_logs')
-      .select('id, user_id, amount, note, created_at, room_id, bucket_id, profiles!savings_logs_user_id_fkey(display_name), buckets(name)')
+      .select('id, user_id, amount, note, created_at, room_id, bucket_id, slip_url, profiles!savings_logs_user_id_fkey(display_name), buckets(name)')
       .eq('room_id', roomId)
       .order('created_at', { ascending: false })
       .limit(LIMIT);
@@ -44,6 +44,7 @@ export function useLogs(limit = 30, roomId: string | null = null) {
         display_name: extractDisplayName(row.profiles as RawProfile),
         bucket_id: row.bucket_id ?? undefined,
         bucket_name,
+        slip_url: row.slip_url,
       };
     }));
   }
@@ -87,7 +88,7 @@ export function useLogs(limit = 30, roomId: string | null = null) {
     return () => { supabase.removeChannel(channel); };
   }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function insert(amount: number, bucketId: string, note?: string): Promise<{ error?: string }> {
+  async function insert(amount: number, bucketId: string, note?: string, slipUrl?: string | null): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };
     if (!roomId) return { error: 'No active room' };
     if (!bucketId) return { error: 'No bucket selected' };
@@ -105,13 +106,14 @@ export function useLogs(limit = 30, roomId: string | null = null) {
       created_at: new Date().toISOString(),
       display_name: undefined,
       bucket_id: bucketId,
+      slip_url: slipUrl ?? null,
     };
 
     setLogs(prev => [tempLog, ...prev]);
 
     const { error: err } = await supabase
       .from('savings_logs')
-      .insert({ id: tempId, user_id: user.id, room_id: roomId, bucket_id: bucketId, amount, note: note ?? null });
+      .insert({ id: tempId, user_id: user.id, room_id: roomId, bucket_id: bucketId, amount, note: note ?? null, slip_url: slipUrl ?? null });
 
     if (err) {
       setLogs(prev => prev.filter(l => l.id !== tempId));

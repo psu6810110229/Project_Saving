@@ -29,6 +29,19 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+-- Backfill profiles for users that existed before this trigger/migration ran.
+insert into public.profiles (id, display_name)
+select
+  id,
+  coalesce(
+    raw_user_meta_data ->> 'full_name',
+    raw_user_meta_data ->> 'name',
+    split_part(email, '@', 1),
+    'User'
+  )
+from auth.users
+on conflict (id) do nothing;
+
 -- ── goals ────────────────────────────────────────────────────
 create table if not exists public.goals (
   user_id       uuid primary key references public.profiles(id) on delete cascade,
@@ -72,11 +85,16 @@ alter table public.reactions   enable row level security;
 
 -- profiles
 drop policy if exists "profiles: authenticated users can read" on public.profiles;
+drop policy if exists "profiles: owner can insert"             on public.profiles;
 drop policy if exists "profiles: owner can update"             on public.profiles;
 
 create policy "profiles: authenticated users can read"
   on public.profiles for select
   to authenticated using (true);
+
+create policy "profiles: owner can insert"
+  on public.profiles for insert
+  to authenticated with check (auth.uid() = id);
 
 create policy "profiles: owner can update"
   on public.profiles for update

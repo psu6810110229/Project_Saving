@@ -68,6 +68,7 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       room_id: roomId,
       name: d.name,
       target_amount: d.target_amount,
+      category: d.category ?? 'other',
       position: i,
     }));
 
@@ -76,6 +77,7 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       room_id: roomId,
       name: d.name,
       target_amount: d.target_amount,
+      category: d.category ?? 'other',
       position: i + updates.length,
     }));
 

@@ -7,6 +7,7 @@ import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { DashboardHero } from '../components/DashboardHero/DashboardHero';
+import { NudgeButton } from '../components/NudgeButton/NudgeButton';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Segmented } from '../components/Segmented/Segmented';
 import {
@@ -119,6 +120,15 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-8">
+      {partnerEntry && (
+        <div className="flex justify-end">
+          <NudgeButton
+            partnerUserId={partnerEntry.userId}
+            roomId={activeRoomId}
+            partnerName={partnerEntry.displayName ?? 'Partner'}
+          />
+        </div>
+      )}
       <DashboardHero
         title={activeRoom?.name ?? 'Japan 2027'}
         subtitle={`${profile?.display_name ?? 'You'} saved ${formatCurrency(total)} toward ${formatCurrency(target)}`}

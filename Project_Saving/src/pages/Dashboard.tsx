@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { ActivityFeed } from '../components/ActivityFeed/ActivityFeed';
+import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketRowExpandable } from '../components/BucketRowExpandable/BucketRowExpandable';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
@@ -51,6 +52,7 @@ export function Dashboard() {
   const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
@@ -82,6 +84,16 @@ export function Dashboard() {
     target: bucket.target_amount,
   }));
   const partnerName = partnerEntry?.displayName ?? 'Partner';
+  const activityItems = logs.map(log => ({
+    id: log.id,
+    actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? 'You' : 'Partner'),
+    actorFallback: fallbackInitial(log.display_name),
+    bucketName: log.bucket_name ?? 'Savings',
+    amount: log.amount,
+    occurredAt: log.created_at,
+    hasSlip: Boolean(log.slip_url),
+    slipUrl: log.slip_url,
+  }));
   const hasPartnerBuckets = Boolean(partnerEntry) && partnerBucketItems.length > 0;
   const showingPartner = bucketView === 'partner' && hasPartnerBuckets;
 
@@ -212,16 +224,18 @@ export function Dashboard() {
       )}
       {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       {logs.length > 0 ? (
-        <ActivityFeed items={logs.slice(0, 8).map(log => ({
-          id: log.id,
-          actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? 'You' : 'Partner'),
-          actorFallback: fallbackInitial(log.display_name),
-          bucketName: log.bucket_name ?? 'Savings',
-          amount: log.amount,
-          occurredAt: log.created_at,
-          hasSlip: Boolean(log.slip_url),
-          slipUrl: log.slip_url,
-        }))} />
+        <>
+          <ActivityFeed
+            items={activityItems}
+            onViewMore={() => setHistoryOpen(true)}
+            previewLimit={5}
+          />
+          <ActivityHistoryModal
+            open={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            items={activityItems}
+          />
+        </>
       ) : (
         <StatusCard title="No deposits yet" body={`Start with ${formatCurrency(100)} and let the streak begin.`} />
       )}

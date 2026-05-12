@@ -72,7 +72,7 @@ export function MoleculesPreview() {
     <div className="min-h-[100dvh] py-8 px-4">
       <div className="max-w-md mx-auto flex flex-col gap-10">
         <header className="text-center">
-          <SectionLabel tone="brand">Project_Saving · Step 6</SectionLabel>
+          <SectionLabel tone="brand">GO-OUT · Step 6</SectionLabel>
           <h1 className="font-mono text-3xl font-bold mt-2 text-ink">Molecules Preview</h1>
           <p className="font-mono text-xs text-ink-muted mt-2">
             Mobile-first ({'<'} 375px base). Open `/molecules` in dev.

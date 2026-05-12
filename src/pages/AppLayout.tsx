@@ -77,7 +77,7 @@ function ProjectSetup({
   return (
     <div className="flex flex-col gap-4">
       <header>
-        <SectionLabel tone="brand">Project_Saving</SectionLabel>
+        <SectionLabel tone="brand">GO-OUT</SectionLabel>
         <h1 className="mt-2 font-mono text-3xl font-bold text-ink">Start a savings project</h1>
         <p className="mt-2 font-mono text-xs text-ink-muted">Create the Japan trip vault or join with Art's code.</p>
       </header>
@@ -119,7 +119,7 @@ function ProjectSetup({
 function StatusCard({ title, body }: { title: string; body: string }) {
   return (
     <section className="rounded-3xl bg-surface p-5 shadow-soft">
-      <SectionLabel tone="brand">Project_Saving</SectionLabel>
+      <SectionLabel tone="brand">GO-OUT</SectionLabel>
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
     </section>

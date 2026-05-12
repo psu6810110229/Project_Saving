@@ -44,7 +44,7 @@ export default {
         // Typewriter slab face for headings + branded surfaces (matches mockups)
         mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
         // Sans fallback for long-form body text
-        sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        sans: ['"IBM Plex Sans Thai"', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         lg:   '14px',

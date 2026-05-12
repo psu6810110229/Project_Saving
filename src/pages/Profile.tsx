@@ -35,6 +35,7 @@ import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { TextInput } from '../components/TextInput/TextInput';
 import { ThemeSwatchPicker } from '../components/ThemeSwatchPicker/ThemeSwatchPicker';
+import { VersionBadge } from '../components/VersionBadge/VersionBadge';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
@@ -217,6 +218,7 @@ export function Profile() {
           onClick: () => setConfirmingArchive(true),
         }}
       />
+      <VersionBadge />
       <Modal open={activeModal === 'profile'} title="Edit Profile" onClose={closeModal}>
         <div className="flex flex-col gap-4">
           <FormField label="Display Name">

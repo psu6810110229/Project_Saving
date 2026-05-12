@@ -58,7 +58,7 @@ export function OrganismsPreview() {
     <AppShell activeTab={nav} onTabChange={setNav}>
       <div className="flex flex-col gap-10">
         <header className="text-center">
-          <SectionLabel tone="brand">Project_Saving · Step 7</SectionLabel>
+          <SectionLabel tone="brand">GO-OUT · Step 7</SectionLabel>
           <h1 className="font-mono text-3xl font-bold mt-2 text-ink">Organisms Preview</h1>
           <p className="font-mono text-xs text-ink-muted mt-2">Composed from Step 6 molecules.</p>
         </header>

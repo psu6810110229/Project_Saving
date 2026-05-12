@@ -60,7 +60,7 @@ export function AtomsPreview() {
     <div className="min-h-[100dvh] py-10 px-4">
       <div className="max-w-2xl mx-auto flex flex-col gap-10">
         <header className="text-center">
-          <SectionLabel tone="brand">Project_Saving · Step 5</SectionLabel>
+          <SectionLabel tone="brand">GO-OUT · Step 5</SectionLabel>
           <h1 className="text-3xl mt-2">Atoms Preview</h1>
           <p className="text-sm text-ink-muted mt-2">
             Visual smoke test against the mockups. Open `/atoms` in dev to inspect.

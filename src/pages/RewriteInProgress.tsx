@@ -12,7 +12,7 @@ export function RewriteInProgress() {
     <div className="min-h-[100dvh] flex items-center justify-center p-6">
       <div className="surface-raised w-full max-w-sm rounded-2xl p-7 flex flex-col items-center gap-4 animate-fade-in-up">
         <span className="font-mono text-brand-800 text-sm tracking-widest uppercase">
-          Project_Saving
+          GO-OUT
         </span>
         <h1 className="text-2xl text-center">Rewrite in progress</h1>
         <p className="text-sm text-ink-muted text-center">

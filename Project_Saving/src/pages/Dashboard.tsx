@@ -19,16 +19,20 @@ import {
   IconTicket,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
+import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
+import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilter';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
 import { useLeaderboard } from '../hooks/useLeaderboard';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
 import { usePartnerBuckets } from '../hooks/usePartnerBuckets';
 import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { bucketSaved } from '../lib/buckets';
+import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
 import type { Bucket, BucketCategory } from '../types';
@@ -124,10 +128,24 @@ export function Dashboard() {
         saved={totalSaved}
         target={totalTarget}
         trendPct={weeklyTrendPct(logs)}
-        momentumSeries={dailyAmountSeries(logs)}
+        momentumSeries={dailyAmountSeries(logs, user?.id)}
+        partnerMomentumSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
+        yourName={profile?.display_name ?? 'You'}
+        partnerName={partnerEntry?.displayName ?? 'Partner'}
         momentumLabels={lastSevenDayLabels()}
         microGoal={selectedBucket}
       />
+      {partnerEntry && (
+        <SavingRaceSection
+          logs={logs}
+          buckets={[...buckets, ...partnerBuckets]}
+          yourUserId={user?.id}
+          partnerUserId={partnerEntry.userId}
+          yourName={profile?.display_name ?? 'You'}
+          partnerName={partnerEntry.displayName}
+          activeRoomId={activeRoomId}
+        />
+      )}
       {hasPartnerBuckets && (
         <div className="-mb-2 flex items-center justify-end gap-2">
           <Segmented
@@ -278,3 +296,50 @@ const bucketOptions = [
   { id: 'gear' as const, label: 'Gear', icon: <IconSmartphone size={22} /> },
   { id: 'home' as const, label: 'Home', icon: <IconHome size={22} /> },
 ];
+
+interface SavingRaceSectionProps {
+  logs: ReturnType<typeof useLogs>['logs'];
+  buckets: Bucket[];
+  yourUserId: string | undefined;
+  partnerUserId: string;
+  yourName: string;
+  partnerName: string;
+  activeRoomId: string | null;
+}
+
+/**
+ * Renders the Saving Race line chart with a bucket-scope filter. The
+ * filter selection persists per room in localStorage so opening the
+ * Dashboard later restores the previously-viewed scope.
+ *
+ * Defined here (in the same file as `Dashboard`) because the
+ * filter-to-series wiring is single-use Dashboard concern; promoting
+ * to a shared component would force the parent to plumb props that
+ * only this view needs.
+ */
+function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName, partnerName, activeRoomId }: SavingRaceSectionProps) {
+  const storageKey = `saving-race-filter:${activeRoomId ?? 'no-room'}`;
+  const [bucketFilter, setBucketFilter] = useLocalStorageState<string | null>(storageKey, null);
+  const dedupedOptions = Array.from(new Map(buckets.map(b => [b.id, { id: b.id, name: b.name }])).values());
+  const scopeBucket = buckets.find(b => b.id === bucketFilter) ?? null;
+  const scopeLabel = scopeBucket ? `Scope: ${scopeBucket.name}` : 'Scope: all buckets / main goal';
+  const yourSeries = cumulativeRaceSeries(logs, yourUserId, bucketFilter);
+  const partnerSeries = cumulativeRaceSeries(logs, partnerUserId, bucketFilter);
+
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <SectionLabel tone="brand">Competition</SectionLabel>
+        <SavingRaceFilter buckets={dedupedOptions} value={bucketFilter} onChange={setBucketFilter} />
+      </div>
+      <SavingRaceChart
+        yourSeries={yourSeries}
+        partnerSeries={partnerSeries}
+        labels={lastSevenDayLabels()}
+        yourName={yourName}
+        partnerName={partnerName}
+        scopeLabel={scopeLabel}
+      />
+    </section>
+  );
+}

@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'splash/*.png'],
+      includeAssets: ['favicon-32.png', 'favicon-64.png', 'apple-touch-icon.png', 'splash/*.png'],
       manifest: {
         name: 'GO-OUT',
         short_name: 'GO-OUT',

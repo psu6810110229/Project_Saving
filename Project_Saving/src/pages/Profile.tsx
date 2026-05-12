@@ -15,13 +15,10 @@ import {
   IconGear,
   IconHeart,
   IconHome,
-  IconPalette,
   IconPiggyBank,
   IconPlane,
-  IconQrCode,
   IconSmartphone,
   IconTicket,
-  IconTrash,
   IconUser,
   IconUserPlus,
 } from '../components/Icon/Icon';
@@ -35,7 +32,6 @@ import { TextInput } from '../components/TextInput/TextInput';
 import { ThemeSwatchPicker } from '../components/ThemeSwatchPicker/ThemeSwatchPicker';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
-import { useGoal } from '../hooks/useGoal';
 import { useLogs } from '../hooks/useLogs';
 import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
@@ -46,20 +42,19 @@ import { formatCurrency } from '../lib/format';
 import type { ThemeSwatch } from '../lib/theme';
 import type { BucketCategory, ProjectCategory } from '../types';
 
-type ProfileModal = 'profile' | 'theme' | 'buckets' | 'trip-date' | 'quick-amounts' | 'create-project' | 'join-project' | null;
+type ProfileModal = 'profile' | 'buckets' | 'quick-amounts' | 'create-project' | 'join-project' | null;
 
 export function Profile() {
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
+  const { signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
-  const { createRoom, joinRoomByCode, archiveRoom, updateRoom } = useRooms();
+  const { createRoom, joinRoomByCode } = useRooms();
   const { profile, loading, error, themeColor, quickAmounts, updateProfile, updateQuickAmounts } = useProfile();
-  const { goal } = useGoal(activeRoomId);
   const { buckets, saveBuckets } = useBuckets(activeRoomId);
   const { logs } = useLogs(100, activeRoomId);
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
-  const [confirmingArchive, setConfirmingArchive] = useState(false);
+  const [pendingCreateValues, setPendingCreateValues] = useState<{ existingName: string; existingRoomId: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [displayNameDraft, setDisplayNameDraft] = useState<string | null>(null);
   const [themeDraft, setThemeDraft] = useState<ThemeSwatch | null>(null);
@@ -70,7 +65,6 @@ export function Profile() {
   const [projectName, setProjectName] = useState('Japan 2027');
   const [projectTarget, setProjectTarget] = useState('100000');
   const [projectEndDate, setProjectEndDate] = useState('2027-11-01');
-  const [tripDateDraft, setTripDateDraft] = useState(activeRoom?.end_date ?? '');
   const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>(quickAmounts.map(String));
   const [joinCode, setJoinCode] = useState('');
 
@@ -81,7 +75,6 @@ export function Profile() {
   const theme = themeDraft ?? themeColor;
 
   function openModal(next: ProfileModal) {
-    if (next === 'trip-date') setTripDateDraft(activeRoom?.end_date ?? '');
     if (next === 'quick-amounts') setQuickAmountDrafts(quickAmounts.map(String));
     setActiveModal(next);
     setMessage(null);
@@ -119,7 +112,7 @@ export function Profile() {
     }
   }
 
-  async function handleCreateProject() {
+  async function handleCreateProject(options: { archiveExisting?: boolean } = {}) {
     const target = Number(projectTarget);
     if (!projectCategory || !projectName.trim() || !projectEndDate || target <= 0) {
       setMessage('Fill in the project details first.');
@@ -130,21 +123,16 @@ export function Profile() {
       target_amount: target,
       end_date: projectEndDate,
       category: projectCategory,
-    });
+    }, options);
+    if (result.conflict) {
+      setPendingCreateValues(result.conflict);
+      return;
+    }
     if (result.error) setMessage(result.error);
     else {
+      setPendingCreateValues(null);
       closeModal();
       navigate('/dashboard');
-    }
-  }
-
-  async function handleTripDateSave() {
-    if (!activeRoomId || !tripDateDraft) return;
-    const result = await updateRoom(activeRoomId, { end_date: tripDateDraft });
-    if (result.error) setMessage(result.error);
-    else {
-      setMessage('Trip date updated.');
-      closeModal();
     }
   }
 
@@ -166,15 +154,7 @@ export function Profile() {
     }
   }
 
-  async function handleArchive() {
-    if (!activeRoomId) return;
-    const result = await archiveRoom(activeRoomId);
-    if (result.error) setMessage(result.error);
-    else {
-      setConfirmingArchive(false);
-      navigate('/dashboard');
-    }
-  }
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -190,30 +170,14 @@ export function Profile() {
       {message && <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList
         items={[
-          { id: 'profile', icon: <IconEdit size={18} />, label: 'Edit Profile', description: 'Display name and theme', onClick: () => openModal('profile') },
-          { id: 'theme', icon: <IconPalette size={18} />, label: 'Theme Colors', description: 'Personal swatch shown to Art', onClick: () => openModal('theme') },
-          { id: 'invite', icon: <IconQrCode size={18} />, label: 'Project Invite Code', meta: <span className="font-mono text-xs text-brand-800">{activeRoom?.invite_code ?? '------'}</span> },
+          { id: 'profile', icon: <IconEdit size={18} />, label: 'Edit Profile', description: 'Name, photo, and theme color', onClick: () => openModal('profile') },
           { id: 'buckets', icon: <IconGear size={18} />, label: 'Manage Buckets', description: `${buckets.length} active`, onClick: () => openModal('buckets') },
-          {
-            id: 'date',
-            icon: <IconCalendar size={18} />,
-            label: 'Trip Date',
-            description: activeRoom?.end_date ?? 'Not set',
-            meta: <span className="font-mono text-xs text-ink-muted">{goal ? formatCurrency(goal.target_amount) : ''}</span>,
-            onClick: activeRoom?.created_by === user?.id ? () => openModal('trip-date') : undefined,
-          },
           { id: 'quick', icon: <IconPiggyBank size={18} />, label: 'Quick Amounts', description: quickAmounts.map(formatCurrency).join(' / '), onClick: () => openModal('quick-amounts') },
-          { id: 'create', icon: <IconUserPlus size={18} />, label: 'Create Project', description: 'Start another savings vault', onClick: () => openModal('create-project') },
+          { id: 'manage-project', icon: <IconCalendar size={18} />, label: 'Manage Project', description: `${activeRoom?.name ?? 'No active project'} \u00b7 invite code, trip date, archive`, onClick: () => navigate('/manage-project') },
+          { id: 'create', icon: <IconUserPlus size={18} />, label: 'Create New Project', description: 'One active project per creator', onClick: () => openModal('create-project') },
           { id: 'join', icon: <IconBell size={18} />, label: 'Join Project', description: 'Use a 6-character invite code', onClick: () => openModal('join-project') },
           { id: 'signout', icon: <IconUser size={18} />, label: 'Sign Out', onClick: () => setConfirmingSignOut(true) },
         ]}
-        archiveItem={{
-          id: 'archive',
-          icon: <IconTrash size={18} />,
-          label: 'Archive Project',
-          description: 'Hide this project from your vault.',
-          onClick: () => setConfirmingArchive(true),
-        }}
       />
       <Modal open={activeModal === 'profile'} title="Edit Profile" onClose={closeModal}>
         <div className="flex flex-col gap-4">
@@ -222,12 +186,6 @@ export function Profile() {
           </FormField>
           <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
           <Button variant="primary" fullWidth onClick={handleProfileSave}>Save Profile</Button>
-        </div>
-      </Modal>
-      <Modal open={activeModal === 'theme'} title="Theme Colors" onClose={closeModal}>
-        <div className="flex flex-col gap-4">
-          <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
-          <Button variant="primary" fullWidth onClick={handleProfileSave}>Save Theme</Button>
         </div>
       </Modal>
       <Modal open={activeModal === 'buckets'} title="Manage Buckets" onClose={closeModal}>
@@ -243,14 +201,6 @@ export function Profile() {
             onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
             onSubmit={handleCreateBucket}
           />
-        </div>
-      </Modal>
-      <Modal open={activeModal === 'trip-date'} title="Edit Trip Date" onClose={closeModal}>
-        <div className="flex flex-col gap-4">
-          <FormField label="Trip Date">
-            <TextInput value={tripDateDraft} type="date" leadingIcon={<IconCalendar size={16} />} onChange={event => setTripDateDraft(event.target.value)} />
-          </FormField>
-          <Button variant="primary" fullWidth onClick={handleTripDateSave}>Save Date</Button>
         </div>
       </Modal>
       <Modal open={activeModal === 'quick-amounts'} title="Quick Amounts" onClose={closeModal}>
@@ -319,13 +269,15 @@ export function Profile() {
         onConfirm={signOut}
       />
       <ConfirmModal
-        open={confirmingArchive}
-        title="Archive project?"
-        body="This hides the active project from your vault list."
-        confirmLabel="Archive"
+        open={Boolean(pendingCreateValues)}
+        title="Archive current project?"
+        body={pendingCreateValues
+          ? `You already own an active project (${pendingCreateValues.existingName}). Creating a new one will archive it. Your partner will see the old project as offline (read-only) and can still browse past activity.`
+          : ''}
+        confirmLabel="Archive & Continue"
         danger
-        onCancel={() => setConfirmingArchive(false)}
-        onConfirm={handleArchive}
+        onCancel={() => setPendingCreateValues(null)}
+        onConfirm={() => handleCreateProject({ archiveExisting: true })}
       />
     </div>
   );

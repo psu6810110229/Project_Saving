@@ -21,7 +21,7 @@ import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { formatCurrency } from '../lib/format';
 
-type ManageModal = 'trip-date' | 'invite-code' | null;
+type ManageModal = 'trip-goal' | 'invite-code' | null;
 
 /**
  * Manage Project consolidates the per-room admin actions that used to
@@ -39,12 +39,13 @@ export function ManageProject() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
-  const { goal } = useGoal(activeRoomId);
+  const { goal, save: saveGoal } = useGoal(activeRoomId);
   const { archiveRoom, updateRoom } = useRooms();
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [tripDateDraft, setTripDateDraft] = useState(activeRoom?.end_date ?? '');
+  const [targetAmountDraft, setTargetAmountDraft] = useState(goal?.target_amount ? String(goal.target_amount) : '');
 
   if (!activeRoom) {
     return (
@@ -58,7 +59,10 @@ export function ManageProject() {
   const isCreator = activeRoom.created_by === user?.id;
 
   function openModal(next: ManageModal) {
-    if (next === 'trip-date') setTripDateDraft(activeRoom?.end_date ?? '');
+    if (next === 'trip-goal') {
+      setTripDateDraft(activeRoom?.end_date ?? '');
+      setTargetAmountDraft(goal?.target_amount ? String(goal.target_amount) : '');
+    }
     setActiveModal(next);
     setMessage(null);
   }
@@ -68,11 +72,26 @@ export function ManageProject() {
     setMessage(null);
   }
 
-  async function handleTripDateSave() {
-    if (!activeRoomId || !tripDateDraft) return;
-    const result = await updateRoom(activeRoomId, { end_date: tripDateDraft });
-    if (result.error) setMessage(result.error);
-    else { setMessage('Trip date updated.'); closeModal(); }
+  async function handleTripGoalSave() {
+    if (!activeRoomId || !tripDateDraft) {
+      setMessage('Pick a trip date first.');
+      return;
+    }
+    const target = Number(targetAmountDraft);
+    if (!Number.isFinite(target) || target <= 0) {
+      setMessage('Enter a target amount greater than 0.');
+      return;
+    }
+    const roomResult = await updateRoom(activeRoomId, { end_date: tripDateDraft });
+    if (roomResult.error) { setMessage(roomResult.error); return; }
+    const goalResult = await saveGoal({
+      target_amount: target,
+      start_date: goal?.start_date ?? new Date().toISOString().slice(0, 10),
+      end_date: tripDateDraft,
+    });
+    if (goalResult.error) { setMessage(goalResult.error); return; }
+    setMessage('Trip goal updated.');
+    closeModal();
   }
 
   async function handleArchive() {
@@ -95,10 +114,10 @@ export function ManageProject() {
     {
       id: 'date',
       icon: <IconCalendar size={18} />,
-      label: 'Trip Date',
+      label: 'Trip Goal',
       description: activeRoom.end_date ?? 'Not set',
       meta: <span className="font-mono text-xs text-ink-muted">{goal ? formatCurrency(goal.target_amount) : ''}</span>,
-      onClick: isCreator ? () => openModal('trip-date') : undefined,
+      onClick: isCreator ? () => openModal('trip-goal') : undefined,
     },
     {
       id: 'create-another',
@@ -134,12 +153,27 @@ export function ManageProject() {
       <PageHeader eyebrow="Project" title="Manage Project" subtitle={activeRoom.name} />
       {message && <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList items={items} archiveItem={archiveItem} />
-      <Modal open={activeModal === 'trip-date'} title="Trip Date" onClose={closeModal}>
+      <Modal open={activeModal === 'trip-goal'} title="Trip Goal" onClose={closeModal}>
         <div className="flex flex-col gap-4">
           <FormField label="End Date">
-            <TextInput value={tripDateDraft} onChange={event => setTripDateDraft(event.target.value)} />
+            <TextInput
+              type="date"
+              value={tripDateDraft}
+              onChange={event => setTripDateDraft(event.target.value)}
+            />
           </FormField>
-          <Button variant="primary" fullWidth onClick={handleTripDateSave}>Save</Button>
+          <FormField label="Target Amount (THB)">
+            <TextInput
+              type="number"
+              min={0}
+              step={100}
+              inputMode="decimal"
+              placeholder="e.g. 80000"
+              value={targetAmountDraft}
+              onChange={event => setTargetAmountDraft(event.target.value)}
+            />
+          </FormField>
+          <Button variant="primary" fullWidth onClick={handleTripGoalSave}>Save</Button>
         </div>
       </Modal>
       <Modal open={activeModal === 'invite-code'} title="Invite Code" onClose={closeModal}>

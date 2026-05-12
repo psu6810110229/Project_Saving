@@ -19,6 +19,7 @@ interface ActivityTimelineRowProps {
   /** ISO timestamp; rendered as a relative time. */
   occurredAt: string;
   hasSlip?: boolean;
+  onViewSlip?: () => void;
 }
 
 export function ActivityTimelineRow({
@@ -29,6 +30,7 @@ export function ActivityTimelineRow({
   amount,
   occurredAt,
   hasSlip = false,
+  onViewSlip,
 }: ActivityTimelineRowProps) {
   return (
     <div className="flex items-start gap-3 py-3">
@@ -43,7 +45,9 @@ export function ActivityTimelineRow({
         </div>
         {hasSlip && (
           <div className="mt-1.5">
-            <Chip tone="peach" icon={<IconSlip size={12} />}>Slip Attached</Chip>
+            <button type="button" onClick={onViewSlip} disabled={!onViewSlip}>
+              <Chip tone="peach" icon={<IconSlip size={12} />}>Slip Attached</Chip>
+            </button>
           </div>
         )}
       </div>

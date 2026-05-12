@@ -9,6 +9,8 @@ export interface Profile {
   avatar_url?: string | null;
   /** Personal theme swatch persisted on the profile (added in migration 0009). */
   theme_color?: ProfileTheme;
+  /** User-editable quick deposit presets. Added in migration 0015. */
+  quick_add_amounts?: number[] | null;
   created_at: string;
 }
 

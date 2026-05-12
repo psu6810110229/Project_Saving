@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { CategoryTile } from '../CategoryTile/CategoryTile';
+import { IconMoreVertical } from '../Icon/Icon';
+import { Modal } from '../Modal/Modal';
 
 /**
  * Horizontal scroll-able row of CategoryTiles. Used on both:
@@ -24,6 +27,7 @@ interface CategoryRowProps<T extends string> {
   options: Option<T>[];
   value: T | null;
   onChange: (next: T) => void;
+  maxVisible?: number;
 }
 
 export function CategoryRow<T extends string>({
@@ -32,7 +36,17 @@ export function CategoryRow<T extends string>({
   options,
   value,
   onChange,
+  maxVisible = 4,
 }: CategoryRowProps<T>) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const visibleOptions = options.slice(0, maxVisible);
+  const hasMore = options.length > maxVisible;
+
+  function handleSelect(next: T) {
+    onChange(next);
+    setPickerOpen(false);
+  }
+
   return (
     <div>
       {label && <SectionLabel tone="muted">{label}</SectionLabel>}
@@ -43,7 +57,7 @@ export function CategoryRow<T extends string>({
           (shape === 'circle' ? 'justify-start' : 'snap-x snap-mandatory')
         }
       >
-        {options.map(opt => (
+        {visibleOptions.map(opt => (
           <div key={opt.id} className={shape === 'square' ? 'snap-start shrink-0' : 'shrink-0'}>
             <CategoryTile
               shape={shape}
@@ -54,7 +68,31 @@ export function CategoryRow<T extends string>({
             />
           </div>
         ))}
+        {hasMore && (
+          <div className={shape === 'square' ? 'snap-start shrink-0' : 'shrink-0'}>
+            <CategoryTile
+              shape={shape}
+              label="More"
+              icon={<IconMoreVertical size={shape === 'circle' ? 22 : 28} />}
+              onClick={() => setPickerOpen(true)}
+            />
+          </div>
+        )}
       </div>
+      <Modal open={pickerOpen} title={label ?? 'Choose Category'} onClose={() => setPickerOpen(false)}>
+        <div className="grid grid-cols-2 gap-3">
+          {options.map(opt => (
+            <CategoryTile
+              key={opt.id}
+              shape="square"
+              label={opt.label}
+              icon={opt.icon}
+              selected={value === opt.id}
+              onClick={() => handleSelect(opt.id)}
+            />
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 }

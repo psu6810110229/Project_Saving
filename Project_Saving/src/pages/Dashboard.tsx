@@ -1,11 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { ActivityFeed } from '../components/ActivityFeed/ActivityFeed';
+import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketRowExpandable } from '../components/BucketRowExpandable/BucketRowExpandable';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { DashboardHero } from '../components/DashboardHero/DashboardHero';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
+import { Segmented } from '../components/Segmented/Segmented';
 import {
   IconBed,
   IconBriefcase,
@@ -22,6 +24,7 @@ import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLogs } from '../hooks/useLogs';
+import { usePartnerBuckets } from '../hooks/usePartnerBuckets';
 import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
@@ -39,6 +42,9 @@ export function Dashboard() {
   const { logs, loading: logsLoading, error: logsError, insert } = useLogs(100, activeRoomId);
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = useLeaderboard(logs, user?.id, activeRoomId);
+  const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
+  const { buckets: partnerBuckets } = usePartnerBuckets(activeRoomId, partnerEntry?.userId);
+  const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
@@ -64,6 +70,16 @@ export function Dashboard() {
     saved: bucketSaved(bucket.id, logs),
     target: bucket.target_amount,
   }));
+  const partnerBucketItems = partnerBuckets.map(bucket => ({
+    id: bucket.id,
+    icon: bucketIcon(bucket.category),
+    name: bucket.name,
+    saved: bucketSaved(bucket.id, logs),
+    target: bucket.target_amount,
+  }));
+  const partnerName = partnerEntry?.displayName ?? 'Partner';
+  const hasPartnerBuckets = Boolean(partnerEntry) && partnerBucketItems.length > 0;
+  const showingPartner = bucketView === 'partner' && hasPartnerBuckets;
 
   async function handleCreateBucket() {
     const nextTarget = Number(bucketTarget);
@@ -112,26 +128,65 @@ export function Dashboard() {
         momentumLabels={lastSevenDayLabels()}
         microGoal={selectedBucket}
       />
-      <BucketGrid
-        title="Trip Buckets"
-        subtitle={buckets.length > 0 ? `${buckets.length} active buckets` : 'Create your first bucket to split the trip.'}
-        buckets={bucketItems}
-        ctaLabel={buckets.length > 0 ? 'Add Bucket' : 'Create Bucket'}
-        onAddBucket={() => setBucketModalOpen(true)}
-        renderBucket={bucket => (
-          <BucketRowExpandable
-            icon={bucket.icon}
-            name={bucket.name}
-            saved={bucket.saved}
-            target={bucket.target}
-            quickAmounts={quickAmounts}
-            expanded={expandedBucketId === bucket.id}
-            onToggle={() => setExpandedBucketId(expandedBucketId === bucket.id ? null : bucket.id)}
-            onCancel={() => setExpandedBucketId(null)}
-            onConfirm={amount => insert(amount, bucket.id)}
+      {hasPartnerBuckets && (
+        <div className="-mb-2 flex items-center justify-end gap-2">
+          <Segmented
+            ariaLabel="Switch bucket owner"
+            options={[
+              { value: 'mine', label: 'You' },
+              { value: 'partner', label: partnerName },
+            ]}
+            value={bucketView}
+            onChange={next => {
+              setBucketView(next);
+              setExpandedBucketId(null);
+            }}
           />
-        )}
-      />
+        </div>
+      )}
+      {showingPartner ? (
+        <section className="flex flex-col gap-3">
+          <div className="sticky top-0 z-10 -mx-4 bg-bg/95 px-4 py-3 backdrop-blur">
+            <SectionLabel tone="brand">Smart Buckets</SectionLabel>
+            <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{partnerName}'s Buckets</h2>
+            <p className="mt-1 font-mono text-xs text-ink-muted">
+              {partnerBucketItems.length} bucket{partnerBucketItems.length === 1 ? '' : 's'} — read-only
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {partnerBucketItems.map(bucket => (
+              <BucketRow
+                key={bucket.id}
+                icon={bucket.icon}
+                name={bucket.name}
+                saved={bucket.saved}
+                target={bucket.target}
+              />
+            ))}
+          </div>
+        </section>
+      ) : (
+        <BucketGrid
+          title="Trip Buckets"
+          subtitle={buckets.length > 0 ? `${buckets.length} active buckets` : 'Create your first bucket to split the trip.'}
+          buckets={bucketItems}
+          ctaLabel={buckets.length > 0 ? 'Add Bucket' : 'Create Bucket'}
+          onAddBucket={() => setBucketModalOpen(true)}
+          renderBucket={bucket => (
+            <BucketRowExpandable
+              icon={bucket.icon}
+              name={bucket.name}
+              saved={bucket.saved}
+              target={bucket.target}
+              quickAmounts={quickAmounts}
+              expanded={expandedBucketId === bucket.id}
+              onToggle={() => setExpandedBucketId(expandedBucketId === bucket.id ? null : bucket.id)}
+              onCancel={() => setExpandedBucketId(null)}
+              onConfirm={amount => insert(amount, bucket.id)}
+            />
+          )}
+        />
+      )}
       {buckets.length === 0 && (
         <Button variant="action" fullWidth onClick={() => setBucketModalOpen(true)}>
           Create First Bucket

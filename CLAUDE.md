@@ -182,6 +182,61 @@ The active task is also tracked in the session task list. Mark each step done be
 - You MUST NOT touch `main` branch directly under any circumstance.
 - If unsure which branch is active → run `git branch` and confirm before doing anything.
 
+---
+
+## Known Bugfix Patterns & Lessons
+
+### Supabase RLS: room member visibility
+
+Problem seen in Batch #1: user 2 could not see user 1's goal/profile, and total vault showed `saved/0`.
+
+Root cause: `room_members_select` allowed only `user_id = auth.uid()`, so `useLeaderboard` could only fetch the current user's membership row. Do not fix this with a direct `exists(select 1 from room_members ...)` inside the `room_members` policy; that causes recursive RLS.
+
+Use the pattern from `supabase/migrations/0012_fix_room_members_visibility.sql`:
+
+- Create a `security definer` helper such as `public.is_room_member(room_id)`.
+- Set `search_path = public`.
+- Replace `room_members_select` with `using (public.is_room_member(room_id))`.
+- Smoke test with two users in the same room; each user must see both room members, goals, profiles, and logs.
+
+### Supabase profiles: avoid auth-state upsert noise
+
+Problem seen in Batch #1: page load produced repeated `403 POST /rest/v1/profiles?on_conflict=id` errors.
+
+Root causes:
+
+- `AuthProvider.onAuthStateChange` fired a best-effort `profiles.upsert` on every auth event.
+- The profile update policy lacked an explicit `with check` for the PostgREST upsert/update path.
+
+Fix pattern:
+
+- Do not sync `profiles` implicitly from auth-state changes.
+- Let `handle_new_user()` create the profile row.
+- Add explicit update policy: `using (auth.uid() = id) with check (auth.uid() = id)`.
+- If Google names are needed, read `raw_user_meta_data.full_name` / `name` inside the trigger and backfill only profiles that still look auto-generated.
+
+Reference: `supabase/migrations/0013_profiles_upsert_with_check.sql` and `src/components/AuthProvider/AuthProvider.tsx`.
+
+### Buckets: enforce total <= goal twice
+
+Problem seen in Batch #1: user could set bucket targets above their room goal.
+
+Fix pattern:
+
+- Client: `useBuckets.saveBuckets()` fetches the user's goal and rejects saves where `sum(next.target_amount) > goal.target_amount`.
+- Database: `supabase/migrations/0014_bucket_sum_check.sql` adds `trg_bucket_sum_check` so direct DB/API writes cannot bypass the rule.
+- Keep the DB trigger as the source of truth; client validation is only for fast UX feedback.
+
+### Dev/main layout mismatch
+
+Problem seen while merging Batch #1 to `main`: `main` had already flattened the repo layout, while `dev` still carried paths under `Project_Saving/`.
+
+Fix pattern:
+
+- When merging `dev` into `main`, expect file-location conflicts for newly added files.
+- Resolve them into the flattened root paths used by `main`, e.g. `src/...` and `supabase/...`, not `Project_Saving/src/...`.
+- If local untracked files block checkout, use a temporary worktree instead of moving or deleting user files.
+
 ## Branch & Commit Rules
 
 ```

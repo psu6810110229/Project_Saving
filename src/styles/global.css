@@ -1,3 +1,11 @@
+/* Thai font: load alongside IBM Plex Sans so Thai glyphs in display
+   names, room names, and bucket labels render natively rather than
+   falling back to the browser default. The 400/500/600 subset covers
+   body weight and the medium/bold runs we use in headings. */
+@import '@fontsource/ibm-plex-sans-thai/400.css';
+@import '@fontsource/ibm-plex-sans-thai/500.css';
+@import '@fontsource/ibm-plex-sans-thai/600.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -24,6 +32,21 @@
   /* The brand logotype and CTA labels use the typewriter face from the mockups */
   button, input, select, textarea {
     @apply font-mono;
+  }
+  /* Suppress mobile long-press copy/share menu on UI chrome. Long-press
+     would otherwise pop the iOS / Android selection bubble over labels
+     and stat values, which looks broken in a touch-first PWA. Inputs,
+     textareas, anything inside an explicit .copy-allowed surface, and
+     the activity feed (so partners can grab amounts) remain selectable. */
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input, textarea, [contenteditable='true'], .copy-allowed, .copy-allowed * {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
   }
 }
 

@@ -8,6 +8,7 @@ import { AtomsPreview } from './pages/AtomsPreview';
 import { AuthCallback } from './pages/AuthCallback';
 import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
+import { ManageProject } from './pages/ManageProject';
 import { MoleculesPreview } from './pages/MoleculesPreview';
 import { OrganismsPreview } from './pages/OrganismsPreview';
 import { Profile } from './pages/Profile';
@@ -34,6 +35,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/add" element={<AddMoney />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/manage-project" element={<ManageProject />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

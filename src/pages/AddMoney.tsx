@@ -28,6 +28,7 @@ import { useRoom } from '../hooks/useRoom';
 import { bucketSaved } from '../lib/buckets';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
+import { haptic } from '../lib/haptics';
 import type { BucketCategory } from '../types';
 
 export function AddMoney() {
@@ -68,6 +69,7 @@ export function AddMoney() {
     ]);
     if (result.error) setMessage(result.error);
     else {
+      haptic('success');
       setMessage('Bucket created. Pick an amount when it appears above.');
       setBucketName('');
       setBucketTarget('');
@@ -81,9 +83,13 @@ export function AddMoney() {
       return;
     }
     const slipMarker = slip ? `attached:${slip.name}` : null;
+    const prevBucketSaved = bucketSaved(selectedBucket.id, logs);
     const result = await insert(amount, selectedBucket.id, undefined, slipMarker);
     if (result.error) setMessage(result.error);
     else {
+      const reachedBucket = prevBucketSaved < selectedBucket.target_amount
+        && prevBucketSaved + amount >= selectedBucket.target_amount;
+      haptic(reachedBucket ? 'milestone' : 'success');
       setLastDepositAmount(amount);
       setCreated(true);
       setReviewing(false);

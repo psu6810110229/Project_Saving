@@ -1,11 +1,15 @@
 import { useState, type ReactNode } from 'react';
 import { ActivityFeed } from '../components/ActivityFeed/ActivityFeed';
+import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
+import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketRowExpandable } from '../components/BucketRowExpandable/BucketRowExpandable';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { DashboardHero } from '../components/DashboardHero/DashboardHero';
+import { NudgeButton } from '../components/NudgeButton/NudgeButton';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
+import { Segmented } from '../components/Segmented/Segmented';
 import {
   IconBed,
   IconBriefcase,
@@ -17,20 +21,25 @@ import {
   IconTicket,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
-import { PageHeader } from '../components/PageHeader/PageHeader';
+import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
+import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilter';
 import { useAuth } from '../hooks/useAuth';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
 import { useLeaderboard } from '../hooks/useLeaderboard';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
+import { usePartnerBuckets } from '../hooks/usePartnerBuckets';
 import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { bucketSaved } from '../lib/buckets';
+import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
+import { haptic } from '../lib/haptics';
 import type { Bucket, BucketCategory } from '../types';
 
 export function Dashboard() {
@@ -42,8 +51,12 @@ export function Dashboard() {
   const { logs, loading: logsLoading, error: logsError, insert } = useLogs(100, activeRoomId);
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = useLeaderboard(logs, user?.id, activeRoomId);
+  const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
+  const { buckets: partnerBuckets } = usePartnerBuckets(activeRoomId, partnerEntry?.userId);
+  const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
@@ -67,6 +80,26 @@ export function Dashboard() {
     saved: bucketSaved(bucket.id, logs),
     target: bucket.target_amount,
   }));
+  const partnerBucketItems = partnerBuckets.map(bucket => ({
+    id: bucket.id,
+    icon: bucketIcon(bucket.category),
+    name: bucket.name,
+    saved: bucketSaved(bucket.id, logs),
+    target: bucket.target_amount,
+  }));
+  const partnerName = partnerEntry?.displayName ?? 'Partner';
+  const activityItems = logs.map(log => ({
+    id: log.id,
+    actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? 'You' : 'Partner'),
+    actorFallback: fallbackInitial(log.display_name),
+    bucketName: log.bucket_name ?? 'Savings',
+    amount: log.amount,
+    occurredAt: log.created_at,
+    hasSlip: Boolean(log.slip_url),
+    slipUrl: log.slip_url,
+  }));
+  const hasPartnerBuckets = Boolean(partnerEntry) && partnerBucketItems.length > 0;
+  const showingPartner = bucketView === 'partner' && hasPartnerBuckets;
 
   async function handleCreateBucket() {
     const nextTarget = Number(bucketTarget);
@@ -89,7 +122,15 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader eyebrow="Dashboard" title={activeRoom?.name ?? 'Japan 2027'} subtitle="Shared vault overview" />
+      {partnerEntry && (
+        <div className="flex justify-end">
+          <NudgeButton
+            partnerUserId={partnerEntry.userId}
+            roomId={activeRoomId}
+            partnerName={partnerEntry.displayName ?? 'Partner'}
+          />
+        </div>
+      )}
       <DashboardHero
         title={activeRoom?.name ?? 'Japan 2027'}
         subtitle={`${profile?.display_name ?? 'You'} saved ${formatCurrency(total)} toward ${formatCurrency(target)}`}
@@ -112,30 +153,91 @@ export function Dashboard() {
         saved={totalSaved}
         target={totalTarget}
         trendPct={weeklyTrendPct(logs)}
-        momentumSeries={dailyAmountSeries(logs)}
+        momentumSeries={dailyAmountSeries(logs, user?.id)}
+        partnerMomentumSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
+        yourName={profile?.display_name ?? 'You'}
+        partnerName={partnerEntry?.displayName ?? 'Partner'}
         momentumLabels={lastSevenDayLabels()}
         microGoal={selectedBucket}
       />
-      <BucketGrid
-        title="Trip Buckets"
-        subtitle={buckets.length > 0 ? `${buckets.length} active buckets` : 'Create your first bucket to split the trip.'}
-        buckets={bucketItems}
-        ctaLabel={buckets.length > 0 ? 'Add Bucket' : 'Create Bucket'}
-        onAddBucket={() => setBucketModalOpen(true)}
-        renderBucket={bucket => (
-          <BucketRowExpandable
-            icon={bucket.icon}
-            name={bucket.name}
-            saved={bucket.saved}
-            target={bucket.target}
-            quickAmounts={quickAmounts}
-            expanded={expandedBucketId === bucket.id}
-            onToggle={() => setExpandedBucketId(expandedBucketId === bucket.id ? null : bucket.id)}
-            onCancel={() => setExpandedBucketId(null)}
-            onConfirm={amount => insert(amount, bucket.id)}
+      {partnerEntry && (
+        <SavingRaceSection
+          logs={logs}
+          buckets={[...buckets, ...partnerBuckets]}
+          yourUserId={user?.id}
+          partnerUserId={partnerEntry.userId}
+          yourName={profile?.display_name ?? 'You'}
+          partnerName={partnerEntry.displayName}
+          activeRoomId={activeRoomId}
+        />
+      )}
+      {hasPartnerBuckets && (
+        <div className="-mb-2 flex items-center justify-end gap-2">
+          <Segmented
+            ariaLabel="Switch bucket owner"
+            options={[
+              { value: 'mine', label: 'You' },
+              { value: 'partner', label: partnerName },
+            ]}
+            value={bucketView}
+            onChange={next => {
+              setBucketView(next);
+              setExpandedBucketId(null);
+            }}
           />
-        )}
-      />
+        </div>
+      )}
+      {showingPartner ? (
+        <section className="flex flex-col gap-3">
+          <div className="sticky top-0 z-10 -mx-4 bg-bg/95 px-4 py-3 backdrop-blur">
+            <SectionLabel tone="brand">Smart Buckets</SectionLabel>
+            <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{partnerName}'s Buckets</h2>
+            <p className="mt-1 font-mono text-xs text-ink-muted">
+              {partnerBucketItems.length} bucket{partnerBucketItems.length === 1 ? '' : 's'} — read-only
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {partnerBucketItems.map(bucket => (
+              <BucketRow
+                key={bucket.id}
+                icon={bucket.icon}
+                name={bucket.name}
+                saved={bucket.saved}
+                target={bucket.target}
+              />
+            ))}
+          </div>
+        </section>
+      ) : (
+        <BucketGrid
+          title="Trip Buckets"
+          subtitle={buckets.length > 0 ? `${buckets.length} active buckets` : 'Create your first bucket to split the trip.'}
+          buckets={bucketItems}
+          ctaLabel={buckets.length > 0 ? 'Add Bucket' : 'Create Bucket'}
+          onAddBucket={() => setBucketModalOpen(true)}
+          renderBucket={bucket => (
+            <BucketRowExpandable
+              icon={bucket.icon}
+              name={bucket.name}
+              saved={bucket.saved}
+              target={bucket.target}
+              quickAmounts={quickAmounts}
+              expanded={expandedBucketId === bucket.id}
+              onToggle={() => setExpandedBucketId(expandedBucketId === bucket.id ? null : bucket.id)}
+              onCancel={() => setExpandedBucketId(null)}
+              onConfirm={async amount => {
+                const prev = bucket.saved;
+                const result = await insert(amount, bucket.id);
+                if (!result.error) {
+                  const reached = prev < bucket.target && prev + amount >= bucket.target;
+                  haptic(reached ? 'milestone' : 'success');
+                }
+                return result;
+              }}
+            />
+          )}
+        />
+      )}
       {buckets.length === 0 && (
         <Button variant="action" fullWidth onClick={() => setBucketModalOpen(true)}>
           Create First Bucket
@@ -143,16 +245,18 @@ export function Dashboard() {
       )}
       {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       {logs.length > 0 ? (
-        <ActivityFeed items={logs.slice(0, 8).map(log => ({
-          id: log.id,
-          actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? 'You' : 'Partner'),
-          actorFallback: fallbackInitial(log.display_name),
-          bucketName: log.bucket_name ?? 'Savings',
-          amount: log.amount,
-          occurredAt: log.created_at,
-          hasSlip: Boolean(log.slip_url),
-          slipUrl: log.slip_url,
-        }))} />
+        <>
+          <ActivityFeed
+            items={activityItems}
+            onViewMore={() => setHistoryOpen(true)}
+            previewLimit={5}
+          />
+          <ActivityHistoryModal
+            open={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            items={activityItems}
+          />
+        </>
       ) : (
         <StatusCard title="No deposits yet" body={`Start with ${formatCurrency(100)} and let the streak begin.`} />
       )}
@@ -257,3 +361,50 @@ const bucketOptions = [
   { id: 'gear' as const, label: 'Gear', icon: <IconSmartphone size={22} /> },
   { id: 'home' as const, label: 'Home', icon: <IconHome size={22} /> },
 ];
+
+interface SavingRaceSectionProps {
+  logs: ReturnType<typeof useLogs>['logs'];
+  buckets: Bucket[];
+  yourUserId: string | undefined;
+  partnerUserId: string;
+  yourName: string;
+  partnerName: string;
+  activeRoomId: string | null;
+}
+
+/**
+ * Renders the Saving Race line chart with a bucket-scope filter. The
+ * filter selection persists per room in localStorage so opening the
+ * Dashboard later restores the previously-viewed scope.
+ *
+ * Defined here (in the same file as `Dashboard`) because the
+ * filter-to-series wiring is single-use Dashboard concern; promoting
+ * to a shared component would force the parent to plumb props that
+ * only this view needs.
+ */
+function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName, partnerName, activeRoomId }: SavingRaceSectionProps) {
+  const storageKey = `saving-race-filter:${activeRoomId ?? 'no-room'}`;
+  const [bucketFilter, setBucketFilter] = useLocalStorageState<string | null>(storageKey, null);
+  const dedupedOptions = Array.from(new Map(buckets.map(b => [b.id, { id: b.id, name: b.name }])).values());
+  const scopeBucket = buckets.find(b => b.id === bucketFilter) ?? null;
+  const scopeLabel = scopeBucket ? `Scope: ${scopeBucket.name}` : 'Scope: all buckets / main goal';
+  const yourSeries = cumulativeRaceSeries(logs, yourUserId, bucketFilter);
+  const partnerSeries = cumulativeRaceSeries(logs, partnerUserId, bucketFilter);
+
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <SectionLabel tone="brand">Competition</SectionLabel>
+        <SavingRaceFilter buckets={dedupedOptions} value={bucketFilter} onChange={setBucketFilter} />
+      </div>
+      <SavingRaceChart
+        yourSeries={yourSeries}
+        partnerSeries={partnerSeries}
+        labels={lastSevenDayLabels()}
+        yourName={yourName}
+        partnerName={partnerName}
+        scopeLabel={scopeLabel}
+      />
+    </section>
+  );
+}

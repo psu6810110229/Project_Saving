@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { Button } from '../components/Button/Button';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
@@ -49,7 +50,7 @@ export function Profile() {
   const { signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const { createRoom, joinRoomByCode } = useRooms();
-  const { profile, loading, error, themeColor, quickAmounts, updateProfile, updateQuickAmounts } = useProfile();
+  const { profile, loading, error, themeColor, quickAmounts, updateProfile, updateQuickAmounts, uploadAvatar } = useProfile();
   const { buckets, saveBuckets } = useBuckets(activeRoomId);
   const { logs } = useLogs(100, activeRoomId);
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
@@ -181,6 +182,11 @@ export function Profile() {
       />
       <Modal open={activeModal === 'profile'} title="Edit Profile" onClose={closeModal}>
         <div className="flex flex-col gap-4">
+          <AvatarUpload
+            avatarUrl={profile?.avatar_url ?? null}
+            fallback={fallbackInitial(profile?.display_name)}
+            onUpload={uploadAvatar}
+          />
           <FormField label="Display Name">
             <TextInput value={displayName} leadingIcon={<IconEdit size={16} />} onChange={event => setDisplayNameDraft(event.target.value)} />
           </FormField>

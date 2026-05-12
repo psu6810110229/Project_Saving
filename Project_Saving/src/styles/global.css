@@ -1,3 +1,11 @@
+/* Thai font: load alongside IBM Plex Sans so Thai glyphs in display
+   names, room names, and bucket labels render natively rather than
+   falling back to the browser default. The 400/500/600 subset covers
+   body weight and the medium/bold runs we use in headings. */
+@import '@fontsource/ibm-plex-sans-thai/400.css';
+@import '@fontsource/ibm-plex-sans-thai/500.css';
+@import '@fontsource/ibm-plex-sans-thai/600.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

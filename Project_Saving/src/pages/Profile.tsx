@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
+import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { CreateProjectForm } from '../components/CreateProjectForm/CreateProjectForm';
 import { FormField } from '../components/FormField/FormField';
@@ -24,6 +25,8 @@ import {
   IconUserPlus,
 } from '../components/Icon/Icon';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
+import { Modal } from '../components/Modal/Modal';
+import { PageHeader } from '../components/PageHeader/PageHeader';
 import { ProfileHeader } from '../components/ProfileHeader/ProfileHeader';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { SettingsList } from '../components/SettingsList/SettingsList';
@@ -42,12 +45,10 @@ import { formatCurrency } from '../lib/format';
 import type { ThemeSwatch } from '../lib/theme';
 import type { BucketCategory, ProjectCategory } from '../types';
 
-type Panel = 'profile' | 'theme' | 'buckets' | 'create-project' | 'join-project';
+type ProfileModal = 'profile' | 'theme' | 'buckets' | 'create-project' | 'join-project' | null;
 
 export function Profile() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const panel = searchParams.get('panel') as Panel | null;
   const { signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const { createRoom, joinRoomByCode, archiveRoom } = useRooms();
@@ -55,6 +56,9 @@ export function Profile() {
   const { goal } = useGoal(activeRoomId);
   const { buckets, saveBuckets } = useBuckets(activeRoomId);
   const { logs } = useLogs(100, activeRoomId);
+  const [activeModal, setActiveModal] = useState<ProfileModal>(null);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const [confirmingArchive, setConfirmingArchive] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [displayNameDraft, setDisplayNameDraft] = useState<string | null>(null);
   const [themeDraft, setThemeDraft] = useState<ThemeSwatch | null>(null);
@@ -73,9 +77,13 @@ export function Profile() {
   const displayName = displayNameDraft ?? profile?.display_name ?? '';
   const theme = themeDraft ?? themeColor;
 
-  function setPanel(next: Panel | null) {
-    if (next) setSearchParams({ panel: next });
-    else setSearchParams({});
+  function openModal(next: ProfileModal) {
+    setActiveModal(next);
+    setMessage(null);
+  }
+
+  function closeModal() {
+    setActiveModal(null);
     setMessage(null);
   }
 
@@ -119,127 +127,133 @@ export function Profile() {
       category: projectCategory,
     });
     if (result.error) setMessage(result.error);
-    else navigate('/dashboard');
+    else {
+      closeModal();
+      navigate('/dashboard');
+    }
   }
 
   async function handleJoinProject() {
     const result = await joinRoomByCode(joinCode);
     if (result.error) setMessage(result.error);
-    else navigate('/dashboard');
+    else {
+      closeModal();
+      navigate('/dashboard');
+    }
   }
 
   async function handleArchive() {
     if (!activeRoomId) return;
     const result = await archiveRoom(activeRoomId);
     if (result.error) setMessage(result.error);
-    else navigate('/dashboard');
+    else {
+      setConfirmingArchive(false);
+      navigate('/dashboard');
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
+      <PageHeader eyebrow="Profile" title="Settings" subtitle={activeRoom?.name ?? 'Project settings'} />
       <ProfileHeader
         name={profile?.display_name ?? 'You'}
         fallback={fallbackInitial(profile?.display_name)}
         avatarUrl={profile?.avatar_url}
         memberLabel={`${activeRoom?.name ?? 'Project'} member`}
         themeColor={themeColor}
-        onEdit={() => setPanel('profile')}
+        onEdit={() => openModal('profile')}
       />
       {message && <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList
         items={[
-          { id: 'profile', icon: <IconEdit size={18} />, label: 'Edit Profile', description: 'Display name and theme', onClick: () => setPanel('profile') },
-          { id: 'theme', icon: <IconPalette size={18} />, label: 'Theme Colors', description: 'Personal swatch shown to Art', onClick: () => setPanel('theme') },
+          { id: 'profile', icon: <IconEdit size={18} />, label: 'Edit Profile', description: 'Display name and theme', onClick: () => openModal('profile') },
+          { id: 'theme', icon: <IconPalette size={18} />, label: 'Theme Colors', description: 'Personal swatch shown to Art', onClick: () => openModal('theme') },
           { id: 'invite', icon: <IconQrCode size={18} />, label: 'Project Invite Code', meta: <span className="font-mono text-xs text-brand-800">{activeRoom?.invite_code ?? '------'}</span> },
-          { id: 'buckets', icon: <IconGear size={18} />, label: 'Manage Buckets', description: `${buckets.length} active`, onClick: () => setPanel('buckets') },
+          { id: 'buckets', icon: <IconGear size={18} />, label: 'Manage Buckets', description: `${buckets.length} active`, onClick: () => openModal('buckets') },
           { id: 'date', icon: <IconCalendar size={18} />, label: 'Trip Date', description: activeRoom?.end_date ?? 'Not set', meta: <span className="font-mono text-xs text-ink-muted">{goal ? formatCurrency(goal.target_amount) : ''}</span> },
-          { id: 'create', icon: <IconUserPlus size={18} />, label: 'Create Project', description: 'Start another savings vault', onClick: () => setPanel('create-project') },
-          { id: 'join', icon: <IconBell size={18} />, label: 'Join Project', description: 'Use a 6-character invite code', onClick: () => setPanel('join-project') },
-          { id: 'signout', icon: <IconUser size={18} />, label: 'Sign Out', onClick: signOut },
+          { id: 'create', icon: <IconUserPlus size={18} />, label: 'Create Project', description: 'Start another savings vault', onClick: () => openModal('create-project') },
+          { id: 'join', icon: <IconBell size={18} />, label: 'Join Project', description: 'Use a 6-character invite code', onClick: () => openModal('join-project') },
+          { id: 'signout', icon: <IconUser size={18} />, label: 'Sign Out', onClick: () => setConfirmingSignOut(true) },
         ]}
         archiveItem={{
           id: 'archive',
           icon: <IconTrash size={18} />,
           label: 'Archive Project',
           description: 'Hide this project from your vault.',
-          onClick: handleArchive,
+          onClick: () => setConfirmingArchive(true),
         }}
       />
-      {panel && (
-        <section className="flex flex-col gap-3">
-          <PanelHeader panel={panel} onClose={() => setPanel(null)} />
-          {panel === 'profile' && (
-            <div className="flex flex-col gap-4 rounded-3xl bg-surface p-5 shadow-soft">
-              <FormField label="Display Name">
-                <TextInput value={displayName} leadingIcon={<IconEdit size={16} />} onChange={event => setDisplayNameDraft(event.target.value)} />
-              </FormField>
-              <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
-              <Button variant="primary" fullWidth onClick={handleProfileSave}>Save Profile</Button>
-            </div>
-          )}
-          {panel === 'theme' && (
-            <div className="flex flex-col gap-4 rounded-3xl bg-surface p-5 shadow-soft">
-              <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
-              <Button variant="primary" fullWidth onClick={handleProfileSave}>Save Theme</Button>
-            </div>
-          )}
-          {panel === 'buckets' && (
-            <div className="flex flex-col gap-4">
-              <BucketSummary buckets={buckets} logs={logs} />
-              <CreateBucketForm
-                category={bucketCategory}
-                options={bucketOptions}
-                name={bucketName}
-                target={bucketTarget}
-                onCategoryChange={setBucketCategory}
-                onNameChange={setBucketName}
-                onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
-                onSubmit={handleCreateBucket}
-              />
-            </div>
-          )}
-          {panel === 'create-project' && (
-            <div>
-              <CreateProjectForm
-                category={projectCategory}
-                options={projectOptions}
-                name={projectName}
-                target={projectTarget}
-                endDate={projectEndDate}
-                onCategoryChange={setProjectCategory}
-                onNameChange={setProjectName}
-                onTargetChange={value => setProjectTarget(value.replace(/[^0-9]/g, ''))}
-                onEndDateChange={setProjectEndDate}
-                onSubmit={handleCreateProject}
-              />
-            </div>
-          )}
-          {panel === 'join-project' && (
-            <div>
-              <JoinProjectFlow
-                code={joinCode}
-                error={joinCode.length > 0 && joinCode.length < 6 ? 'Enter the full 6-character code.' : undefined}
-                preview={joinCode.length >= 6 ? joinPreview(joinCode) : null}
-                onCodeChange={setJoinCode}
-                onJoin={handleJoinProject}
-              />
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
-}
-
-function PanelHeader({ panel, onClose }: { panel: Panel; onClose: () => void }) {
-  const title = panel.replace('-', ' ');
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <SectionLabel tone="brand">Profile</SectionLabel>
-        <h2 className="mt-1 font-mono text-xl font-bold capitalize text-ink">{title}</h2>
-      </div>
-      <Button variant="ghost" size="md" onClick={onClose}>Close</Button>
+      <Modal open={activeModal === 'profile'} title="Edit Profile" onClose={closeModal}>
+        <div className="flex flex-col gap-4">
+          <FormField label="Display Name">
+            <TextInput value={displayName} leadingIcon={<IconEdit size={16} />} onChange={event => setDisplayNameDraft(event.target.value)} />
+          </FormField>
+          <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
+          <Button variant="primary" fullWidth onClick={handleProfileSave}>Save Profile</Button>
+        </div>
+      </Modal>
+      <Modal open={activeModal === 'theme'} title="Theme Colors" onClose={closeModal}>
+        <div className="flex flex-col gap-4">
+          <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
+          <Button variant="primary" fullWidth onClick={handleProfileSave}>Save Theme</Button>
+        </div>
+      </Modal>
+      <Modal open={activeModal === 'buckets'} title="Manage Buckets" onClose={closeModal}>
+        <div className="flex flex-col gap-4">
+          <BucketSummary buckets={buckets} logs={logs} />
+          <CreateBucketForm
+            category={bucketCategory}
+            options={bucketOptions}
+            name={bucketName}
+            target={bucketTarget}
+            onCategoryChange={setBucketCategory}
+            onNameChange={setBucketName}
+            onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
+            onSubmit={handleCreateBucket}
+          />
+        </div>
+      </Modal>
+      <Modal open={activeModal === 'create-project'} title="Create Project" onClose={closeModal}>
+        <CreateProjectForm
+          category={projectCategory}
+          options={projectOptions}
+          name={projectName}
+          target={projectTarget}
+          endDate={projectEndDate}
+          onCategoryChange={setProjectCategory}
+          onNameChange={setProjectName}
+          onTargetChange={value => setProjectTarget(value.replace(/[^0-9]/g, ''))}
+          onEndDateChange={setProjectEndDate}
+          onSubmit={handleCreateProject}
+        />
+      </Modal>
+      <Modal open={activeModal === 'join-project'} title="Join Project" onClose={closeModal}>
+        <JoinProjectFlow
+          code={joinCode}
+          error={joinCode.length > 0 && joinCode.length < 6 ? 'Enter the full 6-character code.' : undefined}
+          preview={joinCode.length >= 6 ? joinPreview(joinCode) : null}
+          onCodeChange={setJoinCode}
+          onJoin={handleJoinProject}
+        />
+      </Modal>
+      <ConfirmModal
+        open={confirmingSignOut}
+        title="Sign out?"
+        body="You will return to the login screen. Your project data stays saved."
+        confirmLabel="Sign Out"
+        danger
+        onCancel={() => setConfirmingSignOut(false)}
+        onConfirm={signOut}
+      />
+      <ConfirmModal
+        open={confirmingArchive}
+        title="Archive project?"
+        body="This hides the active project from your vault list."
+        confirmLabel="Archive"
+        danger
+        onCancel={() => setConfirmingArchive(false)}
+        onConfirm={handleArchive}
+      />
     </div>
   );
 }

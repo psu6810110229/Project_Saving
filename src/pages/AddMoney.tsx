@@ -21,16 +21,16 @@ import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLogs } from '../hooks/useLogs';
+import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { bucketSaved } from '../lib/buckets';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
 import type { BucketCategory } from '../types';
 
-const QUICK_AMOUNTS = [100, 500, 1000, 2000];
-
 export function AddMoney() {
   const { user, profile } = useAuth();
+  const { quickAmounts } = useProfile();
   const { activeRoomId } = useRoom();
   const { buckets, loading: bucketsLoading, saveBuckets } = useBuckets(activeRoomId);
   const { logs, loading: logsLoading, error: logsError, insert } = useLogs(100, activeRoomId);
@@ -134,7 +134,7 @@ export function AddMoney() {
           bucketName={selectedBucket.name}
           saved={bucketSaved(selectedBucket.id, logs)}
           target={selectedBucket.target_amount}
-          quickAmounts={QUICK_AMOUNTS}
+          quickAmounts={quickAmounts}
           selectedQuickAmount={selectedQuickAmount}
           amountValue={amountValue}
           slip={slip}

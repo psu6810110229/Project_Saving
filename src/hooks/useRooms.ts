@@ -17,6 +17,10 @@ interface ActionResult {
   roomId?: string;
 }
 
+interface UpdateRoomValues {
+  end_date: string;
+}
+
 export function useRooms() {
   const { user } = useAuth();
   const { rooms: currentRooms, setRooms, activeRoomId, setActiveRoomId } = useRoom();
@@ -134,10 +138,25 @@ export function useRooms() {
     return { roomId };
   }
 
+  async function updateRoom(roomId: string, values: UpdateRoomValues): Promise<ActionResult> {
+    if (!user) return { error: 'Not authenticated' };
+
+    const { error: updateError } = await supabase
+      .from('rooms')
+      .update({ end_date: values.end_date })
+      .eq('id', roomId);
+    if (updateError) return { error: updateError.message };
+
+    setRooms(currentRooms.map(room => (
+      room.id === roomId ? { ...room, end_date: values.end_date } : room
+    )));
+    return { roomId };
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRooms();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom };
+  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, updateRoom };
 }

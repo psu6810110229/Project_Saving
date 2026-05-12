@@ -23,6 +23,7 @@ import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLogs } from '../hooks/useLogs';
+import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { bucketSaved } from '../lib/buckets';
@@ -30,10 +31,9 @@ import { dailyAmountSeries, fallbackInitial, lastSevenDayLabels, weeklyTrendPct 
 import { formatCurrency } from '../lib/format';
 import type { Bucket, BucketCategory } from '../types';
 
-const QUICK_AMOUNTS = [100, 500, 1000, 2000];
-
 export function Dashboard() {
   const { user, profile } = useAuth();
+  const { quickAmounts } = useProfile();
   const { activeRoom, activeRoomId } = useRoom();
   const { goal, loading: goalLoading, error: goalError } = useGoal(activeRoomId);
   const { buckets, loading: bucketsLoading, saveBuckets } = useBuckets(activeRoomId);
@@ -126,7 +126,7 @@ export function Dashboard() {
             name={bucket.name}
             saved={bucket.saved}
             target={bucket.target}
-            quickAmounts={QUICK_AMOUNTS}
+            quickAmounts={quickAmounts}
             expanded={expandedBucketId === bucket.id}
             onToggle={() => setExpandedBucketId(expandedBucketId === bucket.id ? null : bucket.id)}
             onCancel={() => setExpandedBucketId(null)}
@@ -149,6 +149,7 @@ export function Dashboard() {
           amount: log.amount,
           occurredAt: log.created_at,
           hasSlip: Boolean(log.slip_url),
+          slipUrl: log.slip_url,
         }))} />
       ) : (
         <StatusCard title="No deposits yet" body={`Start with ${formatCurrency(100)} and let the streak begin.`} />

@@ -16,6 +16,7 @@ import {
   IconHeart,
   IconHome,
   IconPalette,
+  IconPiggyBank,
   IconPlane,
   IconQrCode,
   IconSmartphone,
@@ -45,14 +46,14 @@ import { formatCurrency } from '../lib/format';
 import type { ThemeSwatch } from '../lib/theme';
 import type { BucketCategory, ProjectCategory } from '../types';
 
-type ProfileModal = 'profile' | 'theme' | 'buckets' | 'create-project' | 'join-project' | null;
+type ProfileModal = 'profile' | 'theme' | 'buckets' | 'trip-date' | 'quick-amounts' | 'create-project' | 'join-project' | null;
 
 export function Profile() {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
-  const { createRoom, joinRoomByCode, archiveRoom } = useRooms();
-  const { profile, loading, error, themeColor, updateProfile } = useProfile();
+  const { createRoom, joinRoomByCode, archiveRoom, updateRoom } = useRooms();
+  const { profile, loading, error, themeColor, quickAmounts, updateProfile, updateQuickAmounts } = useProfile();
   const { goal } = useGoal(activeRoomId);
   const { buckets, saveBuckets } = useBuckets(activeRoomId);
   const { logs } = useLogs(100, activeRoomId);
@@ -69,6 +70,8 @@ export function Profile() {
   const [projectName, setProjectName] = useState('Japan 2027');
   const [projectTarget, setProjectTarget] = useState('100000');
   const [projectEndDate, setProjectEndDate] = useState('2027-11-01');
+  const [tripDateDraft, setTripDateDraft] = useState(activeRoom?.end_date ?? '');
+  const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>(quickAmounts.map(String));
   const [joinCode, setJoinCode] = useState('');
 
   if (loading) return <StatusCard title="Loading profile" body="Getting your profile and project settings." />;
@@ -78,6 +81,8 @@ export function Profile() {
   const theme = themeDraft ?? themeColor;
 
   function openModal(next: ProfileModal) {
+    if (next === 'trip-date') setTripDateDraft(activeRoom?.end_date ?? '');
+    if (next === 'quick-amounts') setQuickAmountDrafts(quickAmounts.map(String));
     setActiveModal(next);
     setMessage(null);
   }
@@ -133,6 +138,25 @@ export function Profile() {
     }
   }
 
+  async function handleTripDateSave() {
+    if (!activeRoomId || !tripDateDraft) return;
+    const result = await updateRoom(activeRoomId, { end_date: tripDateDraft });
+    if (result.error) setMessage(result.error);
+    else {
+      setMessage('Trip date updated.');
+      closeModal();
+    }
+  }
+
+  async function handleQuickAmountsSave() {
+    const result = await updateQuickAmounts(quickAmountDrafts.map(Number));
+    if (result.error) setMessage(result.error);
+    else {
+      setMessage('Quick amounts updated.');
+      closeModal();
+    }
+  }
+
   async function handleJoinProject() {
     const result = await joinRoomByCode(joinCode);
     if (result.error) setMessage(result.error);
@@ -170,7 +194,15 @@ export function Profile() {
           { id: 'theme', icon: <IconPalette size={18} />, label: 'Theme Colors', description: 'Personal swatch shown to Art', onClick: () => openModal('theme') },
           { id: 'invite', icon: <IconQrCode size={18} />, label: 'Project Invite Code', meta: <span className="font-mono text-xs text-brand-800">{activeRoom?.invite_code ?? '------'}</span> },
           { id: 'buckets', icon: <IconGear size={18} />, label: 'Manage Buckets', description: `${buckets.length} active`, onClick: () => openModal('buckets') },
-          { id: 'date', icon: <IconCalendar size={18} />, label: 'Trip Date', description: activeRoom?.end_date ?? 'Not set', meta: <span className="font-mono text-xs text-ink-muted">{goal ? formatCurrency(goal.target_amount) : ''}</span> },
+          {
+            id: 'date',
+            icon: <IconCalendar size={18} />,
+            label: 'Trip Date',
+            description: activeRoom?.end_date ?? 'Not set',
+            meta: <span className="font-mono text-xs text-ink-muted">{goal ? formatCurrency(goal.target_amount) : ''}</span>,
+            onClick: activeRoom?.created_by === user?.id ? () => openModal('trip-date') : undefined,
+          },
+          { id: 'quick', icon: <IconPiggyBank size={18} />, label: 'Quick Amounts', description: quickAmounts.map(formatCurrency).join(' / '), onClick: () => openModal('quick-amounts') },
           { id: 'create', icon: <IconUserPlus size={18} />, label: 'Create Project', description: 'Start another savings vault', onClick: () => openModal('create-project') },
           { id: 'join', icon: <IconBell size={18} />, label: 'Join Project', description: 'Use a 6-character invite code', onClick: () => openModal('join-project') },
           { id: 'signout', icon: <IconUser size={18} />, label: 'Sign Out', onClick: () => setConfirmingSignOut(true) },
@@ -211,6 +243,47 @@ export function Profile() {
             onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
             onSubmit={handleCreateBucket}
           />
+        </div>
+      </Modal>
+      <Modal open={activeModal === 'trip-date'} title="Edit Trip Date" onClose={closeModal}>
+        <div className="flex flex-col gap-4">
+          <FormField label="Trip Date">
+            <TextInput value={tripDateDraft} type="date" leadingIcon={<IconCalendar size={16} />} onChange={event => setTripDateDraft(event.target.value)} />
+          </FormField>
+          <Button variant="primary" fullWidth onClick={handleTripDateSave}>Save Date</Button>
+        </div>
+      </Modal>
+      <Modal open={activeModal === 'quick-amounts'} title="Quick Amounts" onClose={closeModal}>
+        <div className="flex flex-col gap-3">
+          {quickAmountDrafts.map((amount, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <FormField label={`Amount ${index + 1}`}>
+                <TextInput
+                  value={amount}
+                  inputMode="numeric"
+                  leadingIcon={<IconPiggyBank size={16} />}
+                  onChange={event => setQuickAmountDrafts(prev => prev.map((item, itemIndex) => (
+                    itemIndex === index ? event.target.value.replace(/[^0-9]/g, '') : item
+                  )))}
+                />
+              </FormField>
+              {quickAmountDrafts.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={() => setQuickAmountDrafts(prev => prev.filter((_, itemIndex) => itemIndex !== index))}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+          ))}
+          {quickAmountDrafts.length < 6 && (
+            <Button variant="ghost" size="md" onClick={() => setQuickAmountDrafts(prev => [...prev, ''])}>
+              Add Amount
+            </Button>
+          )}
+          <Button variant="primary" fullWidth onClick={handleQuickAmountsSave}>Save Quick Amounts</Button>
         </div>
       </Modal>
       <Modal open={activeModal === 'create-project'} title="Create Project" onClose={closeModal}>

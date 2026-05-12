@@ -15,6 +15,21 @@ interface CreateRoomValues {
 interface ActionResult {
   error?: string;
   roomId?: string;
+  /**
+   * Set when a write was rejected because the caller already owns
+   * an active project as a creator. The UI uses this to surface a
+   * confirmation dialog ("archive current and continue?").
+   */
+  conflict?: { existingRoomId: string; existingName: string };
+}
+
+interface ActiveRoomRow {
+  id: string;
+  name: string;
+  invite_code: string;
+  category: ProjectCategory;
+  end_date: string;
+  created_at: string;
 }
 
 interface UpdateRoomValues {
@@ -57,8 +72,29 @@ export function useRooms() {
     setLoading(false);
   }
 
-  async function createRoom(values: CreateRoomValues): Promise<ActionResult> {
+  /**
+   * Returns the caller's existing active room (created_by = user)
+   * if any. Used by the Create Project flow to decide whether to
+   * prompt the user to archive their current room first.
+   */
+  async function fetchActiveRoomForCreator(): Promise<ActiveRoomRow | null> {
+    if (!user) return null;
+    const { data, error: rpcError } = await supabase
+      .rpc('active_room_for_creator', { p_user_id: user.id });
+    if (rpcError) return null;
+    const row = (data ?? [])[0];
+    return row ? (row as ActiveRoomRow) : null;
+  }
+
+  async function createRoom(values: CreateRoomValues, options: { archiveExisting?: boolean } = {}): Promise<ActionResult> {
     if (!user) return { error: 'Not authenticated' };
+
+    if (!options.archiveExisting) {
+      const existing = await fetchActiveRoomForCreator();
+      if (existing) {
+        return { conflict: { existingRoomId: existing.id, existingName: existing.name } };
+      }
+    }
 
     const roomId = crypto.randomUUID();
     const startDate = new Date().toISOString().slice(0, 10);
@@ -135,15 +171,26 @@ export function useRooms() {
 
   async function archiveRoom(roomId: string): Promise<ActionResult> {
     if (!user) return { error: 'Not authenticated' };
+    // Use the security-definer RPC introduced in migration 0020 so the
+    // creator check is enforced server-side (a member joiner cannot
+    // archive a project they did not create).
     const { error: archiveError } = await supabase
-      .from('rooms')
-      .update({ archived_at: new Date().toISOString() })
-      .eq('id', roomId);
+      .rpc('archive_room', { p_room_id: roomId });
     if (archiveError) return { error: archiveError.message };
 
     const nextRooms = currentRooms.filter(room => room.id !== roomId);
     setRooms(nextRooms);
     setActiveRoomId(nextRooms[0]?.id ?? null);
+    return { roomId };
+  }
+
+  async function restoreRoom(roomId: string): Promise<ActionResult> {
+    if (!user) return { error: 'Not authenticated' };
+    const { error: restoreError } = await supabase
+      .rpc('restore_room', { p_room_id: roomId });
+    if (restoreError) return { error: restoreError.message };
+    await fetchRooms();
+    setActiveRoomId(roomId);
     return { roomId };
   }
 
@@ -167,5 +214,5 @@ export function useRooms() {
     fetchRooms();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, updateRoom };
+  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, restoreRoom, updateRoom, fetchActiveRoomForCreator };
 }

@@ -14,7 +14,12 @@ interface SettingsListItem {
 interface SettingsListProps {
   label?: string;
   items: SettingsListItem[];
-  archiveItem: SettingsListItem;
+  /**
+   * Optional bottom row rendered with a danger tone. Used for the
+   * Archive Project / Sign Out destructive actions. When omitted the
+   * list renders without a trailing danger row.
+   */
+  archiveItem?: SettingsListItem;
 }
 
 export function SettingsList({ label = 'Settings', items, archiveItem }: SettingsListProps) {
@@ -25,7 +30,7 @@ export function SettingsList({ label = 'Settings', items, archiveItem }: Setting
         {items.map(item => (
           <SettingsRow key={item.id} {...item} />
         ))}
-        <SettingsRow {...archiveItem} tone="danger" />
+        {archiveItem && <SettingsRow {...archiveItem} tone="danger" />}
       </div>
     </section>
   );

@@ -35,13 +35,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
       applySession(s);
-      // Sync display_name to profiles table in the background
-      if (s?.user) {
-        const u = s.user;
-        const meta = u.user_metadata as { full_name?: string; name?: string };
-        const display_name = meta.full_name ?? meta.name ?? u.email?.split('@')[0] ?? 'User';
-        supabase.from('profiles').upsert({ id: u.id, display_name }, { onConflict: 'id' }).then(() => {});
-      }
     });
 
     return () => listener.subscription.unsubscribe();

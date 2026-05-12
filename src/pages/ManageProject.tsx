@@ -40,9 +40,10 @@ export function ManageProject() {
   const { user } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const { goal, save: saveGoal } = useGoal(activeRoomId);
-  const { archiveRoom, updateRoom } = useRooms();
+  const { archiveRoom, leaveRoom, updateRoom } = useRooms();
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [tripDateDraft, setTripDateDraft] = useState(activeRoom?.end_date ?? '');
   const [targetAmountDraft, setTargetAmountDraft] = useState(goal?.target_amount ? String(goal.target_amount) : '');
@@ -102,6 +103,14 @@ export function ManageProject() {
     navigate('/profile');
   }
 
+  async function handleLeave() {
+    if (!activeRoomId) return;
+    const result = await leaveRoom(activeRoomId);
+    if (result.error) { setMessage(result.error); setConfirmingLeave(false); return; }
+    setConfirmingLeave(false);
+    navigate('/profile');
+  }
+
   const items = [
     {
       id: 'invite',
@@ -131,11 +140,13 @@ export function ManageProject() {
   const archiveItem = {
     id: 'archive',
     icon: <IconTrash size={18} />,
-    label: isCreator ? 'Archive Project' : 'Leave Project (creator only)',
+    label: isCreator ? 'Archive Project' : 'Leave Project',
     description: isCreator
       ? 'Partners will see this project as offline (read-only).'
-      : 'Only the project creator can archive.',
-    onClick: isCreator ? () => setConfirmingArchive(true) : undefined,
+      : 'Your partner keeps the project. You can rejoin later with the invite code.',
+    onClick: isCreator
+      ? () => setConfirmingArchive(true)
+      : () => setConfirmingLeave(true),
   };
 
   return (
@@ -200,6 +211,15 @@ export function ManageProject() {
         danger
         onCancel={() => setConfirmingArchive(false)}
         onConfirm={handleArchive}
+      />
+      <ConfirmModal
+        open={confirmingLeave}
+        title="Leave project?"
+        body="You'll no longer see this project on your dashboard. The project creator stays in and can keep working solo or invite a new partner. You can rejoin later if they share the invite code."
+        confirmLabel="Leave"
+        danger
+        onCancel={() => setConfirmingLeave(false)}
+        onConfirm={handleLeave}
       />
     </div>
   );

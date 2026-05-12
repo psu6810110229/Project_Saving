@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { Button } from '../components/Button/Button';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
@@ -51,6 +51,7 @@ type ProfileModal = 'profile' | 'buckets' | 'quick-amounts' | 'create-project' |
 
 export function Profile() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const { createRoom, joinRoomByCode } = useRooms();
@@ -72,6 +73,18 @@ export function Profile() {
   const [projectEndDate, setProjectEndDate] = useState('2027-11-01');
   const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>(quickAmounts.map(String));
   const [joinCode, setJoinCode] = useState('');
+
+  // Manage Project -> "Create another project" links here with an
+  // ?intent=create-project query param. Opening the modal is the only
+  // job; strip the param afterwards so a refresh doesn't keep re-opening it.
+  useEffect(() => {
+    if (searchParams.get('intent') !== 'create-project') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveModal('create-project');
+    const next = new URLSearchParams(searchParams);
+    next.delete('intent');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   if (loading) return <ProfileSkeleton />;
   if (error) return <StatusCard title="Profile needs a refresh" body={error} />;

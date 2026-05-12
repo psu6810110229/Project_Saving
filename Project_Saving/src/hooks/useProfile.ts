@@ -101,6 +101,39 @@ export function useProfile() {
     return {};
   }
 
+  /**
+   * Uploads a new avatar image to the public `avatars` storage bucket
+   * and updates profiles.avatar_url with the resulting public URL.
+   * The path is namespaced by user id so users can only overwrite
+   * their own avatar (in line with Supabase Storage object-policy
+   * defaults). Returns the new URL on success.
+   */
+  async function uploadAvatar(file: File): Promise<{ error?: string; url?: string }> {
+    if (!user) return { error: 'Not authenticated' };
+    if (!file.type.startsWith('image/')) return { error: 'Please choose an image file.' };
+    if (file.size > 5 * 1024 * 1024) return { error: 'Image must be smaller than 5 MB.' };
+
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? 'png';
+    const path = `${user.id}/avatar-${Date.now()}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
+    if (uploadError) return { error: uploadError.message };
+
+    const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(path);
+    const url = publicUrl.publicUrl;
+
+    const { error: dbError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: url })
+      .eq('id', user.id);
+    if (dbError) return { error: dbError.message };
+
+    setProfile(prev => prev ? { ...prev, avatar_url: url } : prev);
+    return { url };
+  }
+
   async function updateQuickAmounts(amounts: number[]): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };
 
@@ -130,5 +163,6 @@ export function useProfile() {
     refetch: fetchProfile,
     updateProfile,
     updateQuickAmounts,
+    uploadAvatar,
   };
 }

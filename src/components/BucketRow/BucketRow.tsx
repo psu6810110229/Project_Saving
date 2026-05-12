@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
@@ -19,6 +19,16 @@ interface BucketRowProps {
 
 export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
+  const wasComplete = useRef(target > 0 && saved >= target);
+
+  useEffect(() => {
+    const isComplete = target > 0 && saved >= target;
+    if (isComplete && !wasComplete.current && 'vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+    wasComplete.current = isComplete;
+  }, [saved, target]);
+
   return (
     <button
       type="button"

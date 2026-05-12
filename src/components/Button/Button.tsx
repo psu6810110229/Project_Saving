@@ -13,7 +13,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
  */
 
 type Variant = 'primary' | 'action' | 'ghost' | 'dangerSoft';
-type Size = 'md' | 'lg';
+type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   variant?: Variant;
@@ -41,6 +41,7 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 const SIZES: Record<Size, string> = {
+  sm: 'px-4 py-2 text-xs tracking-wide',
   md: 'px-5 py-3 text-sm tracking-wide',
   lg: 'px-6 py-4 text-base tracking-wide',
 };

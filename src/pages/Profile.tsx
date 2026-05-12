@@ -31,6 +31,8 @@ import { PageHeader } from '../components/PageHeader/PageHeader';
 import { ProfileHeader } from '../components/ProfileHeader/ProfileHeader';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { SettingsList } from '../components/SettingsList/SettingsList';
+import { Skeleton } from '../components/Skeleton/Skeleton';
+import { Spinner } from '../components/Spinner/Spinner';
 import { TextInput } from '../components/TextInput/TextInput';
 import { ThemeSwatchPicker } from '../components/ThemeSwatchPicker/ThemeSwatchPicker';
 import { useAuth } from '../hooks/useAuth';
@@ -74,7 +76,7 @@ export function Profile() {
   const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>(quickAmounts.map(String));
   const [joinCode, setJoinCode] = useState('');
 
-  if (loading) return <StatusCard title="Loading profile" body="Getting your profile and project settings." />;
+  if (loading) return <ProfileSkeleton />;
   if (error) return <StatusCard title="Profile needs a refresh" body={error} />;
 
   const displayName = displayNameDraft ?? profile?.display_name ?? '';
@@ -361,6 +363,36 @@ function StatusCard({ title, body }: { title: string; body: string }) {
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
     </section>
+  );
+}
+
+function ProfileSkeleton() {
+  return (
+    <div className="flex flex-col gap-6" aria-label="Loading profile">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-3 w-16 rounded-pill" />
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-3 w-44 rounded-pill" />
+        </div>
+        <Spinner size="sm" />
+      </div>
+      <section className="rounded-3xl bg-surface p-5 shadow-soft">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="flex flex-1 flex-col gap-2">
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-3 w-48 rounded-pill" />
+          </div>
+        </div>
+      </section>
+      <section className="flex flex-col gap-2">
+        <Skeleton className="h-16" />
+        <Skeleton className="h-16" />
+        <Skeleton className="h-16" />
+        <Skeleton className="h-16" />
+      </section>
+    </div>
   );
 }
 

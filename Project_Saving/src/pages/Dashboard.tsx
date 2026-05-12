@@ -36,6 +36,7 @@ import { bucketSaved } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
+import { haptic } from '../lib/haptics';
 import type { Bucket, BucketCategory } from '../types';
 
 export function Dashboard() {
@@ -212,7 +213,15 @@ export function Dashboard() {
               expanded={expandedBucketId === bucket.id}
               onToggle={() => setExpandedBucketId(expandedBucketId === bucket.id ? null : bucket.id)}
               onCancel={() => setExpandedBucketId(null)}
-              onConfirm={amount => insert(amount, bucket.id)}
+              onConfirm={async amount => {
+                const prev = bucket.saved;
+                const result = await insert(amount, bucket.id);
+                if (!result.error) {
+                  const reached = prev < bucket.target && prev + amount >= bucket.target;
+                  haptic(reached ? 'milestone' : 'success');
+                }
+                return result;
+              }}
             />
           )}
         />

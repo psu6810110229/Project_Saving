@@ -35,6 +35,22 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
   async function saveBuckets(next: BucketDraft[]): Promise<{ error?: string }> {
     if (!user || !roomId) return { error: 'Not authenticated or no room' };
 
+    const { data: goal, error: goalErr } = await supabase
+      .from('goals')
+      .select('target_amount')
+      .eq('user_id', user.id)
+      .eq('room_id', roomId)
+      .maybeSingle();
+    if (goalErr) return { error: goalErr.message };
+
+    if (goal) {
+      const goalTarget = Number(goal.target_amount);
+      const bucketTargetTotal = next.reduce((total, bucket) => total + Number(bucket.target_amount), 0);
+      if (bucketTargetTotal > goalTarget) {
+        return { error: `Buckets total exceeds your goal of ฿${goalTarget.toLocaleString()}` };
+      }
+    }
+
     const currentIds = buckets.map(b => b.id);
     const nextIds = next.filter(d => d.id !== undefined).map(d => d.id as string);
 

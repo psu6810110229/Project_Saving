@@ -32,6 +32,12 @@ interface DashboardHeroProps {
   target: number;
   trendPct?: number;
   momentumSeries: number[];
+  /** Optional partner daily totals for the side-by-side bar chart. */
+  partnerMomentumSeries?: number[];
+  /** Display name used in the chart legend for the primary series. */
+  yourName?: string;
+  /** Display name used in the chart legend for the partner series. */
+  partnerName?: string;
   momentumLabels?: string[];
   microGoal: DashboardMicroGoal;
 }
@@ -45,6 +51,9 @@ export function DashboardHero({
   target,
   trendPct,
   momentumSeries,
+  partnerMomentumSeries,
+  yourName,
+  partnerName,
   momentumLabels,
   microGoal,
 }: DashboardHeroProps) {
@@ -57,7 +66,13 @@ export function DashboardHero({
       </header>
       <HeadToHeadCard left={leftPlayer} right={rightPlayer} />
       <TotalVaultCard saved={saved} target={target} trendPct={trendPct} />
-      <MomentumChart series={momentumSeries} labels={momentumLabels} />
+      <MomentumChart
+        series={momentumSeries}
+        partnerSeries={partnerMomentumSeries}
+        labels={momentumLabels}
+        yourName={yourName}
+        partnerName={partnerName}
+      />
       <MicroGoalCard {...microGoal} />
     </section>
   );

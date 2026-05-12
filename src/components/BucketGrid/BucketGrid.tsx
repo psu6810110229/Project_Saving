@@ -4,7 +4,7 @@ import { Button } from '../Button/Button';
 import { IconPlus } from '../Icon/Icon';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 
-interface BucketGridItem {
+export interface BucketGridItem {
   id: string;
   icon: ReactNode;
   name: string;
@@ -19,6 +19,7 @@ interface BucketGridProps {
   ctaLabel?: string;
   onAddBucket?: () => void;
   onBucketClick?: (id: string) => void;
+  renderBucket?: (bucket: BucketGridItem) => ReactNode;
 }
 
 export function BucketGrid({
@@ -28,6 +29,7 @@ export function BucketGrid({
   ctaLabel = 'Add Bucket',
   onAddBucket,
   onBucketClick,
+  renderBucket,
 }: BucketGridProps) {
   return (
     <section className="flex flex-col gap-3">
@@ -51,14 +53,18 @@ export function BucketGrid({
       </div>
       <div className="flex flex-col gap-2">
         {buckets.map(bucket => (
-          <BucketRow
-            key={bucket.id}
-            icon={bucket.icon}
-            name={bucket.name}
-            saved={bucket.saved}
-            target={bucket.target}
-            onClick={() => onBucketClick?.(bucket.id)}
-          />
+          renderBucket ? (
+            <div key={bucket.id}>{renderBucket(bucket)}</div>
+          ) : (
+            <BucketRow
+              key={bucket.id}
+              icon={bucket.icon}
+              name={bucket.name}
+              saved={bucket.saved}
+              target={bucket.target}
+              onClick={() => onBucketClick?.(bucket.id)}
+            />
+          )
         ))}
       </div>
     </section>

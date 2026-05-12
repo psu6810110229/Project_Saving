@@ -16,6 +16,7 @@ import {
   IconSmartphone,
   IconTicket,
 } from '../components/Icon/Icon';
+import { PageHeader } from '../components/PageHeader/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useLeaderboard } from '../hooks/useLeaderboard';
@@ -112,10 +113,7 @@ export function AddMoney() {
 
   return (
     <div className="flex flex-col gap-5">
-      <header>
-        <SectionLabel tone="brand">Add Money</SectionLabel>
-        <h1 className="mt-2 font-mono text-3xl font-bold text-ink">Deposit to a bucket</h1>
-      </header>
+      <PageHeader eyebrow="Add Money" title="Deposit to a bucket" subtitle="Manual entry and slip attachment" />
       <BucketPicker buckets={buckets} selectedId={selectedBucket.id} onSelect={setSelectedBucketId} />
       {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       {reviewing ? (

@@ -193,6 +193,29 @@ export function useRooms() {
     return { roomId };
   }
 
+  /**
+   * Lets a joiner walk away from a project they didn't create. RLS
+   * (`room_members_delete_self` in migration 0002) allows a member to
+   * delete their own row; the room itself + the creator's membership
+   * are untouched, so the creator can keep working solo or invite a
+   * new partner. The leaver's goals / savings_logs rows stay in the
+   * DB but become invisible to them via the existing `select` policies.
+   */
+  async function leaveRoom(roomId: string): Promise<ActionResult> {
+    if (!user) return { error: 'Not authenticated' };
+    const { error: leaveError } = await supabase
+      .from('room_members')
+      .delete()
+      .eq('room_id', roomId)
+      .eq('user_id', user.id);
+    if (leaveError) return { error: leaveError.message };
+
+    const nextRooms = currentRooms.filter(room => room.id !== roomId);
+    setRooms(nextRooms);
+    setActiveRoomId(nextRooms[0]?.id ?? null);
+    return { roomId };
+  }
+
   async function restoreRoom(roomId: string): Promise<ActionResult> {
     if (!user) return { error: 'Not authenticated' };
     const { error: restoreError } = await supabase
@@ -223,5 +246,5 @@ export function useRooms() {
     fetchRooms();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, restoreRoom, updateRoom, fetchActiveRoomForCreator };
+  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, fetchActiveRoomForCreator };
 }

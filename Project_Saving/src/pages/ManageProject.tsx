@@ -89,7 +89,7 @@ export function ManageProject() {
       icon: <IconQrCode size={18} />,
       label: 'Invite Code',
       description: 'Share with your partner to join this project',
-      meta: <span className="font-mono text-xs text-brand-800">{activeRoom.invite_code}</span>,
+      meta: <span className="copy-allowed font-mono text-xs text-brand-800">{activeRoom.invite_code}</span>,
       onClick: () => openModal('invite-code'),
     },
     {
@@ -144,7 +144,7 @@ export function ManageProject() {
       </Modal>
       <Modal open={activeModal === 'invite-code'} title="Invite Code" onClose={closeModal}>
         <div className="flex flex-col gap-3 text-center">
-          <span className="font-mono text-3xl font-bold tracking-[0.4em] text-brand-700">{activeRoom.invite_code}</span>
+          <span className="copy-allowed font-mono text-3xl font-bold tracking-[0.4em] text-brand-700">{activeRoom.invite_code}</span>
           <p className="font-mono text-xs text-ink-muted">Share this 6-character code with your partner.</p>
           <Button
             variant="action"

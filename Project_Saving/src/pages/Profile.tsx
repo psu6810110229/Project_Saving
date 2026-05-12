@@ -40,6 +40,7 @@ import { useRooms } from '../hooks/useRooms';
 import { bucketSaved } from '../lib/buckets';
 import { fallbackInitial } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
+import { haptic } from '../lib/haptics';
 import type { ThemeSwatch } from '../lib/theme';
 import type { BucketCategory, ProjectCategory } from '../types';
 
@@ -107,6 +108,7 @@ export function Profile() {
     ]);
     if (result.error) setMessage(result.error);
     else {
+      haptic('success');
       setMessage('Bucket created.');
       setBucketName('');
       setBucketTarget('');
@@ -131,6 +133,7 @@ export function Profile() {
     }
     if (result.error) setMessage(result.error);
     else {
+      haptic('milestone');
       setPendingCreateValues(null);
       closeModal();
       navigate('/dashboard');

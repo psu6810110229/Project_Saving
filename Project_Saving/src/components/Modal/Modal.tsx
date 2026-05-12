@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { IconButton } from '../IconButton/IconButton';
 import { IconX } from '../Icon/Icon';
 
@@ -11,6 +12,8 @@ interface ModalProps {
 }
 
 export function Modal({ open, title, children, onClose }: ModalProps) {
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
 

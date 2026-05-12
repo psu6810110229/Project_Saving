@@ -34,7 +34,7 @@ export function BucketGrid({
   return (
     <section className="flex flex-col gap-3">
       <div className="sticky top-0 z-10 -mx-4 bg-bg/95 px-4 py-3 backdrop-blur">
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-col gap-3">
           <div className="min-w-0">
             <SectionLabel tone="brand">Smart Buckets</SectionLabel>
             <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{title}</h2>
@@ -42,10 +42,10 @@ export function BucketGrid({
           </div>
           <Button
             variant="action"
-            size="md"
+            size="sm"
             onClick={onAddBucket}
             leadingIcon={<IconPlus size={18} />}
-            className="shrink-0"
+            className="self-start"
           >
             {ctaLabel}
           </Button>

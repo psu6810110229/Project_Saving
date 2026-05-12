@@ -17,6 +17,8 @@ import {
   IconTicket,
 } from '../components/Icon/Icon';
 import { PageHeader } from '../components/PageHeader/PageHeader';
+import { Skeleton } from '../components/Skeleton/Skeleton';
+import { Spinner } from '../components/Spinner/Spinner';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useLeaderboard } from '../hooks/useLeaderboard';
@@ -51,7 +53,7 @@ export function AddMoney() {
   const amount = useMemo(() => Number(amountValue) || selectedQuickAmount || 0, [amountValue, selectedQuickAmount]);
   const partner = leaderboard.entries.find(entry => !entry.isYou);
 
-  if (bucketsLoading || logsLoading) return <StatusCard title="Loading deposit flow" body="Checking your buckets first." />;
+  if (bucketsLoading || logsLoading) return <AddMoneySkeleton />;
   if (logsError) return <StatusCard title="Could not load deposits" body={logsError} />;
 
   async function handleCreateBucket() {
@@ -197,6 +199,31 @@ function StatusCard({ title, body }: { title: string; body: string }) {
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
     </section>
+  );
+}
+
+function AddMoneySkeleton() {
+  return (
+    <div className="flex flex-col gap-5" aria-label="Loading deposit flow">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-3 w-20 rounded-pill" />
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-3 w-44 rounded-pill" />
+        </div>
+        <Spinner size="sm" />
+      </div>
+      <div className="flex gap-2 overflow-hidden">
+        <Skeleton className="h-9 w-24 rounded-pill" />
+        <Skeleton className="h-9 w-28 rounded-pill" />
+        <Skeleton className="h-9 w-20 rounded-pill" />
+      </div>
+      <section className="rounded-3xl bg-surface p-5 shadow-soft">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="mt-4 h-32" />
+        <Skeleton className="mt-4 h-12 rounded-pill" />
+      </section>
+    </div>
   );
 }
 

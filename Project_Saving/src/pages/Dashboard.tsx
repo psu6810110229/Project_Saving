@@ -19,6 +19,8 @@ import {
 import { Modal } from '../components/Modal/Modal';
 import { PageHeader } from '../components/PageHeader/PageHeader';
 import { useAuth } from '../hooks/useAuth';
+import { Skeleton } from '../components/Skeleton/Skeleton';
+import { Spinner } from '../components/Spinner/Spinner';
 import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
 import { useLeaderboard } from '../hooks/useLeaderboard';
@@ -49,7 +51,7 @@ export function Dashboard() {
   const loading = goalLoading || bucketsLoading || logsLoading || leaderboard.loading;
   const error = goalError ?? logsError;
 
-  if (loading) return <StatusCard title="Loading dashboard" body="Syncing the latest deposits and buckets." />;
+  if (loading) return <DashboardSkeleton />;
   if (error) return <StatusCard title="Dashboard needs a refresh" body={error} />;
 
   const you = leaderboard.entries.find(entry => entry.isYou);
@@ -180,6 +182,36 @@ function StatusCard({ title, body }: { title: string; body: string }) {
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
     </section>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="flex flex-col gap-8" aria-label="Loading dashboard">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-3 w-20 rounded-pill" />
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-3 w-36 rounded-pill" />
+        </div>
+        <Spinner size="sm" />
+      </div>
+      <section className="rounded-3xl bg-surface p-5 shadow-soft">
+        <Skeleton className="h-4 w-28 rounded-pill" />
+        <Skeleton className="mt-4 h-8 w-3/4" />
+        <Skeleton className="mt-3 h-3 w-1/2 rounded-pill" />
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+        </div>
+      </section>
+      <section className="flex flex-col gap-3">
+        <Skeleton className="h-6 w-36" />
+        <Skeleton className="h-16" />
+        <Skeleton className="h-16" />
+        <Skeleton className="h-16" />
+      </section>
+    </div>
   );
 }
 

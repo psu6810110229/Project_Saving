@@ -5,6 +5,7 @@ import type { BottomNavTab } from '../components/BottomNav/BottomNav';
 import { Button } from '../components/Button/Button';
 import { CreateProjectForm } from '../components/CreateProjectForm/CreateProjectForm';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
+import { PageTransition } from '../components/PageTransition/PageTransition';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
   IconBriefcase,
@@ -31,7 +32,11 @@ export function AppLayout() {
       {loading && <StatusCard title="Loading your project" body="Pulling the latest savings room." />}
       {!loading && error && <StatusCard title="Could not load projects" body={error} />}
       {!loading && !error && !activeRoom && <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />}
-      {!loading && !error && activeRoom && <Outlet />}
+      {!loading && !error && activeRoom && (
+        <PageTransition transitionKey={location.pathname}>
+          <Outlet />
+        </PageTransition>
+      )}
     </AppShell>
   );
 }

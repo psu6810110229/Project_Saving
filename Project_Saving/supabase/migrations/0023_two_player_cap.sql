@@ -15,7 +15,15 @@
 
 begin;
 
-create or replace function public.join_room_by_code(code text)
+-- The previous migration (0002_rooms.sql) declared this function with
+-- a `returns uuid` signature. Postgres refuses to change the return
+-- type via CREATE OR REPLACE, so explicitly drop the prior definition
+-- before redefining it as a SETOF result. Safe to re-run because the
+-- function is recreated below and the trigger DROP at the bottom is
+-- idempotent.
+drop function if exists public.join_room_by_code(text);
+
+create function public.join_room_by_code(code text)
 returns table (room_id uuid, status text)
 language plpgsql
 security definer

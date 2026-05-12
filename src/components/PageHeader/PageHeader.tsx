@@ -7,10 +7,16 @@ interface PageHeaderProps {
   eyebrow: string;
   title: string;
   subtitle?: string;
+  /**
+   * Whether to render a back arrow. Defaults to false so top-level tab
+   * destinations (Dashboard / Add / Profile) don't render a back CTA
+   * with nowhere to go. Sub-pages (e.g. ManageProject) opt in by
+   * passing `showBack`.
+   */
   showBack?: boolean;
 }
 
-export function PageHeader({ eyebrow, title, subtitle, showBack = true }: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, subtitle, showBack = false }: PageHeaderProps) {
   const navigate = useNavigate();
 
   return (

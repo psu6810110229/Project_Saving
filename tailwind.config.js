@@ -41,10 +41,13 @@ export default {
         },
       },
       fontFamily: {
-        // Typewriter slab face for headings + branded surfaces (matches mockups)
-        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
-        // Sans fallback for long-form body text
-        sans: ['"IBM Plex Sans Thai"', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        // Typewriter slab face for headings + branded surfaces (matches mockups).
+        // IBM Plex Sans Thai is included in the stack so Thai characters
+        // inside headings (room name, display name) get native glyphs
+        // instead of falling back to the browser default.
+        mono: ['"IBM Plex Mono"', '"IBM Plex Sans Thai"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        // Sans fallback for long-form body text + Thai labels.
+        sans: ['"IBM Plex Sans"', '"IBM Plex Sans Thai"', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         lg:   '14px',

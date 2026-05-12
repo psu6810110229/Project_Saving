@@ -46,14 +46,30 @@ export function useLeaderboard(
 
     setLoading(true);
 
-    // Step 1: get user_ids for this room
-    // (room_members.user_id → auth.users, NOT profiles, so we can't FK-join directly)
+    // Step 1: get user_ids for this room. The direct select is gated by
+    // room_members RLS (fixed in migration 0012). If the policy is missing
+    // in this environment the joiner only sees their own row, which would
+    // collapse the dashboard to a single tile. Fall back to a security-
+    // definer RPC (migration 0016) that returns every member's profile
+    // so the dashboard renders both players regardless.
     supabase
       .from('room_members')
       .select('user_id')
       .eq('room_id', roomId)
-      .then(({ data: memberRows }) => {
-        const userIds = (memberRows ?? []).map((r: { user_id: string }) => r.user_id);
+      .then(async ({ data: memberRows }) => {
+        let userIds = (memberRows ?? []).map((r: { user_id: string }) => r.user_id);
+
+        if (userIds.length <= 1) {
+          const { data: rpcRows } = await supabase.rpc('room_members_for_room', { p_room_id: roomId });
+          const rpcUserIds = (rpcRows ?? []).map((r: { user_id: string }) => r.user_id);
+          if (rpcUserIds.length > userIds.length) {
+            if (typeof console !== 'undefined') {
+              console.warn('[useLeaderboard] direct room_members returned fewer rows than RPC; falling back', { direct: userIds.length, rpc: rpcUserIds.length });
+            }
+            userIds = rpcUserIds;
+          }
+        }
+
         if (userIds.length === 0) {
           setProfiles([]);
           setGoals([]);

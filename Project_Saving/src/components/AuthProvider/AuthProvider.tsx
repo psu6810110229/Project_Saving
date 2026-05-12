@@ -40,6 +40,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  // One-shot DB backfill of the Google avatar onto profiles.avatar_url.
+  // The handle_new_user() trigger (migration 0018) writes it for new
+  // signups, but existing users created before 0018 have NULL in the DB,
+  // so the head-to-head / activity feed / bucket rows render the
+  // fallback initial. This effect writes the URL exactly once per
+  // session and only when the DB row is currently NULL (preserving any
+  // future user-uploaded avatar). Guarded by .is('avatar_url', null).
+  useEffect(() => {
+    if (!user) return;
+    const meta = user.user_metadata as { avatar_url?: string };
+    const url = meta.avatar_url?.trim();
+    if (!url) return;
+    supabase
+      .from('profiles')
+      .update({ avatar_url: url })
+      .eq('id', user.id)
+      .is('avatar_url', null)
+      .then(({ error }) => {
+        if (error && typeof console !== 'undefined') {
+          console.warn('[AuthProvider] avatar backfill failed', error);
+        }
+      });
+  }, [user]);
+
   async function signInWithGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',

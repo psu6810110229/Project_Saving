@@ -17,7 +17,6 @@ import {
   IconTicket,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
-import { PageHeader } from '../components/PageHeader/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
@@ -87,7 +86,6 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader eyebrow="Dashboard" title={activeRoom?.name ?? 'Japan 2027'} subtitle="Shared vault overview" />
       <DashboardHero
         title={activeRoom?.name ?? 'Japan 2027'}
         subtitle={`${profile?.display_name ?? 'You'} saved ${formatCurrency(total)} toward ${formatCurrency(target)}`}

@@ -119,6 +119,15 @@ export function useRooms() {
     if (joinError) return { error: joinError.message };
     if (!data) return { error: 'No project found for that code' };
 
+    // Ensure the joiner has their own goals row so the dashboard
+    // can render TotalVault / HeadToHead targets for them. The RPC
+    // (migration 0017) mirrors the room creator's goal and is a
+    // no-op if the joiner already has a goal for this room.
+    const { error: bootstrapError } = await supabase.rpc('bootstrap_joiner_goal', { p_room_id: data });
+    if (bootstrapError && typeof console !== 'undefined') {
+      console.warn('[useRooms] bootstrap_joiner_goal failed', bootstrapError);
+    }
+
     setActiveRoomId(data);
     await fetchRooms();
     return { roomId: data };

@@ -4,6 +4,8 @@
 
 Project_Saving is a mobile-first shared savings app. Users create or join savings projects, split targets into smart buckets, log deposits, compare progress with a partner, and manage profile settings. The app uses Supabase for auth, data, realtime activity, and edge functions; it is PWA-ready and designed for a polished mobile experience.
 
+Current status: Alpha v0.7.5.
+
 The original seed context is a Japan 2027 savings project, but future work should treat that as demo/default content, not a hard product limit.
 
 Full original spec: `project_saving.txt`.
@@ -82,8 +84,8 @@ Current primary routes:
 - `/auth/callback` - Supabase auth callback
 - `/dashboard` - project dashboard, buckets, activity, race chart
 - `/add` - deposit flow
-- `/profile` - profile, buckets, quick amounts, project actions
-- `/manage-project` - invite code, trip date, archive/manage project
+- `/profile` - lighter account/profile settings, project create/join, and sign out
+- `/manage-project` - shared goal editing, quick amounts, buckets, archive/leave, and invite code
 - `/atoms`, `/molecules`, `/organisms` - component preview screens
 
 ---
@@ -169,7 +171,8 @@ Do not use old tokens such as `bg-canvas` or `terracotta` unless they are reintr
 | Smart Buckets | Users create bucket targets inside a project and log deposits against buckets. |
 | Deposits | `/add` supports quick amounts, manual amount entry, bucket selection, confirmation, haptics, and slip markers. |
 | Dashboard | Shows project hero, player comparison, bucket progress, partner buckets, saving race chart, and recent activity. |
-| Profile | Manages display name, avatar, theme color, quick amounts, buckets, project creation/joining, and sign out. |
+| Manage Project | Contains shared goal editing, quick amounts, bucket creation/edit/delete, invite code, archive, and leave actions. |
+| Profile | Manages display name, avatar, theme color, project creation/joining, navigation to Manage Project, and sign out. Keep quick amounts and bucket management out of Profile unless explicitly requested. |
 | Activity / Reactions | Logs and reactions are handled through hooks and Supabase realtime helpers. |
 | Push Nudges | Partner nudges use `NudgeButton`, push subscriptions, and the `send-nudge` Supabase function. |
 | PWA | Icons, splash assets, service worker, and installable app support are present. |
@@ -207,6 +210,20 @@ After implementation:
 
 ## Known Repo Lessons
 
+### Product Status And Active Plans
+
+Treat Alpha v0.7.5 as the current product baseline.
+
+Plan 20 is historical context after item 5. Do not continue later Plan 20 workstreams by default. For the next money-state feature, use `docs/plans/21-reconcile-and-correction-plan.md` as the active Reconcile MVP plan.
+
+### Money State: Keep Deposits Positive
+
+This app is not a banking app. It does not connect to banks and does not hold real money; users manually record money kept elsewhere.
+
+For now, keep `savings_logs` positive-only. Do not implement negative `savings_logs`, withdrawal-first flows, or bucket transfers unless the user explicitly requests that direction.
+
+The next money-state model should be Reconcile-first: compare `ยอดจริง` with `ยอดในแอป` through checkpoints and adjustment/correction records, while keeping normal deposits extremely easy.
+
 ### Supabase RLS: Room Member Visibility
 
 If one partner cannot see the other partner's profile, goal, logs, or leaderboard row, check room-member visibility first.
@@ -214,6 +231,12 @@ If one partner cannot see the other partner's profile, goal, logs, or leaderboar
 Do not fix `room_members` RLS with a direct recursive `exists(select 1 from room_members ...)` policy. Use the security-definer helper pattern from `supabase/migrations/0012_fix_room_members_visibility.sql`, where `public.is_room_member(room_id)` is used by the select policy.
 
 Smoke test with two users in the same room. Each user should see both room members, goals, profiles, and logs.
+
+### Supabase RPCs: Caller-Bound Security
+
+Security-definer RPCs must validate caller identity and room membership before returning or mutating room data.
+
+`active_room_for_creator` must not accept an arbitrary `p_user_id` without an `auth.uid()` guard. Prefer the no-argument `active_room_for_creator()` RPC introduced by `supabase/migrations/0026_harden_active_room_for_creator.sql`; compatibility wrappers must reject calls where `p_user_id` differs from `auth.uid()`.
 
 ### Supabase Profiles: Avoid Auth-State Upsert Noise
 
@@ -232,12 +255,16 @@ Keep both layers:
 
 The database trigger is the source of truth; client validation is only UX.
 
+### Migration Numbering
+
+Migration `0026_harden_active_room_for_creator.sql` is the current security hotfix. If it is kept, the Reconcile migration should use the next available number, for example `0027_reconcile_checkpoints.sql`.
+
 ---
 
 ## Git Rules
 
 - Check branch/status before commits if the user asks for git work.
-- You may run `git add` and `git commit` when the user asks for a commit.
+- You may run `git add` and `git commit` when the task done without error.
 - Show the commit message before committing when practical.
 - Ask before `git push`, `git merge`, branch deletion, history rewrite, or destructive git operations.
 - Do not commit secrets. `.env.local` stays untracked.

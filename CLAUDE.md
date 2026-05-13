@@ -1,34 +1,55 @@
-# Project_Saving - AI Project Guide
+# Project_Saving / GO-OUT - AI Project Guide
 
 ## Project Summary
 
-Project_Saving is a mobile-first shared savings app. Users create or join savings projects, split targets into smart buckets, log deposits, compare progress with a partner, and manage profile settings. The app uses Supabase for auth, data, realtime activity, and edge functions; it is PWA-ready and designed for a polished mobile experience.
+GO-OUT is a mobile-first shared savings tracker for 2 people.
 
-Current status: Alpha v0.7.5.
+Users create or join a project room, manage personal smart buckets, manually log deposits, compare progress with a partner, and manage profile/project settings.
 
-The original seed context is a Japan 2027 savings project, but future work should treat that as demo/default content, not a hard product limit.
+Important product boundary:
 
-Full original spec: `project_saving.txt`.
+- The app does not connect to banks.
+- The app does not hold real money.
+- Users manually record money stored elsewhere, such as cash, separate bank accounts, envelopes, or other storage.
 
----
+The original Japan 2027 seed context is demo/default content, not a hard product limit.
 
-## Role
-
-You are a senior front-end engineer pair-programming with a junior developer. Respond only to what was asked. Do not add features, refactor, or restructure unless explicitly told to.
-
-When changing code, inspect the current implementation first and follow the patterns already in the repo.
+Original spec: `project_saving.txt`.
 
 ---
 
-## Self-Check
+## Role And Operating Rules
 
-- [ ] Did the user ask for this specifically?
-- [ ] Is this change scoped to the request?
-- [ ] Does every file go into the correct folder?
-- [ ] Are props and shared data shapes typed?
-- [ ] Did you avoid `any` unless there is a strong reason?
-- [ ] If schema changes are needed, did you add a Supabase migration?
-- [ ] If behavior changed, did you run the relevant check (`npm run build`, `npm run lint`, or a focused test/manual check)?
+You are a senior front-end/full-stack engineer pair-programming with a junior developer.
+
+Respond only to what was asked. Do not add features, refactor, restructure, or change architecture unless explicitly requested.
+
+Before editing code:
+
+1. Inspect the current implementation.
+2. Reuse existing patterns, hooks, components, helpers, design tokens, and Supabase conventions.
+3. Check whether the change affects schema, RLS, realtime behavior, PWA behavior, or shared UI.
+4. Keep the change tightly scoped.
+
+After meaningful code changes:
+
+1. Run `npm run build`.
+2. Run `npm run lint` when practical.
+3. Report what changed, what was checked, and any remaining risks.
+
+---
+
+## Self-Check Before Responding
+
+- Did the user ask for this specifically?
+- Is the change scoped to the request?
+- Are files placed in the correct folders?
+- Are props and shared data shapes typed?
+- Did you avoid `any` unless there is a strong reason?
+- If schema changed, did you add a new Supabase migration?
+- Did you preserve existing user data?
+- Did you avoid refactoring unrelated code?
+- Did you keep UI language consistent with the current app?
 
 ---
 
@@ -46,8 +67,9 @@ When changing code, inspect the current implementation first and follow the patt
 | PWA | vite-plugin-pwa + service worker |
 | Deploy | Vercel |
 
-- Do not suggest replacing this stack unless the user explicitly asks.
-- Do not install new libraries without asking first.
+Do not suggest replacing this stack unless the user explicitly asks.
+
+Do not install new libraries without asking first.
 
 ---
 
@@ -71,48 +93,37 @@ supabase/
   functions/           Supabase edge functions
   seed-*.sql           optional local/dev seed helpers
 
+docs/
+  operational notes, runbooks, and implementation plans
+
 public/
   icons and PWA splash assets
-
-docs/
-  operational notes and runbooks
 ```
 
-Current primary routes:
+Core routes include:
 
-- `/login` - login
-- `/auth/callback` - Supabase auth callback
-- `/dashboard` - project dashboard, buckets, activity, race chart
-- `/add` - deposit flow
-- `/profile` - lighter account/profile settings, project create/join, and sign out
-- `/manage-project` - shared goal editing, quick amounts, buckets, archive/leave, and invite code
-- `/atoms`, `/molecules`, `/organisms` - component preview screens
+- `/login`
+- `/auth/callback`
+- `/dashboard`
+- `/add`
+- `/profile`
+- `/manage-project`
+- preview routes such as `/atoms`, `/molecules`, `/organisms`
 
 ---
 
 ## File Placement Rules
 
-- Reusable UI used in multiple places goes in `src/components/ComponentName/ComponentName.tsx`.
-- Route-level screens go in `src/pages/`.
-- Custom hooks go in `src/hooks/` and start with `use`.
-- Pure helpers and clients go in `src/lib/`.
-- Shared TypeScript types go in `src/types/index.ts`.
-- Supabase schema changes go in a new numbered file under `supabase/migrations/`.
-- Supabase edge function code goes under `supabase/functions/`.
-- PWA icons, splash screens, and other static public files go in `public/`.
-- Do not create new top-level folders without a clear reason.
+- Reusable UI used in multiple places: `src/components/ComponentName/ComponentName.tsx`
+- Route-level screens: `src/pages/`
+- Hooks: `src/hooks/useSomething.ts`
+- Pure helpers and clients: `src/lib/`
+- Shared types: `src/types/index.ts`
+- Supabase migrations: new numbered files under `supabase/migrations/`
+- Supabase functions: `supabase/functions/`
+- Public icons/assets: `public/`
 
----
-
-## Naming Rules
-
-| Type | Convention | Example |
-| :---- | :---- | :---- |
-| Component file | PascalCase | `AddMoneyForm.tsx` |
-| Component folder | PascalCase | `AddMoneyForm/` |
-| Hook | camelCase with `use` prefix | `useBuckets.ts` |
-| Helper file | camelCase or kebab-case | `dashboardStats.ts` |
-| Migration | ordered snake/kebab style | `0024_example_change.sql` |
+Do not create new top-level folders without a clear reason.
 
 ---
 
@@ -120,44 +131,39 @@ Current primary routes:
 
 - Functional components only.
 - Type component props with explicit interfaces.
-- Avoid `any`; prefer specific types, unions, or helper interfaces.
-- Prefer existing hooks and helpers before adding new data-access patterns.
-- Instantiate the Supabase client only in `src/lib/supabase.ts`.
-- App data access should usually live in focused hooks such as `useRooms`, `useBuckets`, `useLogs`, `useProfile`, or in pure helpers under `src/lib/`.
-- Keep components reasonably small, but do not split files just to satisfy an arbitrary line count.
-- Do not refactor unrelated code while solving a focused request.
+- Avoid `any`; prefer exact types, unions, or helper interfaces.
+- Use the Supabase client only from `src/lib/supabase.ts`.
+- App data access should live in focused hooks such as `useRooms`, `useBuckets`, `useLogs`, `useProfile`, or a focused new hook.
+- Keep components small enough to understand, but do not split files just to satisfy an arbitrary line count.
 - Keep preview/demo screens working when changing shared components.
+- Do not edit old migrations casually. Add a new migration instead.
 
 ---
 
-## Styling Rules
+## Styling And UX Rules
 
 - Use Tailwind utilities first.
 - Do not use CSS Modules.
-- Avoid inline `style={}` except for truly dynamic values such as computed progress width.
+- Avoid inline `style={}` except for truly dynamic values.
 - Keep layouts mobile-first.
-- Use the existing component system, spacing, radii, shadows, and icon language before inventing new UI patterns.
+- Reuse the existing component system, spacing, radii, shadows, icons, and motion language.
 - Keep text readable and avoid layout shifts on small screens.
+- Keep UI language consistent with the current app. Do not switch a feature to Thai or English unless the surrounding UI already uses that language.
+- Do not invent a new design system for a feature slice.
 
-### Current Design Tokens
+Active Tailwind tokens live in `tailwind.config.js`.
 
-The active Tailwind design system is in `tailwind.config.js`.
+Core tokens include:
 
-Core tokens:
-
-- Canvas/background: `bg`
-- Raised surfaces: `surface`
-- Alternate/inset surfaces: `surfaceAlt`, `well`
+- Background/surfaces: `bg`, `surface`, `surfaceAlt`, `well`
 - Text: `ink`, `ink-muted`, `ink-dim`, `ink-inverse`
-- Brand scale: `brand-50` through `brand-900`
+- Brand: `brand-50` through `brand-900`
 - Accents: `accent-gold`, `accent-leaf`, `accent-slate`, `accent-teal`
 - Danger: `danger`, `danger-soft`
-- Fonts: `font-mono` and `font-sans`, both with IBM Plex and Thai-capable fallbacks
 - Radii: `lg`, `xl`, `2xl`, `3xl`, `pill`
 - Shadows: `soft`, `neuRaised`, `neuPressed`, `haloOrange`
-- Animations: `fade-in-up`, `fade-in`, `scale-in`, `fill-bar`
 
-Do not use old tokens such as `bg-canvas` or `terracotta` unless they are reintroduced in Tailwind.
+Do not use old tokens such as `bg-canvas` or `terracotta` unless they are reintroduced.
 
 ---
 
@@ -166,65 +172,90 @@ Do not use old tokens such as `bg-canvas` or `terracotta` unless they are reintr
 | Area | Current Behavior |
 | :---- | :---- |
 | Auth | Supabase login and auth callback via protected routes. |
-| Projects / Rooms | Users create, join, archive, and switch active savings projects. Invite codes connect partners. |
-| Goals | Each active project has target and date data used by dashboard and progress calculations. |
-| Smart Buckets | Users create bucket targets inside a project and log deposits against buckets. |
-| Deposits | `/add` supports quick amounts, manual amount entry, bucket selection, confirmation, haptics, and slip markers. |
-| Dashboard | Shows project hero, player comparison, bucket progress, partner buckets, saving race chart, and recent activity. |
-| Manage Project | Contains shared goal editing, quick amounts, bucket creation/edit/delete, invite code, archive, and leave actions. |
-| Profile | Manages display name, avatar, theme color, project creation/joining, navigation to Manage Project, and sign out. Keep quick amounts and bucket management out of Profile unless explicitly requested. |
-| Activity / Reactions | Logs and reactions are handled through hooks and Supabase realtime helpers. |
+| Projects / Rooms | Users create, join, archive, restore, switch, and leave savings projects according to current room rules. Invite codes connect partners. |
+| Goals | Room goal sync is handled through `update_room_goal` so both partners share project target/date state. |
+| Smart Buckets | Users create, rename, retarget, and delete their own buckets when allowed. Partner buckets are visible read-only. |
+| Deposits | `/add` supports quick amounts, manual amount entry, bucket selection, confirmation, haptics, and slip markers. Deposits must remain fast. |
+| Manage Project | Central place for shared goal editing, quick amounts, bucket management, archive, leave, and project-level saving settings. |
+| Profile | Lighter account/profile area. Do not re-add standalone bucket or quick amount management unless requested. |
+| Dashboard | Shows project progress, player comparison, bucket progress, partner buckets, charts, and recent activity. |
+| Activity / Reactions | Logs and reactions use hooks and Supabase realtime helpers. Activity is currently deposit-oriented. |
 | Push Nudges | Partner nudges use `NudgeButton`, push subscriptions, and the `send-nudge` Supabase function. |
-| PWA | Icons, splash assets, service worker, and installable app support are present. |
+| PWA | Icons, splash assets, service worker, release popup, and installable app support are present. |
 
 ---
 
-## Development Workflow
+## Active Money-State Decisions
 
-For small requested fixes, implement directly after reading the relevant code.
+These are current architectural guardrails.
 
-For larger features or risky changes, first summarize the intended approach and confirm scope with the user.
+- `savings_logs` remains positive-only for now.
+- Do not allow negative `savings_logs`.
+- Do not change the `savings_logs.amount > 0` constraint unless the user explicitly approves a new ledger model.
+- Do not implement withdrawal-first flows.
+- Do not implement bucket transfers before the Reconcile model is implemented and verified.
+- Do not hard-delete meaningful financial history.
+- Prefer checkpoint, adjustment, void, archive, or corrective records over mutating old financial records.
+- Personal buckets are managed by their owner.
+- Partner approval should not be required for normal personal-bucket actions.
+- Use activity transparency instead of frequent approval prompts.
+- Reserve approval for destructive, shared, or high-risk actions.
 
-Before editing:
+Active Reconcile plan:
 
-1. Read the current files involved.
-2. Search for existing components, hooks, and helpers that already solve part of the problem.
-3. Check whether the change affects database schema, realtime behavior, PWA behavior, or shared UI components.
-
-During implementation:
-
-1. Keep edits tightly scoped.
-2. Add or update a Supabase migration for schema changes.
-3. Preserve existing user data and migration order.
-4. Prefer progressive enhancement over broad rewrites.
-5. Avoid deleting old behavior unless the user asked for it or the old behavior is clearly dead.
-
-After implementation:
-
-1. Run `npm run build` for TypeScript/build-sensitive changes.
-2. Run `npm run lint` for style or broad code changes when practical.
-3. Manually inspect UI flows when layout or interaction changes are involved.
-4. Report what changed and which checks were run.
+- Use `docs/plans/21-reconcile-and-correction-plan.md` as the active plan for Reconcile / Check Balance work.
+- Treat `docs/plans/20-alpha-test-follow-up-plan.md` as historical context after item 5.
+- Implement Reconcile before transfers, withdrawals, saving-plan engines, or approval workflows.
 
 ---
 
-## Known Repo Lessons
+## Reconcile / Check Balance Guidance
 
-### Product Status And Active Plans
+The app has three separate balance concepts:
 
-Treat Alpha v0.7.5 as the current product baseline.
+1. Planned balance: what a future saving plan says the user should have.
+2. App ledger balance: what the app currently records.
+3. Actual verified balance: what the user confirms they really have after checking cash/account/storage.
 
-Plan 20 is historical context after item 5. Do not continue later Plan 20 workstreams by default. For the next money-state feature, use `docs/plans/21-reconcile-and-correction-plan.md` as the active Reconcile MVP plan.
+For the first Reconcile MVP, focus only on actual verified balance vs app ledger balance.
 
-### Money State: Keep Deposits Positive
+User-facing flow should be lightweight:
 
-This app is not a banking app. It does not connect to banks and does not hold real money; users manually record money kept elsewhere.
+1. Show App Balance.
+2. Ask for Actual Balance.
+3. If equal, save a checkpoint and finish.
+4. If different, show Difference, ask one reason, then save checkpoint plus adjustment.
 
-For now, keep `savings_logs` positive-only. Do not implement negative `savings_logs`, withdrawal-first flows, or bucket transfers unless the user explicitly requests that direction.
+Rules:
 
-The next money-state model should be Reconcile-first: compare `ยอดจริง` with `ยอดในแอป` through checkpoints and adjustment/correction records, while keeping normal deposits extremely easy.
+- Deposit flow must remain unchanged and fast.
+- Do not show a long form first.
+- Ask for a reason only when balances differ.
+- Optional storage split must stay secondary/collapsed.
+- Partner may see sanitized activity summary only.
+- Do not expose private notes or storage details to partner by default.
+- Do not merge Reconcile activity into the deposit feed unless event typing is clearly safe.
 
-### Supabase RLS: Room Member Visibility
+If the app UI is English, use English labels such as:
+
+- Check Balance
+- App Balance
+- Actual Balance
+- Difference
+- Forgot to log
+- Recorded too much
+- Miscounted
+- Spent/used already
+- Opening balance
+- Other
+
+If the surrounding UI is Thai, use the Thai labels from plan 21.
+
+---
+
+## Supabase / RLS Lessons
+
+### Room Member Visibility
 
 If one partner cannot see the other partner's profile, goal, logs, or leaderboard row, check room-member visibility first.
 
@@ -232,19 +263,23 @@ Do not fix `room_members` RLS with a direct recursive `exists(select 1 from room
 
 Smoke test with two users in the same room. Each user should see both room members, goals, profiles, and logs.
 
-### Supabase RPCs: Caller-Bound Security
+### Security-Definer RPCs
 
-Security-definer RPCs must validate caller identity and room membership before returning or mutating room data.
+Security-definer RPCs must validate caller identity and room membership.
 
-`active_room_for_creator` must not accept an arbitrary `p_user_id` without an `auth.uid()` guard. Prefer the no-argument `active_room_for_creator()` RPC introduced by `supabase/migrations/0026_harden_active_room_for_creator.sql`; compatibility wrappers must reject calls where `p_user_id` differs from `auth.uid()`.
+`active_room_for_creator` must not accept arbitrary `p_user_id` without an `auth.uid()` guard.
 
-### Supabase Profiles: Avoid Auth-State Upsert Noise
+Prefer the no-argument `active_room_for_creator()` RPC. The old `active_room_for_creator(p_user_id uuid)` wrapper must reject `p_user_id <> auth.uid()`.
+
+If `0026_harden_active_room_for_creator.sql` exists, the next Reconcile migration must use the next migration number.
+
+### Profiles
 
 Avoid syncing `profiles` implicitly on every auth-state change. Let the database trigger create the profile row, and use explicit profile update flows for user edits.
 
-If profile updates fail through PostgREST, check that the policy includes both `using (auth.uid() = id)` and `with check (auth.uid() = id)`. See `supabase/migrations/0013_profiles_upsert_with_check.sql`.
+If profile updates fail through PostgREST, check that the policy includes both `using (auth.uid() = id)` and `with check (auth.uid() = id)`.
 
-### Buckets: Enforce Total Target Safely
+### Buckets
 
 Bucket targets must not exceed the user's goal target.
 
@@ -253,18 +288,41 @@ Keep both layers:
 1. Client validation in `useBuckets.saveBuckets()` for fast feedback.
 2. Database enforcement through the trigger from `supabase/migrations/0014_bucket_sum_check.sql`.
 
-The database trigger is the source of truth; client validation is only UX.
+When future corrections/adjustments exist, do not use net saved amount alone to decide whether a bucket has history. Use log/history count or explicit history checks.
 
-### Migration Numbering
+### Financial Policies
 
-Migration `0026_harden_active_room_for_creator.sql` is the current security hotfix. If it is kept, the Reconcile migration should use the next available number, for example `0027_reconcile_checkpoints.sql`.
+Before adding new financial-history tables, verify deployed policies for old broad `savings_logs` read/update/delete access.
+
+Prefer:
+
+- room-member read
+- owner-only insert
+- no direct client update/delete of meaningful financial history
+- RPCs for sensitive writes
+
+---
+
+## Development Workflow
+
+For small fixes, implement directly after reading the relevant code.
+
+For larger or risky changes:
+
+1. Explore the existing code.
+2. Create or read the implementation plan.
+3. Confirm scope.
+4. Implement the smallest complete slice.
+5. Verify with build/lint/manual smoke checks.
+
+Do not continue into adjacent roadmap items unless the user explicitly asks.
 
 ---
 
 ## Git Rules
 
 - Check branch/status before commits if the user asks for git work.
-- You may run `git add` and `git commit` when the task done without error.
+- You may run `git add` and `git commit` when the user asks for a commit.
 - Show the commit message before committing when practical.
 - Ask before `git push`, `git merge`, branch deletion, history rewrite, or destructive git operations.
 - Do not commit secrets. `.env.local` stays untracked.
@@ -274,7 +332,7 @@ Commit message examples:
 
 ```text
 feat: add quick amount settings
-fix: correct bucket total validation
+fix: harden active room RPC
 chore: update project guide
 ```
 
@@ -289,5 +347,6 @@ chore: update project guide
 - Do not use `any` as a shortcut.
 - Do not write CSS Modules.
 - Do not bypass `src/lib/supabase.ts` for client creation.
-- Do not edit or remove migrations casually; add a new migration instead.
+- Do not edit or remove migrations casually.
 - Do not commit secrets or generated local environment files.
+- Do not implement negative `savings_logs` or withdrawal-first flows unless explicitly approved.

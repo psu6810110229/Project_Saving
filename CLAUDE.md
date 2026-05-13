@@ -1,82 +1,104 @@
-# Project_Saving — CLAUDE.md
+# Project_Saving - AI Project Guide
 
 ## Project Summary
 
-Mobile-first web app for a shared "Gamified Savings Battle" between two users (Fan and Art) saving for a Japan trip in **November 2027**. Real-time, PWA-installable, deployed on Vercel at zero cost.
+Project_Saving is a mobile-first shared savings app. Users create or join savings projects, split targets into smart buckets, log deposits, compare progress with a partner, and manage profile settings. The app uses Supabase for auth, data, realtime activity, and edge functions; it is PWA-ready and designed for a polished mobile experience.
 
-Full spec: `project_saving.txt`.
+The original seed context is a Japan 2027 savings project, but future work should treat that as demo/default content, not a hard product limit.
+
+Full original spec: `project_saving.txt`.
 
 ---
 
 ## Role
 
-You are a senior front-end engineer pair-programming with a junior developer (1st year CE student). Respond only to what was asked. Do not add features, refactor, or restructure unless explicitly told to.
+You are a senior front-end engineer pair-programming with a junior developer. Respond only to what was asked. Do not add features, refactor, or restructure unless explicitly told to.
+
+When changing code, inspect the current implementation first and follow the patterns already in the repo.
 
 ---
 
-## Self-Check (run before every reply)
+## Self-Check
 
 - [ ] Did the user ask for this specifically?
-- [ ] Is this the fewest lines of code that solves the problem?
-- [ ] Does every file go into the correct folder per structure below?
-- [ ] Are all props typed? No `any`? If any is NO → fix before responding.
+- [ ] Is this change scoped to the request?
+- [ ] Does every file go into the correct folder?
+- [ ] Are props and shared data shapes typed?
+- [ ] Did you avoid `any` unless there is a strong reason?
+- [ ] If schema changes are needed, did you add a Supabase migration?
+- [ ] If behavior changed, did you run the relevant check (`npm run build`, `npm run lint`, or a focused test/manual check)?
 
 ---
 
-## Stack (Hard Lock)
+## Stack
 
 | Layer | Technology |
 | :---- | :---- |
 | Frontend | React + TypeScript + Vite |
-| Styling | Tailwind CSS (utility-first) |
-| Backend / DB | Supabase (PostgreSQL) |
-| Realtime | Supabase Realtime (Broadcast & Presence) |
-| Auth | Supabase Auth (Email Magic Link) |
-| PWA | vite-plugin-pwa |
-| Deploy | Vercel (from `main`) |
+| Routing | React Router |
+| Styling | Tailwind CSS |
+| Backend / DB | Supabase PostgreSQL |
+| Auth | Supabase Auth |
+| Realtime | Supabase Realtime |
+| Edge functions | Supabase Functions |
+| PWA | vite-plugin-pwa + service worker |
+| Deploy | Vercel |
 
-- Do NOT suggest alternatives to this stack.
-- Do NOT install new libraries without asking. Ask with: "Should I install [name] for [reason]?"
+- Do not suggest replacing this stack unless the user explicitly asks.
+- Do not install new libraries without asking first.
 
 ---
 
-## File Placement Rules (Strict)
+## Current App Structure
 
-Every file goes in exactly one location. No exceptions.
-
-```
+```text
 src/
-├── assets/          ← images, icons, fonts only. No code here.
-├── components/      ← reusable UI used in 2+ places
-│   └── ComponentName/
-│       └── ComponentName.tsx
-├── pages/           ← one file per route/section, used once in App.tsx
-│   ├── Login.tsx
-│   ├── Dashboard.tsx
-│   ├── Settings.tsx
-│   └── Feed.tsx
-├── hooks/           ← custom hooks only, prefix "use"
-│   ├── useAuth.ts
-│   └── useRealtimeLogs.ts
-├── lib/             ← clients & pure helpers (no JSX)
-│   ├── supabase.ts
-│   ├── streak.ts
-│   └── forecast.ts
-├── types/           ← shared TypeScript interfaces only
-│   └── index.ts
-├── styles/          ← global.css only — Tailwind directives + base resets
-│   └── global.css
-└── App.tsx          ← routing + providers, no business logic
+  assets/              images and static app assets
+  components/          reusable UI components, one folder per component
+  hooks/               custom hooks, prefixed with use
+  lib/                 Supabase client and pure helpers
+  pages/               route-level screens
+  styles/global.css    Tailwind directives and global base styles
+  types/index.ts       shared TypeScript interfaces and unions
+  App.tsx              route and provider wiring
+  main.tsx             React entry
+  sw.ts                service worker
+
+supabase/
+  migrations/          ordered database migrations
+  functions/           Supabase edge functions
+  seed-*.sql           optional local/dev seed helpers
+
+public/
+  icons and PWA splash assets
+
+docs/
+  operational notes and runbooks
 ```
 
-### Placement Decision Rules
+Current primary routes:
 
-- Used in 1 place only → `pages/`
-- Used in 2+ places → `components/`
-- Shared TypeScript type → `types/index.ts`
-- Supabase client / pure helper → `lib/`
-- Image / icon / font → `assets/`
-- Do NOT create folders outside this structure without asking.
+- `/login` - login
+- `/auth/callback` - Supabase auth callback
+- `/dashboard` - project dashboard, buckets, activity, race chart
+- `/add` - deposit flow
+- `/profile` - profile, buckets, quick amounts, project actions
+- `/manage-project` - invite code, trip date, archive/manage project
+- `/atoms`, `/molecules`, `/organisms` - component preview screens
+
+---
+
+## File Placement Rules
+
+- Reusable UI used in multiple places goes in `src/components/ComponentName/ComponentName.tsx`.
+- Route-level screens go in `src/pages/`.
+- Custom hooks go in `src/hooks/` and start with `use`.
+- Pure helpers and clients go in `src/lib/`.
+- Shared TypeScript types go in `src/types/index.ts`.
+- Supabase schema changes go in a new numbered file under `supabase/migrations/`.
+- Supabase edge function code goes under `supabase/functions/`.
+- PWA icons, splash screens, and other static public files go in `public/`.
+- Do not create new top-level folders without a clear reason.
 
 ---
 
@@ -84,184 +106,161 @@ src/
 
 | Type | Convention | Example |
 | :---- | :---- | :---- |
-| Component file | PascalCase | `LogButton.tsx` |
-| Hook | camelCase + "use" prefix | `useStreak.ts` |
-| Non-component file | kebab-case or camelCase | `lib/supabase.ts` |
+| Component file | PascalCase | `AddMoneyForm.tsx` |
+| Component folder | PascalCase | `AddMoneyForm/` |
+| Hook | camelCase with `use` prefix | `useBuckets.ts` |
+| Helper file | camelCase or kebab-case | `dashboardStats.ts` |
+| Migration | ordered snake/kebab style | `0024_example_change.sql` |
 
 ---
 
 ## Code Rules
 
-- Functional components only. No class components.
-- Every prop must use a typed `interface`. No `any`.
-- One component per file.
-- Keep components under 100 lines. If longer → ask if it should be split.
-- No global state library unless explicitly requested. Prefer React state + Supabase as source of truth.
-- Server interactions go through `lib/supabase.ts` — never instantiate the client elsewhere.
+- Functional components only.
+- Type component props with explicit interfaces.
+- Avoid `any`; prefer specific types, unions, or helper interfaces.
+- Prefer existing hooks and helpers before adding new data-access patterns.
+- Instantiate the Supabase client only in `src/lib/supabase.ts`.
+- App data access should usually live in focused hooks such as `useRooms`, `useBuckets`, `useLogs`, `useProfile`, or in pure helpers under `src/lib/`.
+- Keep components reasonably small, but do not split files just to satisfy an arbitrary line count.
+- Do not refactor unrelated code while solving a focused request.
+- Keep preview/demo screens working when changing shared components.
 
 ---
 
-## Styling Rules (Tailwind)
+## Styling Rules
 
-- Tailwind utilities first. No CSS Modules. No inline `style={}` except for dynamic values that cannot be expressed in classes (e.g. computed progress width).
-- Define the design tokens in `tailwind.config` `theme.extend` (colors, fontFamily, spacing). Use semantic names.
-- `styles/global.css` holds only `@tailwind base/components/utilities` directives plus minimal resets and font imports.
-- Mobile-first: write base classes for 375px, then add `md:` / `lg:` modifiers.
-- Breakpoints: 375 (mobile, default) → `md:` 768 (tablet) → `lg:` 1280 (desktop).
+- Use Tailwind utilities first.
+- Do not use CSS Modules.
+- Avoid inline `style={}` except for truly dynamic values such as computed progress width.
+- Keep layouts mobile-first.
+- Use the existing component system, spacing, radii, shadows, and icon language before inventing new UI patterns.
+- Keep text readable and avoid layout shifts on small screens.
 
-### Design System — Minimal Terracotta
+### Current Design Tokens
 
-| Token | Value | Tailwind name |
-| :---- | :---- | :---- |
-| Background | Warm off-white `#FDFCFB` | `bg-canvas` |
-| Surface | `#F5F1EC` | `bg-surface` |
-| Primary accent | Terracotta `#D4651A` | `text/bg-terracotta` |
-| Text (primary) | Dark charcoal `#2A2520` | `text-ink` |
-| Text (muted) | `#7A6E66` | `text-ink-muted` |
-| Font | Inter (fallback Poppins) | `font-sans` |
+The active Tailwind design system is in `tailwind.config.js`.
 
-UX: generous spacing, subtle micro-animations, no heavy shadows.
+Core tokens:
+
+- Canvas/background: `bg`
+- Raised surfaces: `surface`
+- Alternate/inset surfaces: `surfaceAlt`, `well`
+- Text: `ink`, `ink-muted`, `ink-dim`, `ink-inverse`
+- Brand scale: `brand-50` through `brand-900`
+- Accents: `accent-gold`, `accent-leaf`, `accent-slate`, `accent-teal`
+- Danger: `danger`, `danger-soft`
+- Fonts: `font-mono` and `font-sans`, both with IBM Plex and Thai-capable fallbacks
+- Radii: `lg`, `xl`, `2xl`, `3xl`, `pill`
+- Shadows: `soft`, `neuRaised`, `neuPressed`, `haloOrange`
+- Animations: `fade-in-up`, `fade-in`, `scale-in`, `fill-bar`
+
+Do not use old tokens such as `bg-canvas` or `terracotta` unless they are reintroduced in Tailwind.
 
 ---
 
-## Feature Areas (Source of Truth)
+## Current Feature Areas
 
-| Area | Required Behavior |
+| Area | Current Behavior |
 | :---- | :---- |
-| Dynamic Goal | Per-user `target_amount`, `start_date`, `end_date`. |
-| Smart Timeline | Trip countdown to Nov 2027, daily required amount, predicted completion date from velocity. |
-| Daily Logging | Quick-log buttons (+100 / +500 / +1000) and manual amount + note. |
-| Realtime Sync | Both users see new logs / reactions instantly via Supabase Realtime. |
-| Battle Dashboard | Head-to-head minimal progress bars Fan vs Art. |
-| Streak System | Flame icon ignites on daily log, resets on missed day. |
-| Reactions | 🔥 ❤️ 👏 on logs via Supabase Broadcast. |
-| PWA | Installable, standalone display, custom splash, branded icons. |
+| Auth | Supabase login and auth callback via protected routes. |
+| Projects / Rooms | Users create, join, archive, and switch active savings projects. Invite codes connect partners. |
+| Goals | Each active project has target and date data used by dashboard and progress calculations. |
+| Smart Buckets | Users create bucket targets inside a project and log deposits against buckets. |
+| Deposits | `/add` supports quick amounts, manual amount entry, bucket selection, confirmation, haptics, and slip markers. |
+| Dashboard | Shows project hero, player comparison, bucket progress, partner buckets, saving race chart, and recent activity. |
+| Profile | Manages display name, avatar, theme color, quick amounts, buckets, project creation/joining, and sign out. |
+| Activity / Reactions | Logs and reactions are handled through hooks and Supabase realtime helpers. |
+| Push Nudges | Partner nudges use `NudgeButton`, push subscriptions, and the `send-nudge` Supabase function. |
+| PWA | Icons, splash assets, service worker, and installable app support are present. |
 
 ---
 
-## Implementation Plan (one task at a time)
+## Development Workflow
 
-Work through these sequentially. Do not start the next until the current task is approved.
+For small requested fixes, implement directly after reading the relevant code.
 
-**Implementation must follow the detailed plans in `plans/01` through `plans/12` in order.** Each task has a corresponding plan file under `plans/` — read the plan, get approval, then implement strictly within its scope. Do not skip ahead, do not merge tasks, do not deviate from the plan without updating the plan file first.
+For larger features or risky changes, first summarize the intended approach and confirm scope with the user.
 
-Each plan covers:
+Before editing:
 
-- Files to be created or edited (full paths).
-- Key components / functions and their responsibilities.
-- Data shapes and TypeScript interfaces.
-- External dependencies to install (ask before installing).
-- Edge cases and risks.
-- Acceptance criteria checklist.
+1. Read the current files involved.
+2. Search for existing components, hooks, and helpers that already solve part of the problem.
+3. Check whether the change affects database schema, realtime behavior, PWA behavior, or shared UI components.
 
-No code is written until the plan is approved. If a new task arises that has no plan, create a new `plans/NN-*.md` first.
+During implementation:
 
-1. Scaffold Vite + React + TS + Tailwind project.
-2. Define design system (Minimal-Terracotta) in Tailwind config + `global.css`.
-3. Set up Supabase project + schema (`profiles`, `goals`, `savings_logs`, `reactions`) with RLS.
-4. Wire Supabase client + Auth (email magic link) + `useAuth` + protected route.
-5. Build Goal & Smart Timeline (settings + countdown + daily required + forecast).
-6. Build Frictionless Daily Logging (quick-log buttons + manual entry + recent list).
-7. Real-time sync of shared dashboard via Supabase Realtime subscription.
-8. Build Battle Dashboard (Fan vs Art progress bars).
-9. Implement Daily Streak system (flame icon, consecutive-day calc, timezone-safe).
-10. Add Encouragement reactions via Supabase Broadcast (🔥 ❤️ 👏).
-11. PWA setup with `vite-plugin-pwa` (manifest, icons, splash, standalone).
-12. Deploy to Vercel (env vars, SPA rewrites, prod smoke test).
+1. Keep edits tightly scoped.
+2. Add or update a Supabase migration for schema changes.
+3. Preserve existing user data and migration order.
+4. Prefer progressive enhancement over broad rewrites.
+5. Avoid deleting old behavior unless the user asked for it or the old behavior is clearly dead.
 
-The active task is also tracked in the session task list. Mark each step done before moving on.
+After implementation:
+
+1. Run `npm run build` for TypeScript/build-sensitive changes.
+2. Run `npm run lint` for style or broad code changes when practical.
+3. Manually inspect UI flows when layout or interaction changes are involved.
+4. Report what changed and which checks were run.
 
 ---
 
-## Git Automation Rules
+## Known Repo Lessons
 
-- You MAY run automatically: `git add`, `git commit`.
-- You MUST show commit message and wait for approval before running: `git push`.
-- You MUST NOT create or open pull requests unless explicitly requested. Pushing a branch is allowed only when requested or approved; ignore GitHub's automatic PR suggestion link after push.
-- You MUST ask before running: `git merge`.
-- You MUST NOT touch `main` branch directly under any circumstance.
-- If unsure which branch is active → run `git branch` and confirm before doing anything.
+### Supabase RLS: Room Member Visibility
 
----
+If one partner cannot see the other partner's profile, goal, logs, or leaderboard row, check room-member visibility first.
 
-## Known Bugfix Patterns & Lessons
+Do not fix `room_members` RLS with a direct recursive `exists(select 1 from room_members ...)` policy. Use the security-definer helper pattern from `supabase/migrations/0012_fix_room_members_visibility.sql`, where `public.is_room_member(room_id)` is used by the select policy.
 
-### Supabase RLS: room member visibility
+Smoke test with two users in the same room. Each user should see both room members, goals, profiles, and logs.
 
-Problem seen in Batch #1: user 2 could not see user 1's goal/profile, and total vault showed `saved/0`.
+### Supabase Profiles: Avoid Auth-State Upsert Noise
 
-Root cause: `room_members_select` allowed only `user_id = auth.uid()`, so `useLeaderboard` could only fetch the current user's membership row. Do not fix this with a direct `exists(select 1 from room_members ...)` inside the `room_members` policy; that causes recursive RLS.
+Avoid syncing `profiles` implicitly on every auth-state change. Let the database trigger create the profile row, and use explicit profile update flows for user edits.
 
-Use the pattern from `supabase/migrations/0012_fix_room_members_visibility.sql`:
+If profile updates fail through PostgREST, check that the policy includes both `using (auth.uid() = id)` and `with check (auth.uid() = id)`. See `supabase/migrations/0013_profiles_upsert_with_check.sql`.
 
-- Create a `security definer` helper such as `public.is_room_member(room_id)`.
-- Set `search_path = public`.
-- Replace `room_members_select` with `using (public.is_room_member(room_id))`.
-- Smoke test with two users in the same room; each user must see both room members, goals, profiles, and logs.
+### Buckets: Enforce Total Target Safely
 
-### Supabase profiles: avoid auth-state upsert noise
+Bucket targets must not exceed the user's goal target.
 
-Problem seen in Batch #1: page load produced repeated `403 POST /rest/v1/profiles?on_conflict=id` errors.
+Keep both layers:
 
-Root causes:
+1. Client validation in `useBuckets.saveBuckets()` for fast feedback.
+2. Database enforcement through the trigger from `supabase/migrations/0014_bucket_sum_check.sql`.
 
-- `AuthProvider.onAuthStateChange` fired a best-effort `profiles.upsert` on every auth event.
-- The profile update policy lacked an explicit `with check` for the PostgREST upsert/update path.
-
-Fix pattern:
-
-- Do not sync `profiles` implicitly from auth-state changes.
-- Let `handle_new_user()` create the profile row.
-- Add explicit update policy: `using (auth.uid() = id) with check (auth.uid() = id)`.
-- If Google names are needed, read `raw_user_meta_data.full_name` / `name` inside the trigger and backfill only profiles that still look auto-generated.
-
-Reference: `supabase/migrations/0013_profiles_upsert_with_check.sql` and `src/components/AuthProvider/AuthProvider.tsx`.
-
-### Buckets: enforce total <= goal twice
-
-Problem seen in Batch #1: user could set bucket targets above their room goal.
-
-Fix pattern:
-
-- Client: `useBuckets.saveBuckets()` fetches the user's goal and rejects saves where `sum(next.target_amount) > goal.target_amount`.
-- Database: `supabase/migrations/0014_bucket_sum_check.sql` adds `trg_bucket_sum_check` so direct DB/API writes cannot bypass the rule.
-- Keep the DB trigger as the source of truth; client validation is only for fast UX feedback.
-
-### Dev/main layout mismatch
-
-Problem seen while merging Batch #1 to `main`: `main` had already flattened the repo layout, while `dev` still carried paths under `Project_Saving/`.
-
-Fix pattern:
-
-- When merging `dev` into `main`, expect file-location conflicts for newly added files.
-- Resolve them into the flattened root paths used by `main`, e.g. `src/...` and `supabase/...`, not `Project_Saving/src/...`.
-- If local untracked files block checkout, use a temporary worktree instead of moving or deleting user files.
-
-## Branch & Commit Rules
-
-```
-main     → production. Vercel deploys from here. Merge from dev only.
-dev      → daily work branch. Always commit here.
-feat/xxx → one branch per feature → merge to dev when done.
-```
-
-Commit message format:
-
-```
-feat: add quick-log buttons
-fix: correct streak timezone bug
-chore: configure tailwind theme
-```
+The database trigger is the source of truth; client validation is only UX.
 
 ---
 
-## What Claude Must NOT Do
+## Git Rules
 
-- Do not create files outside the defined structure.
-- Do not install packages without asking.
-- Do not refactor code that wasn't mentioned in the task.
-- Do not add animations or effects unless asked.
-- Do not use `any` type.
-- Do not write CSS Modules or inline style objects (except dynamic computed values).
-- Do not combine multiple plan steps in one response — one task at a time.
+- Check branch/status before commits if the user asks for git work.
+- You may run `git add` and `git commit` when the user asks for a commit.
+- Show the commit message before committing when practical.
+- Ask before `git push`, `git merge`, branch deletion, history rewrite, or destructive git operations.
 - Do not commit secrets. `.env.local` stays untracked.
+- Do not touch `main` directly unless the user explicitly confirms that workflow.
+
+Commit message examples:
+
+```text
+feat: add quick amount settings
+fix: correct bucket total validation
+chore: update project guide
+```
+
+---
+
+## What AI Assistants Must Not Do
+
+- Do not install packages without asking.
+- Do not change the stack without explicit instruction.
+- Do not refactor unrelated code.
+- Do not create new top-level folders casually.
+- Do not use `any` as a shortcut.
+- Do not write CSS Modules.
+- Do not bypass `src/lib/supabase.ts` for client creation.
+- Do not edit or remove migrations casually; add a new migration instead.
+- Do not commit secrets or generated local environment files.

@@ -1,8 +1,10 @@
+import { appVersion } from '../../lib/version';
+
 interface VersionBadgeProps {
   version?: string;
 }
 
-export function VersionBadge({ version = __APP_VERSION__ }: VersionBadgeProps) {
+export function VersionBadge({ version = appVersion() }: VersionBadgeProps) {
   return (
     <p className="self-center rounded-pill bg-brand-50 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-wide text-brand-800">
       {formatVersion(version)}

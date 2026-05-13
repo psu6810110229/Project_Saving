@@ -17,7 +17,7 @@ export function currentReleaseNotes(): ReleaseNotes {
   return {
     version: appVersion(),
     heading: 'App Updated',
-    intro: 'This release adds the update notice foundation. Future completed features will be added here so installed app users know what changed.',
+    intro: 'This release includes the latest alpha follow-up updates through bucket editing and safer bucket deletion.',
     notes: [
       {
         id: 'release-popup',
@@ -43,6 +43,11 @@ export function currentReleaseNotes(): ReleaseNotes {
         id: 'manage-project-consolidation',
         title: 'Project settings consolidation',
         body: 'Quick amounts and bucket setup now live in Manage Project so Profile stays focused on account settings.',
+      },
+      {
+        id: 'bucket-edit-delete',
+        title: 'Bucket rename, target edit, and delete confirmation',
+        body: 'Buckets can now be renamed, retargeted, and deleted from Manage Project, with confirmation and history-aware delete blocking.',
       },
     ],
   };

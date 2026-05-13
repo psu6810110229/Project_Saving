@@ -35,7 +35,7 @@ import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import type { BucketCategory } from '../types';
+import type { Bucket, BucketCategory } from '../types';
 
 type ManageModal = 'trip-goal' | 'invite-code' | 'quick-amounts' | 'buckets' | null;
 
@@ -143,6 +143,39 @@ export function ManageProject() {
       setBucketName('');
       setBucketTarget('');
     }
+  }
+
+  async function handleUpdateBucket(bucket: Bucket, next: { name: string; target_amount: number }) {
+    const result = await saveBuckets(
+      buckets.map(item => item.id === bucket.id
+        ? { id: item.id, name: next.name, target_amount: next.target_amount, category: item.category }
+        : { id: item.id, name: item.name, target_amount: item.target_amount, category: item.category }),
+    );
+
+    if (result.error) {
+      setMessage(result.error);
+      return result;
+    }
+
+    setMessage('Bucket updated.');
+    haptic('success');
+    return result;
+  }
+
+  async function handleDeleteBucket(bucket: Bucket) {
+    const result = await saveBuckets(
+      buckets
+        .filter(item => item.id !== bucket.id)
+        .map(item => ({ id: item.id, name: item.name, target_amount: item.target_amount, category: item.category })),
+    );
+
+    if (result.error) {
+      setMessage(result.error);
+      return result;
+    }
+
+    setMessage('Bucket deleted.');
+    return result;
   }
 
   async function handleArchive() {
@@ -294,6 +327,9 @@ export function ManageProject() {
           onNameChange={setBucketName}
           onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
           onCreate={handleCreateBucket}
+          onUpdate={handleUpdateBucket}
+          onDelete={handleDeleteBucket}
+          statusMessage={message}
         />
       </Modal>
       <ConfirmModal

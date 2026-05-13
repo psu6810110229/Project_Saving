@@ -1,8 +1,15 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { bucketSaved } from '../../lib/buckets';
 import { formatCurrency } from '../../lib/format';
 import type { Bucket, BucketCategory, SavingsLog } from '../../types';
+import { Button } from '../Button/Button';
+import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../CreateBucketForm/CreateBucketForm';
+import { FormField } from '../FormField/FormField';
+import { IconCheck, IconEdit, IconPiggyBank, IconTrash, IconX } from '../Icon/Icon';
+import { IconButton } from '../IconButton/IconButton';
+import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { TextInput } from '../TextInput/TextInput';
 
 interface BucketCategoryOption {
   id: BucketCategory;
@@ -17,10 +24,13 @@ interface BucketManagerProps {
   options: BucketCategoryOption[];
   name: string;
   target: string;
+  statusMessage?: string | null;
   onCategoryChange: (next: BucketCategory) => void;
   onNameChange: (value: string) => void;
   onTargetChange: (value: string) => void;
   onCreate: () => void;
+  onUpdate: (bucket: Bucket, next: { name: string; target_amount: number }) => Promise<{ error?: string }>;
+  onDelete: (bucket: Bucket) => Promise<{ error?: string }>;
 }
 
 export function BucketManager({
@@ -30,14 +40,110 @@ export function BucketManager({
   options,
   name,
   target,
+  statusMessage,
   onCategoryChange,
   onNameChange,
   onTargetChange,
   onCreate,
+  onUpdate,
+  onDelete,
 }: BucketManagerProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
+  const [draftTarget, setDraftTarget] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<Bucket | null>(null);
+  const [localMessage, setLocalMessage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  function startEdit(bucket: Bucket) {
+    setEditingId(bucket.id);
+    setDraftName(bucket.name);
+    setDraftTarget(String(bucket.target_amount));
+    setLocalMessage(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setDraftName('');
+    setDraftTarget('');
+    setLocalMessage(null);
+  }
+
+  async function saveEdit(bucket: Bucket) {
+    const targetAmount = Number(draftTarget);
+    if (!draftName.trim()) {
+      setLocalMessage('Add a bucket name before saving.');
+      return;
+    }
+    if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
+      setLocalMessage('Enter a target amount greater than 0.');
+      return;
+    }
+
+    setSaving(true);
+    const result = await onUpdate(bucket, {
+      name: draftName.trim(),
+      target_amount: targetAmount,
+    });
+    setSaving(false);
+
+    if (result.error) {
+      setLocalMessage(result.error);
+      return;
+    }
+
+    setLocalMessage('Bucket updated.');
+    setEditingId(null);
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+
+    if (bucketSaved(pendingDelete.id, logs) !== 0) {
+      setLocalMessage('This bucket has deposit history. Move or correct those logs before deleting it.');
+      setPendingDelete(null);
+      return;
+    }
+
+    setSaving(true);
+    const result = await onDelete(pendingDelete);
+    setSaving(false);
+    setPendingDelete(null);
+
+    if (result.error) {
+      setLocalMessage(result.error);
+      return;
+    }
+
+    setLocalMessage('Bucket deleted.');
+  }
+
+  const blockedDelete = pendingDelete ? bucketSaved(pendingDelete.id, logs) !== 0 : false;
+
   return (
     <div className="flex flex-col gap-4">
-      <BucketSummary buckets={buckets} logs={logs} />
+      {(statusMessage || localMessage) && (
+        <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">
+          {localMessage ?? statusMessage}
+        </p>
+      )}
+      <BucketSummary
+        buckets={buckets}
+        logs={logs}
+        editingId={editingId}
+        draftName={draftName}
+        draftTarget={draftTarget}
+        saving={saving}
+        onDraftNameChange={setDraftName}
+        onDraftTargetChange={value => setDraftTarget(value.replace(/[^0-9]/g, ''))}
+        onStartEdit={startEdit}
+        onCancelEdit={cancelEdit}
+        onSaveEdit={saveEdit}
+        onAskDelete={(bucket) => {
+          setLocalMessage(null);
+          setPendingDelete(bucket);
+        }}
+      />
       <CreateBucketForm
         category={category}
         options={options}
@@ -48,6 +154,21 @@ export function BucketManager({
         onTargetChange={onTargetChange}
         onSubmit={onCreate}
       />
+      <ConfirmModal
+        open={Boolean(pendingDelete)}
+        title={blockedDelete ? 'Bucket has history' : 'Delete bucket?'}
+        body={
+          pendingDelete
+            ? blockedDelete
+              ? `${pendingDelete.name} has saved activity attached to it, so it cannot be deleted yet.`
+              : `Delete ${pendingDelete.name}? This only removes the bucket setup and cannot be undone.`
+            : ''
+        }
+        confirmLabel={blockedDelete ? 'Got it' : 'Delete'}
+        danger={!blockedDelete}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={blockedDelete ? () => setPendingDelete(null) : confirmDelete}
+      />
     </div>
   );
 }
@@ -55,23 +176,123 @@ export function BucketManager({
 function BucketSummary({
   buckets,
   logs,
+  editingId,
+  draftName,
+  draftTarget,
+  saving,
+  onDraftNameChange,
+  onDraftTargetChange,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onAskDelete,
 }: {
-  buckets: Pick<Bucket, 'id' | 'name' | 'target_amount'>[];
+  buckets: Bucket[];
   logs: SavingsLog[];
+  editingId: string | null;
+  draftName: string;
+  draftTarget: string;
+  saving: boolean;
+  onDraftNameChange: (value: string) => void;
+  onDraftTargetChange: (value: string) => void;
+  onStartEdit: (bucket: Bucket) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: (bucket: Bucket) => void;
+  onAskDelete: (bucket: Bucket) => void;
 }) {
   if (buckets.length === 0) {
     return <p className="font-mono text-xs text-ink-muted">No buckets yet. Create one below.</p>;
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {buckets.map(bucket => (
-        <div key={bucket.id} className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
-          <span className="font-bold text-ink">{bucket.name}</span>
-          {' '}
-          {formatCurrency(bucketSaved(bucket.id, logs))} / {formatCurrency(bucket.target_amount)}
-        </div>
-      ))}
+    <div className="rounded-3xl bg-surface p-4 shadow-soft">
+      <SectionLabel tone="brand">Current Buckets</SectionLabel>
+      <div className="mt-3 flex flex-col gap-3">
+        {buckets.map(bucket => {
+          const saved = bucketSaved(bucket.id, logs);
+          const remaining = Math.max(0, bucket.target_amount - saved);
+          const editing = editingId === bucket.id;
+
+          return (
+            <div key={bucket.id} className="rounded-2xl bg-brand-50 px-4 py-3">
+              {editing ? (
+                <div className="flex flex-col gap-3">
+                  <FormField label="Bucket Name">
+                    <TextInput
+                      value={draftName}
+                      leadingIcon={<IconEdit size={16} />}
+                      onChange={event => onDraftNameChange(event.target.value)}
+                    />
+                  </FormField>
+                  <FormField label="Target Amount">
+                    <TextInput
+                      value={draftTarget}
+                      inputMode="numeric"
+                      leadingIcon={<IconPiggyBank size={16} />}
+                      onChange={event => onDraftTargetChange(event.target.value)}
+                    />
+                  </FormField>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="md"
+                      leadingIcon={<IconX size={16} />}
+                      onClick={onCancelEdit}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="md"
+                      leadingIcon={<IconCheck size={16} />}
+                      onClick={() => onSaveEdit(bucket)}
+                      disabled={saving}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-mono text-sm font-bold text-ink">{bucket.name}</span>
+                    </div>
+                    <p className="mt-1 font-mono text-xs text-ink-muted">
+                      {formatCurrency(saved)} saved / {formatCurrency(bucket.target_amount)} target
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-ink-muted">
+                      {formatCurrency(remaining)} remaining
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <IconButton
+                      type="button"
+                      size="sm"
+                      ariaLabel={`Edit ${bucket.name}`}
+                      onClick={() => onStartEdit(bucket)}
+                    >
+                      <IconEdit size={16} />
+                    </IconButton>
+                    <IconButton
+                      type="button"
+                      size="sm"
+                      ariaLabel={`Delete ${bucket.name}`}
+                      className="bg-danger-soft text-danger hover:bg-danger-soft/80"
+                      onClick={() => onAskDelete(bucket)}
+                    >
+                      <IconTrash size={16} />
+                    </IconButton>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

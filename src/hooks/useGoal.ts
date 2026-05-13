@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 import type { Goal } from '../types';
@@ -15,22 +15,46 @@ export function useGoal(roomId: string | null = null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!user || !roomId) { setGoal(null); setLoading(false); return; }
+  const fetchGoal = useCallback(async () => {
+    if (!user || !roomId) {
+      setGoal(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    supabase
+    setError(null);
+    const { data, error: err } = await supabase
       .from('goals')
       .select('*')
       .eq('user_id', user.id)
       .eq('room_id', roomId)
-      .maybeSingle()
-      .then(({ data, error: err }) => {
-        if (err) setError(err.message);
-        else setGoal(data ? { ...data, target_amount: Number(data.target_amount) } : null);
-        setLoading(false);
-      });
+      .maybeSingle();
+
+    if (err) setError(err.message);
+    else setGoal(data ? { ...data, target_amount: Number(data.target_amount) } : null);
+    setLoading(false);
   }, [user, roomId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchGoal();
+
+    if (!user || !roomId) return;
+
+    const channel = supabase.channel(`goal:${roomId}-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'goals', filter: `room_id=eq.${roomId}` },
+        payload => {
+          const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as Partial<Goal>;
+          if (row.user_id !== user.id) return;
+          void fetchGoal();
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchGoal, roomId, user]);
 
   async function save(values: SaveValues): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };
@@ -46,5 +70,28 @@ export function useGoal(roomId: string | null = null) {
     return {};
   }
 
-  return { goal, loading, error, save };
+  async function saveRoomGoal(values: Omit<SaveValues, 'start_date'>): Promise<{ error?: string }> {
+    if (!user) return { error: 'Not authenticated' };
+    if (!roomId) return { error: 'No active room' };
+
+    const { error: err } = await supabase.rpc('update_room_goal', {
+      p_room_id: roomId,
+      p_target_amount: values.target_amount,
+      p_end_date: values.end_date,
+    });
+    if (err) return { error: err.message };
+
+    const nextGoal: Goal = {
+      user_id: user.id,
+      room_id: roomId,
+      target_amount: values.target_amount,
+      start_date: goal?.start_date ?? new Date().toISOString().slice(0, 10),
+      end_date: values.end_date,
+      updated_at: new Date().toISOString(),
+    };
+    setGoal(nextGoal);
+    return {};
+  }
+
+  return { goal, loading, error, save, saveRoomGoal, refetch: fetchGoal };
 }

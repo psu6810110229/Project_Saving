@@ -39,8 +39,8 @@ export function ManageProject() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
-  const { goal, save: saveGoal } = useGoal(activeRoomId);
-  const { archiveRoom, leaveRoom, updateRoom } = useRooms();
+  const { goal, saveRoomGoal } = useGoal(activeRoomId);
+  const { archiveRoom, leaveRoom, refetch: refetchRooms } = useRooms();
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
@@ -83,14 +83,12 @@ export function ManageProject() {
       setMessage('Enter a target amount greater than 0.');
       return;
     }
-    const roomResult = await updateRoom(activeRoomId, { end_date: tripDateDraft });
-    if (roomResult.error) { setMessage(roomResult.error); return; }
-    const goalResult = await saveGoal({
+    const goalResult = await saveRoomGoal({
       target_amount: target,
-      start_date: goal?.start_date ?? new Date().toISOString().slice(0, 10),
       end_date: tripDateDraft,
     });
     if (goalResult.error) { setMessage(goalResult.error); return; }
+    await refetchRooms();
     setMessage('Trip goal updated.');
     closeModal();
   }

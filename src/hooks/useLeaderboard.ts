@@ -44,61 +44,82 @@ export function useLeaderboard(
       return;
     }
 
+    let cancelled = false;
     setLoading(true);
 
-    // Step 1: get user_ids for this room. The direct select is gated by
-    // room_members RLS (fixed in migration 0012). If the policy is missing
-    // in this environment the joiner only sees their own row, which would
-    // collapse the dashboard to a single tile. Fall back to a security-
-    // definer RPC (migration 0016) that returns every member's profile
-    // so the dashboard renders both players regardless.
-    supabase
-      .from('room_members')
-      .select('user_id')
-      .eq('room_id', roomId)
-      .then(async ({ data: memberRows }) => {
-        let userIds = (memberRows ?? []).map((r: { user_id: string }) => r.user_id);
+    async function fetchLeaderboardData() {
+      // Step 1: get user_ids for this room. The direct select is gated by
+      // room_members RLS (fixed in migration 0012). If the policy is missing
+      // in this environment the joiner only sees their own row, which would
+      // collapse the dashboard to a single tile. Fall back to a security-
+      // definer RPC (migration 0016) that returns every member's profile
+      // so the dashboard renders both players regardless.
+      const { data: memberRows } = await supabase
+        .from('room_members')
+        .select('user_id')
+        .eq('room_id', roomId);
 
-        if (userIds.length <= 1) {
-          const { data: rpcRows } = await supabase.rpc('room_members_for_room', { p_room_id: roomId });
-          const rpcUserIds = (rpcRows ?? []).map((r: { user_id: string }) => r.user_id);
-          if (rpcUserIds.length > userIds.length) {
-            if (typeof console !== 'undefined') {
-              console.warn('[useLeaderboard] direct room_members returned fewer rows than RPC; falling back', { direct: userIds.length, rpc: rpcUserIds.length });
-            }
-            userIds = rpcUserIds;
+      if (cancelled) return;
+
+      let userIds = (memberRows ?? []).map((r: { user_id: string }) => r.user_id);
+
+      if (userIds.length <= 1) {
+        const { data: rpcRows } = await supabase.rpc('room_members_for_room', { p_room_id: roomId });
+        const rpcUserIds = (rpcRows ?? []).map((r: { user_id: string }) => r.user_id);
+        if (rpcUserIds.length > userIds.length) {
+          if (typeof console !== 'undefined') {
+            console.warn('[useLeaderboard] direct room_members returned fewer rows than RPC; falling back', { direct: userIds.length, rpc: rpcUserIds.length });
           }
+          userIds = rpcUserIds;
         }
+      }
 
-        if (userIds.length === 0) {
-          setProfiles([]);
-          setGoals([]);
-          setLoading(false);
-          return;
-        }
+      if (cancelled) return;
 
-        // Step 2: fetch profiles + goals in parallel
-        Promise.all([
-          supabase
-            .from('profiles')
-            .select('id, display_name, avatar_url, theme_color')
-            .in('id', userIds),
-          supabase
-            .from('goals')
-            .select('user_id, target_amount')
-            .eq('room_id', roomId),
-        ]).then(([{ data: p }, { data: g }]) => {
-          setProfiles((p ?? []) as RawProfile[]);
-          setGoals(g ?? []);
-          setLoading(false);
-        });
-      });
+      if (userIds.length === 0) {
+        setProfiles([]);
+        setGoals([]);
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: fetch profiles + goals in parallel.
+      const [{ data: p }, { data: g }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url, theme_color')
+          .in('id', userIds),
+        supabase
+          .from('goals')
+          .select('user_id, target_amount')
+          .eq('room_id', roomId),
+      ]);
+
+      if (cancelled) return;
+      setProfiles((p ?? []) as RawProfile[]);
+      setGoals(g ?? []);
+      setLoading(false);
+    }
+
+    void fetchLeaderboardData();
+
+    const goalChannel = supabase.channel(`leaderboard-goals:${roomId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'goals', filter: `room_id=eq.${roomId}` },
+        () => { void fetchLeaderboardData(); },
+      )
+      .subscribe();
 
     const id = setInterval(() => {
       const current = localDateKey(new Date().toISOString(), APP_TZ);
       setToday(prev => prev !== current ? current : prev);
     }, 30_000);
-    return () => clearInterval(id);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      supabase.removeChannel(goalChannel);
+    };
   }, [roomId]);
 
   return useMemo((): LeaderboardState => {

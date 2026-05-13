@@ -34,6 +34,11 @@ export function currentReleaseNotes(): ReleaseNotes {
         title: 'Installed app freshness',
         body: 'The installed app now checks for fresh service worker assets and reloads after an update activates.',
       },
+      {
+        id: 'shared-room-goal',
+        title: 'Shared project goal sync',
+        body: 'Project target and end date changes now update every room member so both dashboards stay aligned.',
+      },
     ],
   };
 }

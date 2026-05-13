@@ -3,23 +3,18 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { Button } from '../components/Button/Button';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
-import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { CreateProjectForm } from '../components/CreateProjectForm/CreateProjectForm';
 import { FormField } from '../components/FormField/FormField';
 import {
-  IconBed,
   IconBell,
   IconBriefcase,
   IconCalendar,
   IconEdit,
-  IconFork,
-  IconGear,
   IconHeart,
   IconHome,
-  IconPiggyBank,
   IconPlane,
   IconSmartphone,
-  IconTicket,
+  IconTrash,
   IconUser,
   IconUserPlus,
 } from '../components/Icon/Icon';
@@ -35,43 +30,34 @@ import { TextInput } from '../components/TextInput/TextInput';
 import { ThemeSwatchPicker } from '../components/ThemeSwatchPicker/ThemeSwatchPicker';
 import { VersionBadge } from '../components/VersionBadge/VersionBadge';
 import { useAuth } from '../hooks/useAuth';
-import { useBuckets } from '../hooks/useBuckets';
-import { useLogs } from '../hooks/useLogs';
 import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
-import { bucketSaved } from '../lib/buckets';
 import { fallbackInitial } from '../lib/dashboardStats';
-import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import type { ThemeSwatch } from '../lib/theme';
-import type { BucketCategory, ProjectCategory } from '../types';
+import type { ProjectCategory } from '../types';
 
-type ProfileModal = 'profile' | 'buckets' | 'quick-amounts' | 'create-project' | 'join-project' | null;
+type ProfileModal = 'profile' | 'create-project' | 'join-project' | null;
 
 export function Profile() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
-  const { createRoom, joinRoomByCode } = useRooms();
-  const { profile, loading, error, themeColor, quickAmounts, updateProfile, updateQuickAmounts, uploadAvatar } = useProfile();
-  const { buckets, saveBuckets } = useBuckets(activeRoomId);
-  const { logs } = useLogs(100, activeRoomId);
+  const { createRoom, joinRoomByCode, leaveRoom } = useRooms();
+  const { profile, loading, error, themeColor, updateProfile, uploadAvatar } = useProfile();
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [pendingCreateValues, setPendingCreateValues] = useState<{ existingName: string; existingRoomId: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [displayNameDraft, setDisplayNameDraft] = useState<string | null>(null);
   const [themeDraft, setThemeDraft] = useState<ThemeSwatch | null>(null);
-  const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
-  const [bucketName, setBucketName] = useState('Flights');
-  const [bucketTarget, setBucketTarget] = useState('30000');
   const [projectCategory, setProjectCategory] = useState<ProjectCategory | null>('travel');
   const [projectName, setProjectName] = useState('Japan 2027');
   const [projectTarget, setProjectTarget] = useState('100000');
   const [projectEndDate, setProjectEndDate] = useState('2027-11-01');
-  const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>(quickAmounts.map(String));
   const [joinCode, setJoinCode] = useState('');
 
   // Manage Project -> "Create another project" links here with an
@@ -91,9 +77,9 @@ export function Profile() {
 
   const displayName = displayNameDraft ?? profile?.display_name ?? '';
   const theme = themeDraft ?? themeColor;
+  const canLeaveFromProfile = Boolean(activeRoom && activeRoom.created_by !== user?.id);
 
   function openModal(next: ProfileModal) {
-    if (next === 'quick-amounts') setQuickAmountDrafts(quickAmounts.map(String));
     setActiveModal(next);
     setMessage(null);
   }
@@ -110,25 +96,6 @@ export function Profile() {
       setThemeDraft(null);
     }
     setMessage(result.error ?? 'Profile updated.');
-  }
-
-  async function handleCreateBucket() {
-    const target = Number(bucketTarget);
-    if (!bucketCategory || !bucketName.trim() || target <= 0) {
-      setMessage('Add a bucket name, target, and category.');
-      return;
-    }
-    const result = await saveBuckets([
-      ...buckets,
-      { id: undefined, name: bucketName.trim(), target_amount: target, category: bucketCategory },
-    ]);
-    if (result.error) setMessage(result.error);
-    else {
-      haptic('success');
-      setMessage('Bucket created.');
-      setBucketName('');
-      setBucketTarget('');
-    }
   }
 
   async function handleCreateProject(options: { archiveExisting?: boolean } = {}) {
@@ -156,15 +123,6 @@ export function Profile() {
     }
   }
 
-  async function handleQuickAmountsSave() {
-    const result = await updateQuickAmounts(quickAmountDrafts.map(Number));
-    if (result.error) setMessage(result.error);
-    else {
-      setMessage('Quick amounts updated.');
-      closeModal();
-    }
-  }
-
   async function handleJoinProject() {
     const result = await joinRoomByCode(joinCode);
     if (result.error) setMessage(result.error);
@@ -172,6 +130,18 @@ export function Profile() {
       closeModal();
       navigate('/dashboard');
     }
+  }
+
+  async function handleLeaveProject() {
+    if (!activeRoomId) return;
+    const result = await leaveRoom(activeRoomId);
+    if (result.error) {
+      setMessage(result.error);
+      setConfirmingLeave(false);
+      return;
+    }
+    setConfirmingLeave(false);
+    navigate('/profile');
   }
 
 
@@ -191,13 +161,18 @@ export function Profile() {
       <SettingsList
         items={[
           { id: 'profile', icon: <IconEdit size={18} />, label: 'Edit Profile', description: 'Name, photo, and theme color', onClick: () => openModal('profile') },
-          { id: 'buckets', icon: <IconGear size={18} />, label: 'Manage Buckets', description: `${buckets.length} active`, onClick: () => openModal('buckets') },
-          { id: 'quick', icon: <IconPiggyBank size={18} />, label: 'Quick Amounts', description: quickAmounts.map(formatCurrency).join(' / '), onClick: () => openModal('quick-amounts') },
-          { id: 'manage-project', icon: <IconCalendar size={18} />, label: 'Manage Project', description: `${activeRoom?.name ?? 'No active project'} \u00b7 invite code, trip date, archive`, onClick: () => navigate('/manage-project') },
+          { id: 'manage-project', icon: <IconCalendar size={18} />, label: 'Manage Project', description: `${activeRoom?.name ?? 'No active project'} - goal, buckets, quick amounts`, onClick: () => navigate('/manage-project') },
           { id: 'create', icon: <IconUserPlus size={18} />, label: 'Create New Project', description: 'One active project per creator', onClick: () => openModal('create-project') },
           { id: 'join', icon: <IconBell size={18} />, label: 'Join Project', description: 'Use a 6-character invite code', onClick: () => openModal('join-project') },
-          { id: 'signout', icon: <IconUser size={18} />, label: 'Sign Out', onClick: () => setConfirmingSignOut(true) },
+          ...(canLeaveFromProfile ? [{
+            id: 'leave-project',
+            icon: <IconTrash size={18} />,
+            label: 'Leave Project',
+            description: 'Your partner keeps the project',
+            onClick: () => setConfirmingLeave(true),
+          }] : []),
         ]}
+        archiveItem={{ id: 'signout', icon: <IconUser size={18} />, label: 'Sign Out', onClick: () => setConfirmingSignOut(true) }}
       />
       <VersionBadge />
       <Modal open={activeModal === 'profile'} title="Edit Profile" onClose={closeModal}>
@@ -212,54 +187,6 @@ export function Profile() {
           </FormField>
           <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
           <Button variant="primary" fullWidth onClick={handleProfileSave}>Save Profile</Button>
-        </div>
-      </Modal>
-      <Modal open={activeModal === 'buckets'} title="Manage Buckets" onClose={closeModal}>
-        <div className="flex flex-col gap-4">
-          <BucketSummary buckets={buckets} logs={logs} />
-          <CreateBucketForm
-            category={bucketCategory}
-            options={bucketOptions}
-            name={bucketName}
-            target={bucketTarget}
-            onCategoryChange={setBucketCategory}
-            onNameChange={setBucketName}
-            onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
-            onSubmit={handleCreateBucket}
-          />
-        </div>
-      </Modal>
-      <Modal open={activeModal === 'quick-amounts'} title="Quick Amounts" onClose={closeModal}>
-        <div className="flex flex-col gap-3">
-          {quickAmountDrafts.map((amount, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <FormField label={`Amount ${index + 1}`}>
-                <TextInput
-                  value={amount}
-                  inputMode="numeric"
-                  leadingIcon={<IconPiggyBank size={16} />}
-                  onChange={event => setQuickAmountDrafts(prev => prev.map((item, itemIndex) => (
-                    itemIndex === index ? event.target.value.replace(/[^0-9]/g, '') : item
-                  )))}
-                />
-              </FormField>
-              {quickAmountDrafts.length > 1 && (
-                <Button
-                  variant="ghost"
-                  size="md"
-                  onClick={() => setQuickAmountDrafts(prev => prev.filter((_, itemIndex) => itemIndex !== index))}
-                >
-                  Remove
-                </Button>
-              )}
-            </div>
-          ))}
-          {quickAmountDrafts.length < 6 && (
-            <Button variant="ghost" size="md" onClick={() => setQuickAmountDrafts(prev => [...prev, ''])}>
-              Add Amount
-            </Button>
-          )}
-          <Button variant="primary" fullWidth onClick={handleQuickAmountsSave}>Save Quick Amounts</Button>
         </div>
       </Modal>
       <Modal open={activeModal === 'create-project'} title="Create Project" onClose={closeModal}>
@@ -295,6 +222,15 @@ export function Profile() {
         onConfirm={signOut}
       />
       <ConfirmModal
+        open={confirmingLeave}
+        title="Leave project?"
+        body="You'll no longer see this project on your dashboard. Your partner keeps the project and can invite you again later."
+        confirmLabel="Leave"
+        danger
+        onCancel={() => setConfirmingLeave(false)}
+        onConfirm={handleLeaveProject}
+      />
+      <ConfirmModal
         open={Boolean(pendingCreateValues)}
         title="Archive current project?"
         body={pendingCreateValues
@@ -305,29 +241,6 @@ export function Profile() {
         onCancel={() => setPendingCreateValues(null)}
         onConfirm={() => handleCreateProject({ archiveExisting: true })}
       />
-    </div>
-  );
-}
-
-function BucketSummary({
-  buckets,
-  logs,
-}: {
-  buckets: { id: string; name: string; target_amount: number }[];
-  logs: ReturnType<typeof useLogs>['logs'];
-}) {
-  if (buckets.length === 0) {
-    return <p className="font-mono text-xs text-ink-muted">No buckets yet. Create one below.</p>;
-  }
-  return (
-    <div className="flex flex-col gap-2">
-      {buckets.map(bucket => (
-        <div key={bucket.id} className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
-          <span className="font-bold text-ink">{bucket.name}</span>
-          {' '}
-          {formatCurrency(bucketSaved(bucket.id, logs))} / {formatCurrency(bucket.target_amount)}
-        </div>
-      ))}
     </div>
   );
 }
@@ -378,15 +291,6 @@ const projectOptions = [
   { id: 'wedding' as const, label: 'Wedding', icon: <IconHeart size={28} /> },
   { id: 'home' as const, label: 'Home', icon: <IconHome size={28} /> },
   { id: 'other' as const, label: 'Other', icon: <IconBriefcase size={28} /> },
-];
-
-const bucketOptions = [
-  { id: 'flight' as const, label: 'Flight', icon: <IconPlane size={22} /> },
-  { id: 'accom' as const, label: 'Stay', icon: <IconBed size={22} /> },
-  { id: 'dining' as const, label: 'Dining', icon: <IconFork size={22} /> },
-  { id: 'activities' as const, label: 'Activity', icon: <IconTicket size={22} /> },
-  { id: 'gear' as const, label: 'Gear', icon: <IconSmartphone size={22} /> },
-  { id: 'home' as const, label: 'Home', icon: <IconHome size={22} /> },
 ];
 
 function joinPreview(code: string) {

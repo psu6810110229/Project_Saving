@@ -1,27 +1,43 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BucketManager } from '../components/BucketManager/BucketManager';
 import { Button } from '../components/Button/Button';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { FormField } from '../components/FormField/FormField';
 import {
   IconArrowLeft,
+  IconBed,
+  IconBriefcase,
   IconCalendar,
+  IconFork,
+  IconGear,
+  IconHome,
+  IconPiggyBank,
+  IconPlane,
   IconQrCode,
+  IconSmartphone,
+  IconTicket,
   IconTrash,
   IconUserPlus,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
 import { PageHeader } from '../components/PageHeader/PageHeader';
+import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { SettingsList } from '../components/SettingsList/SettingsList';
 import { TextInput } from '../components/TextInput/TextInput';
 import { useAuth } from '../hooks/useAuth';
+import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
+import { useLogs } from '../hooks/useLogs';
+import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { formatCurrency } from '../lib/format';
+import { haptic } from '../lib/haptics';
+import type { BucketCategory } from '../types';
 
-type ManageModal = 'trip-goal' | 'invite-code' | null;
+type ManageModal = 'trip-goal' | 'invite-code' | 'quick-amounts' | 'buckets' | null;
 
 /**
  * Manage Project consolidates the per-room admin actions that used to
@@ -41,12 +57,19 @@ export function ManageProject() {
   const { activeRoom, activeRoomId } = useRoom();
   const { goal, saveRoomGoal } = useGoal(activeRoomId);
   const { archiveRoom, leaveRoom, refetch: refetchRooms } = useRooms();
+  const { quickAmounts, updateQuickAmounts } = useProfile();
+  const { buckets, saveBuckets } = useBuckets(activeRoomId);
+  const { logs } = useLogs(100, activeRoomId);
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [tripDateDraft, setTripDateDraft] = useState(activeRoom?.end_date ?? '');
   const [targetAmountDraft, setTargetAmountDraft] = useState(goal?.target_amount ? String(goal.target_amount) : '');
+  const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>(quickAmounts.map(String));
+  const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
+  const [bucketName, setBucketName] = useState('Flights');
+  const [bucketTarget, setBucketTarget] = useState('30000');
 
   if (!activeRoom) {
     return (
@@ -64,6 +87,7 @@ export function ManageProject() {
       setTripDateDraft(activeRoom?.end_date ?? '');
       setTargetAmountDraft(goal?.target_amount ? String(goal.target_amount) : '');
     }
+    if (next === 'quick-amounts') setQuickAmountDrafts(quickAmounts.map(String));
     setActiveModal(next);
     setMessage(null);
   }
@@ -93,6 +117,34 @@ export function ManageProject() {
     closeModal();
   }
 
+  async function handleQuickAmountsSave() {
+    const result = await updateQuickAmounts(quickAmountDrafts.map(Number));
+    if (result.error) setMessage(result.error);
+    else {
+      setMessage('Quick amounts updated.');
+      closeModal();
+    }
+  }
+
+  async function handleCreateBucket() {
+    const target = Number(bucketTarget);
+    if (!bucketCategory || !bucketName.trim() || target <= 0) {
+      setMessage('Add a bucket name, target, and category.');
+      return;
+    }
+    const result = await saveBuckets([
+      ...buckets,
+      { id: undefined, name: bucketName.trim(), target_amount: target, category: bucketCategory },
+    ]);
+    if (result.error) setMessage(result.error);
+    else {
+      haptic('success');
+      setMessage('Bucket created.');
+      setBucketName('');
+      setBucketTarget('');
+    }
+  }
+
   async function handleArchive() {
     if (!activeRoomId) return;
     const result = await archiveRoom(activeRoomId);
@@ -109,7 +161,7 @@ export function ManageProject() {
     navigate('/profile');
   }
 
-  const items = [
+  const projectBasicsItems = [
     {
       id: 'invite',
       icon: <IconQrCode size={18} />,
@@ -126,6 +178,26 @@ export function ManageProject() {
       meta: <span className="font-mono text-xs text-ink-muted">{goal ? formatCurrency(goal.target_amount) : ''}</span>,
       onClick: isCreator ? () => openModal('trip-goal') : undefined,
     },
+  ];
+
+  const savingControlItems = [
+    {
+      id: 'quick',
+      icon: <IconPiggyBank size={18} />,
+      label: 'Quick Amounts',
+      description: quickAmounts.map(formatCurrency).join(' / '),
+      onClick: () => openModal('quick-amounts'),
+    },
+    {
+      id: 'buckets',
+      icon: <IconGear size={18} />,
+      label: 'Manage Buckets',
+      description: `${buckets.length} active`,
+      onClick: () => openModal('buckets'),
+    },
+  ];
+
+  const roomActionItems = [
     {
       id: 'create-another',
       icon: <IconUserPlus size={18} />,
@@ -161,7 +233,9 @@ export function ManageProject() {
       </div>
       <PageHeader eyebrow="Project" title="Manage Project" subtitle={activeRoom.name} />
       {message && <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
-      <SettingsList items={items} archiveItem={archiveItem} />
+      <SettingsList label="Project Basics" items={projectBasicsItems} />
+      <SettingsList label="Saving Controls" items={savingControlItems} />
+      <SettingsList label="Room Actions" items={roomActionItems} archiveItem={archiveItem} />
       <Modal open={activeModal === 'trip-goal'} title="Trip Goal" onClose={closeModal}>
         <div className="flex flex-col gap-4">
           <FormField label="End Date">
@@ -201,6 +275,27 @@ export function ManageProject() {
           </Button>
         </div>
       </Modal>
+      <Modal open={activeModal === 'quick-amounts'} title="Quick Amounts" onClose={closeModal}>
+        <QuickAmountsEditor
+          amounts={quickAmountDrafts}
+          onChange={setQuickAmountDrafts}
+          onSave={handleQuickAmountsSave}
+        />
+      </Modal>
+      <Modal open={activeModal === 'buckets'} title="Manage Buckets" onClose={closeModal}>
+        <BucketManager
+          buckets={buckets}
+          logs={logs}
+          category={bucketCategory}
+          options={bucketOptions}
+          name={bucketName}
+          target={bucketTarget}
+          onCategoryChange={setBucketCategory}
+          onNameChange={setBucketName}
+          onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
+          onCreate={handleCreateBucket}
+        />
+      </Modal>
       <ConfirmModal
         open={confirmingArchive}
         title="Archive project?"
@@ -222,3 +317,13 @@ export function ManageProject() {
     </div>
   );
 }
+
+const bucketOptions = [
+  { id: 'flight' as const, label: 'Flight', icon: <IconPlane size={22} /> },
+  { id: 'accom' as const, label: 'Stay', icon: <IconBed size={22} /> },
+  { id: 'dining' as const, label: 'Dining', icon: <IconFork size={22} /> },
+  { id: 'activities' as const, label: 'Activity', icon: <IconTicket size={22} /> },
+  { id: 'gear' as const, label: 'Gear', icon: <IconSmartphone size={22} /> },
+  { id: 'home' as const, label: 'Home', icon: <IconHome size={22} /> },
+  { id: 'other' as const, label: 'Other', icon: <IconBriefcase size={22} /> },
+];

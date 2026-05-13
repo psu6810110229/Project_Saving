@@ -39,6 +39,11 @@ export function currentReleaseNotes(): ReleaseNotes {
         title: 'Shared project goal sync',
         body: 'Project target and end date changes now update every room member so both dashboards stay aligned.',
       },
+      {
+        id: 'manage-project-consolidation',
+        title: 'Project settings consolidation',
+        body: 'Quick amounts and bucket setup now live in Manage Project so Profile stays focused on account settings.',
+      },
     ],
   };
 }

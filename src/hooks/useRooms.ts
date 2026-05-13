@@ -91,7 +91,7 @@ export function useRooms() {
   async function fetchActiveRoomForCreator(): Promise<ActiveRoomRow | null> {
     if (!user) return null;
     const { data, error: rpcError } = await supabase
-      .rpc('active_room_for_creator', { p_user_id: user.id });
+      .rpc('active_room_for_creator');
     if (rpcError) return null;
     const row = (data ?? [])[0];
     return row ? (row as ActiveRoomRow) : null;

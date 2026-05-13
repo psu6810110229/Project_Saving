@@ -31,13 +31,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => applySession(data.session));
+    let cancelled = false;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) applySession(data.session);
+    });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
       applySession(s);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   // One-shot DB backfill of the Google avatar onto profiles.avatar_url.
@@ -72,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    applySession(null);
     await supabase.auth.signOut();
   }
 

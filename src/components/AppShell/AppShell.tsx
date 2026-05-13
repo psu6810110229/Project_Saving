@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { BottomNav, type BottomNavTab } from '../BottomNav/BottomNav';
+import { ReleaseUpdateModal } from '../ReleaseUpdateModal/ReleaseUpdateModal';
 import { VersionChip } from '../VersionChip/VersionChip';
 
 interface AppShellProps {
@@ -19,6 +20,7 @@ export function AppShell({ activeTab, onTabChange, children }: AppShellProps) {
       <main className="mx-auto max-w-md px-4 pt-10 pb-32">
         {children}
       </main>
+      <ReleaseUpdateModal />
       <BottomNav activeTab={activeTab} onChange={onTabChange} />
     </div>
   );

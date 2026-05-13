@@ -36,6 +36,8 @@ interface UpdateRoomValues {
   end_date: string;
 }
 
+const ROOM_FETCH_TIMEOUT_MS = 12_000;
+
 export function useRooms() {
   const { user } = useAuth();
   const { rooms: currentRooms, setRooms, activeRoomId, setActiveRoomId } = useRoom();
@@ -46,14 +48,23 @@ export function useRooms() {
     if (!user) { setLoading(false); return; }
     setLoading(true);
     setError(null);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), ROOM_FETCH_TIMEOUT_MS);
 
     const { data, error: err } = await supabase
       .from('room_members')
       .select('rooms(*)')
       .eq('user_id', user.id)
-      .order('joined_at', { ascending: true });
+      .order('joined_at', { ascending: true })
+      .abortSignal(controller.signal);
 
-    if (err) { setError(err.message); setLoading(false); return; }
+    window.clearTimeout(timeoutId);
+
+    if (err) {
+      setError(err.name === 'AbortError' ? 'Could not load projects. Check your connection and refresh.' : err.message);
+      setLoading(false);
+      return;
+    }
 
     const rooms: Room[] = (data ?? [])
       .map((row: { rooms: Room | Room[] | null }) => {

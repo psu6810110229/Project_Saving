@@ -1,20 +1,16 @@
-import { useAuth } from '../../hooks/useAuth';
 import type { ReactNode } from 'react';
-import { Login } from '../../pages/Login';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { Spinner } from '../Spinner/Spinner';
 
 /**
- * Gate that wraps every authenticated route. Previously this redirected
- * a signed-out caller to `/login`, but that meant a user could land on
- * the create-project screen, watch their session expire, and have no
- * obvious way back — the only sign-in button lived on a different URL
- * and they had to manually navigate there. Now we render the Login UI
- * inline at the same URL, so the "Continue with Google" CTA is always
- * one tap away regardless of which protected page the user was on.
- * After OAuth completes, AuthCallback navigates to '/' as before.
+ * Gate that wraps every authenticated route. Signed-out users go to
+ * `/login` so the protected app shell does not try to load room data
+ * before Supabase has a real session.
  */
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { session, loading } = useAuth();
+  const location = useLocation();
+  const { session, user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -24,7 +20,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!session) return <Login />;
+  if (!session || !user) return <Navigate to="/login" replace state={{ from: location }} />;
 
   return <>{children}</>;
 }

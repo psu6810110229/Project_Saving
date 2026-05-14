@@ -192,27 +192,25 @@ export function SavingPlanCard({
         )
       )}
 
-      {/* Money + Habit boxes — larger muted labels, value text stays bold/ink. */}
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-lg bg-brand-50 p-4 shadow-soft">
+      {/* Money + Habit — flat columns separated by a divider line. */}
+      <div className="mt-5 grid grid-cols-2 divide-x divide-well">
+        <div className="pr-4">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
             Money
           </p>
           <div className="mt-3 flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-mono text-sm text-ink-muted">Today's plan</p>
-                <p className="mt-0.5 font-mono text-base font-bold text-ink">
+            <div>
+              <p className="font-mono text-sm text-ink-muted">Today's plan</p>
+              <div className="mt-0.5 flex items-baseline justify-between gap-1">
+                <p className="font-mono text-base font-bold text-ink">
                   {formatCurrency(planAmountRounded)}
                 </p>
+                {planStatus && (
+                  <span className={`shrink-0 font-mono text-xs font-bold ${planStatus.color}`}>
+                    {planStatus.text}
+                  </span>
+                )}
               </div>
-              {planStatus && (
-                <span
-                  className={`shrink-0 font-mono text-xs font-bold ${planStatus.color}`}
-                >
-                  {planStatus.text}
-                </span>
-              )}
             </div>
             <div>
               <p className="font-mono text-sm text-ink-muted">Saved today</p>
@@ -223,25 +221,23 @@ export function SavingPlanCard({
           </div>
         </div>
 
-        <div className="rounded-lg bg-brand-50 p-4 shadow-soft">
+        <div className="pl-4">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
             Habit
           </p>
           <div className="mt-3 flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-mono text-sm text-ink-muted">Last deposit</p>
-                <p className="mt-0.5 font-mono text-base font-bold text-ink">
+            <div>
+              <p className="font-mono text-sm text-ink-muted">Last deposit</p>
+              <div className="mt-0.5 flex items-baseline justify-between gap-1">
+                <p className="font-mono text-base font-bold text-ink">
                   {habitHeadline}
                 </p>
+                {depositStatus && (
+                  <span className={`shrink-0 font-mono text-xs font-bold ${depositStatus.color}`}>
+                    {depositStatus.text}
+                  </span>
+                )}
               </div>
-              {depositStatus && (
-                <span
-                  className={`shrink-0 font-mono text-xs font-bold ${depositStatus.color}`}
-                >
-                  {depositStatus.text}
-                </span>
-              )}
             </div>
             {habit.streak > 0 && (
               <div>
@@ -260,8 +256,8 @@ export function SavingPlanCard({
 
       {/* Verified Balance — larger muted label, value size unchanged. */}
       {verifiedBalance && (
-        <div className="mt-4 flex items-center gap-3 rounded-lg bg-brand-50 px-3 py-2.5">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface text-brand-800">
+        <div className="mt-4 flex items-center gap-3 border-t border-well pt-4">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-800">
             <IconVault size={16} />
           </span>
           <div className="min-w-0 flex-1">

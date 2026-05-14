@@ -39,18 +39,18 @@ function toneFor(p: PeriodInsight): PeriodTone {
 export function PlanInsightStrip({ week, month }: PlanInsightStripProps) {
   return (
     <section className="rounded-xl bg-surface p-4 shadow-soft">
-      <div className="grid grid-cols-2 gap-3">
-        <PeriodTile label="This week" {...week} />
-        <PeriodTile label="This month" {...month} />
+      <div className="grid grid-cols-2 divide-x divide-well">
+        <PeriodTile label="This week" {...week} className="pr-4" />
+        <PeriodTile label="This month" {...month} className="pl-4" />
       </div>
     </section>
   );
 }
 
-function PeriodTile({ label, recorded, expected }: { label: string } & PeriodInsight) {
+function PeriodTile({ label, recorded, expected, className = '' }: { label: string; className?: string } & PeriodInsight) {
   const tone = toneFor({ recorded, expected });
   return (
-    <div className="rounded-lg bg-brand-50 p-3 shadow-soft">
+    <div className={className}>
       <div className="flex items-center justify-between gap-2">
         <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
           {label}

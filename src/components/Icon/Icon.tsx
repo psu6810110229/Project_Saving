@@ -149,6 +149,14 @@ export function IconGear(p: IconProps) {
   );
 }
 
+export function IconChevronDown(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 export function IconArrowLeft(p: IconProps) {
   return (
     <svg {...svgProps(p)} aria-hidden>

@@ -543,7 +543,7 @@ export function SavingPlan() {
               Can&apos;t reach your target within 10 years. Try a higher maximum daily amount.
             </p>
           ) : (
-            <dl className="mt-3 flex flex-col gap-2 font-mono text-xs">
+            <dl className="mt-3 divide-y divide-well font-mono text-xs">
               <PreviewRow label="Estimated finish" value={shortDateLabel(preview.finishDateKey)} />
               <PreviewRow label="Saving days" value={`${preview.days} day${preview.days === 1 ? '' : 's'}`} />
               <PreviewRow label="Daily cap" value={formatCurrency(Math.round(preview.capAmount))} />
@@ -656,38 +656,28 @@ function BigLabelField({
   );
 }
 
-/**
- * Stacked-card field used inside the Increasing Daily form. Each
- * field is its own peach mini-card so the dense set of inputs reads
- * as a tidy list of rows rather than a stack of competing labels.
- */
 function CardField({
   label,
-  helper,
   children,
 }: {
   label: string;
-  helper?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-lg bg-brand-50 p-3 shadow-soft">
-      <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-brand-800">
+    <div>
+      <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-ink-muted">
         {label}
       </p>
       <div className="mt-2">{children}</div>
-      {helper && (
-        <p className="mt-2 font-mono text-xs text-ink-muted">{helper}</p>
-      )}
     </div>
   );
 }
 
 function PreviewRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex items-center justify-between gap-3 py-2">
       <dt className="text-ink-muted">{label}</dt>
-      <dd className="text-ink">{value}</dd>
+      <dd className="font-bold text-ink">{value}</dd>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 ﻿import { useEffect, useRef, type ReactNode } from 'react';
+import { IconChevronDown } from '../Icon/Icon';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
@@ -15,9 +16,10 @@ interface BucketRowProps {
   saved: number;
   target: number;
   onClick?: () => void;
+  expanded?: boolean;
 }
 
-export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps) {
+export function BucketRow({ icon, name, saved, target, onClick, expanded = false }: BucketRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const wasComplete = useRef(target > 0 && saved >= target);
 
@@ -47,6 +49,10 @@ export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps
           <ProgressBar value={pct} tone="primary" size="sm" />
         </div>
       </div>
+      <IconChevronDown
+        size={16}
+        className={`shrink-0 text-ink-muted transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+      />
     </button>
   );
 }

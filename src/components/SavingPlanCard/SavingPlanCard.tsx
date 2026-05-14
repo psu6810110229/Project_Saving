@@ -1,24 +1,24 @@
-﻿import { IconBubble } from '../IconBubble/IconBubble';
-import { IconArrowRight, IconEdit, IconTrendingUp, IconVault } from '../Icon/Icon';
+import { useRef, useState } from 'react';
+import { IconBubble } from '../IconBubble/IconBubble';
+import { IconChevronDown, IconEdit, IconTrendingUp, IconVault } from '../Icon/Icon';
+import { TextInput } from '../TextInput/TextInput';
+import { Button } from '../Button/Button';
 import { formatCurrency } from '../../lib/format';
-import { formatSignedCurrency } from '../../lib/reconcile';
+import { formatSignedCurrency, RECONCILE_REASONS } from '../../lib/reconcile';
 import {
   MONEY_STATE_LABEL,
   shortDateLabel,
   type HabitStatus,
   type MoneyStatus,
 } from '../../lib/savingPlan';
-import type { SavingPlanRuleType } from '../../types';
+import type { BalanceAdjustmentReason, SavingPlanRuleType } from '../../types';
 
 interface VerifiedBalanceSlot {
   amount: number;
-  /** "today" / "1d ago" / "3d ago" / "never". */
   sinceLabel: string;
-  /** Whether the latest checkpoint difference was zero. */
   matched: boolean;
-  /** Signed difference from the latest checkpoint (0 when matched). */
   diff: number;
-  onCheck: () => void;
+  onSubmit: (actualAmount: number, reason?: BalanceAdjustmentReason) => Promise<{ error?: string; differenceAmount?: number }>;
 }
 
 interface SavingPlanCardProps {
@@ -26,18 +26,12 @@ interface SavingPlanCardProps {
   money: MoneyStatus | null;
   habit: HabitStatus;
   onConfigure: () => void;
-  /** Today's deposits by the current user (sum of `savings_logs` whose Bangkok day = today). */
-  savedToday?: number;
   verifiedBalance?: VerifiedBalanceSlot | null;
-  /** Whether the plan is currently paused (today is a paused day). */
   isPaused?: boolean;
-  /** Bangkok date the current pause started (YYYY-MM-DD), or null when not paused. */
   pausedSince?: string | null;
-  /** Short human-readable plan rule summary, e.g. "Fixed daily · ฿100/day". */
   planSummary?: string | null;
 }
 
-/** Fire glyphs for a streak: ≥2d → 1, ≥6d → 2, ≥8d → 3. */
 function fireForStreak(streak: number): string {
   if (streak >= 8) return '🔥🔥🔥';
   if (streak >= 6) return '🔥🔥';
@@ -45,58 +39,74 @@ function fireForStreak(streak: number): string {
   return '';
 }
 
-interface StatusText {
-  text: string;
-  /** Tailwind text-color class including opacity, e.g. `text-accent-gold/70`. */
-  color: string;
-}
-
-function todayPlanStatus(planAmount: number, savedToday: number): StatusText | null {
-  if (!Number.isFinite(planAmount) || planAmount <= 0) return null;
-  if (savedToday >= planAmount) {
-    return { text: 'Done', color: 'text-accent-leaf/80' };
-  }
-  if (savedToday > 0) {
-    const remaining = planAmount - savedToday;
-    return { text: `ขาดอีก ${formatCurrency(Math.round(remaining))}`, color: 'text-accent-gold/80' };
-  }
-  return { text: `ขาดอีก ${formatCurrency(Math.round(planAmount))}`, color: 'text-danger/70' };
-}
-
-function lastDepositStatus(habit: HabitStatus): StatusText | null {
-  if (habit.state === 'plan_paused') {
-    return { text: 'Paused', color: 'text-ink-muted' };
-  }
-  if (habit.lastDepositDateKey === null) {
-    return { text: 'Start', color: 'text-accent-gold/80' };
-  }
-  if (habit.hasDepositedToday) {
-    return { text: 'On track', color: 'text-accent-leaf/80' };
-  }
-  if (habit.daysSinceLastDeposit === 1) {
-    return { text: 'Catch up', color: 'text-accent-gold/80' };
-  }
-  return { text: 'Behind', color: 'text-danger/70' };
-}
-
-/**
- * Primary Dashboard insight island. Two clearly separate zones —
- * Money status (plan vs deposits) and Habit status (cadence) — and
- * an optional Verified Balance row at the bottom that lives inside
- * the same island so it reads as part of one financial picture
- * instead of a competing card.
- */
 export function SavingPlanCard({
   ruleType,
   money,
   habit,
   onConfigure,
-  savedToday = 0,
   verifiedBalance,
   isPaused = false,
   pausedSince = null,
   planSummary = null,
 }: SavingPlanCardProps) {
+  const [vbExpanded, setVbExpanded] = useState(false);
+  const [vbActualValue, setVbActualValue] = useState('');
+  const [vbStep, setVbStep] = useState<'enter' | 'reason'>('enter');
+  const [vbReason, setVbReason] = useState<BalanceAdjustmentReason | null>(null);
+  const [vbSubmitting, setVbSubmitting] = useState(false);
+  const [vbError, setVbError] = useState<string | null>(null);
+  const [vbDone, setVbDone] = useState<{ matched: boolean } | null>(null);
+  const clientIdRef = useRef<string | null>(null);
+
+  function handleVbToggle() {
+    if (vbExpanded) {
+      setVbActualValue('');
+      setVbStep('enter');
+      setVbReason(null);
+      setVbError(null);
+      setVbDone(null);
+      clientIdRef.current = null;
+    } else {
+      clientIdRef.current = crypto.randomUUID();
+    }
+    setVbExpanded(prev => !prev);
+  }
+
+  async function handleVbSubmit() {
+    if (!verifiedBalance || vbSubmitting) return;
+    const actual = Number(vbActualValue);
+    if (!Number.isFinite(actual) || actual < 0 || vbActualValue.trim() === '') {
+      setVbError('Enter your actual balance.');
+      return;
+    }
+    const diff = Math.round((actual - verifiedBalance.amount) * 100) / 100;
+    if (diff !== 0 && vbStep === 'enter') {
+      setVbStep('reason');
+      return;
+    }
+    if (diff !== 0 && !vbReason) {
+      setVbError('Pick a reason for the difference.');
+      return;
+    }
+    setVbSubmitting(true);
+    setVbError(null);
+    const result = await verifiedBalance.onSubmit(actual, vbReason ?? undefined);
+    setVbSubmitting(false);
+    if (result.error) {
+      setVbError(result.error);
+      return;
+    }
+    const matched = (result.differenceAmount ?? diff) === 0;
+    setVbDone({ matched });
+    setTimeout(() => {
+      setVbExpanded(false);
+      setVbActualValue('');
+      setVbStep('enter');
+      setVbReason(null);
+      setVbDone(null);
+    }, 1800);
+  }
+
   if (!money || !ruleType) {
     return (
       <section className="rounded-xl bg-surface p-5 shadow-soft">
@@ -146,20 +156,19 @@ export function SavingPlanCard({
         ? '1 day ago'
         : `${habit.daysSinceLastDeposit} days ago`;
 
-  const planAmountRounded = Math.round(money.expectedToday);
-  const savedTodayRounded = Math.round(savedToday);
-  const planStatus = todayPlanStatus(planAmountRounded, savedTodayRounded);
-  const depositStatus = lastDepositStatus(habit);
   const streakFire = fireForStreak(habit.streak);
+
+  const vbActualNumber = Number(vbActualValue);
+  const vbDiff = vbActualValue.trim() !== '' && Number.isFinite(vbActualNumber)
+    ? Math.round((vbActualNumber - (verifiedBalance?.amount ?? 0)) * 100) / 100
+    : null;
 
   return (
     <section className="rounded-xl bg-surface p-5 shadow-soft">
-      {/* Eyebrow (now bigger, neutral muted color). */}
       <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
         Saving Plan
       </p>
 
-      {/* Headline + edit button on the same row. */}
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className={`font-mono text-2xl font-bold ${moneyHeadlineColor}`}>
           {moneyHeadline}
@@ -192,32 +201,16 @@ export function SavingPlanCard({
         )
       )}
 
-      {/* Money + Habit — flat columns separated by a divider line. */}
       <div className="mt-5 grid grid-cols-2 divide-x divide-well">
         <div className="pr-4">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
             Money
           </p>
-          <div className="mt-3 flex flex-col gap-3">
-            <div>
-              <p className="font-mono text-sm text-ink-muted">Today's plan</p>
-              <div className="mt-0.5 flex items-baseline justify-between gap-1">
-                <p className="font-mono text-base font-bold text-ink">
-                  {formatCurrency(planAmountRounded)}
-                </p>
-                {planStatus && (
-                  <span className={`shrink-0 font-mono text-xs font-bold ${planStatus.color}`}>
-                    {planStatus.text}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="font-mono text-sm text-ink-muted">Saved today</p>
-              <p className="mt-0.5 font-mono text-base font-bold text-ink">
-                {formatCurrency(savedTodayRounded)}
-              </p>
-            </div>
+          <div className="mt-3">
+            <p className="font-mono text-sm text-ink-muted">Today's plan</p>
+            <p className="mt-0.5 font-mono text-base font-bold text-ink">
+              {formatCurrency(Math.round(money.expectedToday))}
+            </p>
           </div>
         </div>
 
@@ -228,16 +221,9 @@ export function SavingPlanCard({
           <div className="mt-3 flex flex-col gap-3">
             <div>
               <p className="font-mono text-sm text-ink-muted">Last deposit</p>
-              <div className="mt-0.5 flex items-baseline justify-between gap-1">
-                <p className="font-mono text-base font-bold text-ink">
-                  {habitHeadline}
-                </p>
-                {depositStatus && (
-                  <span className={`shrink-0 font-mono text-xs font-bold ${depositStatus.color}`}>
-                    {depositStatus.text}
-                  </span>
-                )}
-              </div>
+              <p className="mt-0.5 font-mono text-base font-bold text-ink">
+                {habitHeadline}
+              </p>
             </div>
             {habit.streak > 0 && (
               <div>
@@ -254,35 +240,130 @@ export function SavingPlanCard({
         </div>
       </div>
 
-      {/* Verified Balance — larger muted label, value size unchanged. */}
+      {/* Verified Balance — expandable inline form */}
       {verifiedBalance && (
-        <div className="mt-4 flex items-center gap-3 border-t border-well pt-4">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-800">
-            <IconVault size={16} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-              Verified balance
-            </p>
-            <p className="mt-0.5 truncate font-mono text-sm font-bold text-ink">
-              {formatCurrency(verifiedBalance.amount)}
-              <span className="ml-2 font-normal text-ink-muted">
-                · {verifiedBalance.sinceLabel === 'never'
-                  ? 'not checked'
-                  : verifiedBalance.matched
-                    ? `matched ${verifiedBalance.sinceLabel}`
-                    : `${formatSignedCurrency(verifiedBalance.diff)} ${verifiedBalance.sinceLabel}`}
-              </span>
-            </p>
-          </div>
+        <div className="mt-4 border-t border-well pt-4">
           <button
             type="button"
-            onClick={verifiedBalance.onCheck}
-            aria-label="Check balance"
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-100 text-brand-800 shadow-soft hover:bg-brand-200 active:scale-[0.95] transition-all"
+            onClick={handleVbToggle}
+            className="flex w-full items-center gap-3 text-left"
           >
-            <IconArrowRight size={22} />
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-800">
+              <IconVault size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+                Verified balance
+              </p>
+              <p className="mt-0.5 truncate font-mono text-sm font-bold text-ink">
+                {formatCurrency(verifiedBalance.amount)}
+                <span className="ml-2 font-normal text-ink-muted">
+                  · {verifiedBalance.sinceLabel === 'never'
+                    ? 'not checked'
+                    : verifiedBalance.matched
+                      ? `matched ${verifiedBalance.sinceLabel}`
+                      : `${formatSignedCurrency(verifiedBalance.diff)} ${verifiedBalance.sinceLabel}`}
+                </span>
+              </p>
+            </div>
+            <IconChevronDown
+              size={18}
+              className={`shrink-0 text-ink-muted transition-transform duration-300 ${vbExpanded ? 'rotate-180' : ''}`}
+            />
           </button>
+
+          {/* Slide-down panel */}
+          <div
+            className="grid transition-[grid-template-rows] duration-300 ease-out"
+            style={{ gridTemplateRows: vbExpanded ? '1fr' : '0fr' }}
+          >
+            <div className="overflow-hidden">
+              <div className="flex flex-col gap-3 pt-4">
+                {vbDone ? (
+                  <p className={`font-mono text-sm font-bold ${vbDone.matched ? 'text-accent-leaf' : 'text-brand-800'}`}>
+                    {vbDone.matched ? '✓ Balance matched' : '✓ Adjustment saved'}
+                  </p>
+                ) : vbStep === 'enter' ? (
+                  <>
+                    <div className="flex items-center justify-between gap-2 rounded-lg bg-brand-50 px-3 py-2">
+                      <span className="font-mono text-xs text-ink-muted">App balance</span>
+                      <span className="font-mono text-sm font-bold text-ink">{formatCurrency(verifiedBalance.amount)}</span>
+                    </div>
+                    <TextInput
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={vbActualValue}
+                      leadingIcon={<span className="font-mono font-bold text-brand-500">฿</span>}
+                      onChange={e => {
+                        setVbActualValue(e.target.value.replace(/[^0-9]/g, ''));
+                        setVbError(null);
+                      }}
+                    />
+                    {vbDiff !== null && vbDiff !== 0 && (
+                      <p className="font-mono text-xs text-ink-muted">
+                        Difference: <span className={`font-bold ${vbDiff > 0 ? 'text-accent-leaf' : 'text-danger'}`}>{formatSignedCurrency(vbDiff)}</span>
+                      </p>
+                    )}
+                    {vbError && <p className="font-mono text-xs text-danger">{vbError}</p>}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="ghost" size="md" onClick={handleVbToggle}>Cancel</Button>
+                      <Button
+                        variant="action"
+                        size="md"
+                        disabled={vbSubmitting || vbActualValue.trim() === ''}
+                        onClick={handleVbSubmit}
+                      >
+                        {vbSubmitting ? 'Saving…' : 'Save Check'}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 rounded-lg bg-brand-50 px-3 py-2 text-center">
+                      <div>
+                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">Actual</p>
+                        <p className="font-mono text-sm font-bold text-ink">{formatCurrency(Number(vbActualValue))}</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">App</p>
+                        <p className="font-mono text-sm font-bold text-ink">{formatCurrency(verifiedBalance.amount)}</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">Diff</p>
+                        <p className={`font-mono text-sm font-bold ${(vbDiff ?? 0) > 0 ? 'text-accent-leaf' : 'text-danger'}`}>
+                          {formatSignedCurrency(vbDiff ?? 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {RECONCILE_REASONS.map(opt => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => { setVbReason(opt.id); setVbError(null); }}
+                          className={`w-full rounded-lg px-3 py-2 text-left font-mono text-xs font-bold transition-colors ${vbReason === opt.id ? 'bg-brand-800 text-ink-inverse' : 'bg-brand-50 text-ink hover:bg-brand-100'}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    {vbError && <p className="font-mono text-xs text-danger">{vbError}</p>}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="ghost" size="md" onClick={() => { setVbStep('enter'); setVbReason(null); setVbError(null); }}>Back</Button>
+                      <Button
+                        variant="action"
+                        size="md"
+                        disabled={vbSubmitting || !vbReason}
+                        onClick={handleVbSubmit}
+                      >
+                        {vbSubmitting ? 'Saving…' : 'Save'}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </section>

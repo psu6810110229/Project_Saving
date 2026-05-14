@@ -54,7 +54,6 @@ import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency, reasonLabel } from '../lib/reconcile';
 import {
   activeRevisionAt,
-  daysInclusive,
   habitStatusFromDeposits,
   isPausedOnDate,
   moneyStatusFor,
@@ -98,6 +97,7 @@ export function Dashboard() {
     latest: latestCheckpoint,
     activity: balanceActivity,
     appBalance: reconciledAppBalance,
+    createCheckpoint,
   } = useReconcile(activeRoomId);
   const { plan: savingPlan, deposits: planDeposits } = useSavingPlan(activeRoomId);
   const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
@@ -134,7 +134,11 @@ export function Dashboard() {
     name: bucket.name,
     saved: bucketSaved(bucket.id, logs),
     target: bucket.target_amount,
-  }));
+  })).sort((a, b) => {
+    const pctA = a.target > 0 ? a.saved / a.target : 0;
+    const pctB = b.target > 0 ? b.saved / b.target : 0;
+    return pctB - pctA;
+  });
   const partnerBucketItems = partnerBuckets.map(bucket => ({
     id: bucket.id,
     icon: bucketIcon(bucket.category),
@@ -158,10 +162,6 @@ export function Dashboard() {
 
   // Saving Plan status — computed once for the primary insight card.
   const todayKey = todayBangkokKey();
-  const endDateKey = goal?.end_date ?? activeRoom?.end_date ?? null;
-  const daysLeft = endDateKey && endDateKey >= todayKey ? daysInclusive(todayKey, endDateKey) : 0;
-  const remaining = Math.max(0, totalTarget - totalSaved);
-  const dailyAvgNeeded = daysLeft > 0 && remaining > 0 ? Math.ceil(remaining / daysLeft) : null;
   const activeRule = savingPlan
     ? activeRevisionAt(savingPlan.revisions, todayKey)?.rule_type ?? null
     : null;
@@ -182,11 +182,6 @@ export function Dashboard() {
     todayKey,
     isPausedToday,
   );
-  const savedToday = logs.reduce((sum, log) => {
-    if (log.user_id !== user?.id) return sum;
-    const key = todayBangkokKey(new Date(log.created_at));
-    return key === todayKey ? sum + log.amount : sum;
-  }, 0);
 
   // Pack the Verified Balance slot for the Saving Plan island so
   // both ideas read as one financial picture; the underlying
@@ -205,7 +200,11 @@ export function Dashboard() {
         sinceLabel: verifiedSinceLabel,
         matched: latestCheckpoint ? latestCheckpoint.difference_amount === 0 : false,
         diff: latestCheckpoint?.difference_amount ?? 0,
-        onCheck: () => navigate('/check-balance'),
+        onSubmit: async (actualAmount: number, reason?: Parameters<typeof createCheckpoint>[0]['reason']) => {
+          const result = await createCheckpoint({ actualAmount, reason });
+          if (!result.error) haptic(result.differenceAmount === 0 ? 'success' : 'milestone');
+          return result;
+        },
       }
     : null;
 
@@ -302,7 +301,7 @@ export function Dashboard() {
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}
       <div className="reveal-section" style={revealStyle(60)}>
-        <TotalVaultCard saved={totalSaved} target={totalTarget} dailyAvgNeeded={dailyAvgNeeded} />
+        <TotalVaultCard saved={totalSaved} target={totalTarget} />
       </div>
 
       {/* 2 — Progress Race (Head-to-Head). */}
@@ -329,7 +328,6 @@ export function Dashboard() {
           money={moneyStatus}
           habit={habitStatus}
           onConfigure={() => navigate('/saving-plan')}
-          savedToday={savedToday}
           verifiedBalance={verifiedBalanceSlot}
           isPaused={isPausedToday}
           pausedSince={pausedSince}

@@ -31,7 +31,6 @@ interface DashboardHeroProps {
   rightPlayer: DashboardPlayer;
   saved: number;
   target: number;
-  dailyAvgNeeded?: number | null;
   momentumSeries: number[];
   /** Optional partner daily totals for the side-by-side bar chart. */
   partnerMomentumSeries?: number[];
@@ -50,7 +49,6 @@ export function DashboardHero({
   rightPlayer,
   saved,
   target,
-  dailyAvgNeeded,
   momentumSeries,
   partnerMomentumSeries,
   yourName,
@@ -66,7 +64,7 @@ export function DashboardHero({
         {subtitle && <p className="mt-1 font-mono text-xs text-ink-muted">{subtitle}</p>}
       </header>
       <HeadToHeadCard left={leftPlayer} right={rightPlayer} />
-      <TotalVaultCard saved={saved} target={target} dailyAvgNeeded={dailyAvgNeeded} />
+      <TotalVaultCard saved={saved} target={target} />
       <MomentumChart
         series={momentumSeries}
         partnerSeries={partnerMomentumSeries}

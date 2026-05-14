@@ -87,7 +87,7 @@ export function MoleculesPreview() {
         </Group>
 
         <Group title="Dashboard · Recorded Vault">
-          <TotalVaultCard saved={80000} target={100000} dailyAvgNeeded={450} />
+          <TotalVaultCard saved={80000} target={100000} />
         </Group>
 
         <Group title="Dashboard · 7-day Momentum">

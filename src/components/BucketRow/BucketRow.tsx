@@ -46,7 +46,7 @@ export function BucketRow({ icon, name, saved, target, onClick, expanded = false
           </span>
         </div>
         <div className="mt-1.5">
-          <ProgressBar value={pct} tone="primary" size="sm" />
+          <ProgressBar key={saved} value={pct} tone="primary" size="sm" animate />
         </div>
       </div>
       <IconChevronDown

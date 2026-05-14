@@ -35,11 +35,6 @@ export function HeadToHeadCard({ left, right }: HeadToHeadCardProps) {
   return (
     <section className="rounded-xl bg-surface shadow-soft p-5">
       <h2 className="font-mono text-xl font-bold tracking-tight text-ink">Progress Race</h2>
-      <p className="mt-1 font-mono text-xs text-ink-muted">
-        {tied
-          ? 'Tied — same deposits so far.'
-          : `Leading by ${formatCurrency(gap)}.`}
-      </p>
       <div className="mt-5 flex flex-col gap-5">
         <PlayerProgressRow
           {...rows[0]}

@@ -16,38 +16,53 @@ export interface ReleaseNotes {
 export function currentReleaseNotes(): ReleaseNotes {
   return {
     version: appVersion(),
-    heading: 'App Updated',
-    intro: 'This release includes the latest alpha follow-up updates through bucket editing and safer bucket deletion.',
+    heading: 'GO-OUT v0.9.0',
+    intro: 'This release makes saving progress easier to understand, plan, and trust.',
     notes: [
       {
-        id: 'release-popup',
-        title: 'Feature update popup',
-        body: 'New app updates now have a dedicated popup with a temporary close action and a persistent Understand button.',
+        id: 'check-balance-flow',
+        title: 'Check Balance is now easier to use',
+        body: 'Check Balance now helps compare your app balance with your real money in a clearer flow.',
       },
       {
-        id: 'version-surface',
-        title: 'Version visibility',
-        body: 'The visible app version is ready to help alpha testers confirm which build they are using.',
+        id: 'recorded-vs-verified',
+        title: 'Recorded Deposits and Verified Balance are clearly separated',
+        body: 'Money totals now use clearer labels so it is easier to understand what is planned, recorded, and verified.',
       },
       {
-        id: 'pwa-freshness',
-        title: 'Installed app freshness',
-        body: 'The installed app now checks for fresh service worker assets and reloads after an update activates.',
+        id: 'saving-plan-core',
+        title: 'Saving Plan now tracks expected progress',
+        body: 'Saving Plan helps you see where you should be today and how your recorded deposits compare.',
       },
       {
-        id: 'shared-room-goal',
-        title: 'Shared project goal sync',
-        body: 'Project target and end date changes now update every room member so both dashboards stay aligned.',
+        id: 'saving-plan-advanced',
+        title: 'Advanced Increasing Daily formulas are available',
+        body: 'Increasing Daily plans now support a maximum daily amount and target-based finish behavior.',
       },
       {
-        id: 'manage-project-consolidation',
-        title: 'Project settings consolidation',
-        body: 'Quick amounts and bucket setup now live in Manage Project so Profile stays focused on account settings.',
+        id: 'dashboard-refinement',
+        title: 'Dashboard is cleaner and easier to scan',
+        body: 'The dashboard layout and hierarchy were refined to make key insights easier to read.',
       },
       {
-        id: 'bucket-edit-delete',
-        title: 'Bucket rename, target edit, and delete confirmation',
-        body: 'Buckets can now be renamed, retargeted, and deleted from Manage Project, with confirmation and history-aware delete blocking.',
+        id: 'daily-trend-plan-overlay',
+        title: 'Daily Trend now compares Recorded Deposits with Your Plan',
+        body: 'Daily Trend now includes a plan reference so expected and recorded progress are easier to compare.',
+      },
+      {
+        id: 'dashboard-graph-simplification',
+        title: 'Main dashboard graph view is simplified',
+        body: 'Deposit Race is hidden from the main dashboard for now to reduce visual clutter.',
+      },
+      {
+        id: 'what-changed',
+        title: 'What changed',
+        body: 'Clearer total labels, better dashboard hierarchy, more useful plan insights, and improved Bangkok date handling in charts.',
+      },
+      {
+        id: 'coming-later',
+        title: 'Coming later',
+        body: 'Pause/Resume plans, bucket corrections and moving money between buckets, a smarter notification system, and Thai language support.',
       },
     ],
   };

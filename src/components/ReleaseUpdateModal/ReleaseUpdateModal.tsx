@@ -76,7 +76,7 @@ export function ReleaseUpdateModal() {
 
         <div className="shrink-0 border-t border-brand-100 bg-bg pt-3">
           <Button variant="action" fullWidth onClick={handleUnderstand}>
-            Understand
+            Got it
           </Button>
         </div>
       </div>

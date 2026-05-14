@@ -36,7 +36,7 @@ export function SavingPlan() {
   const navigate = useNavigate();
   const { activeRoomId } = useRoom();
   const { goal } = useGoal(activeRoomId);
-  const { plan, loading, createPlan, changePlan } = useSavingPlan(activeRoomId);
+  const { plan, loading, error, createPlan, changePlan } = useSavingPlan(activeRoomId);
 
   const latestRevision = plan
     ? activeRevisionAt(plan.revisions, todayBangkokKey())
@@ -94,6 +94,7 @@ export function SavingPlan() {
 
   async function handleSubmit() {
     setMessage(null);
+    const effectiveFromDate = todayBangkokKey();
 
     const targetNum = Number(targetAmount);
     if (!Number.isFinite(targetNum) || targetNum <= 0) {
@@ -123,6 +124,10 @@ export function SavingPlan() {
         return;
       }
     }
+    if (endDate && endDate < effectiveFromDate) {
+      setMessage('End date must be on or after the plan start date.');
+      return;
+    }
 
     setSubmitting(true);
     const input = {
@@ -131,7 +136,7 @@ export function SavingPlan() {
       amount: amountNum,
       startAmount: startNum,
       incrementAmount: incNum,
-      effectiveFromDate: todayBangkokKey(),
+      effectiveFromDate,
       endDate: endDate || undefined,
     };
     const result = isChange ? await changePlan(input) : await createPlan(input);
@@ -282,6 +287,9 @@ export function SavingPlan() {
 
         {message && (
           <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>
+        )}
+        {error && (
+          <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>
         )}
 
         <div className="mt-4 flex flex-col gap-2">

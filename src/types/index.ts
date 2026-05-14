@@ -196,6 +196,7 @@ export interface SavingPlan {
   created_at: string;
   archived_at: string | null;
   revisions: SavingPlanRevision[];
+  pauses: SavingPlanPause[];
 }
 
 /** Authoritative deposit summary from `recorded_deposits_summary` RPC. */
@@ -204,4 +205,18 @@ export interface RecordedDepositsSummary {
   last_deposit_at: string | null;
   /** Distinct Bangkok-local YYYY-MM-DD date keys (deposits exist on these days). */
   deposit_day_keys: string[];
+}
+
+/** Single pause/resume record for a saving plan. Append-only history. */
+export interface SavingPlanPause {
+  id: string;
+  plan_id: string;
+  room_id: string;
+  user_id: string;
+  /** Bangkok date the pause starts (inclusive). */
+  paused_from: string;
+  /** Bangkok date the plan resumes — first active day again (exclusive boundary). Null = open. */
+  resumed_from: string | null;
+  created_at: string;
+  resumed_at: string | null;
 }

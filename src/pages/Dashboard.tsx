@@ -56,12 +56,13 @@ import {
   activeRevisionAt,
   addDays,
   habitStatusFromDeposits,
+  isPausedOnDate,
   moneyStatusFor,
   plannedAmountForDate,
   todayBangkokKey,
 } from '../lib/savingPlan';
 import { PlanInsightStrip } from '../components/PlanInsightStrip/PlanInsightStrip';
-import type { SavingPlanRevision } from '../types';
+import type { SavingPlanPause, SavingPlanRevision } from '../types';
 import type { BalanceActivityEntry, Bucket, BucketCategory } from '../types';
 
 /**
@@ -161,13 +162,16 @@ export function Dashboard() {
   const activeRule = savingPlan
     ? activeRevisionAt(savingPlan.revisions, todayKey)?.rule_type ?? null
     : null;
+  const planPauses = savingPlan?.pauses ?? [];
+  const isPausedToday = savingPlan ? isPausedOnDate(planPauses, todayKey) : false;
   const moneyStatus = savingPlan
-    ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey)
+    ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey, planPauses)
     : null;
   const habitStatus = habitStatusFromDeposits(
     activeRule,
     planDeposits.deposit_day_keys,
     todayKey,
+    isPausedToday,
   );
   const savedToday = logs.reduce((sum, log) => {
     if (log.user_id !== user?.id) return sum;
@@ -208,13 +212,13 @@ export function Dashboard() {
   const revisions = savingPlan?.revisions ?? null;
   const chartDayKeys = lastSevenDateKeys();
   const expectedDailySeries = revisions
-    ? chartDayKeys.map(key => plannedAmountForDate(revisions, key))
+    ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
   const expectedCumulativeSeries = revisions
     ? (() => {
         let running = 0;
         return chartDayKeys.map(key => {
-          running += plannedAmountForDate(revisions, key);
+          running += plannedAmountForDate(revisions, key, planPauses);
           return running;
         });
       })()
@@ -233,11 +237,11 @@ export function Dashboard() {
     ? {
         week: {
           recorded: recordedBetween(logs, user?.id, weekStartKey, todayKey),
-          expected: expectedBetween(revisions, weekStartKey, todayKey),
+          expected: expectedBetween(revisions, weekStartKey, todayKey, planPauses),
         },
         month: {
           recorded: recordedBetween(logs, user?.id, monthStartKey, todayKey),
-          expected: expectedBetween(revisions, monthStartKey, todayKey),
+          expected: expectedBetween(revisions, monthStartKey, todayKey, planPauses),
         },
       }
     : null;
@@ -340,6 +344,7 @@ export function Dashboard() {
           onConfigure={() => navigate('/saving-plan')}
           savedToday={savedToday}
           verifiedBalance={verifiedBalanceSlot}
+          isPaused={isPausedToday}
         />
       </div>
 
@@ -741,12 +746,13 @@ function expectedBetween(
   revisions: SavingPlanRevision[],
   startKey: string,
   endKey: string,
+  pauses: SavingPlanPause[] = [],
 ): number {
   let total = 0;
   let cursor = startKey;
   let guard = 0;
   while (cursor <= endKey && guard < 366) {
-    total += plannedAmountForDate(revisions, cursor);
+    total += plannedAmountForDate(revisions, cursor, pauses);
     cursor = addDays(cursor, 1);
     guard++;
   }

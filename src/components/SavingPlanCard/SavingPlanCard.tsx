@@ -29,6 +29,8 @@ interface SavingPlanCardProps {
   /** Today's deposits by the current user (sum of `savings_logs` whose Bangkok day = today). */
   savedToday?: number;
   verifiedBalance?: VerifiedBalanceSlot | null;
+  /** Whether the plan is currently paused (today is a paused day). */
+  isPaused?: boolean;
 }
 
 /** Fire glyphs for a streak: ≥2d → 1, ≥6d → 2, ≥8d → 3. */
@@ -58,6 +60,9 @@ function todayPlanStatus(planAmount: number, savedToday: number): StatusText | n
 }
 
 function lastDepositStatus(habit: HabitStatus): StatusText | null {
+  if (habit.state === 'plan_paused') {
+    return { text: 'Paused', color: 'text-ink-muted' };
+  }
   if (habit.lastDepositDateKey === null) {
     return { text: 'Start', color: 'text-accent-gold/80' };
   }
@@ -84,6 +89,7 @@ export function SavingPlanCard({
   onConfigure,
   savedToday = 0,
   verifiedBalance,
+  isPaused = false,
 }: SavingPlanCardProps) {
   if (!money || !ruleType) {
     return (
@@ -110,15 +116,17 @@ export function SavingPlanCard({
     );
   }
 
-  const moneyHeadlineColor =
-    money.state === 'ahead'
+  const moneyHeadlineColor = isPaused
+    ? 'text-ink-muted'
+    : money.state === 'ahead'
       ? 'text-brand-800'
       : money.state === 'behind'
         ? 'text-danger'
         : 'text-ink';
 
-  const moneyHeadline =
-    money.state === 'ahead'
+  const moneyHeadline = isPaused
+    ? 'Plan paused'
+    : money.state === 'ahead'
       ? `Ahead by ${formatCurrency(Math.round(money.delta))}`
       : money.state === 'behind'
         ? `Behind by ${formatCurrency(Math.round(-money.delta))}`

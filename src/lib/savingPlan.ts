@@ -1,5 +1,5 @@
 import { APP_TZ } from './streak';
-import type { SavingPlanRevision, SavingPlanRuleType } from '../types';
+import type { SavingPlanPause, SavingPlanRevision, SavingPlanRuleType } from '../types';
 
 /**
  * Pure calculation helpers for Task 22.1 Saving Plan / Progress
@@ -68,6 +68,44 @@ function weekBoundaries(dateKey: string): { start: string; end: string } {
   return { start, end };
 }
 
+// ── Pause helpers ─────────────────────────────────────────────
+
+/**
+ * True when `dateKey` falls inside any pause interval.
+ * Pause covers Bangkok dates [paused_from, resumed_from).
+ */
+export function isPausedOnDate(pauses: SavingPlanPause[], dateKey: string): boolean {
+  return pauses.some(
+    p =>
+      dateKey >= p.paused_from &&
+      (p.resumed_from === null || dateKey < p.resumed_from),
+  );
+}
+
+/**
+ * Number of paused days whose Bangkok dates fall within [startKey, endKey].
+ * Used to keep the increasing_daily active-day index accurate.
+ */
+function pausedDaysInRange(
+  pauses: SavingPlanPause[],
+  startKey: string,
+  endKey: string,
+): number {
+  if (pauses.length === 0 || endKey < startKey) return 0;
+  let count = 0;
+  for (const p of pauses) {
+    const overlapStart = p.paused_from > startKey ? p.paused_from : startKey;
+    const pauseEndInclusive =
+      p.resumed_from != null ? addDays(p.resumed_from, -1) : endKey;
+    const overlapEnd =
+      pauseEndInclusive < endKey ? pauseEndInclusive : endKey;
+    if (overlapEnd >= overlapStart) {
+      count += daysInclusive(overlapStart, overlapEnd);
+    }
+  }
+  return count;
+}
+
 /** Calendar-month boundaries containing the given key. */
 function monthBoundaries(dateKey: string): { start: string; end: string } {
   const { y, m } = parseKey(dateKey);
@@ -102,12 +140,17 @@ export function activeRevisionAt(
  * Daily planned amount IGNORING any stop (end_date, day_count,
  * target reach). Used to drive the target-reach search without
  * recursing through revisionEndKey.
+ *
+ * When `pauses` is provided, paused days return 0 and the
+ * increasing-daily active-day index is adjusted to exclude them.
  */
 function rawDailyForRevision(
   rev: SavingPlanRevision,
   dateKey: string,
+  pauses: SavingPlanPause[] = [],
 ): number {
   if (dateKey < rev.effective_from_date) return 0;
+  if (pauses.length > 0 && isPausedOnDate(pauses, dateKey)) return 0;
   switch (rev.rule_type) {
     case 'fixed_daily': {
       return Number(rev.amount ?? 0);
@@ -131,13 +174,17 @@ function rawDailyForRevision(
       return Number(rev.amount ?? 0) / activeDays;
     }
     case 'increasing_daily': {
-      const idx = daysInclusive(rev.effective_from_date, dateKey);
+      const totalDays = daysInclusive(rev.effective_from_date, dateKey);
+      const pausedDays = pausedDaysInRange(pauses, rev.effective_from_date, dateKey);
+      const idx = totalDays - pausedDays;
       const startA = Number(rev.start_amount ?? 0);
       const inc = Number(rev.increment_amount ?? 0);
       return startA + (idx - 1) * inc;
     }
     case 'increasing_daily_capped': {
-      const idx = daysInclusive(rev.effective_from_date, dateKey);
+      const totalDays = daysInclusive(rev.effective_from_date, dateKey);
+      const pausedDays = pausedDaysInRange(pauses, rev.effective_from_date, dateKey);
+      const idx = totalDays - pausedDays;
       const startA = Number(rev.start_amount ?? 0);
       const inc = Number(rev.increment_amount ?? 0);
       const cap = Number(rev.cap_amount ?? Infinity);
@@ -158,15 +205,21 @@ const TARGET_REACH_HORIZON = 10000;
  * null when the target is unreachable within the search horizon or
  * the revision has no positive target.
  *
- * The result is cached per revision object — a single walk per fetch.
+ * Result is cached per revision object when no pauses are present.
+ * With pauses the cache is bypassed so paused days are skipped.
  */
-function targetReachDateKey(rev: SavingPlanRevision): string | null {
-  const cached = TARGET_REACH_CACHE.get(rev);
-  if (cached) return cached.value;
+function targetReachDateKey(
+  rev: SavingPlanRevision,
+  pauses: SavingPlanPause[] = [],
+): string | null {
+  if (pauses.length === 0) {
+    const cached = TARGET_REACH_CACHE.get(rev);
+    if (cached) return cached.value;
+  }
 
   const target = Number(rev.target_amount ?? 0);
   if (!Number.isFinite(target) || target <= 0) {
-    TARGET_REACH_CACHE.set(rev, { value: null });
+    if (pauses.length === 0) TARGET_REACH_CACHE.set(rev, { value: null });
     return null;
   }
 
@@ -174,7 +227,7 @@ function targetReachDateKey(rev: SavingPlanRevision): string | null {
   let cursor = rev.effective_from_date;
   let found: string | null = null;
   for (let i = 0; i < TARGET_REACH_HORIZON; i++) {
-    const daily = rawDailyForRevision(rev, cursor);
+    const daily = rawDailyForRevision(rev, cursor, pauses);
     if (daily > 0) {
       cumul += daily;
       if (cumul + 0.005 >= target) {
@@ -184,11 +237,14 @@ function targetReachDateKey(rev: SavingPlanRevision): string | null {
     }
     cursor = addDays(cursor, 1);
   }
-  TARGET_REACH_CACHE.set(rev, { value: found });
+  if (pauses.length === 0) TARGET_REACH_CACHE.set(rev, { value: found });
   return found;
 }
 
-function revisionEndKey(rev: SavingPlanRevision): string | null {
+function revisionEndKey(
+  rev: SavingPlanRevision,
+  pauses: SavingPlanPause[] = [],
+): string | null {
   let endKey: string | null = rev.end_date;
   if (rev.day_count && rev.day_count > 0) {
     const dayCountEnd = addDays(rev.effective_from_date, rev.day_count - 1);
@@ -200,7 +256,7 @@ function revisionEndKey(rev: SavingPlanRevision): string | null {
   // cumulative can't push past the target and mark a user "behind"
   // after they've already reached it.
   if (endKey === null) {
-    const targetReach = targetReachDateKey(rev);
+    const targetReach = targetReachDateKey(rev, pauses);
     if (targetReach) endKey = targetReach;
   }
   return endKey;
@@ -210,9 +266,11 @@ function revisionEndKey(rev: SavingPlanRevision): string | null {
 function revisionDailyAmount(
   rev: SavingPlanRevision,
   dateKey: string,
+  pauses: SavingPlanPause[] = [],
 ): number {
   if (dateKey < rev.effective_from_date) return 0;
-  const endKey = revisionEndKey(rev);
+  if (pauses.length > 0 && isPausedOnDate(pauses, dateKey)) return 0;
+  const endKey = revisionEndKey(rev, pauses);
   if (endKey && dateKey > endKey) return 0;
 
   switch (rev.rule_type) {
@@ -238,13 +296,17 @@ function revisionDailyAmount(
       return Number(rev.amount ?? 0) / activeDays;
     }
     case 'increasing_daily': {
-      const idx = daysInclusive(rev.effective_from_date, dateKey);
+      const totalDays = daysInclusive(rev.effective_from_date, dateKey);
+      const pausedDays = pausedDaysInRange(pauses, rev.effective_from_date, dateKey);
+      const idx = totalDays - pausedDays;
       const startA = Number(rev.start_amount ?? 0);
       const inc = Number(rev.increment_amount ?? 0);
       return startA + (idx - 1) * inc;
     }
     case 'increasing_daily_capped': {
-      const idx = daysInclusive(rev.effective_from_date, dateKey);
+      const totalDays = daysInclusive(rev.effective_from_date, dateKey);
+      const pausedDays = pausedDaysInRange(pauses, rev.effective_from_date, dateKey);
+      const idx = totalDays - pausedDays;
       const startA = Number(rev.start_amount ?? 0);
       const inc = Number(rev.increment_amount ?? 0);
       const cap = Number(rev.cap_amount ?? Infinity);
@@ -260,10 +322,11 @@ function revisionDailyAmount(
 export function plannedAmountForDate(
   revisions: SavingPlanRevision[],
   dateKey: string,
+  pauses: SavingPlanPause[] = [],
 ): number {
   const rev = activeRevisionAt(revisions, dateKey);
   if (!rev) return 0;
-  return revisionDailyAmount(rev, dateKey);
+  return revisionDailyAmount(rev, dateKey, pauses);
 }
 
 /** Cumulative planned amount from first effective date through `asOfDateKey`. */
@@ -271,6 +334,7 @@ export function plannedCumulativeThroughDate(
   revisions: SavingPlanRevision[],
   asOfDateKey: string,
   cap = 4000,
+  pauses: SavingPlanPause[] = [],
 ): number {
   if (revisions.length === 0) return 0;
   const sortedAsc = [...revisions].sort((a, b) => {
@@ -284,7 +348,7 @@ export function plannedCumulativeThroughDate(
   let cursor = firstStart;
   for (let i = 0; i < cap; i++) {
     if (cursor > asOfDateKey) break;
-    total += plannedAmountForDate(revisions, cursor);
+    total += plannedAmountForDate(revisions, cursor, pauses);
     cursor = addDays(cursor, 1);
   }
   // In target-reach mode (no day_count, no end_date on the active
@@ -328,6 +392,7 @@ export function moneyStatusFor(
   revisions: SavingPlanRevision[],
   recordedDeposits: number,
   todayKey: string,
+  pauses: SavingPlanPause[] = [],
 ): MoneyStatus {
   const active = activeRevisionAt(revisions, todayKey);
   const sortedAsc = [...revisions].sort((a, b) => {
@@ -338,8 +403,8 @@ export function moneyStatusFor(
   const firstStart = sortedAsc[0]?.effective_from_date ?? null;
 
   const target = Number(active?.target_amount ?? sortedAsc[0]?.target_amount ?? 0);
-  const expectedToday = plannedAmountForDate(revisions, todayKey);
-  const expectedCumulative = plannedCumulativeThroughDate(revisions, todayKey);
+  const expectedToday = plannedAmountForDate(revisions, todayKey, pauses);
+  const expectedCumulative = plannedCumulativeThroughDate(revisions, todayKey, 4000, pauses);
   const delta = recordedDeposits - expectedCumulative;
 
   let state: MoneyState;
@@ -356,20 +421,28 @@ export function moneyStatusFor(
   if (state === 'ahead') {
     let cumul = expectedCumulative;
     let cursor = todayKey;
+    let lastCoveredKey: string | null = null;
     for (let i = 0; i < 1825; i++) {
       const next = addDays(cursor, 1);
-      const nextAmt = plannedAmountForDate(revisions, next);
+      const nextAmt = plannedAmountForDate(revisions, next, pauses);
       if (nextAmt <= 0) {
+        if (pauses.length > 0 && isPausedOnDate(pauses, next)) {
+          cursor = next; // advance past paused day without counting
+          continue;
+        }
         const revAtNext = activeRevisionAt(revisions, next);
-        const end = revAtNext ? revisionEndKey(revAtNext) : null;
+        const end = revAtNext ? revisionEndKey(revAtNext, pauses) : null;
         if (!revAtNext || (end && next > end)) break;
+        cursor = next;
+        continue;
       }
       if (cumul + nextAmt > recordedDeposits + MONEY_EPSILON) break;
       cumul += nextAmt;
       cursor = next;
       coveredDays++;
+      lastCoveredKey = cursor;
     }
-    coveredUntilDate = coveredDays > 0 ? cursor : null;
+    coveredUntilDate = lastCoveredKey;
   }
 
   const remaining = Math.max(0, target - recordedDeposits);
@@ -399,6 +472,7 @@ export function projectedCompletionDate(
   recordedDeposits: number,
   todayKey: string,
   horizonDays = 3650,
+  pauses: SavingPlanPause[] = [],
 ): string | null {
   if (revisions.length === 0) return null;
   // Pick the target from the active revision at `todayKey`. When
@@ -420,13 +494,13 @@ export function projectedCompletionDate(
   let cursor = todayKey;
   for (let i = 0; i < horizonDays; i++) {
     cursor = addDays(cursor, 1);
-    const amt = plannedAmountForDate(revisions, cursor);
+    const amt = plannedAmountForDate(revisions, cursor, pauses);
     if (amt <= 0) {
       const revAt = activeRevisionAt(revisions, cursor);
       // Before the first revision starts the walk hasn't entered
       // the plan yet — keep advancing instead of bailing.
       if (!revAt && cursor < sortedAsc[0].effective_from_date) continue;
-      const end = revAt ? revisionEndKey(revAt) : null;
+      const end = revAt ? revisionEndKey(revAt, pauses) : null;
       if (!revAt || (end && cursor > end)) return null;
       continue;
     }
@@ -442,7 +516,8 @@ export type HabitState =
   | 'no_deposits_yet'
   | 'active'
   | 'at_risk'
-  | 'stale';
+  | 'stale'
+  | 'plan_paused';
 
 export interface HabitStatus {
   state: HabitState;
@@ -472,15 +547,19 @@ function streakFromDayKeys(depositDayKeys: string[], todayKey: string): number {
  * Deposit-only habit status. Plan cadence widens the windows so
  * weekly/monthly plans don't immediately flip to "at risk" after
  * one day without a deposit.
+ *
+ * Pass `isPaused = true` when today is a paused day; the state will
+ * be 'plan_paused' instead of 'stale' or 'at_risk'.
  */
 export function habitStatusFromDeposits(
   ruleType: SavingPlanRuleType | null,
   depositDayKeys: string[],
   todayKey: string,
+  isPaused = false,
 ): HabitStatus {
   if (depositDayKeys.length === 0) {
     return {
-      state: 'no_deposits_yet',
+      state: isPaused ? 'plan_paused' : 'no_deposits_yet',
       lastDepositDateKey: null,
       daysSinceLastDeposit: null,
       hasDepositedToday: false,
@@ -494,7 +573,9 @@ export function habitStatusFromDeposits(
   const streak = streakFromDayKeys(depositDayKeys, todayKey);
 
   let state: HabitState;
-  if (ruleType === 'fixed_weekly') {
+  if (isPaused) {
+    state = 'plan_paused';
+  } else if (ruleType === 'fixed_weekly') {
     state = since <= 6 ? 'active' : since <= 9 ? 'at_risk' : 'stale';
   } else if (ruleType === 'fixed_monthly') {
     state = since <= 30 ? 'active' : since <= 37 ? 'at_risk' : 'stale';
@@ -533,6 +614,7 @@ export const HABIT_STATE_LABEL: Record<HabitState, string> = {
   active: 'Active',
   at_risk: 'At risk',
   stale: 'Stale',
+  plan_paused: 'Plan paused',
 };
 
 /** "May 28" — short human-readable date for Bangkok day keys. */

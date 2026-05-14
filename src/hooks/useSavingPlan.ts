@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { isPausedOnDate, todayBangkokKey } from '../lib/savingPlan';
 import { useAuth } from './useAuth';
 import type {
   RecordedDepositsSummary,
   SavingPlan,
+  SavingPlanPause,
   SavingPlanRevision,
   SavingPlanRuleType,
 } from '../types';
@@ -32,6 +34,17 @@ interface RawRevisionRow {
   end_date: string | null;
   day_count: number | null;
   created_at: string;
+}
+
+interface RawPauseRow {
+  id: string;
+  plan_id: string;
+  room_id: string;
+  user_id: string;
+  paused_from: string;
+  resumed_from: string | null;
+  created_at: string;
+  resumed_at: string | null;
 }
 
 interface DepositsSummaryRow {
@@ -66,6 +79,19 @@ function normalizeRevision(row: RawRevisionRow): SavingPlanRevision {
     end_date: row.end_date,
     day_count: row.day_count,
     created_at: row.created_at,
+  };
+}
+
+function normalizePause(row: RawPauseRow): SavingPlanPause {
+  return {
+    id: row.id,
+    plan_id: row.plan_id,
+    room_id: row.room_id,
+    user_id: row.user_id,
+    paused_from: row.paused_from,
+    resumed_from: row.resumed_from,
+    created_at: row.created_at,
+    resumed_at: row.resumed_at,
   };
 }
 
@@ -126,15 +152,26 @@ export function useSavingPlan(roomId: string | null) {
     }
     const row = planRow as RawPlanRow;
 
-    const { data: revRows, error: revErr } = await supabase
-      .from('saving_plan_revisions')
-      .select('*')
-      .eq('plan_id', row.id)
-      .order('effective_from_date', { ascending: false })
-      .order('created_at', { ascending: false });
+    const [revResult, pauseResult] = await Promise.all([
+      supabase
+        .from('saving_plan_revisions')
+        .select('*')
+        .eq('plan_id', row.id)
+        .order('effective_from_date', { ascending: false })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('saving_plan_pauses')
+        .select('*')
+        .eq('plan_id', row.id)
+        .order('paused_from', { ascending: false }),
+    ]);
 
-    if (revErr) {
-      setError(revErr.message);
+    if (revResult.error) {
+      setError(revResult.error.message);
+      return;
+    }
+    if (pauseResult.error) {
+      setError(pauseResult.error.message);
       return;
     }
 
@@ -145,7 +182,8 @@ export function useSavingPlan(roomId: string | null) {
       timezone: row.timezone,
       created_at: row.created_at,
       archived_at: row.archived_at,
-      revisions: (revRows ?? []).map(r => normalizeRevision(r as RawRevisionRow)),
+      revisions: (revResult.data ?? []).map(r => normalizeRevision(r as RawRevisionRow)),
+      pauses: (pauseResult.data ?? []).map(p => normalizePause(p as RawPauseRow)),
     });
   }, [user, roomId]);
 
@@ -226,13 +264,40 @@ export function useSavingPlan(roomId: string | null) {
     return { planId: plan.id, revisionId: typeof data === 'string' ? data : undefined };
   }
 
+  async function pausePlan(): Promise<MutationResult> {
+    if (!user) return { error: 'Not authenticated' };
+    if (!plan) return { error: 'No active plan' };
+    const { error: rpcErr } = await supabase.rpc('pause_saving_plan', {
+      p_plan_id: plan.id,
+    });
+    if (rpcErr) return { error: rpcErr.message };
+    await fetchPlan();
+    return { planId: plan.id };
+  }
+
+  async function resumePlan(): Promise<MutationResult> {
+    if (!user) return { error: 'Not authenticated' };
+    if (!plan) return { error: 'No active plan' };
+    const { error: rpcErr } = await supabase.rpc('resume_saving_plan', {
+      p_plan_id: plan.id,
+    });
+    if (rpcErr) return { error: rpcErr.message };
+    await fetchPlan();
+    return { planId: plan.id };
+  }
+
+  const isPaused = plan ? isPausedOnDate(plan.pauses, todayBangkokKey()) : false;
+
   return {
     plan,
     deposits,
     loading,
     error,
+    isPaused,
     createPlan,
     changePlan,
+    pausePlan,
+    resumePlan,
     refetch: useCallback(async () => {
       await Promise.all([fetchPlan(), fetchDeposits()]);
     }, [fetchPlan, fetchDeposits]),

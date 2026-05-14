@@ -51,7 +51,7 @@ export function SavingPlan() {
   const navigate = useNavigate();
   const { activeRoomId } = useRoom();
   const { goal } = useGoal(activeRoomId);
-  const { plan, loading, error, createPlan, changePlan } = useSavingPlan(activeRoomId);
+  const { plan, loading, error, isPaused, createPlan, changePlan, pausePlan, resumePlan } = useSavingPlan(activeRoomId);
 
   const latestRevision = plan
     ? activeRevisionAt(plan.revisions, todayBangkokKey())
@@ -68,6 +68,7 @@ export function SavingPlan() {
   const [endDate, setEndDate] = useState('');
   const [stopMode, setStopMode] = useState<StopMode>('target');
   const [message, setMessage] = useState<string | null>(null);
+  const [pauseMessage, setPauseMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [seededRevisionId, setSeededRevisionId] = useState<string | null>(null);
   const [didSeedCreateTarget, setDidSeedCreateTarget] = useState(false);
@@ -202,6 +203,30 @@ export function SavingPlan() {
 
   function digitsOnly(value: string): string {
     return value.replace(/[^0-9]/g, '');
+  }
+
+  async function handlePause() {
+    setPauseMessage(null);
+    setSubmitting(true);
+    const result = await pausePlan();
+    setSubmitting(false);
+    if (result.error) {
+      setPauseMessage(result.error);
+    } else {
+      haptic('success');
+    }
+  }
+
+  async function handleResume() {
+    setPauseMessage(null);
+    setSubmitting(true);
+    const result = await resumePlan();
+    setSubmitting(false);
+    if (result.error) {
+      setPauseMessage(result.error);
+    } else {
+      haptic('success');
+    }
   }
 
   async function handleSubmit() {
@@ -554,6 +579,42 @@ export function SavingPlan() {
         <p className="text-center font-mono text-[11px] text-ink-muted">
           Changes start from today. Past progress is kept.
         </p>
+      )}
+
+      {/* Pause / Resume section — only shown when a plan exists. */}
+      {isChange && (
+        <section className="rounded-3xl bg-surface p-5 shadow-soft">
+          <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+            Pause plan
+          </p>
+          {isPaused ? (
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="font-mono text-sm text-ink-muted">Plan is paused</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResume}
+                disabled={submitting}
+              >
+                Resume
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <Button
+                variant="ghost"
+                fullWidth
+                onClick={handlePause}
+                disabled={submitting}
+              >
+                Pause plan
+              </Button>
+            </div>
+          )}
+          {pauseMessage && (
+            <p className="mt-2 font-mono text-xs text-danger">{pauseMessage}</p>
+          )}
+        </section>
       )}
       </div>
     </div>

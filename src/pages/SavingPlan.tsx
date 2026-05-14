@@ -613,24 +613,23 @@ export function SavingPlan() {
         </p>
       )}
 
-      {/* CTA */}
-      <div className="flex flex-col gap-2">
-        <Button
-          variant="action"
-          fullWidth
-          onClick={handleSubmit}
-          disabled={submitting || (isChange && isPaused)}
-        >
-          {submitting ? 'Saving…' : 'Save plan'}
-        </Button>
-        <Button variant="ghost" size="md" fullWidth onClick={() => navigate(-1)}>
-          Cancel
-        </Button>
-      </div>
-      {isChange && !isPaused && (
-        <p className="text-center font-mono text-[11px] text-ink-muted">
-          Changes start from today. Past progress is kept.
-        </p>
+      {/* CTA — hidden while the plan is paused */}
+      {!(isChange && isPaused) && (
+        <>
+          <div className="flex flex-col gap-2">
+            <Button variant="action" fullWidth onClick={handleSubmit} disabled={submitting}>
+              {submitting ? 'Saving…' : 'Save plan'}
+            </Button>
+            <Button variant="ghost" size="md" fullWidth onClick={() => navigate(-1)}>
+              Cancel
+            </Button>
+          </div>
+          {isChange && (
+            <p className="text-center font-mono text-[11px] text-ink-muted">
+              Changes start from today. Past progress is kept.
+            </p>
+          )}
+        </>
       )}
 
       {/* Pause section — shown when plan is active (not paused). */}
@@ -639,12 +638,9 @@ export function SavingPlan() {
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
             Pause plan
           </p>
-          <p className="mt-1 font-mono text-xs text-ink-muted">
-            Pause to stop expected progress while keeping your history.
-          </p>
           <div className="mt-3">
             <Button
-              variant="ghost"
+              variant="primary"
               fullWidth
               onClick={handlePause}
               disabled={submitting}

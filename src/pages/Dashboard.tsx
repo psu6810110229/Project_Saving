@@ -48,13 +48,14 @@ import { useSavingPlan } from '../hooks/useSavingPlan';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { bucketSaved, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
-import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';
+import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency, formatRelativeTime } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency, reasonLabel } from '../lib/reconcile';
 import {
   activeRevisionAt,
   addDays,
+  daysInclusive,
   habitStatusFromDeposits,
   isPausedOnDate,
   moneyStatusFor,
@@ -159,6 +160,10 @@ export function Dashboard() {
 
   // Saving Plan status — computed once for the primary insight card.
   const todayKey = todayBangkokKey();
+  const endDateKey = goal?.end_date ?? activeRoom?.end_date ?? null;
+  const daysLeft = endDateKey && endDateKey >= todayKey ? daysInclusive(todayKey, endDateKey) : 0;
+  const remaining = Math.max(0, totalTarget - totalSaved);
+  const dailyAvgNeeded = daysLeft > 0 && remaining > 0 ? Math.ceil(remaining / daysLeft) : null;
   const activeRule = savingPlan
     ? activeRevisionAt(savingPlan.revisions, todayKey)?.rule_type ?? null
     : null;
@@ -321,7 +326,7 @@ export function Dashboard() {
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}
       <div className="reveal-section" style={revealStyle(60)}>
-        <TotalVaultCard saved={totalSaved} target={totalTarget} trendPct={weeklyTrendPct(logs)} />
+        <TotalVaultCard saved={totalSaved} target={totalTarget} dailyAvgNeeded={dailyAvgNeeded} />
       </div>
 
       {/* 2 — Progress Race (Head-to-Head). */}

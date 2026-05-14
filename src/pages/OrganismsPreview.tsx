@@ -71,7 +71,7 @@ export function OrganismsPreview() {
             rightPlayer={{ name: 'Art', fallback: 'A', saved: 3100, target: 50000, themeColor: 'teal' }}
             saved={80000}
             target={100000}
-            trendPct={12}
+            dailyAvgNeeded={450}
             momentumSeries={[120, 0, 350, 200, 80, 0, 500]}
             momentumLabels={['M', 'T', 'W', 'T', 'F', 'S', 'S']}
             microGoal={{ icon: <IconRocket size={26} />, title: 'Kyoto Deposit', remaining: 2400, pct: 68, subtitle: 'day 18 of 30' }}

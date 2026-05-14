@@ -13,6 +13,7 @@ interface DashboardPlayer {
   saved: number;
   target: number;
   themeColor?: ThemeSwatch;
+  isYou?: boolean;
 }
 
 interface DashboardMicroGoal {

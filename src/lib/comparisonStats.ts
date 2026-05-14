@@ -1,7 +1,7 @@
 import type { SavingsLog } from '../types';
 
 /**
- * Cumulative savings series for the Saving Race line chart.
+ * Cumulative recorded-deposit series for the Deposit Race line chart.
  *
  * Given the logs for a room, returns the running total per day for the
  * last 7 days, filtered by user and optionally by bucket. Output has the

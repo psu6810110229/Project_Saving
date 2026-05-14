@@ -29,10 +29,13 @@ import { TextInput } from '../components/TextInput/TextInput';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
+import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLogs } from '../hooks/useLogs';
+import { usePartnerBuckets } from '../hooks/usePartnerBuckets';
 import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
+import { sumTargets } from '../lib/buckets';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import type { Bucket, BucketCategory } from '../types';
@@ -60,6 +63,9 @@ export function ManageProject() {
   const { quickAmounts, updateQuickAmounts } = useProfile();
   const { buckets, saveBuckets } = useBuckets(activeRoomId);
   const { logs } = useLogs(100, activeRoomId);
+  const leaderboard = useLeaderboard(logs, user?.id, activeRoomId);
+  const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
+  const { buckets: partnerBuckets } = usePartnerBuckets(activeRoomId, partnerEntry?.userId);
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
@@ -81,6 +87,17 @@ export function ManageProject() {
   }
 
   const isCreator = activeRoom.created_by === user?.id;
+  const goalTarget = goal?.target_amount ?? null;
+  const yourBucketTargetTotal = sumTargets(buckets);
+  const partnerBucketTargetTotal = sumTargets(partnerBuckets);
+  const highestMemberBucketTargetTotal = Math.max(yourBucketTargetTotal, partnerBucketTargetTotal);
+  const goalDraftAmount = Number(targetAmountDraft);
+  const effectiveGoalDraftAmount = Number.isFinite(goalDraftAmount) && goalDraftAmount > 0
+    ? goalDraftAmount
+    : goalTarget ?? 0;
+  const goalDraftTooLow = Number.isFinite(goalDraftAmount)
+    && goalDraftAmount > 0
+    && goalDraftAmount < highestMemberBucketTargetTotal;
 
   function openModal(next: ManageModal) {
     if (next === 'trip-goal') {
@@ -105,6 +122,10 @@ export function ManageProject() {
     const target = Number(targetAmountDraft);
     if (!Number.isFinite(target) || target <= 0) {
       setMessage('Enter a target amount greater than 0.');
+      return;
+    }
+    if (target < highestMemberBucketTargetTotal) {
+      setMessage(`Main goal must be at least ${formatCurrency(highestMemberBucketTargetTotal)} because existing bucket targets already use that much.`);
       return;
     }
     const goalResult = await saveRoomGoal({
@@ -132,6 +153,10 @@ export function ManageProject() {
       setMessage('Add a bucket name, target, and category.');
       return;
     }
+    if (goalTarget !== null && yourBucketTargetTotal + target > goalTarget) {
+      setMessage(`Bucket target exceeds remaining capacity. You have ${formatCurrency(Math.max(0, goalTarget - yourBucketTargetTotal))} remaining for bucket targets.`);
+      return;
+    }
     const result = await saveBuckets([
       ...buckets,
       { id: undefined, name: bucketName.trim(), target_amount: target, category: bucketCategory },
@@ -146,6 +171,15 @@ export function ManageProject() {
   }
 
   async function handleUpdateBucket(bucket: Bucket, next: { name: string; target_amount: number }) {
+    if (goalTarget !== null) {
+      const capacityForBucket = goalTarget - (yourBucketTargetTotal - bucket.target_amount);
+      if (next.target_amount > capacityForBucket) {
+        const error = `Bucket target exceeds remaining capacity. You have ${formatCurrency(Math.max(0, capacityForBucket))} available for this bucket.`;
+        setMessage(error);
+        return { error };
+      }
+    }
+
     const result = await saveBuckets(
       buckets.map(item => item.id === bucket.id
         ? { id: item.id, name: next.name, target_amount: next.target_amount, category: item.category }
@@ -278,7 +312,16 @@ export function ManageProject() {
               onChange={event => setTripDateDraft(event.target.value)}
             />
           </FormField>
-          <FormField label="Target Amount (THB)">
+          <GoalTargetSummary
+            goalTarget={goalTarget ?? 0}
+            allocated={yourBucketTargetTotal}
+            partnerAllocated={partnerEntry ? partnerBucketTargetTotal : null}
+          />
+          <FormField
+            label="Target Amount (THB)"
+            helper={`${formatCurrency(Math.max(0, effectiveGoalDraftAmount - yourBucketTargetTotal))} remaining for your bucket targets`}
+            error={goalDraftTooLow ? `Main goal must be at least ${formatCurrency(highestMemberBucketTargetTotal)} to cover existing bucket targets.` : undefined}
+          >
             <TextInput
               type="number"
               min={0}
@@ -319,6 +362,7 @@ export function ManageProject() {
         <BucketManager
           buckets={buckets}
           logs={logs}
+          goalTarget={goalTarget}
           category={bucketCategory}
           options={bucketOptions}
           name={bucketName}
@@ -350,6 +394,30 @@ export function ManageProject() {
         onCancel={() => setConfirmingLeave(false)}
         onConfirm={handleLeave}
       />
+    </div>
+  );
+}
+
+function GoalTargetSummary({
+  goalTarget,
+  allocated,
+  partnerAllocated,
+}: {
+  goalTarget: number;
+  allocated: number;
+  partnerAllocated: number | null;
+}) {
+  const remaining = Math.max(0, goalTarget - allocated);
+  const partnerLine = partnerAllocated !== null && partnerAllocated > allocated
+    ? `Partner bucket targets use ${formatCurrency(partnerAllocated)}.`
+    : null;
+
+  return (
+    <div className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
+      <p className="font-bold text-ink">Main goal target: {formatCurrency(goalTarget)}</p>
+      <p className="mt-1">{formatCurrency(allocated)} allocated of {formatCurrency(goalTarget)}</p>
+      <p className="mt-1">{formatCurrency(remaining)} remaining for bucket targets</p>
+      {partnerLine && <p className="mt-1 text-brand-800">{partnerLine}</p>}
     </div>
   );
 }

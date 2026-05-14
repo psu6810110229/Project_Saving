@@ -18,6 +18,8 @@ interface CreateBucketFormProps {
   options: BucketCategoryOption[];
   name: string;
   target: string;
+  targetHelper?: string;
+  targetError?: string;
   onCategoryChange: (next: BucketCategory) => void;
   onNameChange: (value: string) => void;
   onTargetChange: (value: string) => void;
@@ -29,6 +31,8 @@ export function CreateBucketForm({
   options,
   name,
   target,
+  targetHelper,
+  targetError,
   onCategoryChange,
   onNameChange,
   onTargetChange,
@@ -49,7 +53,7 @@ export function CreateBucketForm({
       <FormField label="Bucket Name">
         <TextInput value={name} placeholder="Flights" leadingIcon={<IconEdit size={16} />} onChange={(event: ChangeEvent<HTMLInputElement>) => onNameChange(event.target.value)} />
       </FormField>
-      <FormField label="Target Amount">
+      <FormField label="Target Amount" helper={targetHelper} error={targetError}>
         <TextInput value={target} inputMode="numeric" placeholder="30000" leadingIcon={<IconPiggyBank size={16} />} onChange={(event: ChangeEvent<HTMLInputElement>) => onTargetChange(event.target.value)} />
       </FormField>
       <Button variant="action" fullWidth type="submit">Create Bucket</Button>

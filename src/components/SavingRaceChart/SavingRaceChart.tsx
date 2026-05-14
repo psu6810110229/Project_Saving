@@ -1,15 +1,18 @@
 import { palette } from '../../lib/theme';
 import { formatCurrency } from '../../lib/format';
+import { chartIdentityColors, chartLegendLabel } from '../../lib/chartIdentity';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 
 /**
- * "Saving Race" — cumulative 7-day line chart showing you vs. partner.
+ * "Deposit Race" — cumulative 7-day line chart showing you vs. partner.
  * Two SVG polylines drawn on the same y-axis (max of both series).
  * Pure presentational; parent computes cumulative series + chooses the
  * scope (all buckets / per-bucket) via the parent-owned filter chip.
+ * Chart colors are perspective-based: orange = You/current account,
+ * green = Partner.
  *
  * The legend doubles as a totals readout so a glance gives both rank
- * and absolute value (each player's saved-so-far for the scope).
+ * and absolute value (each player's recorded deposits for the scope).
  */
 
 interface SavingRaceChartProps {
@@ -42,17 +45,19 @@ export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, p
     <section className="rounded-3xl bg-surface shadow-soft p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <SectionLabel tone="muted">Saving Race</SectionLabel>
+          <SectionLabel tone="muted">Deposit Race</SectionLabel>
           <p className="mt-1 font-mono text-[11px] text-ink-muted">{scopeLabel}</p>
         </div>
-        <div className="flex flex-col items-end gap-1 font-mono text-[10px] text-ink-muted">
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: palette.brand500 }} />
-            {yourName}: {formatCurrency(yourTotal)}
+        <div className="flex max-w-[58%] flex-col items-end gap-1 font-mono text-[10px] text-ink-muted">
+          <span className="inline-flex max-w-full items-center gap-1">
+            <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: chartIdentityColors.you }} />
+            <span className="truncate">{chartLegendLabel('You', yourName)}:</span>
+            <span className="shrink-0">{formatCurrency(yourTotal)}</span>
           </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: palette.accentTeal }} />
-            {partnerName}: {formatCurrency(partnerTotal)}
+          <span className="inline-flex max-w-full items-center gap-1">
+            <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: chartIdentityColors.partner }} />
+            <span className="truncate">{chartLegendLabel('Partner', partnerName)}:</span>
+            <span className="shrink-0">{formatCurrency(partnerTotal)}</span>
           </span>
         </div>
       </div>
@@ -61,8 +66,11 @@ export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, p
         preserveAspectRatio="none"
         className="mt-3 w-full h-28"
         role="img"
-        aria-label="Cumulative savings race"
+        aria-label="Cumulative recorded deposit race"
       >
+        <title>
+          Deposit Race. Orange line is You. Green line is Partner.
+        </title>
         {[0.25, 0.5, 0.75].map(frac => (
           <line
             key={frac}
@@ -76,7 +84,7 @@ export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, p
         ))}
         <polyline
           fill="none"
-          stroke={palette.brand500}
+          stroke={chartIdentityColors.you}
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -84,7 +92,7 @@ export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, p
         />
         <polyline
           fill="none"
-          stroke={palette.accentTeal}
+          stroke={chartIdentityColors.partner}
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -104,6 +112,9 @@ export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, p
           </text>
         ))}
       </svg>
+      <p className="mt-2 font-mono text-[11px] text-ink-muted">
+        Recorded deposits only.
+      </p>
     </section>
   );
 }

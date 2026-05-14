@@ -1,10 +1,10 @@
 /**
  * Single-tone progress bar atom. Used everywhere a single value needs to be
- * shown against a target (Head-to-Head, Total Vault, individual buckets).
+ * shown against a target (Head-to-Head, Recorded Vault, individual buckets).
  *
  * `tone` picks the fill color:
- * - `primary`  — bright `brand-500` (Total Vault, my row in Head-to-Head)
- * - `deep`     — `brand-800` deep terracotta (Total Vault filled section,
+ * - `primary`  — bright `brand-500` (Recorded Vault, my row in Head-to-Head)
+ * - `deep`     — `brand-800` deep terracotta (Recorded Vault filled section,
  *                contribution rows)
  * - `muted`    — `ink-muted` cocoa (other player's bar, default)
  * - `theme`    — accepts a `themeColor` hex via CSS var for per-user theme

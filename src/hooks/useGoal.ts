@@ -65,7 +65,7 @@ export function useGoal(roomId: string | null = null) {
         { user_id: user.id, room_id: roomId, ...values, updated_at: new Date().toISOString() },
         { onConflict: 'user_id,room_id' }
       );
-    if (err) return { error: err.message };
+    if (err) return { error: goalSaveErrorMessage(err.message) };
     setGoal({ user_id: user.id, room_id: roomId, ...values, updated_at: new Date().toISOString() });
     return {};
   }
@@ -94,4 +94,11 @@ export function useGoal(roomId: string | null = null) {
   }
 
   return { goal, loading, error, save, saveRoomGoal, refetch: fetchGoal };
+}
+
+function goalSaveErrorMessage(message: string): string {
+  if (message.toLowerCase().includes('bucket targets exceed new goal target')) {
+    return 'Main goal cannot be lower than existing bucket targets.';
+  }
+  return message;
 }

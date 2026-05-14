@@ -63,8 +63,8 @@ export function useReconcile(roomId: string | null) {
   const [activity, setActivity] = useState<BalanceActivityEntry[]>([]);
   const [adjustmentSum, setAdjustmentSum] = useState(0);
   /**
-   * Server-authoritative app balance for the current user in this room
-   * (positive deposits + signed adjustments). Loaded via the hardened
+   * Server-authoritative Verified Balance for the current user in this
+   * room (positive deposits + signed adjustments). Loaded via the hardened
    * `current_reconciled_balance` RPC so the client never has to sum a
    * truncated log list. `null` while the first fetch is pending.
    */

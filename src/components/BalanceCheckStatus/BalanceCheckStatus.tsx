@@ -13,8 +13,8 @@ interface BalanceCheckStatusProps {
 
 /**
  * Compact "Check Balance" status row shown on Dashboard / Profile.
- * Surfaces how long since the last check and the current app
- * balance, plus the primary CTA to start the Check Balance flow.
+ * Surfaces how long since the last check and the current Verified
+ * Balance, plus the primary CTA to start the Check Balance flow.
  */
 export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheckStatusProps) {
   const days = latest ? daysSince(latest.checked_at) : null;
@@ -31,7 +31,7 @@ export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheck
     ? diff === 0
       ? 'Amounts matched'
       : `Difference ${formatSignedCurrency(diff)}`
-    : 'Confirm your savings match what the app shows.';
+    : 'Confirm your savings match the verified balance.';
 
   return (
     <section className="rounded-3xl bg-surface p-4 shadow-soft">
@@ -53,9 +53,12 @@ export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheck
         </button>
       </div>
       <div className="mt-3 flex items-center justify-between rounded-2xl bg-surfaceAlt px-3 py-2">
-        <SectionLabel tone="muted">App Balance</SectionLabel>
+        <SectionLabel tone="muted">Verified Balance</SectionLabel>
         <span className="font-mono text-sm font-bold text-ink">{formatCurrency(appBalance)}</span>
       </div>
+      <p className="mt-2 font-mono text-[11px] text-ink-muted">
+        Balance checks are separate from deposit charts.
+      </p>
     </section>
   );
 }

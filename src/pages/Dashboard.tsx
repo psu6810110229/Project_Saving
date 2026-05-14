@@ -39,7 +39,7 @@ import { useProfile } from '../hooks/useProfile';
 import { useReconcile } from '../hooks/useReconcile';
 import { useRoom } from '../hooks/useRoom';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
-import { bucketSaved } from '../lib/buckets';
+import { bucketSaved, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
@@ -82,6 +82,12 @@ export function Dashboard() {
   const target = goal?.target_amount ?? you?.target ?? 0;
   const totalSaved = leaderboard.entries.reduce((sum, entry) => sum + entry.saved, 0);
   const totalTarget = leaderboard.entries.reduce((sum, entry) => sum + (entry.target ?? 0), 0) || target;
+  const bucketTargetTotal = sumTargets(buckets);
+  const bucketTargetRemaining = target > 0 ? Math.max(0, target - bucketTargetTotal) : null;
+  const newBucketTargetAmount = Number(bucketTarget);
+  const newBucketExceedsCapacity = bucketTargetRemaining !== null
+    && Number.isFinite(newBucketTargetAmount)
+    && newBucketTargetAmount > bucketTargetRemaining;
   const selectedBucket = bestMicroGoalBucket(buckets, logs);
   const bucketItems = buckets.map(bucket => ({
     id: bucket.id,
@@ -117,6 +123,10 @@ export function Dashboard() {
       setMessage('Add a bucket name, target, and category.');
       return;
     }
+    if (newBucketExceedsCapacity) {
+      setMessage(`Bucket target exceeds remaining capacity. You have ${formatCurrency(bucketTargetRemaining ?? 0)} remaining for bucket targets.`);
+      return;
+    }
     const result = await saveBuckets([
       ...buckets,
       { id: undefined, name: bucketName.trim(), target_amount: nextTarget, category: bucketCategory },
@@ -150,7 +160,7 @@ export function Dashboard() {
       )}
       <DashboardHero
         title={activeRoom?.name ?? 'Japan 2027'}
-        subtitle={`${profile?.display_name ?? 'You'} saved ${formatCurrency(total)} toward ${formatCurrency(target)}`}
+        subtitle={`${profile?.display_name ?? 'You'} recorded ${formatCurrency(total)} toward ${formatCurrency(target)}`}
         leftPlayer={{
           name: you?.displayName ?? profile?.display_name ?? 'You',
           fallback: fallbackInitial(you?.displayName ?? profile?.display_name),
@@ -158,6 +168,7 @@ export function Dashboard() {
           saved: you?.saved ?? total,
           target,
           themeColor: you?.themeColor,
+          isYou: true,
         }}
         rightPlayer={{
           name: partner?.displayName ?? 'Partner',
@@ -166,6 +177,7 @@ export function Dashboard() {
           saved: partner?.saved ?? 0,
           target: partner?.target ?? target,
           themeColor: partner?.themeColor ?? 'teal',
+          isYou: false,
         }}
         saved={totalSaved}
         target={totalTarget}
@@ -286,6 +298,8 @@ export function Dashboard() {
             options={bucketOptions}
             name={bucketName}
             target={bucketTarget}
+            targetHelper={bucketTargetRemaining !== null ? `${formatCurrency(bucketTargetRemaining)} remaining for bucket targets` : undefined}
+            targetError={newBucketExceedsCapacity ? `This exceeds the remaining bucket target capacity by ${formatCurrency(newBucketTargetAmount - (bucketTargetRemaining ?? 0))}.` : undefined}
             onCategoryChange={setBucketCategory}
             onNameChange={setBucketName}
             onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
@@ -357,7 +371,7 @@ function bestMicroGoalBucket(buckets: Bucket[], logs: ReturnType<typeof useLogs>
     title: bucket.bucket.name,
     remaining: Math.max(0, bucket.bucket.target_amount - bucket.saved),
     pct: bucket.bucket.target_amount > 0 ? Math.min(100, Math.round((bucket.saved / bucket.bucket.target_amount) * 100)) : 0,
-    subtitle: `${formatCurrency(bucket.saved)} saved`,
+    subtitle: `${formatCurrency(bucket.saved)} recorded`,
   };
 }
 
@@ -391,7 +405,7 @@ interface SavingRaceSectionProps {
 }
 
 /**
- * Renders the Saving Race line chart with a bucket-scope filter. The
+ * Renders the Deposit Race line chart with a bucket-scope filter. The
  * filter selection persists per room in localStorage so opening the
  * Dashboard later restores the previously-viewed scope.
  *

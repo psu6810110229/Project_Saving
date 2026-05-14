@@ -1,12 +1,14 @@
 import { palette } from '../../lib/theme';
+import { chartIdentityColors, chartLegendLabel } from '../../lib/chartIdentity';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 
 /**
- * Dashboard 7-day savings momentum chart. SVG bar chart with one bar per
+ * Dashboard 7-day deposit trend chart. SVG bar chart with one bar per
  * day; when a partner series is provided the chart renders two side-by-
  * side bars per day (you on the left, partner on the right) plus a small
- * legend so each color is identifiable. Pure presentational — parent
- * passes pre-computed daily totals (THB).
+ * legend so each color is identifiable. Chart colors are perspective-based:
+ * orange = You/current account, green = Partner. Pure presentational —
+ * parent passes pre-computed daily deposit totals (THB).
  *
  * Mobile-first: SVG scales to container width via viewBox preserveAspectRatio.
  */
@@ -18,9 +20,9 @@ interface MomentumChartProps {
   partnerSeries?: number[];
   /** Optional weekday labels matching the series order (e.g. ['M','T',...]). */
   labels?: string[];
-  /** Display name shown in the legend for the primary series. */
+  /** Display name shown after "You" in the primary-series legend. */
   yourName?: string;
-  /** Display name shown in the legend for the partner series. */
+  /** Display name shown after "Partner" in the partner-series legend. */
   partnerName?: string;
 }
 
@@ -43,27 +45,30 @@ export function MomentumChart({ series, partnerSeries, labels, yourName = 'You',
   return (
     <section className="rounded-3xl bg-surface shadow-soft p-5">
       <div className="flex items-center justify-between gap-3">
-        <SectionLabel tone="muted">Daily Savings Trend</SectionLabel>
-        {hasPartner && (
-          <div className="flex items-center gap-3 font-mono text-[10px] text-ink-muted">
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: palette.brand500 }} />
-              {yourName}
+        <SectionLabel tone="muted">Daily Deposit Trend</SectionLabel>
+        <div className="flex max-w-[58%] flex-col items-end gap-1 font-mono text-[10px] text-ink-muted">
+          <span className="inline-flex max-w-full items-center gap-1">
+            <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: chartIdentityColors.you }} />
+            <span className="truncate">{chartLegendLabel('You', yourName)}</span>
+          </span>
+          {hasPartner && (
+            <span className="inline-flex max-w-full items-center gap-1">
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: chartIdentityColors.partner }} />
+              <span className="truncate">{chartLegendLabel('Partner', partnerName)}</span>
             </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: palette.accentTeal }} />
-              {partnerName}
-            </span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         className="mt-3 w-full h-28"
         role="img"
-        aria-label="7-day savings momentum"
+        aria-label="7-day recorded deposit trend"
       >
+        <title>
+          Daily Deposit Trend. Orange bars are You. Green bars are Partner.
+        </title>
         {series.map((v, i) => {
           const groupX = PAD_X + i * (groupW + groupGap);
           const yourH = (v / max) * chartH;
@@ -79,7 +84,7 @@ export function MomentumChart({ series, partnerSeries, labels, yourName = 'You',
                 width={barW}
                 height={yourH || 2}
                 rx={3}
-                fill={palette.brand500}
+                fill={chartIdentityColors.you}
               />
               {hasPartner && (
                 <rect
@@ -88,7 +93,7 @@ export function MomentumChart({ series, partnerSeries, labels, yourName = 'You',
                   width={barW}
                   height={partnerH || 2}
                   rx={3}
-                  fill={palette.accentTeal}
+                  fill={chartIdentityColors.partner}
                 />
               )}
               {labels?.[i] && (
@@ -107,6 +112,9 @@ export function MomentumChart({ series, partnerSeries, labels, yourName = 'You',
           );
         })}
       </svg>
+      <p className="mt-2 font-mono text-[11px] text-ink-muted">
+        Recorded deposits only.
+      </p>
     </section>
   );
 }

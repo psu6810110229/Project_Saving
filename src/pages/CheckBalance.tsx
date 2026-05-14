@@ -30,7 +30,7 @@ export function CheckBalance() {
   const [outcome, setOutcome] = useState<null | { matched: boolean; diff: number }>(null);
   const clientRequestIdRef = useRef<string | null>(null);
 
-  // App balance the user is verifying against. Comes from the
+  // Verified Balance the user is checking against. Comes from the
   // hardened `current_reconciled_balance` RPC so it stays consistent
   // with what `create_balance_checkpoint` computes server-side, and
   // it is not capped by any client-side log list.
@@ -88,17 +88,17 @@ export function CheckBalance() {
       <PageHeader
         eyebrow="Reconcile"
         title="Check Balance"
-        subtitle="Confirm your real savings match the app."
+        subtitle="Confirm your real savings match your verified balance."
         showBack
       />
 
       <section className="rounded-3xl bg-surface p-5 shadow-soft">
         <div className="flex items-center justify-between gap-3">
-          <SectionLabel tone="brand">App Balance</SectionLabel>
+          <SectionLabel tone="brand">Verified Balance</SectionLabel>
           <span className="font-mono text-2xl font-bold text-ink">{formatCurrency(displayedAppBalance)}</span>
         </div>
         <p className="mt-2 font-mono text-xs text-ink-muted">
-          What the app currently records for you in this project.
+          Recorded deposits plus balance adjustments from checks. Deposit charts stay separate.
         </p>
       </section>
 
@@ -134,7 +134,7 @@ export function CheckBalance() {
           <SectionLabel tone="brand">Difference</SectionLabel>
           <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl bg-surfaceAlt p-3">
             <SummaryStat label="Actual" value={formatCurrency(actualNumber)} />
-            <SummaryStat label="App" value={formatCurrency(displayedAppBalance)} />
+            <SummaryStat label="Verified" value={formatCurrency(displayedAppBalance)} />
             <SummaryStat label="Difference" value={formatSignedCurrency(difference)} emphasized />
           </div>
           <p className="mt-4 font-mono text-sm font-bold text-ink">
@@ -186,7 +186,7 @@ export function CheckBalance() {
         icon={outcome?.matched ? <IconCheck size={28} /> : <IconVault size={28} />}
         title={outcome?.matched ? 'Balance checked' : 'Adjustment saved'}
         body={outcome?.matched
-          ? 'Your actual balance matches the app.'
+          ? 'Your actual balance matches your verified balance.'
           : `Recorded difference ${formatSignedCurrency(outcome?.diff ?? 0)}.`}
       >
         <Button variant="action" fullWidth onClick={() => navigate('/dashboard')}>Done</Button>

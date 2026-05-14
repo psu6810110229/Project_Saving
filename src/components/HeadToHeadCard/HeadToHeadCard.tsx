@@ -1,13 +1,7 @@
+import { formatCurrency } from '../../lib/format';
 import type { ThemeSwatch } from '../../lib/theme';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { PlayerProgressRow } from '../PlayerProgressRow/PlayerProgressRow';
-
-/**
- * Dashboard Head-to-Head card. Two player rows stacked vertically with
- * a thin divider, plus the section label up top.
- *
- * Leader is computed from `saved / target` — higher ratio wins.
- */
 
 interface PlayerInput {
   name: string;
@@ -16,6 +10,7 @@ interface PlayerInput {
   saved: number;
   target: number;
   themeColor?: ThemeSwatch;
+  isYou?: boolean;
 }
 
 interface HeadToHeadCardProps {
@@ -24,18 +19,27 @@ interface HeadToHeadCardProps {
 }
 
 export function HeadToHeadCard({ left, right }: HeadToHeadCardProps) {
-  const leftPct = left.target > 0 ? left.saved / left.target : 0;
-  const rightPct = right.target > 0 ? right.saved / right.target : 0;
-  const leftLeads = leftPct > rightPct;
-  const rightLeads = rightPct > leftPct;
+  const tied = left.saved === right.saved;
+  const gap = Math.abs(left.saved - right.saved);
+  const rows = [left, right].sort((a, b) => {
+    if (b.saved !== a.saved) return b.saved - a.saved;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
     <section className="rounded-3xl bg-surface shadow-soft p-5">
       <SectionLabel tone="muted">Head-to-Head</SectionLabel>
       <div className="mt-4 flex flex-col gap-5">
-        <PlayerProgressRow {...left} isLeader={leftLeads} />
+        <PlayerProgressRow
+          {...rows[0]}
+          isLeader={!tied}
+          gapLabel={tied ? 'Tied on recorded deposits' : `Leading by ${formatCurrency(gap)}`}
+        />
         <div className="h-px bg-well" />
-        <PlayerProgressRow {...right} isLeader={rightLeads} />
+        <PlayerProgressRow
+          {...rows[1]}
+          gapLabel={tied ? 'Tied on recorded deposits' : `Behind by ${formatCurrency(gap)}`}
+        />
       </div>
     </section>
   );

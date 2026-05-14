@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 /**
  * Compact informational chip. Used for:
  * - "Slip Attached" tag in Activity Timeline (peach bg, brand-800 ink, icon)
- * - "+12%" trend tag on Total Vault (white bg, accent leaf/red ink)
+ * - "+12%" trend tag on Recorded Vault (white bg, accent leaf/red ink)
  * - Destination tag on Confirm Deposit ("✈ Flights" peach pill)
  *
  * Variants are just tone presets; consumers pick by visual role.

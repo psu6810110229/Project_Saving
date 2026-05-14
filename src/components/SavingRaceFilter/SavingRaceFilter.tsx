@@ -1,5 +1,5 @@
 /**
- * Compact dropdown filter for the Saving Race chart scope.
+ * Compact dropdown filter for the Deposit Race chart scope.
  *
  * `value` is either null (= "All buckets / Main goal") or a bucket id.
  * Renders a native <select> so the picker is fully accessible and
@@ -23,7 +23,7 @@ const ALL = '__all__';
 export function SavingRaceFilter({ buckets, value, onChange }: SavingRaceFilterProps) {
   return (
     <label className="inline-flex items-center gap-2 font-mono text-[11px] text-ink-muted">
-      <span className="sr-only">Filter saving race scope</span>
+      <span className="sr-only">Filter deposit race scope</span>
       <select
         value={value ?? ALL}
         onChange={event => {

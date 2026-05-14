@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 import type { Bucket, BucketDraft } from '../types';
+import { formatCurrency } from '../lib/format';
 
 export interface UseBucketsResult {
   buckets: Bucket[];
@@ -47,7 +48,7 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       const goalTarget = Number(goal.target_amount);
       const bucketTargetTotal = next.reduce((total, bucket) => total + Number(bucket.target_amount), 0);
       if (bucketTargetTotal > goalTarget) {
-        return { error: `Buckets total exceeds your goal of ฿${goalTarget.toLocaleString()}` };
+        return { error: `Bucket targets exceed your main goal of ${formatCurrency(goalTarget)}.` };
       }
     }
 

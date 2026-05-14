@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { bucketSaved } from '../../lib/buckets';
+import { bucketSaved, sumTargets } from '../../lib/buckets';
 import { formatCurrency } from '../../lib/format';
 import type { Bucket, BucketCategory, SavingsLog } from '../../types';
 import { Button } from '../Button/Button';
@@ -24,6 +24,7 @@ interface BucketManagerProps {
   options: BucketCategoryOption[];
   name: string;
   target: string;
+  goalTarget?: number | null;
   statusMessage?: string | null;
   onCategoryChange: (next: BucketCategory) => void;
   onNameChange: (value: string) => void;
@@ -40,6 +41,7 @@ export function BucketManager({
   options,
   name,
   target,
+  goalTarget,
   statusMessage,
   onCategoryChange,
   onNameChange,
@@ -54,6 +56,14 @@ export function BucketManager({
   const [pendingDelete, setPendingDelete] = useState<Bucket | null>(null);
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const totalBucketTargets = sumTargets(buckets);
+  const remainingCapacity = typeof goalTarget === 'number'
+    ? Math.max(0, goalTarget - totalBucketTargets)
+    : null;
+  const createTargetAmount = Number(target);
+  const createTargetOverCapacity = typeof remainingCapacity === 'number'
+    && Number.isFinite(createTargetAmount)
+    && createTargetAmount > remainingCapacity;
 
   function startEdit(bucket: Bucket) {
     setEditingId(bucket.id);
@@ -78,6 +88,13 @@ export function BucketManager({
     if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
       setLocalMessage('Enter a target amount greater than 0.');
       return;
+    }
+    if (typeof goalTarget === 'number') {
+      const capacityForEdit = goalTarget - (totalBucketTargets - bucket.target_amount);
+      if (targetAmount > capacityForEdit) {
+        setLocalMessage(`Bucket target exceeds remaining capacity. You have ${formatCurrency(Math.max(0, capacityForEdit))} available for this bucket.`);
+        return;
+      }
     }
 
     setSaving(true);
@@ -118,6 +135,14 @@ export function BucketManager({
     setLocalMessage('Bucket deleted.');
   }
 
+  function handleCreate() {
+    if (createTargetOverCapacity) {
+      setLocalMessage(`Bucket target exceeds remaining capacity. You have ${formatCurrency(remainingCapacity ?? 0)} remaining for bucket targets.`);
+      return;
+    }
+    onCreate();
+  }
+
   const blockedDelete = pendingDelete ? bucketSaved(pendingDelete.id, logs) !== 0 : false;
 
   return (
@@ -130,6 +155,8 @@ export function BucketManager({
       <BucketSummary
         buckets={buckets}
         logs={logs}
+        goalTarget={goalTarget}
+        totalBucketTargets={totalBucketTargets}
         editingId={editingId}
         draftName={draftName}
         draftTarget={draftTarget}
@@ -144,15 +171,27 @@ export function BucketManager({
           setPendingDelete(bucket);
         }}
       />
+      {typeof goalTarget === 'number' && (
+        <TargetCapacitySummary
+          goalTarget={goalTarget}
+          allocated={totalBucketTargets}
+        />
+      )}
       <CreateBucketForm
         category={category}
         options={options}
         name={name}
         target={target}
+        targetHelper={typeof remainingCapacity === 'number'
+          ? `${formatCurrency(remainingCapacity)} remaining for bucket targets`
+          : undefined}
+        targetError={createTargetOverCapacity
+          ? `This exceeds the remaining bucket target capacity by ${formatCurrency(createTargetAmount - (remainingCapacity ?? 0))}.`
+          : undefined}
         onCategoryChange={onCategoryChange}
         onNameChange={onNameChange}
         onTargetChange={onTargetChange}
-        onSubmit={onCreate}
+        onSubmit={handleCreate}
       />
       <ConfirmModal
         open={Boolean(pendingDelete)}
@@ -173,9 +212,23 @@ export function BucketManager({
   );
 }
 
+function TargetCapacitySummary({ goalTarget, allocated }: { goalTarget: number; allocated: number }) {
+  const remaining = Math.max(0, goalTarget - allocated);
+
+  return (
+    <div className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
+      <p className="font-bold text-ink">Main goal target: {formatCurrency(goalTarget)}</p>
+      <p className="mt-1">{formatCurrency(allocated)} allocated of {formatCurrency(goalTarget)}</p>
+      <p className="mt-1">{formatCurrency(remaining)} remaining for bucket targets</p>
+    </div>
+  );
+}
+
 function BucketSummary({
   buckets,
   logs,
+  goalTarget,
+  totalBucketTargets,
   editingId,
   draftName,
   draftTarget,
@@ -189,6 +242,8 @@ function BucketSummary({
 }: {
   buckets: Bucket[];
   logs: SavingsLog[];
+  goalTarget?: number | null;
+  totalBucketTargets: number;
   editingId: string | null;
   draftName: string;
   draftTarget: string;
@@ -212,6 +267,16 @@ function BucketSummary({
           const saved = bucketSaved(bucket.id, logs);
           const remaining = Math.max(0, bucket.target_amount - saved);
           const editing = editingId === bucket.id;
+          const capacityForEdit = typeof goalTarget === 'number'
+            ? goalTarget - (totalBucketTargets - bucket.target_amount)
+            : null;
+          const draftTargetAmount = Number(draftTarget);
+          const editTargetError = editing
+            && typeof capacityForEdit === 'number'
+            && Number.isFinite(draftTargetAmount)
+            && draftTargetAmount > capacityForEdit
+              ? `This exceeds the remaining bucket target capacity by ${formatCurrency(draftTargetAmount - capacityForEdit)}.`
+              : undefined;
 
           return (
             <div key={bucket.id} className="rounded-2xl bg-brand-50 px-4 py-3">
@@ -224,7 +289,11 @@ function BucketSummary({
                       onChange={event => onDraftNameChange(event.target.value)}
                     />
                   </FormField>
-                  <FormField label="Target Amount">
+                  <FormField
+                    label="Target Amount"
+                    helper={typeof capacityForEdit === 'number' ? `${formatCurrency(Math.max(0, capacityForEdit))} available for this bucket` : undefined}
+                    error={editTargetError}
+                  >
                     <TextInput
                       value={draftTarget}
                       inputMode="numeric"

@@ -9,6 +9,7 @@ export interface LeaderboardEntry {
   displayName: string;
   avatarUrl?: string | null;
   themeColor?: ProfileTheme;
+  /** Recorded Deposits: sum of positive savings_logs assigned to buckets. */
   saved: number;
   target: number | null;
   percent: number;
@@ -139,10 +140,8 @@ export function useLeaderboard(
     });
 
     const sorted = [...raw].sort((a, b) => {
-      if (a.hasGoal && !b.hasGoal) return -1;
-      if (!a.hasGoal && b.hasGoal) return 1;
-      if (b._rawPercent !== a._rawPercent) return b._rawPercent - a._rawPercent;
       if (b.saved !== a.saved) return b.saved - a.saved;
+      if (b._rawPercent !== a._rawPercent) return b._rawPercent - a._rawPercent;
       return a.displayName.localeCompare(b.displayName);
     });
 

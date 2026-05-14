@@ -4,8 +4,8 @@ import { Chip } from '../Chip/Chip';
 import { formatCurrency } from '../../lib/format';
 
 /**
- * Dashboard "Total Vault" card. Big saved amount, target, progress bar,
- * and an optional trend chip (e.g. "+12%" leaf accent).
+ * Dashboard "Recorded Vault" card. Shows recorded deposits against
+ * the target, plus an optional deposit trend chip.
  */
 
 interface TotalVaultCardProps {
@@ -20,10 +20,10 @@ export function TotalVaultCard({ saved, target, trendPct }: TotalVaultCardProps)
   return (
     <section className="rounded-3xl bg-surface shadow-soft p-5">
       <div className="flex items-start justify-between gap-2">
-        <SectionLabel tone="muted">Total Vault</SectionLabel>
+        <SectionLabel tone="muted">Recorded Vault</SectionLabel>
         {typeof trendPct === 'number' && trendPct !== 0 && (
           <Chip tone={trendPct > 0 ? 'leaf' : 'danger'}>
-            {trendPct > 0 ? '+' : ''}
+            7d {trendPct > 0 ? '+' : ''}
             {trendPct}%
           </Chip>
         )}
@@ -35,6 +35,9 @@ export function TotalVaultCard({ saved, target, trendPct }: TotalVaultCardProps)
       <div className="mt-4">
         <ProgressBar value={pct} tone="deep" size="lg" animate />
       </div>
+      <p className="mt-2 font-mono text-[11px] text-ink-muted">
+        Deposit logs only. Balance checks are shown separately.
+      </p>
     </section>
   );
 }

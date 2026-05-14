@@ -47,6 +47,7 @@
   2. Add auth + room membership validation to `current_reconciled_balance`, or revoke execute if unused.
 - should go into Task 22 or later:
   1. If partner activity must be more sanitized, remove ledger/actual amounts from `balance_activity_for_room` output.
+  2. Decide how Actual Balance differences should be handled: allocate higher/lower balances to buckets, or keep them as total-level verified adjustments.
 
 ## H. Commit Recommendation
 - Not recommended until blockers are resolved.

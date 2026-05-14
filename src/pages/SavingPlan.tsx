@@ -14,6 +14,7 @@ import { haptic } from '../lib/haptics';
 import {
   RULE_TYPE_LABEL,
   activeRevisionAt,
+  shortDateLabel,
   todayBangkokKey,
 } from '../lib/savingPlan';
 import type { SavingPlanRuleType } from '../types';
@@ -47,6 +48,7 @@ export function SavingPlan() {
   const [startAmount, setStartAmount] = useState('1');
   const [incrementAmount, setIncrementAmount] = useState('1');
   const [targetAmount, setTargetAmount] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [seededRevisionId, setSeededRevisionId] = useState<string | null>(null);
@@ -64,15 +66,17 @@ export function SavingPlan() {
       setStartAmount(latestRevision.start_amount != null ? String(latestRevision.start_amount) : '1');
       setIncrementAmount(latestRevision.increment_amount != null ? String(latestRevision.increment_amount) : '1');
       setTargetAmount(String(latestRevision.target_amount));
+      setEndDate(latestRevision.end_date ?? '');
       setSeededRevisionId(latestRevision.id);
       setDidSeedCreateTarget(true);
       return;
     }
     if (!didSeedCreateTarget && goal?.target_amount) {
       setTargetAmount(String(goal.target_amount));
+      setEndDate(goal.end_date ?? '');
       setDidSeedCreateTarget(true);
     }
-  }, [loading, latestRevision, goal?.target_amount, didSeedCreateTarget, seededRevisionId]);
+  }, [loading, latestRevision, goal?.target_amount, goal?.end_date, didSeedCreateTarget, seededRevisionId]);
 
   if (loading) {
     return (
@@ -128,6 +132,7 @@ export function SavingPlan() {
       startAmount: startNum,
       incrementAmount: incNum,
       effectiveFromDate: todayBangkokKey(),
+      endDate: endDate || undefined,
     };
     const result = isChange ? await changePlan(input) : await createPlan(input);
     setSubmitting(false);
@@ -151,10 +156,32 @@ export function SavingPlan() {
         showBack
       />
 
-      {goal?.target_amount && !isChange && (
+      {goal?.target_amount && (
         <section className="rounded-3xl bg-surfaceAlt p-4">
           <SectionLabel tone="muted">Project goal</SectionLabel>
           <p className="mt-1 font-mono text-sm text-ink">{formatCurrency(Number(goal.target_amount))}</p>
+          {goal.end_date && (
+            <p className="mt-0.5 font-mono text-xs text-ink-muted">Until {shortDateLabel(goal.end_date)}</p>
+          )}
+        </section>
+      )}
+
+      {isChange && latestRevision && (
+        <section className="rounded-3xl bg-surfaceAlt p-4">
+          <SectionLabel tone="muted">Current plan · until today</SectionLabel>
+          <p className="mt-1 font-mono text-sm font-bold text-ink">
+            {RULE_TYPE_LABEL[latestRevision.rule_type]}
+            {latestRevision.amount != null
+              ? ` · ${formatCurrency(Number(latestRevision.amount))}`
+              : ''}
+            {latestRevision.start_amount != null
+              ? ` · from ${formatCurrency(Number(latestRevision.start_amount))}/day`
+              : ''}
+          </p>
+          <p className="mt-0.5 font-mono text-xs text-ink-muted">
+            Target {formatCurrency(Number(latestRevision.target_amount))}
+            {latestRevision.end_date ? ` · until ${shortDateLabel(latestRevision.end_date)}` : ''}
+          </p>
         </section>
       )}
 
@@ -241,6 +268,14 @@ export function SavingPlan() {
               value={targetAmount}
               leadingIcon={<span className="font-mono font-bold">฿</span>}
               onChange={e => setTargetAmount(digitsOnly(e.target.value))}
+            />
+          </FormField>
+
+          <FormField label="End date" helper="Optional. Defaults to your project goal date.">
+            <TextInput
+              type="date"
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
             />
           </FormField>
         </div>

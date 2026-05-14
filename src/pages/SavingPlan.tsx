@@ -17,6 +17,7 @@ import {
   daysInclusive,
   plannedCumulativeThroughDate,
   projectedCompletionDate,
+  RULE_TYPE_LABEL,
   shortDateLabel,
   todayBangkokKey,
 } from '../lib/savingPlan';
@@ -57,6 +58,8 @@ export function SavingPlan() {
     ? activeRevisionAt(plan.revisions, todayBangkokKey())
     : null;
   const isChange = Boolean(plan);
+  const openPause = plan?.pauses.find(p => p.resumed_from === null) ?? null;
+  const pausedSince = openPause?.paused_from ?? null;
 
   const [ruleType, setRuleType] = useState<SavingPlanRuleType>('fixed_daily');
   const [amount, setAmount] = useState('');
@@ -559,6 +562,50 @@ export function SavingPlan() {
         </section>
       )}
 
+      {/* Paused banner — shown prominently when plan is paused. */}
+      {isChange && isPaused && (
+        <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-800">
+                Plan paused
+              </p>
+              {pausedSince && (
+                <p className="mt-1 font-mono text-base font-bold text-ink">
+                  Since {shortDateLabel(pausedSince)}
+                </p>
+              )}
+              {latestRevision && (
+                <p className="mt-0.5 font-mono text-xs text-ink-muted">
+                  {RULE_TYPE_LABEL[latestRevision.rule_type]}
+                  {latestRevision.amount != null &&
+                    ` · ${formatCurrency(Math.round(Number(latestRevision.amount)))}`}
+                  {latestRevision.cap_amount != null &&
+                    ` · capped at ${formatCurrency(Math.round(Number(latestRevision.cap_amount)))}`}
+                </p>
+              )}
+              <p className="mt-2 font-mono text-xs text-ink-muted">
+                No expected progress is accumulating right now.
+                Resume to apply any changes.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <Button
+              variant="action"
+              fullWidth
+              onClick={handleResume}
+              disabled={submitting}
+            >
+              {submitting ? 'Resuming…' : 'Resume plan'}
+            </Button>
+          </div>
+          {pauseMessage && (
+            <p className="mt-2 font-mono text-xs text-danger">{pauseMessage}</p>
+          )}
+        </section>
+      )}
+
       {/* Validation / error */}
       {(message || error) && (
         <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">
@@ -568,49 +615,43 @@ export function SavingPlan() {
 
       {/* CTA */}
       <div className="flex flex-col gap-2">
-        <Button variant="action" fullWidth onClick={handleSubmit} disabled={submitting}>
+        <Button
+          variant="action"
+          fullWidth
+          onClick={handleSubmit}
+          disabled={submitting || (isChange && isPaused)}
+        >
           {submitting ? 'Saving…' : 'Save plan'}
         </Button>
         <Button variant="ghost" size="md" fullWidth onClick={() => navigate(-1)}>
           Cancel
         </Button>
       </div>
-      {isChange && (
+      {isChange && !isPaused && (
         <p className="text-center font-mono text-[11px] text-ink-muted">
           Changes start from today. Past progress is kept.
         </p>
       )}
 
-      {/* Pause / Resume section — only shown when a plan exists. */}
-      {isChange && (
+      {/* Pause section — shown when plan is active (not paused). */}
+      {isChange && !isPaused && (
         <section className="rounded-3xl bg-surface p-5 shadow-soft">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
             Pause plan
           </p>
-          {isPaused ? (
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="font-mono text-sm text-ink-muted">Plan is paused</p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResume}
-                disabled={submitting}
-              >
-                Resume
-              </Button>
-            </div>
-          ) : (
-            <div className="mt-3">
-              <Button
-                variant="ghost"
-                fullWidth
-                onClick={handlePause}
-                disabled={submitting}
-              >
-                Pause plan
-              </Button>
-            </div>
-          )}
+          <p className="mt-1 font-mono text-xs text-ink-muted">
+            Pause to stop expected progress while keeping your history.
+          </p>
+          <div className="mt-3">
+            <Button
+              variant="ghost"
+              fullWidth
+              onClick={handlePause}
+              disabled={submitting}
+            >
+              Pause plan
+            </Button>
+          </div>
           {pauseMessage && (
             <p className="mt-2 font-mono text-xs text-danger">{pauseMessage}</p>
           )}

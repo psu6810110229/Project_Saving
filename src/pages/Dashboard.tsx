@@ -164,6 +164,12 @@ export function Dashboard() {
     : null;
   const planPauses = savingPlan?.pauses ?? [];
   const isPausedToday = savingPlan ? isPausedOnDate(planPauses, todayKey) : false;
+  const openPause = planPauses.find(p => p.resumed_from === null) ?? null;
+  const pausedSince = openPause?.paused_from ?? null;
+  const activePlanRevision = savingPlan
+    ? activeRevisionAt(savingPlan.revisions, todayKey)
+    : null;
+  const planSummary = activePlanRevision ? buildPlanSummary(activePlanRevision) : null;
   const moneyStatus = savingPlan
     ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey, planPauses)
     : null;
@@ -345,6 +351,8 @@ export function Dashboard() {
           savedToday={savedToday}
           verifiedBalance={verifiedBalanceSlot}
           isPaused={isPausedToday}
+          pausedSince={pausedSince}
+          planSummary={planSummary}
         />
       </div>
 
@@ -739,6 +747,24 @@ function recordedBetween(
     if (key < startKey || key > endKey) return sum;
     return sum + log.amount;
   }, 0);
+}
+
+/** Short human-readable plan rule summary for display in the Plan card. */
+function buildPlanSummary(rev: SavingPlanRevision): string {
+  switch (rev.rule_type) {
+    case 'fixed_daily':
+      return `Fixed daily · ${formatCurrency(Math.round(Number(rev.amount ?? 0)))}/day`;
+    case 'fixed_weekly':
+      return `Fixed weekly · ${formatCurrency(Math.round(Number(rev.amount ?? 0)))}/week`;
+    case 'fixed_monthly':
+      return `Fixed monthly · ${formatCurrency(Math.round(Number(rev.amount ?? 0)))}/month`;
+    case 'increasing_daily':
+      return `Increasing daily · starts ฿${Math.round(Number(rev.start_amount ?? 0))}`;
+    case 'increasing_daily_capped':
+      return `Increasing daily · capped at ${formatCurrency(Math.round(Number(rev.cap_amount ?? 0)))}`;
+    default:
+      return '';
+  }
 }
 
 /** Sum of Saving Plan expected daily amounts in [startKey, endKey]. */

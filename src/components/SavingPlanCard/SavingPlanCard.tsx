@@ -31,6 +31,10 @@ interface SavingPlanCardProps {
   verifiedBalance?: VerifiedBalanceSlot | null;
   /** Whether the plan is currently paused (today is a paused day). */
   isPaused?: boolean;
+  /** Bangkok date the current pause started (YYYY-MM-DD), or null when not paused. */
+  pausedSince?: string | null;
+  /** Short human-readable plan rule summary, e.g. "Fixed daily · ฿100/day". */
+  planSummary?: string | null;
 }
 
 /** Fire glyphs for a streak: ≥2d → 1, ≥6d → 2, ≥8d → 3. */
@@ -90,6 +94,8 @@ export function SavingPlanCard({
   savedToday = 0,
   verifiedBalance,
   isPaused = false,
+  pausedSince = null,
+  planSummary = null,
 }: SavingPlanCardProps) {
   if (!money || !ruleType) {
     return (
@@ -167,10 +173,26 @@ export function SavingPlanCard({
           <IconEdit size={18} />
         </button>
       </div>
-      {money.state === 'ahead' && money.coveredUntilDate && (
-        <p className="mt-1 font-mono text-base font-bold text-ink-muted">
-          Covered until <span className="text-ink">{shortDateLabel(money.coveredUntilDate)}</span>
-        </p>
+      {isPaused ? (
+        <div className="mt-1">
+          {pausedSince && (
+            <p className="font-mono text-base font-bold text-ink-muted">
+              Since <span className="text-ink">{shortDateLabel(pausedSince)}</span>
+              {planSummary && (
+                <span className="ml-2 font-normal text-ink-muted">· {planSummary}</span>
+              )}
+            </p>
+          )}
+          <p className="mt-0.5 font-mono text-xs text-ink-muted">
+            Not accumulating expected progress
+          </p>
+        </div>
+      ) : (
+        money.state === 'ahead' && money.coveredUntilDate && (
+          <p className="mt-1 font-mono text-base font-bold text-ink-muted">
+            Covered until <span className="text-ink">{shortDateLabel(money.coveredUntilDate)}</span>
+          </p>
+        )
       )}
 
       {/* Money + Habit boxes — larger muted labels, value text stays bold/ink. */}

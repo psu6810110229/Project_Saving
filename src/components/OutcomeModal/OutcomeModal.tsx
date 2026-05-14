@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+﻿import type { ReactNode } from 'react';
 import { OutcomeModalBody } from '../OutcomeModalBody/OutcomeModalBody';
 
 type Outcome = 'success' | 'fail' | 'expired';
@@ -24,7 +24,7 @@ export function OutcomeModal({
 
   return (
     <div className="fixed inset-0 z-50 min-h-[100dvh] bg-bg px-4 py-8 flex items-center justify-center">
-      <section className="w-full max-w-sm rounded-3xl bg-surface shadow-soft">
+      <section className="w-full max-w-sm rounded-xl bg-surface shadow-soft">
         <OutcomeModalBody outcome={outcome} icon={icon} title={title} body={body}>
           {children}
         </OutcomeModalBody>

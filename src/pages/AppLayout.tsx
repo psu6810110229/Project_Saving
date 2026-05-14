@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+﻿import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { AppShell } from '../components/AppShell/AppShell';
 import type { BottomNavTab } from '../components/BottomNav/BottomNav';
@@ -89,7 +89,7 @@ function ProjectSetup({
           Join
         </Button>
       </div>
-      {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
+      {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       {mode === 'create' ? (
         <CreateProjectForm
           category={category}
@@ -118,7 +118,7 @@ function ProjectSetup({
 
 function StatusCard({ title, body }: { title: string; body: string }) {
   return (
-    <section className="rounded-3xl bg-surface p-5 shadow-soft">
+    <section className="rounded-xl bg-surface p-5 shadow-soft">
       <SectionLabel tone="brand">GO-OUT</SectionLabel>
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>

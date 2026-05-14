@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+﻿import { useMemo, useState, type ReactNode } from 'react';
 import { AddMoneyForm } from '../components/AddMoneyForm/AddMoneyForm';
 import { Button } from '../components/Button/Button';
 import { ConfirmDepositPanel } from '../components/ConfirmDepositPanel/ConfirmDepositPanel';
@@ -104,7 +104,7 @@ export function AddMoney() {
     return (
       <div className="flex flex-col gap-4">
         <StatusCard title="Create your first bucket" body="Deposits need a destination before they can be saved." />
-        {message && <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
+        {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
         <CreateBucketForm
           category={bucketCategory}
           options={bucketOptions}
@@ -123,7 +123,7 @@ export function AddMoney() {
     <div className="flex flex-col gap-5">
       <PageHeader eyebrow="Add Money" title="Deposit to a bucket" subtitle="Manual entry and slip attachment" />
       <BucketPicker buckets={buckets} selectedId={selectedBucket.id} onSelect={setSelectedBucketId} />
-      {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
+      {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       {reviewing ? (
         <ConfirmDepositPanel
           bannerIcon={<IconRocket size={22} />}
@@ -200,7 +200,7 @@ function BucketPicker({
 
 function StatusCard({ title, body }: { title: string; body: string }) {
   return (
-    <section className="rounded-3xl bg-surface p-5 shadow-soft">
+    <section className="rounded-xl bg-surface p-5 shadow-soft">
       <SectionLabel tone="brand">Add Money</SectionLabel>
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
@@ -224,7 +224,7 @@ function AddMoneySkeleton() {
         <Skeleton className="h-9 w-28 rounded-pill" />
         <Skeleton className="h-9 w-20 rounded-pill" />
       </div>
-      <section className="rounded-3xl bg-surface p-5 shadow-soft">
+      <section className="rounded-xl bg-surface p-5 shadow-soft">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="mt-4 h-32" />
         <Skeleton className="mt-4 h-12 rounded-pill" />

@@ -1,4 +1,4 @@
-import type { ChangeEvent, FormEvent, ReactNode } from 'react';
+﻿import type { ChangeEvent, FormEvent, ReactNode } from 'react';
 import type { ProjectCategory } from '../../types';
 import { Button } from '../Button/Button';
 import { CategoryRow } from '../CategoryRow/CategoryRow';
@@ -33,7 +33,7 @@ export function CreateProjectForm(props: CreateProjectFormProps) {
   };
 
   return (
-    <form className="rounded-3xl bg-surface shadow-soft p-5 flex flex-col gap-4" onSubmit={handleSubmit}>
+    <form className="rounded-xl bg-surface shadow-soft p-5 flex flex-col gap-4" onSubmit={handleSubmit}>
       <div>
         <SectionLabel tone="brand">Create Project</SectionLabel>
         <h2 className="mt-1 font-mono text-2xl font-bold text-ink">New Savings Goal</h2>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+﻿import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { Chip } from '../components/Chip/Chip';
@@ -17,7 +17,6 @@ import {
   daysInclusive,
   plannedCumulativeThroughDate,
   projectedCompletionDate,
-  RULE_TYPE_LABEL,
   shortDateLabel,
   todayBangkokKey,
 } from '../lib/savingPlan';
@@ -339,11 +338,6 @@ export function SavingPlan() {
     navigate('/dashboard');
   }
 
-  const amountHelper = ruleType === 'fixed_weekly'
-    ? 'Per week.'
-    : ruleType === 'fixed_monthly'
-      ? 'Per month.'
-      : 'Per day.';
 
   return (
     <div className="flex flex-col gap-5">
@@ -365,8 +359,11 @@ export function SavingPlan() {
           </h1>
         </header>
 
+      {/* Form sections — non-interactive while plan is paused */}
+      <div className={`flex flex-col gap-5${isChange && isPaused ? ' pointer-events-none select-none opacity-50' : ''}`}>
+
       {/* Plan type selector */}
-      <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
+      <section className="rounded-xl bg-surface p-5 shadow-soft">
         <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
           Plan type
         </p>
@@ -379,10 +376,10 @@ export function SavingPlan() {
                 type="button"
                 onClick={() => setRuleType(preset.id)}
                 className={
-                  'rounded-2xl px-4 py-3 text-center font-mono text-sm font-bold transition-colors ' +
+                  'rounded-lg px-4 py-3 text-center font-mono text-sm font-bold transition-colors ' +
                   (selected
                     ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
-                    : 'bg-surface text-ink shadow-soft hover:bg-brand-50')
+                    : 'bg-brand-50 text-ink hover:bg-brand-100')
                 }
               >
                 {preset.label}
@@ -393,7 +390,7 @@ export function SavingPlan() {
       </section>
 
       {/* Plan fields */}
-      <section className="rounded-3xl bg-surface p-5 shadow-soft">
+      <section className="rounded-xl bg-surface p-5 shadow-soft">
         <div className="flex flex-col gap-4">
           {ruleType === 'increasing_daily' ? (
             <>
@@ -495,7 +492,7 @@ export function SavingPlan() {
             </>
           ) : (
             <>
-              <BigLabelField label="Amount" helper={amountHelper}>
+              <BigLabelField label="Amount">
                 <TextInput
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -531,7 +528,7 @@ export function SavingPlan() {
 
       {/* Preview card */}
       {preview && (
-        <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
+        <section className="rounded-xl bg-surface p-5 shadow-soft">
           <div className="flex items-center justify-between gap-2">
             <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
               Preview
@@ -554,17 +551,14 @@ export function SavingPlan() {
             </dl>
           )}
 
-          {preview.mode !== 'target' && !preview.reachesTarget && (
-            <p className="mt-3 font-mono text-[11px] text-ink-muted">
-              This may finish below your target.
-            </p>
-          )}
         </section>
       )}
 
+      </div>{/* end form sections */}
+
       {/* Paused banner — shown prominently when plan is paused. */}
       {isChange && isPaused && (
-        <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
+        <section className="rounded-xl bg-surface p-5 shadow-soft">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-800">
@@ -575,19 +569,6 @@ export function SavingPlan() {
                   Since {shortDateLabel(pausedSince)}
                 </p>
               )}
-              {latestRevision && (
-                <p className="mt-0.5 font-mono text-xs text-ink-muted">
-                  {RULE_TYPE_LABEL[latestRevision.rule_type]}
-                  {latestRevision.amount != null &&
-                    ` · ${formatCurrency(Math.round(Number(latestRevision.amount)))}`}
-                  {latestRevision.cap_amount != null &&
-                    ` · capped at ${formatCurrency(Math.round(Number(latestRevision.cap_amount)))}`}
-                </p>
-              )}
-              <p className="mt-2 font-mono text-xs text-ink-muted">
-                No expected progress is accumulating right now.
-                Resume to apply any changes.
-              </p>
             </div>
           </div>
           <div className="mt-4">
@@ -608,7 +589,7 @@ export function SavingPlan() {
 
       {/* Validation / error */}
       {(message || error) && (
-        <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">
+        <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">
           {message ?? error}
         </p>
       )}
@@ -624,17 +605,12 @@ export function SavingPlan() {
               Cancel
             </Button>
           </div>
-          {isChange && (
-            <p className="text-center font-mono text-[11px] text-ink-muted">
-              Changes start from today. Past progress is kept.
-            </p>
-          )}
         </>
       )}
 
       {/* Pause section — shown when plan is active (not paused). */}
       {isChange && !isPaused && (
-        <section className="rounded-3xl bg-surface p-5 shadow-soft">
+        <section className="rounded-xl bg-surface p-5 shadow-soft">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
             Pause plan
           </p>
@@ -695,7 +671,7 @@ function CardField({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl bg-brand-50 p-3 shadow-soft">
+    <div className="rounded-lg bg-brand-50 p-3 shadow-soft">
       <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-brand-800">
         {label}
       </p>

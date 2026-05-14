@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { Button } from '../components/Button/Button';
@@ -161,7 +161,7 @@ export function Profile() {
         themeColor={themeColor}
         onEdit={() => openModal('profile')}
       />
-      {message && <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
+      {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList
         items={[
           { id: 'profile', icon: <IconEdit size={18} />, label: 'Edit Profile', description: 'Name, photo, and theme color', onClick: () => openModal('profile') },
@@ -252,7 +252,7 @@ export function Profile() {
 
 function StatusCard({ title, body }: { title: string; body: string }) {
   return (
-    <section className="rounded-3xl bg-surface p-5 shadow-soft">
+    <section className="rounded-xl bg-surface p-5 shadow-soft">
       <SectionLabel tone="brand">Profile</SectionLabel>
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
@@ -271,7 +271,7 @@ function ProfileSkeleton() {
         </div>
         <Spinner size="sm" />
       </div>
-      <section className="rounded-3xl bg-surface p-5 shadow-soft">
+      <section className="rounded-xl bg-surface p-5 shadow-soft">
         <div className="flex items-center gap-4">
           <Skeleton className="h-16 w-16 rounded-full" />
           <div className="flex flex-1 flex-col gap-2">

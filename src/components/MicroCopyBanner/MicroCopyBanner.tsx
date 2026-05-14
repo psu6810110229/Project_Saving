@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+﻿import type { ReactNode } from 'react';
 import { IconBubble } from '../IconBubble/IconBubble';
 
 /**
@@ -31,7 +31,7 @@ const TONE_BG: Record<Tone, string> = {
 export function MicroCopyBanner({ icon, title, body, tone = 'cheer' }: MicroCopyBannerProps) {
   const bubbleTone = tone === 'nudge' ? 'peach' : 'solid';
   return (
-    <section className={`rounded-3xl p-4 flex items-start gap-3 ${TONE_BG[tone]}`}>
+    <section className={`rounded-xl p-4 flex items-start gap-3 ${TONE_BG[tone]}`}>
       <IconBubble tone={bubbleTone} size="lg">{icon}</IconBubble>
       <div className="flex-1 min-w-0">
         <div className="font-mono text-sm font-bold text-ink">{title}</div>

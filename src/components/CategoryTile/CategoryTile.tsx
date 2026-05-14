@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+﻿import type { ReactNode } from 'react';
 
 /**
  * Rounded-square category selector tile. Used on both the Create Project
@@ -66,7 +66,7 @@ export function CategoryTile({
       onClick={onClick}
       className={
         'flex flex-col items-center justify-center gap-2 ' +
-        'min-w-[88px] aspect-square rounded-2xl px-3 transition-all duration-200 ' +
+        'min-w-[88px] aspect-square rounded-lg px-3 transition-all duration-200 ' +
         (selected
           ? 'bg-brand-800 text-ink-inverse shadow-soft'
           : 'bg-surface text-ink-muted shadow-soft hover:bg-brand-50') +

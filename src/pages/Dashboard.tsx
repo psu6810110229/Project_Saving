@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+﻿import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
@@ -439,7 +439,7 @@ export function Dashboard() {
             Create First Bucket
           </Button>
         )}
-        {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
+        {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       </div>
 
       {/* 5 — Graphs. Lighter than the insight cards above. */}
@@ -485,7 +485,7 @@ export function Dashboard() {
           )}
         </div>
         {mergedActivity.length > 0 ? (
-          <div className="rounded-3xl bg-surface shadow-soft px-4 divide-y divide-well">
+          <div className="rounded-xl bg-surface shadow-soft px-4 divide-y divide-well">
             {mergedActivity.map(item => (
               item.kind === 'deposit' ? (
                 <ActivityTimelineRow
@@ -514,7 +514,7 @@ export function Dashboard() {
 
       <Modal open={bucketModalOpen} title="Add Bucket" onClose={() => setBucketModalOpen(false)}>
         <div className="flex flex-col gap-4">
-          {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
+          {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
           <CreateBucketForm
             category={bucketCategory}
             options={bucketOptions}
@@ -602,7 +602,7 @@ function BalanceActivityRow({ entry }: { entry: BalanceActivityEntry }) {
 
 function StatusCard({ title, body }: { title: string; body: string }) {
   return (
-    <section className="rounded-3xl bg-surface p-5 shadow-soft">
+    <section className="rounded-xl bg-surface p-5 shadow-soft">
       <SectionLabel tone="brand">Dashboard</SectionLabel>
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
@@ -621,7 +621,7 @@ function DashboardSkeleton() {
         </div>
         <Spinner size="sm" />
       </div>
-      <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
+      <section className="rounded-xl bg-brand-50 p-5 shadow-soft">
         <Skeleton className="h-4 w-28 rounded-pill" />
         <Skeleton className="mt-4 h-8 w-3/4" />
         <Skeleton className="mt-3 h-3 w-1/2 rounded-pill" />

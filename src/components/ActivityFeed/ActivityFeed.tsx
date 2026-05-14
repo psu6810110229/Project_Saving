@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { ActivityTimelineRow } from '../ActivityTimelineRow/ActivityTimelineRow';
 import { Modal } from '../Modal/Modal';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
@@ -39,7 +39,7 @@ export function ActivityFeed({ label = 'Activity Feed', items, onViewMore, previ
   return (
     <section>
       <SectionLabel tone="brand">{label}</SectionLabel>
-      <div className="mt-3 rounded-3xl bg-surface shadow-soft px-4 divide-y divide-well">
+      <div className="mt-3 rounded-xl bg-surface shadow-soft px-4 divide-y divide-well">
         {previewed.map(item => (
           <ActivityTimelineRow
             key={item.id}
@@ -59,9 +59,9 @@ export function ActivityFeed({ label = 'Activity Feed', items, onViewMore, previ
       </div>
       <Modal open={Boolean(slipUrl)} title="Transfer Slip" onClose={() => setSlipUrl(null)}>
         {displayUrl ? (
-          <img src={displayUrl} alt="Transfer slip" className="max-h-[70dvh] w-full rounded-2xl object-contain" />
+          <img src={displayUrl} alt="Transfer slip" className="max-h-[70dvh] w-full rounded-lg object-contain" />
         ) : (
-          <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-sm text-brand-800">
+          <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-sm text-brand-800">
             Slip reference saved: {slipUrl?.replace('attached:', '')}
           </p>
         )}

@@ -1,4 +1,4 @@
-import { Chip } from '../Chip/Chip';
+﻿import { Chip } from '../Chip/Chip';
 import { IconVault } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { daysSince, formatSignedCurrency } from '../../lib/reconcile';
@@ -28,8 +28,8 @@ export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheck
   const matched = latest ? diff === 0 : false;
 
   return (
-    <section className="flex items-center gap-3 rounded-3xl bg-surface px-4 py-3 shadow-soft">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-800">
+    <section className="flex items-center gap-3 rounded-xl bg-surface px-4 py-3 shadow-soft">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-800">
         <IconVault size={18} />
       </span>
       <div className="min-w-0 flex-1">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { Spinner } from '../components/Spinner/Spinner';
@@ -59,7 +59,7 @@ export function AuthCallback() {
   if (error) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-6">
-        <section className="w-full max-w-sm rounded-3xl bg-surface p-6 text-center shadow-soft">
+        <section className="w-full max-w-sm rounded-xl bg-surface p-6 text-center shadow-soft">
           <p className="font-mono text-xs font-bold uppercase tracking-wide text-brand-800">Sign In</p>
           <h1 className="mt-3 font-mono text-2xl font-bold text-ink">Could not finish sign-in</h1>
           <p className="mt-2 font-mono text-xs leading-5 text-ink-muted">{error}</p>

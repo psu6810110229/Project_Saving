@@ -1,4 +1,4 @@
-import { palette } from '../../lib/theme';
+﻿import { palette } from '../../lib/theme';
 import { formatCurrency } from '../../lib/format';
 import { chartIdentityColors, chartLegendLabel } from '../../lib/chartIdentity';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
@@ -62,7 +62,7 @@ export function SavingRaceChart({
   const partnerTotal = partnerSeries[partnerSeries.length - 1] ?? 0;
 
   return (
-    <section className="rounded-3xl bg-surface shadow-soft p-5">
+    <section className="rounded-xl bg-surface shadow-soft p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <SectionLabel tone="muted">Deposit Race</SectionLabel>

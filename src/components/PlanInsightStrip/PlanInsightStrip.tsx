@@ -1,4 +1,4 @@
-import { Chip } from '../Chip/Chip';
+﻿import { Chip } from '../Chip/Chip';
 import { formatCurrency } from '../../lib/format';
 
 interface PeriodInsight {
@@ -38,7 +38,7 @@ function toneFor(p: PeriodInsight): PeriodTone {
  */
 export function PlanInsightStrip({ week, month }: PlanInsightStripProps) {
   return (
-    <section className="rounded-3xl bg-brand-50 p-4 shadow-soft">
+    <section className="rounded-xl bg-surface p-4 shadow-soft">
       <div className="grid grid-cols-2 gap-3">
         <PeriodTile label="This week" {...week} />
         <PeriodTile label="This month" {...month} />
@@ -50,7 +50,7 @@ export function PlanInsightStrip({ week, month }: PlanInsightStripProps) {
 function PeriodTile({ label, recorded, expected }: { label: string } & PeriodInsight) {
   const tone = toneFor({ recorded, expected });
   return (
-    <div className="rounded-2xl bg-surface p-3 shadow-soft">
+    <div className="rounded-lg bg-brand-50 p-3 shadow-soft">
       <div className="flex items-center justify-between gap-2">
         <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
           {label}

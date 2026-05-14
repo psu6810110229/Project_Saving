@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+﻿import type { ReactNode } from 'react';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
@@ -20,7 +20,7 @@ interface MicroGoalCardProps {
 
 export function MicroGoalCard({ icon, title, remaining, pct, subtitle }: MicroGoalCardProps) {
   return (
-    <section className="rounded-3xl bg-brand-50 p-4 flex items-center gap-4">
+    <section className="rounded-xl bg-brand-50 p-4 flex items-center gap-4">
       <IconBubble tone="solid" size="lg">{icon}</IconBubble>
       <div className="flex-1 min-w-0">
         <SectionLabel tone="brand">Next Win</SectionLabel>

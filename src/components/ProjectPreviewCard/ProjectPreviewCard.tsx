@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+﻿import type { ReactNode } from 'react';
 import { Avatar } from '../Avatar/Avatar';
 import { Chip } from '../Chip/Chip';
 import { IconBubble } from '../IconBubble/IconBubble';
@@ -28,7 +28,7 @@ export function ProjectPreviewCard({
   memberCount,
 }: ProjectPreviewCardProps) {
   return (
-    <section className="rounded-3xl bg-surface shadow-soft p-5 flex flex-col items-center text-center gap-3">
+    <section className="rounded-xl bg-surface shadow-soft p-5 flex flex-col items-center text-center gap-3">
       <IconBubble tone="solid" size="xl">{icon}</IconBubble>
       <div>
         <SectionLabel tone="brand">Project Found</SectionLabel>

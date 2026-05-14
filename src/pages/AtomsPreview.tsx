@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Avatar } from '../components/Avatar/Avatar';
 import { BottomTabItem } from '../components/BottomTabItem/BottomTabItem';
 import { Button } from '../components/Button/Button';
@@ -196,7 +196,7 @@ export function AtomsPreview() {
         </Group>
 
         <Group title="Bottom tab bar (sample)">
-          <div className="bg-surface rounded-2xl shadow-soft px-4 py-2 flex items-center justify-around">
+          <div className="bg-surface rounded-lg shadow-soft px-4 py-2 flex items-center justify-around">
             <BottomTabItem label="Dashboard" icon={<IconGrid />}     active={activeTab === 'dash'}    onClick={() => setActiveTab('dash')} />
             <BottomTabItem label="Vault"     icon={<IconVault />}    active={activeTab === 'vault'}   onClick={() => setActiveTab('vault')} />
             <BottomTabItem label="Profile"   icon={<IconUser />}     active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
@@ -246,7 +246,7 @@ export function AtomsPreview() {
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="surface-raised rounded-2xl p-6">
+    <section className="surface-raised rounded-lg p-6">
       <h2 className="text-base mb-4 text-ink">{title}</h2>
       {children}
     </section>

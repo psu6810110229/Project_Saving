@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+﻿import { useState, type ReactNode } from 'react';
 import { bucketSaved, sumTargets } from '../../lib/buckets';
 import { formatCurrency } from '../../lib/format';
 import type { Bucket, BucketCategory, SavingsLog } from '../../types';
@@ -148,7 +148,7 @@ export function BucketManager({
   return (
     <div className="flex flex-col gap-4">
       {(statusMessage || localMessage) && (
-        <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">
+        <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">
           {localMessage ?? statusMessage}
         </p>
       )}
@@ -216,7 +216,7 @@ function TargetCapacitySummary({ goalTarget, allocated }: { goalTarget: number; 
   const remaining = Math.max(0, goalTarget - allocated);
 
   return (
-    <div className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
+    <div className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
       <p className="font-bold text-ink">Main goal target: {formatCurrency(goalTarget)}</p>
       <p className="mt-1">{formatCurrency(allocated)} allocated of {formatCurrency(goalTarget)}</p>
       <p className="mt-1">{formatCurrency(remaining)} remaining for bucket targets</p>
@@ -260,7 +260,7 @@ function BucketSummary({
   }
 
   return (
-    <div className="rounded-3xl bg-surface p-4 shadow-soft">
+    <div className="rounded-xl bg-surface p-4 shadow-soft">
       <SectionLabel tone="brand">Current Buckets</SectionLabel>
       <div className="mt-3 flex flex-col gap-3">
         {buckets.map(bucket => {
@@ -279,7 +279,7 @@ function BucketSummary({
               : undefined;
 
           return (
-            <div key={bucket.id} className="rounded-2xl bg-brand-50 px-4 py-3">
+            <div key={bucket.id} className="rounded-lg bg-brand-50 px-4 py-3">
               {editing ? (
                 <div className="flex flex-col gap-3">
                   <FormField label="Bucket Name">

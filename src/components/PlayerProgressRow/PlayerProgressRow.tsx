@@ -1,4 +1,4 @@
-import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
+﻿import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
 import { Avatar } from '../Avatar/Avatar';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
@@ -57,7 +57,7 @@ export function PlayerProgressRow({
 }: PlayerProgressRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   return (
-    <div className={`flex items-center gap-4 rounded-2xl px-2 py-2 ${isYou ? 'bg-brand-50' : ''}`}>
+    <div className={`flex items-center gap-4 rounded-lg px-2 py-2 ${isYou ? 'bg-brand-50' : ''}`}>
       <div className="relative shrink-0">
         {isLeader && <CrownBadge />}
         <Avatar

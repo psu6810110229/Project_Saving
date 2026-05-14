@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { Button } from '../Button/Button';
 import { IconBell, IconCheck } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
@@ -28,7 +28,7 @@ export function ReleaseUpdateModal() {
   return (
     <Modal open={open} title={release.heading} onClose={handleClose}>
       <div className="flex h-[calc(88dvh-5.5rem)] min-h-0 flex-col">
-        <div className="shrink-0 rounded-2xl bg-brand-50 px-4 py-3">
+        <div className="shrink-0 rounded-lg bg-brand-50 px-4 py-3">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-brand-800 shadow-soft">
               <IconBell size={20} />
@@ -47,7 +47,7 @@ export function ReleaseUpdateModal() {
           <div className="h-full touch-pan-y overflow-y-auto overscroll-contain pr-1 pt-1 pb-3 [WebkitOverflowScrolling:touch]">
             <div className="flex flex-col gap-2">
               {visibleNotes.map(note => (
-                <article key={note.id} className="rounded-2xl bg-surface px-4 py-3 shadow-soft">
+                <article key={note.id} className="rounded-lg bg-surface px-4 py-3 shadow-soft">
                   <div className="flex gap-3">
                     <span className="mt-0.5 text-brand-700">
                       <IconCheck size={16} />

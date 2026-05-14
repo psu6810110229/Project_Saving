@@ -1,4 +1,4 @@
-import { useAuth } from '../hooks/useAuth';
+﻿import { useAuth } from '../hooks/useAuth';
 
 /**
  * Sign-in landing page. Visual shell is intentionally minimal — the final
@@ -10,7 +10,7 @@ export function Login() {
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center p-6">
-      <div className="surface-raised w-full max-w-sm rounded-2xl p-8 flex flex-col items-center gap-6 animate-fade-in-up">
+      <div className="surface-raised w-full max-w-sm rounded-lg p-8 flex flex-col items-center gap-6 animate-fade-in-up">
         <span className="font-mono text-brand-800 text-base tracking-widest uppercase">
           GO-OUT
         </span>

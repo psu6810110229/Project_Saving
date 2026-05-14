@@ -1,4 +1,4 @@
-import { IconBubble } from '../IconBubble/IconBubble';
+﻿import { IconBubble } from '../IconBubble/IconBubble';
 import { IconArrowRight, IconEdit, IconTrendingUp, IconVault } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { formatSignedCurrency } from '../../lib/reconcile';
@@ -99,7 +99,7 @@ export function SavingPlanCard({
 }: SavingPlanCardProps) {
   if (!money || !ruleType) {
     return (
-      <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
+      <section className="rounded-xl bg-surface p-5 shadow-soft">
         <div className="flex items-center gap-3">
           <IconBubble tone="peach" size="md">
             <IconTrendingUp size={20} />
@@ -153,7 +153,7 @@ export function SavingPlanCard({
   const streakFire = fireForStreak(habit.streak);
 
   return (
-    <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
+    <section className="rounded-xl bg-surface p-5 shadow-soft">
       {/* Eyebrow (now bigger, neutral muted color). */}
       <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
         Saving Plan
@@ -183,9 +183,6 @@ export function SavingPlanCard({
               )}
             </p>
           )}
-          <p className="mt-0.5 font-mono text-xs text-ink-muted">
-            Not accumulating expected progress
-          </p>
         </div>
       ) : (
         money.state === 'ahead' && money.coveredUntilDate && (
@@ -197,7 +194,7 @@ export function SavingPlanCard({
 
       {/* Money + Habit boxes — larger muted labels, value text stays bold/ink. */}
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-surface p-4 shadow-soft">
+        <div className="rounded-lg bg-brand-50 p-4 shadow-soft">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
             Money
           </p>
@@ -226,7 +223,7 @@ export function SavingPlanCard({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-surface p-4 shadow-soft">
+        <div className="rounded-lg bg-brand-50 p-4 shadow-soft">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
             Habit
           </p>
@@ -263,8 +260,8 @@ export function SavingPlanCard({
 
       {/* Verified Balance — larger muted label, value size unchanged. */}
       {verifiedBalance && (
-        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-surface/80 px-3 py-2.5">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-800">
+        <div className="mt-4 flex items-center gap-3 rounded-lg bg-brand-50 px-3 py-2.5">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface text-brand-800">
             <IconVault size={16} />
           </span>
           <div className="min-w-0 flex-1">

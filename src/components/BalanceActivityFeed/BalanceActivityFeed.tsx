@@ -1,4 +1,4 @@
-import { IconBubble } from '../IconBubble/IconBubble';
+﻿import { IconBubble } from '../IconBubble/IconBubble';
 import { IconCheck, IconVault } from '../Icon/Icon';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { formatRelativeTime } from '../../lib/format';
@@ -34,7 +34,7 @@ export function BalanceActivityFeed({
   return (
     <section>
       <SectionLabel tone="brand">{label}</SectionLabel>
-      <div className="mt-3 rounded-3xl bg-surface shadow-soft px-4 divide-y divide-well">
+      <div className="mt-3 rounded-xl bg-surface shadow-soft px-4 divide-y divide-well">
         {previewed.map(item => {
           const matched = item.difference_amount === 0;
           const actorName = item.user_id === currentUserId

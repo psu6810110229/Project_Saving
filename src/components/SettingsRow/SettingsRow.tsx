@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+﻿import type { ReactNode } from 'react';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { IconArrowRight } from '../Icon/Icon';
 
@@ -35,7 +35,7 @@ export function SettingsRow({
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center gap-3 rounded-2xl bg-surface shadow-soft p-3 active:scale-[0.99] transition-transform text-left"
+      className="w-full flex items-center gap-3 rounded-lg bg-surface shadow-soft p-3 active:scale-[0.99] transition-transform text-left"
     >
       <IconBubble tone={tone === 'danger' ? 'muted' : 'peach'} size="md">
         <span className={tone === 'danger' ? 'text-danger' : ''}>{icon}</span>

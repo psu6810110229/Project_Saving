@@ -1,4 +1,4 @@
-import { SectionLabel } from '../SectionLabel/SectionLabel';
+﻿import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { ProjectedProgressBar } from '../ProjectedProgressBar/ProjectedProgressBar';
 import { formatCurrency } from '../../lib/format';
 
@@ -25,7 +25,7 @@ export function ProjectedProgressCard({
   const projectedPct = target > 0 ? Math.min(100, ((saved + pendingDeposit) / target) * 100) : 0;
 
   return (
-    <section className="rounded-3xl bg-surface shadow-soft p-5">
+    <section className="rounded-xl bg-surface shadow-soft p-5">
       <SectionLabel tone="muted">Projected Progress · {bucketName}</SectionLabel>
       <div className="mt-3">
         <ProjectedProgressBar current={currentPct} projected={projectedPct} />

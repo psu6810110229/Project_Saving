@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+﻿import { useState, type ReactNode } from 'react';
 import type { ThemeSwatch } from '../lib/theme';
 import type { BucketCategory, ProjectCategory } from '../types';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
@@ -262,7 +262,7 @@ export function MoleculesPreview() {
 
         <Group title="Outcome modal bodies">
           <div className="grid grid-cols-1 gap-3">
-            <div className="rounded-3xl bg-surface shadow-soft">
+            <div className="rounded-xl bg-surface shadow-soft">
               <OutcomeModalBody
                 outcome="success"
                 icon={<IconCheck size={28} />}
@@ -272,7 +272,7 @@ export function MoleculesPreview() {
                 <Button variant="action" fullWidth>Open Dashboard</Button>
               </OutcomeModalBody>
             </div>
-            <div className="rounded-3xl bg-surface shadow-soft">
+            <div className="rounded-xl bg-surface shadow-soft">
               <OutcomeModalBody
                 outcome="fail"
                 icon={<IconX size={28} />}
@@ -282,7 +282,7 @@ export function MoleculesPreview() {
                 <Button variant="primary" fullWidth>Try Again</Button>
               </OutcomeModalBody>
             </div>
-            <div className="rounded-3xl bg-surface shadow-soft">
+            <div className="rounded-xl bg-surface shadow-soft">
               <OutcomeModalBody
                 outcome="expired"
                 icon={<IconCalendar size={28} />}
@@ -296,7 +296,7 @@ export function MoleculesPreview() {
         </Group>
 
         <Group title="Profile · Activity timeline">
-          <div className="rounded-3xl bg-surface shadow-soft px-4 divide-y divide-well">
+          <div className="rounded-xl bg-surface shadow-soft px-4 divide-y divide-well">
             <ActivityTimelineRow
               actorName="Phan"
               actorFallback="P"

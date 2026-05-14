@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+﻿import type { ReactNode } from 'react';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
@@ -19,7 +19,7 @@ interface BucketHeaderProps {
 export function BucketHeader({ icon, name, saved, target }: BucketHeaderProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   return (
-    <section className="rounded-3xl bg-surface shadow-soft p-5">
+    <section className="rounded-xl bg-surface shadow-soft p-5">
       <div className="flex items-center gap-4">
         <IconBubble tone="solid" size="xl">{icon}</IconBubble>
         <div className="flex-1 min-w-0">

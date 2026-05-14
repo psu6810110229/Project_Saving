@@ -1,4 +1,4 @@
-import type { ChangeEvent, ReactNode } from 'react';
+﻿import type { ChangeEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { Button } from '../Button/Button';
 import { BucketRow } from '../BucketRow/BucketRow';
@@ -78,12 +78,12 @@ export function BucketRowExpandable({
   }
 
   return (
-    <div className="rounded-2xl bg-surface shadow-soft">
+    <div className="rounded-lg bg-surface shadow-soft">
       <BucketRow icon={icon} name={name} saved={saved} target={target} onClick={onToggle} />
       {expanded && (
         <div className="flex flex-col gap-4 border-t border-well px-3 pb-4 pt-3 animate-fade-in">
           <QuickAddRow amounts={quickAmounts} selected={selectedPill} onSelect={handlePillSelect} label="Quick Add" />
-          <FormField label="Custom Amount" helper="Type any amount; quick-add will deselect.">
+          <FormField label="Custom Amount">
             <TextInput
               value={customValue}
               inputMode="numeric"

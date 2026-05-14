@@ -1,4 +1,4 @@
-import { palette } from '../../lib/theme';
+﻿import { palette } from '../../lib/theme';
 import { chartIdentityColors, chartLegendLabel } from '../../lib/chartIdentity';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 
@@ -63,7 +63,7 @@ export function MomentumChart({
   const chartH = H - PAD_TOP - PAD_BOTTOM;
 
   return (
-    <section className="rounded-3xl bg-surface shadow-soft p-5">
+    <section className="rounded-xl bg-surface shadow-soft p-5">
       <div className="flex items-center justify-between gap-3">
         <SectionLabel tone="muted">Daily Deposit Trend</SectionLabel>
         <div className="flex max-w-[58%] flex-col items-end gap-1 font-mono text-[10px] text-ink-muted">

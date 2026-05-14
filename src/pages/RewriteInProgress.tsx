@@ -1,4 +1,4 @@
-import { useAuth } from '../hooks/useAuth';
+﻿import { useAuth } from '../hooks/useAuth';
 
 /**
  * Temporary placeholder route mounted at `/` while the new UI is being
@@ -10,7 +10,7 @@ export function RewriteInProgress() {
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center p-6">
-      <div className="surface-raised w-full max-w-sm rounded-2xl p-7 flex flex-col items-center gap-4 animate-fade-in-up">
+      <div className="surface-raised w-full max-w-sm rounded-lg p-7 flex flex-col items-center gap-4 animate-fade-in-up">
         <span className="font-mono text-brand-800 text-sm tracking-widest uppercase">
           GO-OUT
         </span>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { Button } from '../components/Button/Button';
@@ -79,7 +79,7 @@ export function ManageProject() {
 
   if (!activeRoom) {
     return (
-      <section className="rounded-3xl bg-surface p-5 shadow-soft">
+      <section className="rounded-xl bg-surface p-5 shadow-soft">
         <SectionLabel tone="brand">Manage Project</SectionLabel>
         <p className="mt-2 font-mono text-xs text-ink-muted">No active project. Create or join one from Profile.</p>
       </section>
@@ -299,7 +299,7 @@ export function ManageProject() {
         </button>
       </div>
       <PageHeader eyebrow="Project" title="Manage Project" subtitle={activeRoom.name} />
-      {message && <p className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
+      {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList label="Project Basics" items={projectBasicsItems} />
       <SettingsList label="Saving Controls" items={savingControlItems} />
       <SettingsList label="Room Actions" items={roomActionItems} archiveItem={archiveItem} />
@@ -338,7 +338,6 @@ export function ManageProject() {
       <Modal open={activeModal === 'invite-code'} title="Invite Code" onClose={closeModal}>
         <div className="flex flex-col gap-3 text-center">
           <span className="copy-allowed font-mono text-3xl font-bold tracking-[0.4em] text-brand-700">{activeRoom.invite_code}</span>
-          <p className="font-mono text-xs text-ink-muted">Share this 6-character code with your partner.</p>
           <Button
             variant="action"
             fullWidth
@@ -413,7 +412,7 @@ function GoalTargetSummary({
     : null;
 
   return (
-    <div className="rounded-2xl bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
+    <div className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
       <p className="font-bold text-ink">Main goal target: {formatCurrency(goalTarget)}</p>
       <p className="mt-1">{formatCurrency(allocated)} allocated of {formatCurrency(goalTarget)}</p>
       <p className="mt-1">{formatCurrency(remaining)} remaining for bucket targets</p>

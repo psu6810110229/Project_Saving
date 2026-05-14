@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { ActivityTimelineRow } from '../ActivityTimelineRow/ActivityTimelineRow';
 import { FormField } from '../FormField/FormField';
 import { Modal } from '../Modal/Modal';
@@ -84,7 +84,7 @@ export function ActivityHistoryModal({ open, onClose, items }: ActivityHistoryMo
           />
         </div>
         {grouped.length === 0 && (
-          <p className="rounded-2xl bg-well px-4 py-3 font-mono text-xs text-ink-muted">
+          <p className="rounded-lg bg-well px-4 py-3 font-mono text-xs text-ink-muted">
             {query ? 'No deposits match this search.' : 'No deposits yet.'}
           </p>
         )}
@@ -94,7 +94,7 @@ export function ActivityHistoryModal({ open, onClose, items }: ActivityHistoryMo
               <h3 className="sticky top-0 z-10 bg-surface py-1 font-mono text-[11px] uppercase tracking-wider text-ink-muted">
                 {group.label}
               </h3>
-              <div className="rounded-2xl bg-well/40 px-3 divide-y divide-well">
+              <div className="rounded-lg bg-well/40 px-3 divide-y divide-well">
                 {group.items.map(item => (
                   <ActivityTimelineRow key={item.id} {...item} />
                 ))}

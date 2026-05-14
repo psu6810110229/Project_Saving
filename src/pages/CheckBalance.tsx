@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { IconArrowLeft, IconCheck, IconVault } from '../components/Icon/Icon';
@@ -100,7 +100,7 @@ export function CheckBalance() {
           <h1 className="mt-2 truncate font-mono text-3xl font-bold text-ink">Check Balance</h1>
         </header>
 
-        <section className="rounded-3xl bg-surface p-5 shadow-soft">
+        <section className="rounded-xl bg-surface p-5 shadow-soft">
           <div className="flex items-center justify-between gap-3">
             <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
               Verified Balance
@@ -110,7 +110,7 @@ export function CheckBalance() {
         </section>
 
         {step === 'enter' && (
-          <section className="rounded-3xl bg-surface p-5 shadow-soft">
+          <section className="rounded-xl bg-surface p-5 shadow-soft">
             <label className="block">
               <span className="block font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
                 Actual Balance
@@ -132,7 +132,7 @@ export function CheckBalance() {
                 Total cash, bank, and other storage set aside for this project.
               </span>
             </label>
-            {error && <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
+            {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
             <div className="mt-4 flex flex-col gap-2">
               <Button variant="action" fullWidth onClick={handleConfirmMatch} disabled={submitting || !actualValid}>
                 {submitting ? 'Saving…' : 'Save Check'}
@@ -145,9 +145,9 @@ export function CheckBalance() {
         )}
 
         {step === 'difference' && (
-          <section className="rounded-3xl bg-surface p-5 shadow-soft">
+          <section className="rounded-xl bg-surface p-5 shadow-soft">
             <SectionLabel tone="brand">Difference</SectionLabel>
-            <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl bg-surfaceAlt p-3">
+            <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-surfaceAlt p-3">
               <SummaryStat label="Actual" value={formatCurrency(actualNumber)} />
               <SummaryStat label="Verified" value={formatCurrency(displayedAppBalance)} />
               <SummaryStat label="Difference" value={formatSignedCurrency(difference)} emphasized />
@@ -162,7 +162,7 @@ export function CheckBalance() {
                     setError(null);
                   }}
                   className={
-                    'w-full rounded-2xl px-4 py-3 text-left font-mono text-sm font-bold transition-colors ' +
+                    'w-full rounded-lg px-4 py-3 text-left font-mono text-sm font-bold transition-colors ' +
                     (reason === option.id
                       ? 'bg-brand-800 text-ink-inverse'
                       : 'bg-surfaceAlt text-ink hover:bg-brand-50')
@@ -172,7 +172,7 @@ export function CheckBalance() {
                 </button>
               ))}
             </div>
-            {error && <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
+            {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
             <div className="mt-4 flex flex-col gap-2">
               <Button variant="action" fullWidth onClick={handleConfirmDifference} disabled={submitting || !reason}>
                 {submitting ? 'Saving…' : 'Save Check & Adjustment'}

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+﻿import { useRef } from 'react';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { Chip } from '../Chip/Chip';
 import { IconBubble } from '../IconBubble/IconBubble';
@@ -34,7 +34,7 @@ export function SlipAttachField({ file, onChange, label = 'Attach slip (optional
         onChange={e => onChange(e.target.files?.[0] ?? null)}
       />
       {file ? (
-        <div className="mt-3 flex items-center gap-3 rounded-2xl bg-surface shadow-soft p-3">
+        <div className="mt-3 flex items-center gap-3 rounded-lg bg-surface shadow-soft p-3">
           <Chip tone="peach" icon={<IconSlip size={14} />}>Slip Attached</Chip>
           <span className="flex-1 font-mono text-xs text-ink-muted truncate">{file.name}</span>
           <button
@@ -50,7 +50,7 @@ export function SlipAttachField({ file, onChange, label = 'Attach slip (optional
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="mt-3 w-full flex items-center gap-3 rounded-2xl bg-brand-50 p-3 active:scale-[0.99] transition-transform"
+          className="mt-3 w-full flex items-center gap-3 rounded-lg bg-brand-50 p-3 active:scale-[0.99] transition-transform"
         >
           <IconBubble tone="peach" size="md"><IconSlip size={20} /></IconBubble>
           <span className="font-mono text-sm text-ink-muted">Tap to attach a transfer slip</span>

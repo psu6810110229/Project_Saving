@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+﻿import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { IconButton } from '../IconButton/IconButton';
@@ -39,7 +39,7 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative z-10 max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-bg p-4 shadow-neuRaised animate-scale-in md:rounded-3xl md:p-5"
+        className="relative z-10 max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-bg p-4 shadow-neuRaised animate-scale-in md:rounded-xl md:p-5"
       >
         <header className="mb-4 flex items-center justify-between gap-3">
           <h2 id="modal-title" className="font-mono text-xl font-bold text-ink">{title}</h2>

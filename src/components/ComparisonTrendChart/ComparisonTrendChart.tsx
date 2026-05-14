@@ -1,4 +1,4 @@
-import { palette } from '../../lib/theme';
+﻿import { palette } from '../../lib/theme';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 
 /**
@@ -46,7 +46,7 @@ export function ComparisonTrendChart({
     : '';
 
   return (
-    <section className="rounded-3xl bg-surface shadow-soft p-5">
+    <section className="rounded-xl bg-surface shadow-soft p-5">
       <div className="flex items-center justify-between">
         <SectionLabel tone="muted">Trend vs {theirLabel}</SectionLabel>
         <div className="flex items-center gap-3 font-mono text-[11px]">

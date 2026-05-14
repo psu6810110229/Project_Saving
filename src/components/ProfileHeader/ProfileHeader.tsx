@@ -1,4 +1,4 @@
-import type { ThemeSwatch } from '../../lib/theme';
+﻿import type { ThemeSwatch } from '../../lib/theme';
 import { Avatar } from '../Avatar/Avatar';
 import { Chip } from '../Chip/Chip';
 import { IconEdit } from '../Icon/Icon';
@@ -23,7 +23,7 @@ export function ProfileHeader({
   onEdit,
 }: ProfileHeaderProps) {
   return (
-    <section className="rounded-3xl bg-surface shadow-soft p-5 flex items-center gap-4">
+    <section className="rounded-xl bg-surface shadow-soft p-5 flex items-center gap-4">
       <Avatar size="lg" fallback={fallback} imageUrl={avatarUrl} ring="theme" themeColor={themeColor} />
       <div className="flex-1 min-w-0">
         <SectionLabel tone="muted">Profile</SectionLabel>

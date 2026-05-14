@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef } from 'react';
 
 /**
  * Controlled 6-box join-code input. Mirrors the peach pill grid in the
@@ -85,7 +85,7 @@ export function OtpDigitInput({
             onPaste={handlePaste}
             className={
               'w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-mono font-bold ' +
-              'rounded-2xl bg-brand-50 text-brand-800 caret-brand-500 ' +
+              'rounded-lg bg-brand-50 text-brand-800 caret-brand-500 ' +
               'outline-none transition-all duration-150 ' +
               (error
                 ? 'ring-2 ring-danger'

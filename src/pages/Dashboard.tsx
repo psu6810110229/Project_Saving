@@ -56,7 +56,11 @@ export function Dashboard() {
   const { logs, loading: logsLoading, error: logsError, insert } = useLogs(100, activeRoomId);
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = useLeaderboard(logs, user?.id, activeRoomId);
-  const { latest: latestCheckpoint, activity: balanceActivity, adjustmentSum } = useReconcile(activeRoomId);
+  const {
+    latest: latestCheckpoint,
+    activity: balanceActivity,
+    appBalance: reconciledAppBalance,
+  } = useReconcile(activeRoomId);
   const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
   const { buckets: partnerBuckets } = usePartnerBuckets(activeRoomId, partnerEntry?.userId);
   const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
@@ -137,11 +141,13 @@ export function Dashboard() {
           />
         </div>
       )}
-      <BalanceCheckStatus
-        latest={latestCheckpoint}
-        appBalance={total + adjustmentSum}
-        onCheck={() => navigate('/check-balance')}
-      />
+      {reconciledAppBalance !== null && (
+        <BalanceCheckStatus
+          latest={latestCheckpoint}
+          appBalance={reconciledAppBalance}
+          onCheck={() => navigate('/check-balance')}
+        />
+      )}
       <DashboardHero
         title={activeRoom?.name ?? 'Japan 2027'}
         subtitle={`${profile?.display_name ?? 'You'} saved ${formatCurrency(total)} toward ${formatCurrency(target)}`}

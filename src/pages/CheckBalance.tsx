@@ -8,11 +8,8 @@ import { PageHeader } from '../components/PageHeader/PageHeader';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { TextInput } from '../components/TextInput/TextInput';
-import { useAuth } from '../hooks/useAuth';
-import { useLogs } from '../hooks/useLogs';
 import { useReconcile } from '../hooks/useReconcile';
 import { useRoom } from '../hooks/useRoom';
-import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import { formatSignedCurrency, RECONCILE_REASONS } from '../lib/reconcile';
@@ -22,11 +19,8 @@ type Step = 'enter' | 'difference';
 
 export function CheckBalance() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { activeRoomId } = useRoom();
-  const { logs, loading: logsLoading } = useLogs(200, activeRoomId);
-  const { total: depositsTotal } = useSavingsTotal(user?.id, logs);
-  const { adjustmentSum, createCheckpoint, loading: reconcileLoading } = useReconcile(activeRoomId);
+  const { appBalance, createCheckpoint, loading: reconcileLoading } = useReconcile(activeRoomId);
 
   const [step, setStep] = useState<Step>('enter');
   const [actualValue, setActualValue] = useState('');
@@ -36,13 +30,12 @@ export function CheckBalance() {
   const [outcome, setOutcome] = useState<null | { matched: boolean; diff: number }>(null);
   const clientRequestIdRef = useRef<string | null>(null);
 
-  // The app balance the user is verifying against: positive deposits
-  // plus the sum of all prior signed adjustments. Mirrors what the
-  // create_balance_checkpoint RPC computes server-side, so the
-  // "Difference" the user sees here is the same one we will save.
-  const displayedAppBalance = depositsTotal + adjustmentSum;
-
-  if (logsLoading || reconcileLoading) return <CheckBalanceSkeleton />;
+  // App balance the user is verifying against. Comes from the
+  // hardened `current_reconciled_balance` RPC so it stays consistent
+  // with what `create_balance_checkpoint` computes server-side, and
+  // it is not capped by any client-side log list.
+  if (reconcileLoading || appBalance === null) return <CheckBalanceSkeleton />;
+  const displayedAppBalance = appBalance;
 
   const actualNumber = Number(actualValue);
   const actualValid = actualValue.trim().length > 0 && Number.isFinite(actualNumber) && actualNumber >= 0;

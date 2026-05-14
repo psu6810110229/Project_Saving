@@ -62,6 +62,13 @@ export function useReconcile(roomId: string | null) {
   const [latest, setLatest] = useState<BalanceCheckpoint | null>(null);
   const [activity, setActivity] = useState<BalanceActivityEntry[]>([]);
   const [adjustmentSum, setAdjustmentSum] = useState(0);
+  /**
+   * Server-authoritative app balance for the current user in this room
+   * (positive deposits + signed adjustments). Loaded via the hardened
+   * `current_reconciled_balance` RPC so the client never has to sum a
+   * truncated log list. `null` while the first fetch is pending.
+   */
+  const [appBalance, setAppBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +119,21 @@ export function useReconcile(roomId: string | null) {
     setAdjustmentSum(rows.reduce((sum, row) => sum + toNum(row.amount), 0));
   }, [user, roomId]);
 
+  const fetchAppBalance = useCallback(async () => {
+    if (!user || !roomId) {
+      setAppBalance(null);
+      return;
+    }
+    const { data, error: err } = await supabase
+      .rpc('current_reconciled_balance', { p_room_id: roomId });
+
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setAppBalance(toNum(data as number | string | null));
+  }, [user, roomId]);
+
   const fetchActivity = useCallback(async (limit = 20) => {
     if (!roomId) {
       setActivity([]);
@@ -142,10 +164,10 @@ export function useReconcile(roomId: string | null) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
-    Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum()])
+    Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAppBalance()])
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [fetchLatest, fetchActivity, fetchAdjustmentSum]);
+  }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchAppBalance]);
 
   async function createCheckpoint(input: CreateCheckpointInput): Promise<CreateCheckpointResult> {
     if (!user) return { error: 'Not authenticated' };
@@ -168,7 +190,7 @@ export function useReconcile(roomId: string | null) {
     const row = (Array.isArray(data) ? data[0] : data) as CreateCheckpointRpcRow | undefined;
     if (!row) return { error: 'No checkpoint returned' };
 
-    await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum()]);
+    await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAppBalance()]);
 
     return {
       checkpointId: row.checkpoint_id,
@@ -184,11 +206,12 @@ export function useReconcile(roomId: string | null) {
     latest,
     activity,
     adjustmentSum,
+    appBalance,
     loading,
     error,
     createCheckpoint,
     refetch: useCallback(async () => {
-      await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum()]);
-    }, [fetchLatest, fetchActivity, fetchAdjustmentSum]),
+      await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAppBalance()]);
+    }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchAppBalance]),
   };
 }

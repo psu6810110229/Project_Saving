@@ -17,8 +17,8 @@ export type HapticIntent =
   | 'milestone';
 
 const PATTERNS: Record<HapticIntent, number | number[]> = {
-  success: 12,
-  milestone: [10, 50, 10],
+  success: 30,
+  milestone: [30, 80, 30],
 };
 
 export function haptic(intent: HapticIntent): void {

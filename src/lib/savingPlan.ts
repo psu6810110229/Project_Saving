@@ -400,9 +400,20 @@ export function projectedCompletionDate(
   todayKey: string,
   horizonDays = 3650,
 ): string | null {
-  const active = activeRevisionAt(revisions, todayKey);
-  const target = Number(active?.target_amount ?? 0);
-  if (target <= 0) return null;
+  if (revisions.length === 0) return null;
+  // Pick the target from the active revision at `todayKey`. When
+  // `todayKey` precedes every revision (preview projection from
+  // before the plan starts), fall back to the earliest revision
+  // so we still resolve a valid target and don't short-circuit
+  // with a 0 target.
+  const sortedAsc = [...revisions].sort((a, b) => {
+    const dateCmp = a.effective_from_date.localeCompare(b.effective_from_date);
+    if (dateCmp !== 0) return dateCmp;
+    return a.created_at.localeCompare(b.created_at);
+  });
+  const targetSource = activeRevisionAt(revisions, todayKey) ?? sortedAsc[0];
+  const target = Number(targetSource.target_amount ?? 0);
+  if (!Number.isFinite(target) || target <= 0) return null;
   if (recordedDeposits + MONEY_EPSILON >= target) return todayKey;
 
   let cumul = recordedDeposits;
@@ -412,6 +423,9 @@ export function projectedCompletionDate(
     const amt = plannedAmountForDate(revisions, cursor);
     if (amt <= 0) {
       const revAt = activeRevisionAt(revisions, cursor);
+      // Before the first revision starts the walk hasn't entered
+      // the plan yet — keep advancing instead of bailing.
+      if (!revAt && cursor < sortedAsc[0].effective_from_date) continue;
       const end = revAt ? revisionEndKey(revAt) : null;
       if (!revAt || (end && cursor > end)) return null;
       continue;

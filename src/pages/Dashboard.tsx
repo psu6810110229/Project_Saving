@@ -5,8 +5,8 @@ import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityT
 import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
 import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
-import { BucketRowExpandable } from '../components/BucketRowExpandable/BucketRowExpandable';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
+import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { HeadToHeadCard } from '../components/HeadToHeadCard/HeadToHeadCard';
@@ -391,24 +391,12 @@ export function Dashboard() {
             ctaLabel={buckets.length > 0 ? 'Add Bucket' : 'Create Bucket'}
             onAddBucket={() => setBucketModalOpen(true)}
             renderBucket={bucket => (
-              <BucketRowExpandable
+              <BucketRow
                 icon={bucket.icon}
                 name={bucket.name}
                 saved={bucket.saved}
                 target={bucket.target}
-                quickAmounts={quickAmounts}
-                expanded={expandedBucketId === bucket.id}
-                onToggle={() => setExpandedBucketId(expandedBucketId === bucket.id ? null : bucket.id)}
-                onCancel={() => setExpandedBucketId(null)}
-                onConfirm={async amount => {
-                  const prev = bucket.saved;
-                  const result = await insert(amount, bucket.id);
-                  if (!result.error) {
-                    const reached = prev < bucket.target && prev + amount >= bucket.target;
-                    haptic(reached ? 'milestone' : 'success');
-                  }
-                  return result;
-                }}
+                onClick={() => setExpandedBucketId(bucket.id)}
               />
             )}
           />
@@ -505,6 +493,32 @@ export function Dashboard() {
           />
         </div>
       </Modal>
+
+      {/* Bucket deposit bottom sheet */}
+      {(() => {
+        const selectedBucketItem = bucketItems.find(b => b.id === expandedBucketId);
+        return (
+          <BucketSheet
+            open={Boolean(expandedBucketId)}
+            onClose={() => setExpandedBucketId(null)}
+            icon={selectedBucketItem?.icon ?? null}
+            name={selectedBucketItem?.name ?? ''}
+            saved={selectedBucketItem?.saved ?? 0}
+            target={selectedBucketItem?.target ?? 0}
+            quickAmounts={quickAmounts}
+            onConfirm={async amount => {
+              if (!expandedBucketId) return { error: 'No bucket selected' };
+              const prev = selectedBucketItem?.saved ?? 0;
+              const result = await insert(amount, expandedBucketId);
+              if (!result.error) {
+                const reached = prev < (selectedBucketItem?.target ?? 0) && prev + amount >= (selectedBucketItem?.target ?? 0);
+                haptic(reached ? 'milestone' : 'success');
+              }
+              return result;
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

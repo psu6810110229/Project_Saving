@@ -99,3 +99,62 @@ export type BucketCategory =
 
 /** Personal theme swatch keys. Mirror `themeSwatches` keys in `lib/theme.ts`. */
 export type ProfileTheme = 'terracotta' | 'slate' | 'teal';
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Reconcile / Check Balance (migration 0027).
+ * ──────────────────────────────────────────────────────────────────── */
+
+export type BalanceAdjustmentReason =
+  | 'forgot_to_log'
+  | 'over_recorded'
+  | 'miscounted'
+  | 'spent_or_used'
+  | 'opening_balance'
+  | 'other';
+
+export interface BalanceCheckpoint {
+  id: string;
+  room_id: string;
+  user_id: string;
+  ledger_amount_at_time: number;
+  actual_amount: number;
+  difference_amount: number;
+  note: string | null;
+  checked_at: string;
+  created_at: string;
+  client_request_id: string | null;
+}
+
+export interface BalanceAdjustment {
+  id: string;
+  checkpoint_id: string;
+  room_id: string;
+  user_id: string;
+  amount: number;
+  reason: BalanceAdjustmentReason;
+  note: string | null;
+  created_at: string;
+}
+
+export interface CheckpointStorageItem {
+  id: string;
+  checkpoint_id: string;
+  room_id: string;
+  user_id: string;
+  label: string;
+  amount: number;
+  position: number;
+  created_at: string;
+}
+
+/** Row returned by the sanitized `balance_activity_for_room` RPC. */
+export interface BalanceActivityEntry {
+  checkpoint_id: string;
+  user_id: string;
+  display_name: string | null;
+  checked_at: string;
+  ledger_amount: number;
+  actual_amount: number;
+  difference_amount: number;
+  reason: BalanceAdjustmentReason | null;
+}

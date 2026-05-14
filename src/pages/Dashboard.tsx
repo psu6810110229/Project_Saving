@@ -1,6 +1,9 @@
 import { useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ActivityFeed } from '../components/ActivityFeed/ActivityFeed';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
+import { BalanceActivityFeed } from '../components/BalanceActivityFeed/BalanceActivityFeed';
+import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketRowExpandable } from '../components/BucketRowExpandable/BucketRowExpandable';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
@@ -33,6 +36,7 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
 import { usePartnerBuckets } from '../hooks/usePartnerBuckets';
 import { useProfile } from '../hooks/useProfile';
+import { useReconcile } from '../hooks/useReconcile';
 import { useRoom } from '../hooks/useRoom';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { bucketSaved } from '../lib/buckets';
@@ -43,6 +47,7 @@ import { haptic } from '../lib/haptics';
 import type { Bucket, BucketCategory } from '../types';
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { quickAmounts } = useProfile();
   const { activeRoom, activeRoomId } = useRoom();
@@ -51,6 +56,7 @@ export function Dashboard() {
   const { logs, loading: logsLoading, error: logsError, insert } = useLogs(100, activeRoomId);
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = useLeaderboard(logs, user?.id, activeRoomId);
+  const { latest: latestCheckpoint, activity: balanceActivity, adjustmentSum } = useReconcile(activeRoomId);
   const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
   const { buckets: partnerBuckets } = usePartnerBuckets(activeRoomId, partnerEntry?.userId);
   const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
@@ -131,6 +137,11 @@ export function Dashboard() {
           />
         </div>
       )}
+      <BalanceCheckStatus
+        latest={latestCheckpoint}
+        appBalance={total + adjustmentSum}
+        onCheck={() => navigate('/check-balance')}
+      />
       <DashboardHero
         title={activeRoom?.name ?? 'Japan 2027'}
         subtitle={`${profile?.display_name ?? 'You'} saved ${formatCurrency(total)} toward ${formatCurrency(target)}`}
@@ -260,6 +271,7 @@ export function Dashboard() {
       ) : (
         <StatusCard title="No deposits yet" body={`Start with ${formatCurrency(100)} and let the streak begin.`} />
       )}
+      <BalanceActivityFeed items={balanceActivity} currentUserId={user?.id} />
       <Modal open={bucketModalOpen} title="Add Bucket" onClose={() => setBucketModalOpen(false)}>
         <div className="flex flex-col gap-4">
           {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}

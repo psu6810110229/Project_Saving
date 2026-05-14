@@ -6,6 +6,7 @@ import { AddMoney } from './pages/AddMoney';
 import { AppLayout } from './pages/AppLayout';
 import { AtomsPreview } from './pages/AtomsPreview';
 import { AuthCallback } from './pages/AuthCallback';
+import { CheckBalance } from './pages/CheckBalance';
 import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
 import { ManageProject } from './pages/ManageProject';
@@ -34,6 +35,7 @@ function App() {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/add" element={<AddMoney />} />
+              <Route path="/check-balance" element={<CheckBalance />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/manage-project" element={<ManageProject />} />
             </Route>

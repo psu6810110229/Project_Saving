@@ -17,6 +17,7 @@ import {
   IconTrash,
   IconUser,
   IconUserPlus,
+  IconVault,
 } from '../components/Icon/Icon';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { Modal } from '../components/Modal/Modal';
@@ -31,10 +32,12 @@ import { ThemeSwatchPicker } from '../components/ThemeSwatchPicker/ThemeSwatchPi
 import { VersionBadge } from '../components/VersionBadge/VersionBadge';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
+import { useReconcile } from '../hooks/useReconcile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { fallbackInitial } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
+import { daysSince } from '../lib/reconcile';
 import type { ThemeSwatch } from '../lib/theme';
 import type { ProjectCategory } from '../types';
 
@@ -47,6 +50,7 @@ export function Profile() {
   const { activeRoom, activeRoomId } = useRoom();
   const { createRoom, joinRoomByCode, leaveRoom } = useRooms();
   const { profile, loading, error, themeColor, updateProfile, uploadAvatar } = useProfile();
+  const { latest: latestCheckpoint } = useReconcile(activeRoomId);
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
@@ -161,6 +165,7 @@ export function Profile() {
       <SettingsList
         items={[
           { id: 'profile', icon: <IconEdit size={18} />, label: 'Edit Profile', description: 'Name, photo, and theme color', onClick: () => openModal('profile') },
+          { id: 'check-balance', icon: <IconVault size={18} />, label: 'Check Balance', description: balanceCheckDescription(latestCheckpoint?.checked_at), onClick: () => navigate('/check-balance') },
           { id: 'manage-project', icon: <IconCalendar size={18} />, label: 'Manage Project', description: `${activeRoom?.name ?? 'No active project'} - goal, buckets, quick amounts`, onClick: () => navigate('/manage-project') },
           { id: 'create', icon: <IconUserPlus size={18} />, label: 'Create New Project', description: 'One active project per creator', onClick: () => openModal('create-project') },
           { id: 'join', icon: <IconBell size={18} />, label: 'Join Project', description: 'Use a 6-character invite code', onClick: () => openModal('join-project') },
@@ -292,6 +297,14 @@ const projectOptions = [
   { id: 'home' as const, label: 'Home', icon: <IconHome size={28} /> },
   { id: 'other' as const, label: 'Other', icon: <IconBriefcase size={28} /> },
 ];
+
+function balanceCheckDescription(lastCheckedAt: string | undefined): string {
+  if (!lastCheckedAt) return 'Confirm your actual savings vs the app';
+  const days = daysSince(lastCheckedAt);
+  if (days === 0) return 'Last check: today';
+  if (days === 1) return 'Last check: 1 day ago';
+  return `Last check: ${days} days ago`;
+}
 
 function joinPreview(code: string) {
   return {

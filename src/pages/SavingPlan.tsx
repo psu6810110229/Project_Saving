@@ -49,24 +49,30 @@ export function SavingPlan() {
   const [targetAmount, setTargetAmount] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [seededRevisionId, setSeededRevisionId] = useState<string | null>(null);
+  const [didSeedCreateTarget, setDidSeedCreateTarget] = useState(false);
 
   // Seed defaults from the active revision when changing an existing
   // plan, otherwise pull the target from the synchronized room goal.
   useEffect(() => {
     if (loading) return;
     if (latestRevision) {
+      if (seededRevisionId === latestRevision.id) return;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRuleType(latestRevision.rule_type);
       setAmount(latestRevision.amount != null ? String(latestRevision.amount) : '');
       setStartAmount(latestRevision.start_amount != null ? String(latestRevision.start_amount) : '1');
       setIncrementAmount(latestRevision.increment_amount != null ? String(latestRevision.increment_amount) : '1');
       setTargetAmount(String(latestRevision.target_amount));
+      setSeededRevisionId(latestRevision.id);
+      setDidSeedCreateTarget(true);
       return;
     }
-    if (goal?.target_amount && !targetAmount) {
+    if (!didSeedCreateTarget && goal?.target_amount) {
       setTargetAmount(String(goal.target_amount));
+      setDidSeedCreateTarget(true);
     }
-  }, [loading, latestRevision, goal?.target_amount, targetAmount]);
+  }, [loading, latestRevision, goal?.target_amount, didSeedCreateTarget, seededRevisionId]);
 
   if (loading) {
     return (

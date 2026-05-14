@@ -54,7 +54,6 @@ import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency, reasonLabel } from '../lib/reconcile';
 import {
   activeRevisionAt,
-  addDays,
   daysInclusive,
   habitStatusFromDeposits,
   isPausedOnDate,
@@ -62,8 +61,7 @@ import {
   plannedAmountForDate,
   todayBangkokKey,
 } from '../lib/savingPlan';
-import { PlanInsightStrip } from '../components/PlanInsightStrip/PlanInsightStrip';
-import type { SavingPlanPause, SavingPlanRevision } from '../types';
+import type { SavingPlanRevision } from '../types';
 import type { BalanceActivityEntry, Bucket, BucketCategory } from '../types';
 
 /**
@@ -234,28 +232,6 @@ export function Dashboard() {
         });
       })()
     : undefined;
-
-  // Compact this-week / this-month summary tile. Bangkok-aware.
-  const weekStartKey = (() => {
-    const [y, m, d] = todayKey.split('-').map(Number);
-    // Monday-anchored ISO week: dayOfWeek - 1 days back (Sun -> 6).
-    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-    const daysSinceMonday = (dow + 6) % 7;
-    return addDays(todayKey, -daysSinceMonday);
-  })();
-  const monthStartKey = `${todayKey.slice(0, 7)}-01`;
-  const planInsight = revisions
-    ? {
-        week: {
-          recorded: recordedBetween(logs, user?.id, weekStartKey, todayKey),
-          expected: expectedBetween(revisions, weekStartKey, todayKey, planPauses),
-        },
-        month: {
-          recorded: recordedBetween(logs, user?.id, monthStartKey, todayKey),
-          expected: expectedBetween(revisions, monthStartKey, todayKey, planPauses),
-        },
-      }
-    : null;
 
   const youName = you?.displayName ?? profile?.display_name ?? 'You';
   const leftPlayer = {
@@ -449,9 +425,6 @@ export function Dashboard() {
 
       {/* 5 — Graphs. Lighter than the insight cards above. */}
       <div className="reveal-section flex flex-col gap-3" style={revealStyle(300)}>
-        {planInsight && (
-          <PlanInsightStrip week={planInsight.week} month={planInsight.month} />
-        )}
         <MomentumChart
           series={dailyAmountSeries(logs, user?.id)}
           partnerSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
@@ -738,22 +711,6 @@ function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName,
   );
 }
 
-/** Sum of `savings_logs` amounts whose Bangkok date key falls in [startKey, endKey]. */
-function recordedBetween(
-  logs: ReturnType<typeof useLogs>['logs'],
-  userId: string | undefined,
-  startKey: string,
-  endKey: string,
-): number {
-  if (!userId) return 0;
-  return logs.reduce((sum, log) => {
-    if (log.user_id !== userId) return sum;
-    const key = todayBangkokKey(new Date(log.created_at));
-    if (key < startKey || key > endKey) return sum;
-    return sum + log.amount;
-  }, 0);
-}
-
 /** Short human-readable plan rule summary for display in the Plan card. */
 function buildPlanSummary(rev: SavingPlanRevision): string {
   switch (rev.rule_type) {
@@ -772,20 +729,3 @@ function buildPlanSummary(rev: SavingPlanRevision): string {
   }
 }
 
-/** Sum of Saving Plan expected daily amounts in [startKey, endKey]. */
-function expectedBetween(
-  revisions: SavingPlanRevision[],
-  startKey: string,
-  endKey: string,
-  pauses: SavingPlanPause[] = [],
-): number {
-  let total = 0;
-  let cursor = startKey;
-  let guard = 0;
-  while (cursor <= endKey && guard < 366) {
-    total += plannedAmountForDate(revisions, cursor, pauses);
-    cursor = addDays(cursor, 1);
-    guard++;
-  }
-  return total;
-}

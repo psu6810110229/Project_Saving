@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { BucketRow } from '../BucketRow/BucketRow';
 import { Button } from '../Button/Button';
 import { IconPlus } from '../Icon/Icon';
-import { SectionLabel } from '../SectionLabel/SectionLabel';
 
 export interface BucketGridItem {
   id: string;
@@ -33,12 +32,14 @@ export function BucketGrid({
 }: BucketGridProps) {
   return (
     <section className="flex flex-col gap-3">
-      <div className="sticky top-0 z-10 -mx-4 bg-bg/95 px-4 py-3 backdrop-blur">
+      <div>
         <div className="flex flex-col gap-3">
           <div className="min-w-0">
-            <SectionLabel tone="brand">Smart Buckets</SectionLabel>
+            <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-800">
+              Smart Buckets
+            </p>
             <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{title}</h2>
-            {subtitle && <p className="mt-1 font-mono text-xs text-ink-muted">{subtitle}</p>}
+            {subtitle && <p className="mt-1 font-mono text-sm text-ink-muted">{subtitle}</p>}
           </div>
           <Button
             variant="action"

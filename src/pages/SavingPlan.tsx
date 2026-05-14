@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { Chip } from '../components/Chip/Chip';
-import { FormField } from '../components/FormField/FormField';
-import { PageHeader } from '../components/PageHeader/PageHeader';
+import { IconArrowLeft } from '../components/Icon/Icon';
+import { IconButton } from '../components/IconButton/IconButton';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { TextInput } from '../components/TextInput/TextInput';
 import { useGoal } from '../hooks/useGoal';
@@ -319,15 +319,27 @@ export function SavingPlan() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader
-        eyebrow="Saving Plan"
-        title={isChange ? 'Change plan' : 'Set up plan'}
-        showBack
-      />
+      {/* Back button stays at the top; the rest of the page is lowered. */}
+      <div>
+        <IconButton ariaLabel="Go back" size="md" onClick={() => navigate(-1)}>
+          <IconArrowLeft size={20} />
+        </IconButton>
+      </div>
+
+      {/* Lowered content. */}
+      <div className="mt-10 flex flex-col gap-5">
+        <header className="min-w-0">
+          <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
+            Saving Plan
+          </p>
+          <h1 className="mt-2 truncate font-mono text-3xl font-bold text-ink">
+            {isChange ? 'Change plan' : 'Set up plan'}
+          </h1>
+        </header>
 
       {/* Plan type selector */}
       <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
-        <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-brand-800">
+        <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
           Plan type
         </p>
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -358,7 +370,7 @@ export function SavingPlan() {
           {ruleType === 'increasing_daily' ? (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <FormField label="Start amount">
+                <CardField label="Start amount">
                   <TextInput
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -367,8 +379,8 @@ export function SavingPlan() {
                     leadingIcon={<span className="font-mono font-bold">฿</span>}
                     onChange={e => setStartAmount(digitsOnly(e.target.value))}
                   />
-                </FormField>
-                <FormField label="Increase by">
+                </CardField>
+                <CardField label="Increase by">
                   <TextInput
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -377,10 +389,10 @@ export function SavingPlan() {
                     leadingIcon={<span className="font-mono font-bold">฿</span>}
                     onChange={e => setIncrementAmount(digitsOnly(e.target.value))}
                   />
-                </FormField>
+                </CardField>
               </div>
 
-              <FormField label="Maximum daily amount">
+              <CardField label="Maximum daily amount">
                 <TextInput
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -389,12 +401,10 @@ export function SavingPlan() {
                   leadingIcon={<span className="font-mono font-bold">฿</span>}
                   onChange={e => setCapAmount(digitsOnly(e.target.value))}
                 />
-              </FormField>
+              </CardField>
 
               <div>
-                <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-                  Stop when
-                </p>
+                <p className="font-mono text-sm font-bold text-ink">Stop when</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {STOP_OPTIONS.map(opt => {
                     const selected = stopMode === opt.id;
@@ -418,7 +428,7 @@ export function SavingPlan() {
 
                 {stopMode === 'days' && (
                   <div className="mt-3">
-                    <FormField label="Run this plan for">
+                    <CardField label="Run this plan for">
                       <TextInput
                         inputMode="numeric"
                         pattern="[0-9]*"
@@ -427,55 +437,66 @@ export function SavingPlan() {
                         trailingIcon={<span className="font-mono text-xs text-ink-muted">days</span>}
                         onChange={e => setDayCount(digitsOnly(e.target.value))}
                       />
-                    </FormField>
+                    </CardField>
                   </div>
                 )}
 
                 {stopMode === 'date' && (
                   <div className="mt-3">
-                    <FormField label="End date">
+                    <CardField label="End date">
                       <TextInput
                         type="date"
                         value={endDate}
                         onChange={e => setEndDate(e.target.value)}
                       />
-                    </FormField>
+                    </CardField>
                   </div>
                 )}
               </div>
+
+              <CardField label="Plan target">
+                <TextInput
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="100000"
+                  value={targetAmount}
+                  leadingIcon={<span className="font-mono font-bold">฿</span>}
+                  onChange={e => setTargetAmount(digitsOnly(e.target.value))}
+                />
+              </CardField>
             </>
           ) : (
-            <FormField label="Amount" helper={amountHelper}>
-              <TextInput
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="100"
-                value={amount}
-                leadingIcon={<span className="font-mono font-bold">฿</span>}
-                onChange={e => setAmount(digitsOnly(e.target.value))}
-              />
-            </FormField>
-          )}
+            <>
+              <BigLabelField label="Amount" helper={amountHelper}>
+                <TextInput
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="100"
+                  value={amount}
+                  leadingIcon={<span className="font-mono font-bold">฿</span>}
+                  onChange={e => setAmount(digitsOnly(e.target.value))}
+                />
+              </BigLabelField>
 
-          <FormField label="Plan target">
-            <TextInput
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="100000"
-              value={targetAmount}
-              leadingIcon={<span className="font-mono font-bold">฿</span>}
-              onChange={e => setTargetAmount(digitsOnly(e.target.value))}
-            />
-          </FormField>
+              <BigLabelField label="Plan target">
+                <TextInput
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="100000"
+                  value={targetAmount}
+                  leadingIcon={<span className="font-mono font-bold">฿</span>}
+                  onChange={e => setTargetAmount(digitsOnly(e.target.value))}
+                />
+              </BigLabelField>
 
-          {ruleType !== 'increasing_daily' && (
-            <FormField label="End date">
-              <TextInput
-                type="date"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
-              />
-            </FormField>
+              <BigLabelField label="End date">
+                <TextInput
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                />
+              </BigLabelField>
+            </>
           )}
         </div>
       </section>
@@ -484,7 +505,7 @@ export function SavingPlan() {
       {preview && (
         <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
           <div className="flex items-center justify-between gap-2">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-brand-800">
+            <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
               Preview
             </p>
             {preview.mode !== 'target' && !preview.reachesTarget && (
@@ -533,6 +554,56 @@ export function SavingPlan() {
         <p className="text-center font-mono text-[11px] text-ink-muted">
           Changes start from today. Past progress is kept.
         </p>
+      )}
+      </div>
+    </div>
+  );
+}
+
+function BigLabelField({
+  label,
+  helper,
+  children,
+}: {
+  label: string;
+  helper?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="block font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
+        {label}
+      </span>
+      <div className="mt-3">{children}</div>
+      {helper && (
+        <span className="mt-3 block font-mono text-sm text-ink-muted">{helper}</span>
+      )}
+    </label>
+  );
+}
+
+/**
+ * Stacked-card field used inside the Increasing Daily form. Each
+ * field is its own peach mini-card so the dense set of inputs reads
+ * as a tidy list of rows rather than a stack of competing labels.
+ */
+function CardField({
+  label,
+  helper,
+  children,
+}: {
+  label: string;
+  helper?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl bg-brand-50 p-3 shadow-soft">
+      <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-brand-800">
+        {label}
+      </p>
+      <div className="mt-2">{children}</div>
+      {helper && (
+        <p className="mt-2 font-mono text-xs text-ink-muted">{helper}</p>
       )}
     </div>
   );

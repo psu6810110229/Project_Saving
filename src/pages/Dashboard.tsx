@@ -48,16 +48,20 @@ import { useSavingPlan } from '../hooks/useSavingPlan';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { bucketSaved, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
-import { dailyAmountSeries, fallbackInitial, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';
+import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';
 import { formatCurrency, formatRelativeTime } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency, reasonLabel } from '../lib/reconcile';
 import {
   activeRevisionAt,
+  addDays,
   habitStatusFromDeposits,
   moneyStatusFor,
+  plannedAmountForDate,
   todayBangkokKey,
 } from '../lib/savingPlan';
+import { PlanInsightStrip } from '../components/PlanInsightStrip/PlanInsightStrip';
+import type { SavingPlanRevision } from '../types';
 import type { BalanceActivityEntry, Bucket, BucketCategory } from '../types';
 
 /**
@@ -74,6 +78,11 @@ function revealStyle(delayMs: number): CSSProperties {
 // untangling its data preparation. Kept off-canvas while the
 // Dashboard hierarchy focuses on Vault / Race / Plan.
 const SHOW_NEXT_WIN = false;
+
+// Old Deposit Race chart is hidden from the primary Dashboard while
+// Daily Trend (MomentumChart) covers expected-vs-recorded. Component
+// preserved for re-enablement.
+const SHOW_DEPOSIT_RACE = false;
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -191,6 +200,47 @@ export function Dashboard() {
   // balance checks. Each item keeps its native kind so the row UI
   // can match (deposit timeline row vs sanitized balance-check row).
   const mergedActivity = buildMergedActivity(activityItems, balanceActivity, 3, user?.id);
+
+  // Saving Plan chart overlays: per-day Expected Progress aligned to
+  // the same 7-day window the deposit charts use. We deliberately do
+  // not include Verified Balance here — these series are Recorded vs
+  // Expected only.
+  const revisions = savingPlan?.revisions ?? null;
+  const chartDayKeys = lastSevenDateKeys();
+  const expectedDailySeries = revisions
+    ? chartDayKeys.map(key => plannedAmountForDate(revisions, key))
+    : undefined;
+  const expectedCumulativeSeries = revisions
+    ? (() => {
+        let running = 0;
+        return chartDayKeys.map(key => {
+          running += plannedAmountForDate(revisions, key);
+          return running;
+        });
+      })()
+    : undefined;
+
+  // Compact this-week / this-month summary tile. Bangkok-aware.
+  const weekStartKey = (() => {
+    const [y, m, d] = todayKey.split('-').map(Number);
+    // Monday-anchored ISO week: dayOfWeek - 1 days back (Sun -> 6).
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    const daysSinceMonday = (dow + 6) % 7;
+    return addDays(todayKey, -daysSinceMonday);
+  })();
+  const monthStartKey = `${todayKey.slice(0, 7)}-01`;
+  const planInsight = revisions
+    ? {
+        week: {
+          recorded: recordedBetween(logs, user?.id, weekStartKey, todayKey),
+          expected: expectedBetween(revisions, weekStartKey, todayKey),
+        },
+        month: {
+          recorded: recordedBetween(logs, user?.id, monthStartKey, todayKey),
+          expected: expectedBetween(revisions, monthStartKey, todayKey),
+        },
+      }
+    : null;
 
   const youName = you?.displayName ?? profile?.display_name ?? 'You';
   const leftPlayer = {
@@ -320,10 +370,12 @@ export function Dashboard() {
         )}
         {showingPartner ? (
           <section className="flex flex-col gap-3">
-            <div className="sticky top-0 z-10 -mx-4 bg-bg/95 px-4 py-3 backdrop-blur">
-              <SectionLabel tone="brand">Smart Buckets</SectionLabel>
+            <div>
+              <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-800">
+                Smart Buckets
+              </p>
               <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{partnerName}'s Buckets</h2>
-              <p className="mt-1 font-mono text-xs text-ink-muted">
+              <p className="mt-1 font-mono text-sm text-ink-muted">
                 {partnerBucketItems.length} bucket{partnerBucketItems.length === 1 ? '' : 's'} — read-only
               </p>
             </div>
@@ -379,14 +431,18 @@ export function Dashboard() {
 
       {/* 5 — Graphs. Lighter than the insight cards above. */}
       <div className="reveal-section flex flex-col gap-3" style={revealStyle(300)}>
+        {planInsight && (
+          <PlanInsightStrip week={planInsight.week} month={planInsight.month} />
+        )}
         <MomentumChart
           series={dailyAmountSeries(logs, user?.id)}
           partnerSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
           labels={lastSevenDayLabels()}
           yourName={profile?.display_name ?? 'You'}
           partnerName={partnerEntry?.displayName ?? 'Partner'}
+          expectedSeries={expectedDailySeries}
         />
-        {partnerEntry && (
+        {SHOW_DEPOSIT_RACE && partnerEntry && (
           <SavingRaceSection
             logs={logs}
             buckets={[...buckets, ...partnerBuckets]}
@@ -395,6 +451,7 @@ export function Dashboard() {
             yourName={profile?.display_name ?? 'You'}
             partnerName={partnerEntry.displayName}
             activeRoomId={activeRoomId}
+            expectedSeries={expectedCumulativeSeries}
           />
         )}
       </div>
@@ -621,14 +678,21 @@ interface SavingRaceSectionProps {
   yourName: string;
   partnerName: string;
   activeRoomId: string | null;
+  /** Saving Plan expected cumulative for the same 7-day window. */
+  expectedSeries?: number[];
 }
 
 /**
  * Renders the Deposit Race line chart with a bucket-scope filter. The
  * filter selection persists per room in localStorage so opening the
  * Dashboard later restores the previously-viewed scope.
+ *
+ * Expected Progress overlay is only meaningful in "All buckets" scope,
+ * since the saving plan curve is room-wide. When a bucket scope is
+ * selected the overlay is suppressed so the chart never compares two
+ * different scopes silently.
  */
-function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName, partnerName, activeRoomId }: SavingRaceSectionProps) {
+function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName, partnerName, activeRoomId, expectedSeries }: SavingRaceSectionProps) {
   const storageKey = `saving-race-filter:${activeRoomId ?? 'no-room'}`;
   const [bucketFilter, setBucketFilter] = useLocalStorageState<string | null>(storageKey, null);
   const dedupedOptions = Array.from(new Map(buckets.map(b => [b.id, { id: b.id, name: b.name }])).values());
@@ -636,6 +700,7 @@ function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName,
   const scopeLabel = scopeBucket ? `Scope: ${scopeBucket.name}` : 'All buckets';
   const yourSeries = cumulativeRaceSeries(logs, yourUserId, bucketFilter);
   const partnerSeries = cumulativeRaceSeries(logs, partnerUserId, bucketFilter);
+  const overlay = bucketFilter === null ? expectedSeries : undefined;
 
   return (
     <section className="flex flex-col gap-2">
@@ -649,7 +714,41 @@ function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName,
         yourName={yourName}
         partnerName={partnerName}
         scopeLabel={scopeLabel}
+        expectedSeries={overlay}
       />
     </section>
   );
+}
+
+/** Sum of `savings_logs` amounts whose Bangkok date key falls in [startKey, endKey]. */
+function recordedBetween(
+  logs: ReturnType<typeof useLogs>['logs'],
+  userId: string | undefined,
+  startKey: string,
+  endKey: string,
+): number {
+  if (!userId) return 0;
+  return logs.reduce((sum, log) => {
+    if (log.user_id !== userId) return sum;
+    const key = todayBangkokKey(new Date(log.created_at));
+    if (key < startKey || key > endKey) return sum;
+    return sum + log.amount;
+  }, 0);
+}
+
+/** Sum of Saving Plan expected daily amounts in [startKey, endKey]. */
+function expectedBetween(
+  revisions: SavingPlanRevision[],
+  startKey: string,
+  endKey: string,
+): number {
+  let total = 0;
+  let cursor = startKey;
+  let guard = 0;
+  while (cursor <= endKey && guard < 366) {
+    total += plannedAmountForDate(revisions, cursor);
+    cursor = addDays(cursor, 1);
+    guard++;
+  }
+  return total;
 }

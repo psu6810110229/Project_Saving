@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '../Button/Button';
 import { BucketRow } from '../BucketRow/BucketRow';
 import { FormField } from '../FormField/FormField';
-import { IconPiggyBank } from '../Icon/Icon';
+import { IconPiggyBank, IconTrash } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { TextInput } from '../TextInput/TextInput';
@@ -18,6 +18,12 @@ interface BucketRowExpandableProps {
   onToggle: () => void;
   onCancel: () => void;
   onConfirm: (amount: number) => Promise<{ error?: string }>;
+  /**
+   * Optional destructive action — when provided, a small ghost
+   * "Delete bucket" link appears at the bottom of the expanded panel.
+   * The parent is responsible for showing a confirmation modal.
+   */
+  onDelete?: () => void;
 }
 
 /**
@@ -36,6 +42,7 @@ export function BucketRowExpandable({
   onToggle,
   onCancel,
   onConfirm,
+  onDelete,
 }: BucketRowExpandableProps) {
   const defaultPill = quickAmounts[1] ?? quickAmounts[0] ?? 100;
   const [selectedPill, setSelectedPill] = useState<number | null>(defaultPill);
@@ -92,6 +99,16 @@ export function BucketRowExpandable({
               {saving ? 'Saving' : 'Confirm'}
             </Button>
           </div>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="inline-flex items-center justify-center gap-1.5 self-center rounded-pill px-3 py-1.5 font-mono text-xs font-bold text-danger hover:bg-danger-soft active:scale-[0.98] transition-all"
+            >
+              <IconTrash size={14} />
+              <span>Delete bucket</span>
+            </button>
+          )}
         </div>
       )}
     </div>

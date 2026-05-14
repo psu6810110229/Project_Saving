@@ -1,10 +1,9 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
-import { FormField } from '../components/FormField/FormField';
-import { IconCheck, IconVault } from '../components/Icon/Icon';
+import { IconArrowLeft, IconCheck, IconVault } from '../components/Icon/Icon';
+import { IconButton } from '../components/IconButton/IconButton';
 import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
-import { PageHeader } from '../components/PageHeader/PageHeader';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { TextInput } from '../components/TextInput/TextInput';
@@ -85,100 +84,106 @@ export function CheckBalance() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader
-        eyebrow="Reconcile"
-        title="Check Balance"
-        subtitle="Confirm your real savings match your verified balance."
-        showBack
-      />
+      {/* Back button stays at the top; the rest of the page is lowered. */}
+      <div>
+        <IconButton ariaLabel="Go back" size="md" onClick={() => navigate(-1)}>
+          <IconArrowLeft size={20} />
+        </IconButton>
+      </div>
 
-      <section className="rounded-3xl bg-surface p-5 shadow-soft">
-        <div className="flex items-center justify-between gap-3">
-          <SectionLabel tone="brand">Verified Balance</SectionLabel>
-          <span className="font-mono text-2xl font-bold text-ink">{formatCurrency(displayedAppBalance)}</span>
-        </div>
-        <p className="mt-2 font-mono text-xs text-ink-muted">
-          Recorded deposits plus balance adjustments from checks. Deposit charts stay separate.
-        </p>
-      </section>
-
-      {step === 'enter' && (
-        <section className="rounded-3xl bg-surface p-5 shadow-soft">
-          <FormField label="Actual Balance" helper="How much real money do you have set aside for this project right now?">
-            <TextInput
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="0"
-              value={actualValue}
-              leadingIcon={<span className="font-mono font-bold">฿</span>}
-              onChange={event => {
-                setActualValue(event.target.value.replace(/[^0-9]/g, ''));
-                setError(null);
-              }}
-            />
-          </FormField>
-          {error && <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
-          <div className="mt-4 flex flex-col gap-2">
-            <Button variant="action" fullWidth onClick={handleConfirmMatch} disabled={submitting || !actualValid}>
-              {submitting ? 'Saving…' : 'Save Check'}
-            </Button>
-            <Button variant="ghost" fullWidth size="md" onClick={() => navigate(-1)}>
-              Cancel
-            </Button>
-          </div>
-        </section>
-      )}
-
-      {step === 'difference' && (
-        <section className="rounded-3xl bg-surface p-5 shadow-soft">
-          <SectionLabel tone="brand">Difference</SectionLabel>
-          <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl bg-surfaceAlt p-3">
-            <SummaryStat label="Actual" value={formatCurrency(actualNumber)} />
-            <SummaryStat label="Verified" value={formatCurrency(displayedAppBalance)} />
-            <SummaryStat label="Difference" value={formatSignedCurrency(difference)} emphasized />
-          </div>
-          <p className="mt-4 font-mono text-sm font-bold text-ink">
-            What caused this difference?
+      {/* Lowered content. */}
+      <div className="mt-10 flex flex-col gap-5">
+        <header className="min-w-0">
+          <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
+            Reconcile
           </p>
-          <div className="mt-3 flex flex-col gap-2">
-            {RECONCILE_REASONS.map(option => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => {
-                  setReason(option.id);
-                  setError(null);
-                }}
-                className={
-                  'w-full rounded-2xl px-4 py-3 text-left font-mono text-sm transition-colors ' +
-                  (reason === option.id
-                    ? 'bg-brand-800 text-ink-inverse'
-                    : 'bg-surfaceAlt text-ink hover:bg-brand-50')
-                }
-              >
-                <span className="block font-bold">{option.label}</span>
-                {option.description && (
-                  <span className={
-                    'mt-1 block text-xs ' +
-                    (reason === option.id ? 'text-ink-inverse/80' : 'text-ink-muted')
-                  }>
-                    {option.description}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          {error && <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
-          <div className="mt-4 flex flex-col gap-2">
-            <Button variant="action" fullWidth onClick={handleConfirmDifference} disabled={submitting || !reason}>
-              {submitting ? 'Saving…' : 'Save Check & Adjustment'}
-            </Button>
-            <Button variant="ghost" fullWidth size="md" onClick={() => setStep('enter')}>
-              Back
-            </Button>
+          <h1 className="mt-2 truncate font-mono text-3xl font-bold text-ink">Check Balance</h1>
+        </header>
+
+        <section className="rounded-3xl bg-surface p-5 shadow-soft">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
+              Verified Balance
+            </p>
+            <span className="font-mono text-2xl font-bold text-ink">{formatCurrency(displayedAppBalance)}</span>
           </div>
         </section>
-      )}
+
+        {step === 'enter' && (
+          <section className="rounded-3xl bg-surface p-5 shadow-soft">
+            <label className="block">
+              <span className="block font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
+                Actual Balance
+              </span>
+              <div className="mt-3">
+                <TextInput
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="0"
+                  value={actualValue}
+                  leadingIcon={<span className="font-mono font-bold">฿</span>}
+                  onChange={event => {
+                    setActualValue(event.target.value.replace(/[^0-9]/g, ''));
+                    setError(null);
+                  }}
+                />
+              </div>
+              <span className="mt-3 block font-mono text-sm text-ink-muted">
+                Total cash, bank, and other storage set aside for this project.
+              </span>
+            </label>
+            {error && <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
+            <div className="mt-4 flex flex-col gap-2">
+              <Button variant="action" fullWidth onClick={handleConfirmMatch} disabled={submitting || !actualValid}>
+                {submitting ? 'Saving…' : 'Save Check'}
+              </Button>
+              <Button variant="ghost" fullWidth size="md" onClick={() => navigate(-1)}>
+                Cancel
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {step === 'difference' && (
+          <section className="rounded-3xl bg-surface p-5 shadow-soft">
+            <SectionLabel tone="brand">Difference</SectionLabel>
+            <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl bg-surfaceAlt p-3">
+              <SummaryStat label="Actual" value={formatCurrency(actualNumber)} />
+              <SummaryStat label="Verified" value={formatCurrency(displayedAppBalance)} />
+              <SummaryStat label="Difference" value={formatSignedCurrency(difference)} emphasized />
+            </div>
+            <div className="mt-4 flex flex-col gap-2">
+              {RECONCILE_REASONS.map(option => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => {
+                    setReason(option.id);
+                    setError(null);
+                  }}
+                  className={
+                    'w-full rounded-2xl px-4 py-3 text-left font-mono text-sm font-bold transition-colors ' +
+                    (reason === option.id
+                      ? 'bg-brand-800 text-ink-inverse'
+                      : 'bg-surfaceAlt text-ink hover:bg-brand-50')
+                  }
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {error && <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
+            <div className="mt-4 flex flex-col gap-2">
+              <Button variant="action" fullWidth onClick={handleConfirmDifference} disabled={submitting || !reason}>
+                {submitting ? 'Saving…' : 'Save Check & Adjustment'}
+              </Button>
+              <Button variant="ghost" fullWidth size="md" onClick={() => setStep('enter')}>
+                Back
+              </Button>
+            </div>
+          </section>
+        )}
+      </div>
 
       <OutcomeModal
         open={Boolean(outcome)}

@@ -22,6 +22,12 @@ interface SavingRaceChartProps {
   yourName: string;
   partnerName: string;
   scopeLabel: string;
+  /**
+   * Optional Saving Plan Expected cumulative for the same 7-day
+   * window. Drawn as a subtle dashed polyline so users can see how
+   * their recorded curve compares to the plan. Not a deposit value.
+   */
+  expectedSeries?: number[];
 }
 
 const W = 280;
@@ -30,8 +36,22 @@ const PAD_X = 12;
 const PAD_TOP = 10;
 const PAD_BOTTOM = 20;
 
-export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, partnerName, scopeLabel }: SavingRaceChartProps) {
-  const max = Math.max(1, ...yourSeries, ...partnerSeries);
+export function SavingRaceChart({
+  yourSeries,
+  partnerSeries,
+  labels,
+  yourName,
+  partnerName,
+  scopeLabel,
+  expectedSeries,
+}: SavingRaceChartProps) {
+  const hasExpected = Array.isArray(expectedSeries) && expectedSeries.length === yourSeries.length;
+  const max = Math.max(
+    1,
+    ...yourSeries,
+    ...partnerSeries,
+    ...(hasExpected ? expectedSeries! : []),
+  );
   const chartH = H - PAD_TOP - PAD_BOTTOM;
   const chartW = W - PAD_X * 2;
   const step = yourSeries.length > 1 ? chartW / (yourSeries.length - 1) : 0;
@@ -59,6 +79,15 @@ export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, p
             <span className="truncate">{chartLegendLabel('Partner', partnerName)}:</span>
             <span className="shrink-0">{formatCurrency(partnerTotal)}</span>
           </span>
+          {hasExpected && (
+            <span className="inline-flex max-w-full items-center gap-1">
+              <span
+                className="inline-block h-[2px] w-3 shrink-0 rounded-full"
+                style={{ backgroundColor: palette.inkMuted }}
+              />
+              <span className="truncate">Your plan</span>
+            </span>
+          )}
         </div>
       </div>
       <svg
@@ -70,6 +99,7 @@ export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, p
       >
         <title>
           Deposit Race. Orange line is You. Green line is Partner.
+          {hasExpected ? ' Dashed grey line is your Saving Plan expected cumulative.' : ''}
         </title>
         {[0.25, 0.5, 0.75].map(frac => (
           <line
@@ -98,6 +128,17 @@ export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, p
           strokeLinecap="round"
           points={pointsFor(partnerSeries)}
         />
+        {hasExpected && (
+          <polyline
+            fill="none"
+            stroke={palette.inkMuted}
+            strokeWidth={1.5}
+            strokeDasharray="3 3"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            points={pointsFor(expectedSeries!)}
+          />
+        )}
         {labels.map((label, i) => (
           <text
             key={`${label}-${i}`}

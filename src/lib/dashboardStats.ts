@@ -1,4 +1,6 @@
 import type { SavingsLog } from '../types';
+import { localDateKey } from './streak';
+import { addDays, todayBangkokKey } from './savingPlan';
 
 export function fallbackInitial(name: string | undefined): string {
   const trimmed = name?.trim();
@@ -46,18 +48,22 @@ function sumBetween(logs: SavingsLog[], start: Date, end: Date): number {
     .reduce((sum, log) => sum + log.amount, 0);
 }
 
-function lastSevenDateKeys(today: Date): string[] {
-  return Array.from({ length: 7 }, (_, index) => localDateKey(daysAgo(today, 6 - index).toISOString()));
+/**
+ * YYYY-MM-DD keys for the 7-day chart window, oldest → newest.
+ * Used by the daily / cumulative series and any aligned overlays
+ * (e.g. Saving Plan Expected Progress) so the bars and reference
+ * line share an x-axis. Keys are Asia/Bangkok-local so they line up
+ * with Saving Plan day boundaries.
+ */
+export function lastSevenDateKeys(today: Date = new Date()): string[] {
+  const todayKey = todayBangkokKey(today);
+  return Array.from({ length: 7 }, (_, index) => addDays(todayKey, index - 6));
 }
 
 function daysAgo(date: Date, days: number): Date {
   const next = new Date(date);
   next.setDate(next.getDate() - days);
   return next;
-}
-
-function localDateKey(iso: string): string {
-  return new Date(iso).toISOString().slice(0, 10);
 }
 
 function startOfDay(date: Date): Date {

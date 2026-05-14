@@ -1,6 +1,5 @@
 import { IconBubble } from '../IconBubble/IconBubble';
-import { IconEdit, IconTrendingUp, IconVault } from '../Icon/Icon';
-import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { IconArrowRight, IconEdit, IconTrendingUp, IconVault } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { formatSignedCurrency } from '../../lib/reconcile';
 import {
@@ -23,16 +22,52 @@ interface VerifiedBalanceSlot {
 }
 
 interface SavingPlanCardProps {
-  /** Active rule type; `null` when the user has no plan yet. */
   ruleType: SavingPlanRuleType | null;
-  /** When `null`, render the "set up plan" empty state. */
   money: MoneyStatus | null;
   habit: HabitStatus;
   onConfigure: () => void;
   /** Today's deposits by the current user (sum of `savings_logs` whose Bangkok day = today). */
   savedToday?: number;
-  /** Optional Verified Balance subsection merged into the same island. */
   verifiedBalance?: VerifiedBalanceSlot | null;
+}
+
+/** Fire glyphs for a streak: ≥2d → 1, ≥6d → 2, ≥8d → 3. */
+function fireForStreak(streak: number): string {
+  if (streak >= 8) return '🔥🔥🔥';
+  if (streak >= 6) return '🔥🔥';
+  if (streak >= 2) return '🔥';
+  return '';
+}
+
+interface StatusText {
+  text: string;
+  /** Tailwind text-color class including opacity, e.g. `text-accent-gold/70`. */
+  color: string;
+}
+
+function todayPlanStatus(planAmount: number, savedToday: number): StatusText | null {
+  if (!Number.isFinite(planAmount) || planAmount <= 0) return null;
+  if (savedToday >= planAmount) {
+    return { text: 'Done', color: 'text-accent-leaf/80' };
+  }
+  if (savedToday > 0) {
+    const remaining = planAmount - savedToday;
+    return { text: `ขาดอีก ${formatCurrency(Math.round(remaining))}`, color: 'text-accent-gold/80' };
+  }
+  return { text: `ขาดอีก ${formatCurrency(Math.round(planAmount))}`, color: 'text-danger/70' };
+}
+
+function lastDepositStatus(habit: HabitStatus): StatusText | null {
+  if (habit.lastDepositDateKey === null) {
+    return { text: 'Start', color: 'text-accent-gold/80' };
+  }
+  if (habit.hasDepositedToday) {
+    return { text: 'On track', color: 'text-accent-leaf/80' };
+  }
+  if (habit.daysSinceLastDeposit === 1) {
+    return { text: 'Catch up', color: 'text-accent-gold/80' };
+  }
+  return { text: 'Behind', color: 'text-danger/70' };
 }
 
 /**
@@ -41,8 +76,6 @@ interface SavingPlanCardProps {
  * an optional Verified Balance row at the bottom that lives inside
  * the same island so it reads as part of one financial picture
  * instead of a competing card.
- *
- * Money progress is computed from deposit logs, not Verified Balance.
  */
 export function SavingPlanCard({
   ruleType,
@@ -60,7 +93,9 @@ export function SavingPlanCard({
             <IconTrendingUp size={20} />
           </IconBubble>
           <div className="min-w-0 flex-1">
-            <SectionLabel tone="muted">Saving Plan</SectionLabel>
+            <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+              Saving Plan
+            </p>
             <p className="mt-1 truncate font-mono text-base font-bold text-ink">No plan yet</p>
           </div>
           <button
@@ -75,8 +110,6 @@ export function SavingPlanCard({
     );
   }
 
-  // Burnt-orange / neutral palette — green is reserved for partner
-  // identity in charts, not used for status here.
   const moneyHeadlineColor =
     money.state === 'ahead'
       ? 'text-brand-800'
@@ -99,64 +132,98 @@ export function SavingPlanCard({
         ? '1 day ago'
         : `${habit.daysSinceLastDeposit} days ago`;
 
+  const planAmountRounded = Math.round(money.expectedToday);
+  const savedTodayRounded = Math.round(savedToday);
+  const planStatus = todayPlanStatus(planAmountRounded, savedTodayRounded);
+  const depositStatus = lastDepositStatus(habit);
+  const streakFire = fireForStreak(habit.streak);
+
   return (
     <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
-      {/* Header: neutral eyebrow + icon-only Change plan in top-right */}
-      <div className="flex items-start justify-between gap-3">
-        <SectionLabel tone="muted">Saving Plan</SectionLabel>
+      {/* Eyebrow (now bigger, neutral muted color). */}
+      <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+        Saving Plan
+      </p>
+
+      {/* Headline + edit button on the same row. */}
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className={`font-mono text-2xl font-bold ${moneyHeadlineColor}`}>
+          {moneyHeadline}
+        </p>
         <button
           type="button"
           onClick={onConfigure}
           aria-label="Change plan"
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange active:scale-[0.96] transition-transform"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange active:scale-[0.96] transition-transform"
         >
-          <IconEdit size={16} />
+          <IconEdit size={18} />
         </button>
       </div>
-
-      <p className={`mt-3 font-mono text-2xl font-bold ${moneyHeadlineColor}`}>
-        {moneyHeadline}
-      </p>
       {money.state === 'ahead' && money.coveredUntilDate && (
         <p className="mt-1 font-mono text-base font-bold text-ink-muted">
           Covered until <span className="text-ink">{shortDateLabel(money.coveredUntilDate)}</span>
         </p>
       )}
 
-      {/* Money + Habit insight boxes — larger, fewer labels. */}
+      {/* Money + Habit boxes — larger muted labels, value text stays bold/ink. */}
       <div className="mt-5 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-surface p-4 shadow-soft">
-          <SectionLabel tone="muted">Money</SectionLabel>
+          <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+            Money
+          </p>
           <div className="mt-3 flex flex-col gap-3">
-            <div>
-              <p className="font-mono text-[11px] text-ink-muted">Today's plan</p>
-              <p className="mt-0.5 font-mono text-base font-bold text-ink">
-                {formatCurrency(Math.round(money.expectedToday))}
-              </p>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-mono text-sm text-ink-muted">Today's plan</p>
+                <p className="mt-0.5 font-mono text-base font-bold text-ink">
+                  {formatCurrency(planAmountRounded)}
+                </p>
+              </div>
+              {planStatus && (
+                <span
+                  className={`shrink-0 font-mono text-xs font-bold ${planStatus.color}`}
+                >
+                  {planStatus.text}
+                </span>
+              )}
             </div>
             <div>
-              <p className="font-mono text-[11px] text-ink-muted">Saved today</p>
+              <p className="font-mono text-sm text-ink-muted">Saved today</p>
               <p className="mt-0.5 font-mono text-base font-bold text-ink">
-                {formatCurrency(Math.round(savedToday))}
+                {formatCurrency(savedTodayRounded)}
               </p>
             </div>
           </div>
         </div>
 
         <div className="rounded-2xl bg-surface p-4 shadow-soft">
-          <SectionLabel tone="muted">Habit</SectionLabel>
+          <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+            Habit
+          </p>
           <div className="mt-3 flex flex-col gap-3">
-            <div>
-              <p className="font-mono text-[11px] text-ink-muted">Last deposit</p>
-              <p className="mt-0.5 font-mono text-base font-bold text-ink">
-                {habitHeadline}
-              </p>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-mono text-sm text-ink-muted">Last deposit</p>
+                <p className="mt-0.5 font-mono text-base font-bold text-ink">
+                  {habitHeadline}
+                </p>
+              </div>
+              {depositStatus && (
+                <span
+                  className={`shrink-0 font-mono text-xs font-bold ${depositStatus.color}`}
+                >
+                  {depositStatus.text}
+                </span>
+              )}
             </div>
             {habit.streak > 0 && (
               <div>
-                <p className="font-mono text-[11px] text-ink-muted">Streak</p>
+                <p className="font-mono text-sm text-ink-muted">Streak</p>
                 <p className="mt-0.5 font-mono text-base font-bold text-ink">
                   {habit.streak} day{habit.streak === 1 ? '' : 's'}
+                  {streakFire && (
+                    <span aria-hidden className="ml-1.5 align-middle">{streakFire}</span>
+                  )}
                 </p>
               </div>
             )}
@@ -164,14 +231,14 @@ export function SavingPlanCard({
         </div>
       </div>
 
-      {/* Verified Balance — secondary, lives inside the same island. */}
+      {/* Verified Balance — larger muted label, value size unchanged. */}
       {verifiedBalance && (
         <div className="mt-4 flex items-center gap-3 rounded-2xl bg-surface/80 px-3 py-2.5">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-800">
             <IconVault size={16} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+            <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
               Verified balance
             </p>
             <p className="mt-0.5 truncate font-mono text-sm font-bold text-ink">
@@ -188,9 +255,10 @@ export function SavingPlanCard({
           <button
             type="button"
             onClick={verifiedBalance.onCheck}
-            className="shrink-0 rounded-pill bg-surfaceAlt px-3 py-1.5 font-mono text-xs font-bold text-brand-800 active:scale-[0.98] transition-transform"
+            aria-label="Check balance"
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-100 text-brand-800 shadow-soft hover:bg-brand-200 active:scale-[0.95] transition-all"
           >
-            Check
+            <IconArrowRight size={22} />
           </button>
         </div>
       )}

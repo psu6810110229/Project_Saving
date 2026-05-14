@@ -24,6 +24,13 @@ interface MomentumChartProps {
   yourName?: string;
   /** Display name shown after "Partner" in the partner-series legend. */
   partnerName?: string;
+  /**
+   * Optional Saving Plan Expected Progress — planned daily amount per
+   * day, same length as `series`. Drawn as a subtle horizontal tick
+   * across each bar group so users can see whether their bar reaches
+   * the plan target for that day. Not a deposit value.
+   */
+  expectedSeries?: number[];
 }
 
 const W = 280;
@@ -32,9 +39,22 @@ const PAD_X = 8;
 const PAD_TOP = 8;
 const PAD_BOTTOM = 18;
 
-export function MomentumChart({ series, partnerSeries, labels, yourName = 'You', partnerName = 'Partner' }: MomentumChartProps) {
+export function MomentumChart({
+  series,
+  partnerSeries,
+  labels,
+  yourName = 'You',
+  partnerName = 'Partner',
+  expectedSeries,
+}: MomentumChartProps) {
   const hasPartner = Array.isArray(partnerSeries) && partnerSeries.length === series.length;
-  const max = Math.max(1, ...series, ...(hasPartner ? partnerSeries! : []));
+  const hasExpected = Array.isArray(expectedSeries) && expectedSeries.length === series.length;
+  const max = Math.max(
+    1,
+    ...series,
+    ...(hasPartner ? partnerSeries! : []),
+    ...(hasExpected ? expectedSeries! : []),
+  );
   const barCount = series.length;
   const groupGap = 6;
   const innerGap = hasPartner ? 2 : 0;
@@ -57,6 +77,15 @@ export function MomentumChart({ series, partnerSeries, labels, yourName = 'You',
               <span className="truncate">{chartLegendLabel('Partner', partnerName)}</span>
             </span>
           )}
+          {hasExpected && (
+            <span className="inline-flex max-w-full items-center gap-1">
+              <span
+                className="inline-block h-[2px] w-3 shrink-0 rounded-full"
+                style={{ backgroundColor: palette.inkMuted }}
+              />
+              <span className="truncate">Your plan</span>
+            </span>
+          )}
         </div>
       </div>
       <svg
@@ -68,6 +97,7 @@ export function MomentumChart({ series, partnerSeries, labels, yourName = 'You',
       >
         <title>
           Daily Deposit Trend. Orange bars are You. Green bars are Partner.
+          {hasExpected ? ' Dashed ticks are the Saving Plan expected daily amount.' : ''}
         </title>
         {series.map((v, i) => {
           const groupX = PAD_X + i * (groupW + groupGap);
@@ -94,6 +124,17 @@ export function MomentumChart({ series, partnerSeries, labels, yourName = 'You',
                   height={partnerH || 2}
                   rx={3}
                   fill={chartIdentityColors.partner}
+                />
+              )}
+              {hasExpected && expectedSeries![i] > 0 && (
+                <line
+                  x1={groupX - 1}
+                  x2={groupX + groupW + 1}
+                  y1={PAD_TOP + chartH - (expectedSeries![i] / max) * chartH}
+                  y2={PAD_TOP + chartH - (expectedSeries![i] / max) * chartH}
+                  stroke={palette.inkMuted}
+                  strokeWidth={1}
+                  strokeDasharray="2 2"
                 />
               )}
               {labels?.[i] && (

@@ -112,9 +112,6 @@ export function SavingRaceChart({ yourSeries, partnerSeries, labels, yourName, p
           </text>
         ))}
       </svg>
-      <p className="mt-2 font-mono text-[11px] text-ink-muted">
-        Recorded deposits only.
-      </p>
     </section>
   );
 }

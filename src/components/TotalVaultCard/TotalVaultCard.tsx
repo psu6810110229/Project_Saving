@@ -35,9 +35,6 @@ export function TotalVaultCard({ saved, target, trendPct }: TotalVaultCardProps)
       <div className="mt-4">
         <ProgressBar value={pct} tone="deep" size="lg" animate />
       </div>
-      <p className="mt-2 font-mono text-[11px] text-ink-muted">
-        Deposit logs only. Balance checks are shown separately.
-      </p>
     </section>
   );
 }

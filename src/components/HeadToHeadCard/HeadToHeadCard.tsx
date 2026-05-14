@@ -1,6 +1,5 @@
 import { formatCurrency } from '../../lib/format';
 import type { ThemeSwatch } from '../../lib/theme';
-import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { PlayerProgressRow } from '../PlayerProgressRow/PlayerProgressRow';
 
 interface PlayerInput {
@@ -18,6 +17,13 @@ interface HeadToHeadCardProps {
   right: PlayerInput;
 }
 
+/**
+ * Two-player progress comparison shown near the top of the Dashboard.
+ * Leader appears first; a small icon badge sits on the top-left of
+ * the leader's avatar so rank is obvious at a glance. The trailing
+ * player no longer carries a "Behind by ฿X" subtitle — the gap is
+ * read once from the leader's row to avoid duplicate state.
+ */
 export function HeadToHeadCard({ left, right }: HeadToHeadCardProps) {
   const tied = left.saved === right.saved;
   const gap = Math.abs(left.saved - right.saved);
@@ -28,17 +34,22 @@ export function HeadToHeadCard({ left, right }: HeadToHeadCardProps) {
 
   return (
     <section className="rounded-3xl bg-surface shadow-soft p-5">
-      <SectionLabel tone="muted">Head-to-Head</SectionLabel>
-      <div className="mt-4 flex flex-col gap-5">
+      <h2 className="font-mono text-xl font-bold tracking-tight text-ink">Progress Race</h2>
+      <p className="mt-1 font-mono text-xs text-ink-muted">
+        {tied
+          ? 'Tied — same deposits so far.'
+          : `Leading by ${formatCurrency(gap)}.`}
+      </p>
+      <div className="mt-5 flex flex-col gap-5">
         <PlayerProgressRow
           {...rows[0]}
           isLeader={!tied}
-          gapLabel={tied ? 'Tied on recorded deposits' : `Leading by ${formatCurrency(gap)}`}
+          gapLabel={tied ? 'Tied' : `Leading by ${formatCurrency(gap)}`}
         />
         <div className="h-px bg-well" />
         <PlayerProgressRow
           {...rows[1]}
-          gapLabel={tied ? 'Tied on recorded deposits' : `Behind by ${formatCurrency(gap)}`}
+          gapLabel={undefined}
         />
       </div>
     </section>

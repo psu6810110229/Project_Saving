@@ -1,8 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ActivityFeed } from '../components/ActivityFeed/ActivityFeed';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
-import { BalanceActivityFeed } from '../components/BalanceActivityFeed/BalanceActivityFeed';
+import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
 import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
 import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
@@ -10,19 +9,25 @@ import { BucketRowExpandable } from '../components/BucketRowExpandable/BucketRow
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
-import { DashboardHero } from '../components/DashboardHero/DashboardHero';
+import { HeadToHeadCard } from '../components/HeadToHeadCard/HeadToHeadCard';
+import { IconBubble } from '../components/IconBubble/IconBubble';
+import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
+import { MomentumChart } from '../components/MomentumChart/MomentumChart';
+import { TotalVaultCard } from '../components/TotalVaultCard/TotalVaultCard';
 import { NudgeButton } from '../components/NudgeButton/NudgeButton';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Segmented } from '../components/Segmented/Segmented';
 import {
   IconBed,
   IconBriefcase,
+  IconCheck,
   IconFork,
   IconHome,
   IconPlane,
   IconRocket,
   IconSmartphone,
   IconTicket,
+  IconVault,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
 import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
@@ -44,15 +49,31 @@ import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { bucketSaved, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, formatRelativeTime } from '../lib/format';
 import { haptic } from '../lib/haptics';
+import { daysSince, formatSignedCurrency, reasonLabel } from '../lib/reconcile';
 import {
   activeRevisionAt,
   habitStatusFromDeposits,
   moneyStatusFor,
   todayBangkokKey,
 } from '../lib/savingPlan';
-import type { Bucket, BucketCategory } from '../types';
+import type { BalanceActivityEntry, Bucket, BucketCategory } from '../types';
+
+/**
+ * Subtle staggered reveal so the Dashboard reads as one composed page
+ * instead of independently-popping cards. Pair `.reveal-section` with
+ * a CSS animation-delay; the global `prefers-reduced-motion` block in
+ * `styles/global.css` collapses every duration to ~0ms automatically.
+ */
+function revealStyle(delayMs: number): CSSProperties {
+  return { animationDelay: `${delayMs}ms` };
+}
+
+// Toggle to re-enable the "Next Win" micro-goal block without
+// untangling its data preparation. Kept off-canvas while the
+// Dashboard hierarchy focuses on Vault / Race / Plan.
+const SHOW_NEXT_WIN = false;
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -126,6 +147,71 @@ export function Dashboard() {
   const hasPartnerBuckets = Boolean(partnerEntry) && partnerBucketItems.length > 0;
   const showingPartner = bucketView === 'partner' && hasPartnerBuckets;
 
+  // Saving Plan status — computed once for the primary insight card.
+  const todayKey = todayBangkokKey();
+  const activeRule = savingPlan
+    ? activeRevisionAt(savingPlan.revisions, todayKey)?.rule_type ?? null
+    : null;
+  const moneyStatus = savingPlan
+    ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey)
+    : null;
+  const habitStatus = habitStatusFromDeposits(
+    activeRule,
+    planDeposits.deposit_day_keys,
+    todayKey,
+  );
+  const savedToday = logs.reduce((sum, log) => {
+    if (log.user_id !== user?.id) return sum;
+    const key = todayBangkokKey(new Date(log.created_at));
+    return key === todayKey ? sum + log.amount : sum;
+  }, 0);
+
+  // Pack the Verified Balance slot for the Saving Plan island so
+  // both ideas read as one financial picture; the underlying
+  // BalanceCheckStatus card is only used as a fallback empty state.
+  const checkpointDays = latestCheckpoint ? daysSince(latestCheckpoint.checked_at) : null;
+  const verifiedSinceLabel = checkpointDays === null
+    ? 'never'
+    : checkpointDays === 0
+      ? 'today'
+      : checkpointDays === 1
+        ? '1d ago'
+        : `${checkpointDays}d ago`;
+  const verifiedBalanceSlot = reconciledAppBalance !== null
+    ? {
+        amount: reconciledAppBalance,
+        sinceLabel: verifiedSinceLabel,
+        matched: latestCheckpoint ? latestCheckpoint.difference_amount === 0 : false,
+        diff: latestCheckpoint?.difference_amount ?? 0,
+        onCheck: () => navigate('/check-balance'),
+      }
+    : null;
+
+  // Merged activity feed: top 3 most-recent items across deposits and
+  // balance checks. Each item keeps its native kind so the row UI
+  // can match (deposit timeline row vs sanitized balance-check row).
+  const mergedActivity = buildMergedActivity(activityItems, balanceActivity, 3, user?.id);
+
+  const youName = you?.displayName ?? profile?.display_name ?? 'You';
+  const leftPlayer = {
+    name: youName,
+    fallback: fallbackInitial(you?.displayName ?? profile?.display_name),
+    imageUrl: you?.avatarUrl,
+    saved: you?.saved ?? total,
+    target,
+    themeColor: you?.themeColor,
+    isYou: true,
+  };
+  const rightPlayer = {
+    name: partner?.displayName ?? 'Partner',
+    fallback: fallbackInitial(partner?.displayName ?? 'Partner'),
+    imageUrl: partner?.avatarUrl,
+    saved: partner?.saved ?? 0,
+    target: partner?.target ?? target,
+    themeColor: partner?.themeColor ?? ('teal' as const),
+    isYou: false,
+  };
+
   async function handleCreateBucket() {
     const nextTarget = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || nextTarget <= 0) {
@@ -150,177 +236,212 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {partnerEntry && (
-        <div className="flex justify-end">
+    <div className="flex flex-col gap-6">
+      {/* Project header. Compact, no heavy card. */}
+      <header
+        className="reveal-section flex items-end justify-between gap-3"
+        style={revealStyle(0)}
+      >
+        <div className="min-w-0">
+          <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+            Project
+          </p>
+          <h1 className="mt-1 truncate font-mono text-2xl font-bold text-ink">
+            {activeRoom?.name ?? 'Japan 2027'}
+          </h1>
+        </div>
+        {partnerEntry && (
           <NudgeButton
             partnerUserId={partnerEntry.userId}
             roomId={activeRoomId}
             partnerName={partnerEntry.displayName ?? 'Partner'}
           />
-        </div>
-      )}
-      {reconciledAppBalance !== null && (
-        <BalanceCheckStatus
-          latest={latestCheckpoint}
-          appBalance={reconciledAppBalance}
-          onCheck={() => navigate('/check-balance')}
-        />
-      )}
-      {(() => {
-        const todayKey = todayBangkokKey();
-        const activeRule = savingPlan
-          ? activeRevisionAt(savingPlan.revisions, todayKey)?.rule_type ?? null
-          : null;
-        const moneyStatus = savingPlan
-          ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey)
-          : null;
-        const habitStatus = habitStatusFromDeposits(
-          activeRule,
-          planDeposits.deposit_day_keys,
-          todayKey,
-        );
-        return (
-          <SavingPlanCard
-            ruleType={activeRule}
-            money={moneyStatus}
-            habit={habitStatus}
-            onConfigure={() => navigate('/saving-plan')}
-          />
-        );
-      })()}
-      <DashboardHero
-        title={activeRoom?.name ?? 'Japan 2027'}
-        subtitle={`${profile?.display_name ?? 'You'} recorded ${formatCurrency(total)} toward ${formatCurrency(target)}`}
-        leftPlayer={{
-          name: you?.displayName ?? profile?.display_name ?? 'You',
-          fallback: fallbackInitial(you?.displayName ?? profile?.display_name),
-          imageUrl: you?.avatarUrl,
-          saved: you?.saved ?? total,
-          target,
-          themeColor: you?.themeColor,
-          isYou: true,
-        }}
-        rightPlayer={{
-          name: partner?.displayName ?? 'Partner',
-          fallback: fallbackInitial(partner?.displayName ?? 'Partner'),
-          imageUrl: partner?.avatarUrl,
-          saved: partner?.saved ?? 0,
-          target: partner?.target ?? target,
-          themeColor: partner?.themeColor ?? 'teal',
-          isYou: false,
-        }}
-        saved={totalSaved}
-        target={totalTarget}
-        trendPct={weeklyTrendPct(logs)}
-        momentumSeries={dailyAmountSeries(logs, user?.id)}
-        partnerMomentumSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
-        yourName={profile?.display_name ?? 'You'}
-        partnerName={partnerEntry?.displayName ?? 'Partner'}
-        momentumLabels={lastSevenDayLabels()}
-        microGoal={selectedBucket}
-      />
-      {partnerEntry && (
-        <SavingRaceSection
-          logs={logs}
-          buckets={[...buckets, ...partnerBuckets]}
-          yourUserId={user?.id}
-          partnerUserId={partnerEntry.userId}
-          yourName={profile?.display_name ?? 'You'}
-          partnerName={partnerEntry.displayName}
-          activeRoomId={activeRoomId}
-        />
-      )}
-      {hasPartnerBuckets && (
-        <div className="-mb-2 flex items-center justify-end gap-2">
-          <Segmented
-            ariaLabel="Switch bucket owner"
-            options={[
-              { value: 'mine', label: 'You' },
-              { value: 'partner', label: partnerName },
-            ]}
-            value={bucketView}
-            onChange={next => {
-              setBucketView(next);
-              setExpandedBucketId(null);
-            }}
-          />
-        </div>
-      )}
-      {showingPartner ? (
-        <section className="flex flex-col gap-3">
-          <div className="sticky top-0 z-10 -mx-4 bg-bg/95 px-4 py-3 backdrop-blur">
-            <SectionLabel tone="brand">Smart Buckets</SectionLabel>
-            <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{partnerName}'s Buckets</h2>
-            <p className="mt-1 font-mono text-xs text-ink-muted">
-              {partnerBucketItems.length} bucket{partnerBucketItems.length === 1 ? '' : 's'} — read-only
-            </p>
+        )}
+      </header>
+
+      {/* 1 — Recorded Vault. Shared progress toward target. */}
+      <div className="reveal-section" style={revealStyle(60)}>
+        <TotalVaultCard saved={totalSaved} target={totalTarget} trendPct={weeklyTrendPct(logs)} />
+      </div>
+
+      {/* 2 — Progress Race (Head-to-Head). */}
+      <div className="reveal-section" style={revealStyle(120)}>
+        <HeadToHeadCard left={leftPlayer} right={rightPlayer} />
+      </div>
+
+      {/* 3 — Saving Plan island (with embedded Verified Balance). */}
+      <div className="reveal-section" style={revealStyle(180)}>
+        {reconciledAppBalance === null && verifiedBalanceSlot === null && (
+          // Fallback row only when there is no Verified Balance to fold
+          // into the Saving Plan island — kept lightweight so it still
+          // doesn't compete with the Saving Plan headline.
+          <div className="mb-3">
+            <BalanceCheckStatus
+              latest={latestCheckpoint}
+              appBalance={0}
+              onCheck={() => navigate('/check-balance')}
+            />
           </div>
-          <div className="flex flex-col gap-2">
-            {partnerBucketItems.map(bucket => (
-              <BucketRow
-                key={bucket.id}
+        )}
+        <SavingPlanCard
+          ruleType={activeRule}
+          money={moneyStatus}
+          habit={habitStatus}
+          onConfigure={() => navigate('/saving-plan')}
+          savedToday={savedToday}
+          verifiedBalance={verifiedBalanceSlot}
+        />
+      </div>
+
+      {/* (Next Win — hidden for now; component preserved.) */}
+      {SHOW_NEXT_WIN && (
+        <div className="reveal-section" style={revealStyle(220)}>
+          <MicroGoalCard {...selectedBucket} />
+        </div>
+      )}
+
+      {/* 4 — Smart Buckets. */}
+      <div className="reveal-section flex flex-col gap-3" style={revealStyle(240)}>
+        {hasPartnerBuckets && (
+          <div className="flex items-center justify-end gap-2">
+            <Segmented
+              ariaLabel="Switch bucket owner"
+              options={[
+                { value: 'mine', label: 'You' },
+                { value: 'partner', label: partnerName },
+              ]}
+              value={bucketView}
+              onChange={next => {
+                setBucketView(next);
+                setExpandedBucketId(null);
+              }}
+            />
+          </div>
+        )}
+        {showingPartner ? (
+          <section className="flex flex-col gap-3">
+            <div className="sticky top-0 z-10 -mx-4 bg-bg/95 px-4 py-3 backdrop-blur">
+              <SectionLabel tone="brand">Smart Buckets</SectionLabel>
+              <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{partnerName}'s Buckets</h2>
+              <p className="mt-1 font-mono text-xs text-ink-muted">
+                {partnerBucketItems.length} bucket{partnerBucketItems.length === 1 ? '' : 's'} — read-only
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {partnerBucketItems.map(bucket => (
+                <BucketRow
+                  key={bucket.id}
+                  icon={bucket.icon}
+                  name={bucket.name}
+                  saved={bucket.saved}
+                  target={bucket.target}
+                />
+              ))}
+            </div>
+          </section>
+        ) : (
+          <BucketGrid
+            title="Trip Buckets"
+            subtitle={buckets.length > 0 ? `${buckets.length} active buckets` : 'Create your first bucket to split the trip.'}
+            buckets={bucketItems}
+            ctaLabel={buckets.length > 0 ? 'Add Bucket' : 'Create Bucket'}
+            onAddBucket={() => setBucketModalOpen(true)}
+            renderBucket={bucket => (
+              <BucketRowExpandable
                 icon={bucket.icon}
                 name={bucket.name}
                 saved={bucket.saved}
                 target={bucket.target}
+                quickAmounts={quickAmounts}
+                expanded={expandedBucketId === bucket.id}
+                onToggle={() => setExpandedBucketId(expandedBucketId === bucket.id ? null : bucket.id)}
+                onCancel={() => setExpandedBucketId(null)}
+                onConfirm={async amount => {
+                  const prev = bucket.saved;
+                  const result = await insert(amount, bucket.id);
+                  if (!result.error) {
+                    const reached = prev < bucket.target && prev + amount >= bucket.target;
+                    haptic(reached ? 'milestone' : 'success');
+                  }
+                  return result;
+                }}
               />
+            )}
+          />
+        )}
+        {buckets.length === 0 && (
+          <Button variant="action" fullWidth onClick={() => setBucketModalOpen(true)}>
+            Create First Bucket
+          </Button>
+        )}
+        {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
+      </div>
+
+      {/* 5 — Graphs. Lighter than the insight cards above. */}
+      <div className="reveal-section flex flex-col gap-3" style={revealStyle(300)}>
+        <MomentumChart
+          series={dailyAmountSeries(logs, user?.id)}
+          partnerSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
+          labels={lastSevenDayLabels()}
+          yourName={profile?.display_name ?? 'You'}
+          partnerName={partnerEntry?.displayName ?? 'Partner'}
+        />
+        {partnerEntry && (
+          <SavingRaceSection
+            logs={logs}
+            buckets={[...buckets, ...partnerBuckets]}
+            yourUserId={user?.id}
+            partnerUserId={partnerEntry.userId}
+            yourName={profile?.display_name ?? 'You'}
+            partnerName={partnerEntry.displayName}
+            activeRoomId={activeRoomId}
+          />
+        )}
+      </div>
+
+      {/* 6 — Activity. Deposits and balance checks merged into one
+              chronological list, top 3 items only. */}
+      <section className="reveal-section flex flex-col gap-3" style={revealStyle(360)}>
+        <div className="flex items-center justify-between gap-2">
+          <SectionLabel tone="brand">Activity</SectionLabel>
+          {logs.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className="font-mono text-xs font-bold text-brand-800 active:scale-[0.98] transition-transform"
+            >
+              View all
+            </button>
+          )}
+        </div>
+        {mergedActivity.length > 0 ? (
+          <div className="rounded-3xl bg-surface shadow-soft px-4 divide-y divide-well">
+            {mergedActivity.map(item => (
+              item.kind === 'deposit' ? (
+                <ActivityTimelineRow
+                  key={`d-${item.id}`}
+                  actorName={item.actorName}
+                  actorFallback={item.actorFallback}
+                  bucketName={item.bucketName}
+                  amount={item.amount}
+                  occurredAt={item.occurredAt}
+                  hasSlip={item.hasSlip}
+                />
+              ) : (
+                <BalanceActivityRow key={`b-${item.id}`} entry={item.entry} />
+              )
             ))}
           </div>
-        </section>
-      ) : (
-        <BucketGrid
-          title="Trip Buckets"
-          subtitle={buckets.length > 0 ? `${buckets.length} active buckets` : 'Create your first bucket to split the trip.'}
-          buckets={bucketItems}
-          ctaLabel={buckets.length > 0 ? 'Add Bucket' : 'Create Bucket'}
-          onAddBucket={() => setBucketModalOpen(true)}
-          renderBucket={bucket => (
-            <BucketRowExpandable
-              icon={bucket.icon}
-              name={bucket.name}
-              saved={bucket.saved}
-              target={bucket.target}
-              quickAmounts={quickAmounts}
-              expanded={expandedBucketId === bucket.id}
-              onToggle={() => setExpandedBucketId(expandedBucketId === bucket.id ? null : bucket.id)}
-              onCancel={() => setExpandedBucketId(null)}
-              onConfirm={async amount => {
-                const prev = bucket.saved;
-                const result = await insert(amount, bucket.id);
-                if (!result.error) {
-                  const reached = prev < bucket.target && prev + amount >= bucket.target;
-                  haptic(reached ? 'milestone' : 'success');
-                }
-                return result;
-              }}
-            />
-          )}
+        ) : (
+          <StatusCard title="No activity yet" body={`Start with ${formatCurrency(100)} and let the streak begin.`} />
+        )}
+        <ActivityHistoryModal
+          open={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          items={activityItems}
         />
-      )}
-      {buckets.length === 0 && (
-        <Button variant="action" fullWidth onClick={() => setBucketModalOpen(true)}>
-          Create First Bucket
-        </Button>
-      )}
-      {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
-      {logs.length > 0 ? (
-        <>
-          <ActivityFeed
-            items={activityItems}
-            onViewMore={() => setHistoryOpen(true)}
-            previewLimit={5}
-          />
-          <ActivityHistoryModal
-            open={historyOpen}
-            onClose={() => setHistoryOpen(false)}
-            items={activityItems}
-          />
-        </>
-      ) : (
-        <StatusCard title="No deposits yet" body={`Start with ${formatCurrency(100)} and let the streak begin.`} />
-      )}
-      <BalanceActivityFeed items={balanceActivity} currentUserId={user?.id} />
+      </section>
+
       <Modal open={bucketModalOpen} title="Add Bucket" onClose={() => setBucketModalOpen(false)}>
         <div className="flex flex-col gap-4">
           {message && <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
@@ -342,6 +463,73 @@ export function Dashboard() {
   );
 }
 
+interface DepositActivityItem {
+  id: string;
+  actorName: string;
+  actorFallback: string;
+  bucketName: string;
+  amount: number;
+  occurredAt: string;
+  hasSlip: boolean;
+  slipUrl?: string | null;
+}
+
+type MergedActivity =
+  | { kind: 'deposit'; id: string; at: string; actorName: string; actorFallback: string; bucketName: string; amount: number; occurredAt: string; hasSlip: boolean }
+  | { kind: 'balance'; id: string; at: string; entry: BalanceActivityEntry };
+
+function buildMergedActivity(
+  deposits: DepositActivityItem[],
+  balances: BalanceActivityEntry[],
+  limit: number,
+  currentUserId: string | undefined,
+): MergedActivity[] {
+  const dep: MergedActivity[] = deposits.map(d => ({
+    kind: 'deposit',
+    id: d.id,
+    at: d.occurredAt,
+    actorName: d.actorName,
+    actorFallback: d.actorFallback,
+    bucketName: d.bucketName,
+    amount: d.amount,
+    occurredAt: d.occurredAt,
+    hasSlip: d.hasSlip,
+  }));
+  const bal: MergedActivity[] = balances.map(b => ({
+    kind: 'balance',
+    id: b.checkpoint_id,
+    at: b.checked_at,
+    entry: b,
+  }));
+  void currentUserId; // currentUserId is captured in row UI, not the merge
+  return [...dep, ...bal]
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, Math.max(1, limit));
+}
+
+/** One sanitized balance-check row inside the merged activity feed. */
+function BalanceActivityRow({ entry }: { entry: BalanceActivityEntry }) {
+  const matched = entry.difference_amount === 0;
+  return (
+    <div className="flex items-center gap-3 py-3">
+      <IconBubble tone={matched ? 'peach' : 'muted'} size="md">
+        {matched ? <IconCheck size={18} /> : <IconVault size={18} />}
+      </IconBubble>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-mono text-sm text-ink">
+          <span className="font-bold">{entry.display_name?.trim() || 'Partner'}</span>
+          {matched
+            ? ' checked balance — matched'
+            : ` checked balance — ${formatSignedCurrency(entry.difference_amount)}`}
+        </p>
+        <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">
+          {entry.reason ? `${reasonLabel(entry.reason)} · ` : ''}{formatRelativeTime(entry.checked_at)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function StatusCard({ title, body }: { title: string; body: string }) {
   return (
     <section className="rounded-3xl bg-surface p-5 shadow-soft">
@@ -354,7 +542,7 @@ function StatusCard({ title, body }: { title: string; body: string }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="flex flex-col gap-8" aria-label="Loading dashboard">
+    <div className="flex flex-col gap-6 animate-fade-in" aria-label="Loading dashboard">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3 w-20 rounded-pill" />
@@ -363,13 +551,13 @@ function DashboardSkeleton() {
         </div>
         <Spinner size="sm" />
       </div>
-      <section className="rounded-3xl bg-surface p-5 shadow-soft">
+      <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
         <Skeleton className="h-4 w-28 rounded-pill" />
         <Skeleton className="mt-4 h-8 w-3/4" />
         <Skeleton className="mt-3 h-3 w-1/2 rounded-pill" />
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
         </div>
       </section>
       <section className="flex flex-col gap-3">
@@ -402,7 +590,7 @@ function bestMicroGoalBucket(buckets: Bucket[], logs: ReturnType<typeof useLogs>
     title: bucket.bucket.name,
     remaining: Math.max(0, bucket.bucket.target_amount - bucket.saved),
     pct: bucket.bucket.target_amount > 0 ? Math.min(100, Math.round((bucket.saved / bucket.bucket.target_amount) * 100)) : 0,
-    subtitle: `${formatCurrency(bucket.saved)} recorded`,
+    subtitle: `${formatCurrency(bucket.saved)} saved`,
   };
 }
 
@@ -439,25 +627,19 @@ interface SavingRaceSectionProps {
  * Renders the Deposit Race line chart with a bucket-scope filter. The
  * filter selection persists per room in localStorage so opening the
  * Dashboard later restores the previously-viewed scope.
- *
- * Defined here (in the same file as `Dashboard`) because the
- * filter-to-series wiring is single-use Dashboard concern; promoting
- * to a shared component would force the parent to plumb props that
- * only this view needs.
  */
 function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName, partnerName, activeRoomId }: SavingRaceSectionProps) {
   const storageKey = `saving-race-filter:${activeRoomId ?? 'no-room'}`;
   const [bucketFilter, setBucketFilter] = useLocalStorageState<string | null>(storageKey, null);
   const dedupedOptions = Array.from(new Map(buckets.map(b => [b.id, { id: b.id, name: b.name }])).values());
   const scopeBucket = buckets.find(b => b.id === bucketFilter) ?? null;
-  const scopeLabel = scopeBucket ? `Scope: ${scopeBucket.name}` : 'Scope: all buckets / main goal';
+  const scopeLabel = scopeBucket ? `Scope: ${scopeBucket.name}` : 'All buckets';
   const yourSeries = cumulativeRaceSeries(logs, yourUserId, bucketFilter);
   const partnerSeries = cumulativeRaceSeries(logs, partnerUserId, bucketFilter);
 
   return (
     <section className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <SectionLabel tone="brand">Competition</SectionLabel>
+      <div className="flex items-center justify-end">
         <SavingRaceFilter buckets={dedupedOptions} value={bucketFilter} onChange={setBucketFilter} />
       </div>
       <SavingRaceChart

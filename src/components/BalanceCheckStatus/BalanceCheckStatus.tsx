@@ -1,6 +1,5 @@
-import { IconBubble } from '../IconBubble/IconBubble';
+import { Chip } from '../Chip/Chip';
 import { IconVault } from '../Icon/Icon';
-import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { formatCurrency } from '../../lib/format';
 import { daysSince, formatSignedCurrency } from '../../lib/reconcile';
 import type { BalanceCheckpoint } from '../../types';
@@ -12,53 +11,50 @@ interface BalanceCheckStatusProps {
 }
 
 /**
- * Compact "Check Balance" status row shown on Dashboard / Profile.
- * Surfaces how long since the last check and the current Verified
- * Balance, plus the primary CTA to start the Check Balance flow.
+ * Lightweight Check Balance status row shown above the Dashboard
+ * hero. Stays visually secondary to the Saving Plan card.
  */
 export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheckStatusProps) {
   const days = latest ? daysSince(latest.checked_at) : null;
-  const statusLine = latest
+  const sinceLabel = latest
     ? days === 0
-      ? 'Last check: today'
+      ? 'today'
       : days === 1
-        ? 'Last check: 1 day ago'
-        : `Last check: ${days} days ago`
-    : 'No balance check yet';
+        ? '1d ago'
+        : `${days}d ago`
+    : 'never';
 
   const diff = latest?.difference_amount ?? 0;
-  const diffLine = latest
-    ? diff === 0
-      ? 'Amounts matched'
-      : `Difference ${formatSignedCurrency(diff)}`
-    : 'Confirm your savings match the verified balance.';
+  const matched = latest ? diff === 0 : false;
 
   return (
-    <section className="rounded-3xl bg-surface p-4 shadow-soft">
-      <div className="flex items-center gap-3">
-        <IconBubble tone="peach" size="md">
-          <IconVault size={20} />
-        </IconBubble>
-        <div className="min-w-0 flex-1">
-          <SectionLabel tone="brand">Check Balance</SectionLabel>
-          <p className="mt-1 truncate font-mono text-sm font-bold text-ink">{statusLine}</p>
-          <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">{diffLine}</p>
+    <section className="flex items-center gap-3 rounded-3xl bg-surface px-4 py-3 shadow-soft">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-800">
+        <IconVault size={18} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+            Verified Balance
+          </p>
+          {latest && (
+            <Chip tone={matched ? 'leaf' : 'peach'}>
+              {matched ? 'Matched' : formatSignedCurrency(diff)}
+            </Chip>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={onCheck}
-          className="shrink-0 rounded-pill bg-brand-800 px-4 py-2 font-mono text-xs font-bold text-ink-inverse shadow-soft active:scale-[0.98] transition-transform"
-        >
-          Check Balance
-        </button>
+        <p className="mt-0.5 truncate font-mono text-sm font-bold text-ink">
+          {formatCurrency(appBalance)}
+          <span className="ml-2 font-normal text-ink-muted">· checked {sinceLabel}</span>
+        </p>
       </div>
-      <div className="mt-3 flex items-center justify-between rounded-2xl bg-surfaceAlt px-3 py-2">
-        <SectionLabel tone="muted">Verified Balance</SectionLabel>
-        <span className="font-mono text-sm font-bold text-ink">{formatCurrency(appBalance)}</span>
-      </div>
-      <p className="mt-2 font-mono text-[11px] text-ink-muted">
-        Balance checks are separate from deposit charts.
-      </p>
+      <button
+        type="button"
+        onClick={onCheck}
+        className="shrink-0 rounded-pill bg-surfaceAlt px-3 py-1.5 font-mono text-xs font-bold text-brand-800 active:scale-[0.98] transition-transform"
+      >
+        Check
+      </button>
     </section>
   );
 }

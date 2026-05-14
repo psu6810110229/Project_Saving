@@ -66,4 +66,23 @@
   .divider-warm {
     @apply border-t border-brand-100/60;
   }
+  /* Subtle staggered reveal for composed pages (Dashboard).
+     Pair with `style={{ animationDelay: '60ms' }}` etc. for sequence. */
+  .reveal-section {
+    animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+/* Global reduced-motion guard. Disables Tailwind keyframe animations,
+   `animate-*` utilities, and any CSS transition for users who request
+   reduced motion at the OS level. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -112,9 +112,6 @@ export function MomentumChart({ series, partnerSeries, labels, yourName = 'You',
           );
         })}
       </svg>
-      <p className="mt-2 font-mono text-[11px] text-ink-muted">
-        Recorded deposits only.
-      </p>
     </section>
   );
 }

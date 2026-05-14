@@ -158,3 +158,49 @@ export interface BalanceActivityEntry {
   difference_amount: number;
   reason: BalanceAdjustmentReason | null;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Saving Plan (Task 22.1, migration 0030).
+ * ──────────────────────────────────────────────────────────────────── */
+
+export type SavingPlanRuleType =
+  | 'fixed_daily'
+  | 'fixed_weekly'
+  | 'fixed_monthly'
+  | 'increasing_daily';
+
+export interface SavingPlanRevision {
+  id: string;
+  plan_id: string;
+  room_id: string;
+  user_id: string;
+  /** Bangkok-local date the revision starts to apply (YYYY-MM-DD). */
+  effective_from_date: string;
+  rule_type: SavingPlanRuleType;
+  amount: number | null;
+  start_amount: number | null;
+  increment_amount: number | null;
+  cap_amount: number | null;
+  target_amount: number;
+  end_date: string | null;
+  day_count: number | null;
+  created_at: string;
+}
+
+export interface SavingPlan {
+  id: string;
+  room_id: string;
+  user_id: string;
+  timezone: string;
+  created_at: string;
+  archived_at: string | null;
+  revisions: SavingPlanRevision[];
+}
+
+/** Authoritative deposit summary from `recorded_deposits_summary` RPC. */
+export interface RecordedDepositsSummary {
+  total: number;
+  last_deposit_at: string | null;
+  /** Distinct Bangkok-local YYYY-MM-DD date keys (deposits exist on these days). */
+  deposit_day_keys: string[];
+}

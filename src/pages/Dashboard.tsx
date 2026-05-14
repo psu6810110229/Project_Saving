@@ -4,6 +4,7 @@ import { ActivityFeed } from '../components/ActivityFeed/ActivityFeed';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { BalanceActivityFeed } from '../components/BalanceActivityFeed/BalanceActivityFeed';
 import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
+import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketRowExpandable } from '../components/BucketRowExpandable/BucketRowExpandable';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
@@ -38,12 +39,19 @@ import { usePartnerBuckets } from '../hooks/usePartnerBuckets';
 import { useProfile } from '../hooks/useProfile';
 import { useReconcile } from '../hooks/useReconcile';
 import { useRoom } from '../hooks/useRoom';
+import { useSavingPlan } from '../hooks/useSavingPlan';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { bucketSaved, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDayLabels, weeklyTrendPct } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
+import {
+  activeRevisionAt,
+  habitStatusFromDeposits,
+  moneyStatusFor,
+  todayBangkokKey,
+} from '../lib/savingPlan';
 import type { Bucket, BucketCategory } from '../types';
 
 export function Dashboard() {
@@ -61,6 +69,7 @@ export function Dashboard() {
     activity: balanceActivity,
     appBalance: reconciledAppBalance,
   } = useReconcile(activeRoomId);
+  const { plan: savingPlan, deposits: planDeposits } = useSavingPlan(activeRoomId);
   const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
   const { buckets: partnerBuckets } = usePartnerBuckets(activeRoomId, partnerEntry?.userId);
   const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
@@ -158,6 +167,28 @@ export function Dashboard() {
           onCheck={() => navigate('/check-balance')}
         />
       )}
+      {(() => {
+        const todayKey = todayBangkokKey();
+        const activeRule = savingPlan
+          ? activeRevisionAt(savingPlan.revisions, todayKey)?.rule_type ?? null
+          : null;
+        const moneyStatus = savingPlan
+          ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey)
+          : null;
+        const habitStatus = habitStatusFromDeposits(
+          activeRule,
+          planDeposits.deposit_day_keys,
+          todayKey,
+        );
+        return (
+          <SavingPlanCard
+            ruleType={activeRule}
+            money={moneyStatus}
+            habit={habitStatus}
+            onConfigure={() => navigate('/saving-plan')}
+          />
+        );
+      })()}
       <DashboardHero
         title={activeRoom?.name ?? 'Japan 2027'}
         subtitle={`${profile?.display_name ?? 'You'} recorded ${formatCurrency(total)} toward ${formatCurrency(target)}`}

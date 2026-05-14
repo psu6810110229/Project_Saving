@@ -8,6 +8,7 @@ import { AtomsPreview } from './pages/AtomsPreview';
 import { AuthCallback } from './pages/AuthCallback';
 import { CheckBalance } from './pages/CheckBalance';
 import { Dashboard } from './pages/Dashboard';
+import { SavingPlan } from './pages/SavingPlan';
 import { Login } from './pages/Login';
 import { ManageProject } from './pages/ManageProject';
 import { MoleculesPreview } from './pages/MoleculesPreview';
@@ -36,6 +37,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/add" element={<AddMoney />} />
               <Route path="/check-balance" element={<CheckBalance />} />
+              <Route path="/saving-plan" element={<SavingPlan />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/manage-project" element={<ManageProject />} />
             </Route>

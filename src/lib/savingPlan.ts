@@ -98,11 +98,110 @@ export function activeRevisionAt(
   return null;
 }
 
+/**
+ * Daily planned amount IGNORING any stop (end_date, day_count,
+ * target reach). Used to drive the target-reach search without
+ * recursing through revisionEndKey.
+ */
+function rawDailyForRevision(
+  rev: SavingPlanRevision,
+  dateKey: string,
+): number {
+  if (dateKey < rev.effective_from_date) return 0;
+  switch (rev.rule_type) {
+    case 'fixed_daily': {
+      return Number(rev.amount ?? 0);
+    }
+    case 'fixed_weekly': {
+      const { start, end } = weekBoundaries(dateKey);
+      const winStart = start < rev.effective_from_date ? rev.effective_from_date : start;
+      const winEnd = end;
+      if (winEnd < winStart) return 0;
+      const activeDays = daysInclusive(winStart, winEnd);
+      if (activeDays <= 0) return 0;
+      return Number(rev.amount ?? 0) / activeDays;
+    }
+    case 'fixed_monthly': {
+      const { start, end } = monthBoundaries(dateKey);
+      const winStart = start < rev.effective_from_date ? rev.effective_from_date : start;
+      const winEnd = end;
+      if (winEnd < winStart) return 0;
+      const activeDays = daysInclusive(winStart, winEnd);
+      if (activeDays <= 0) return 0;
+      return Number(rev.amount ?? 0) / activeDays;
+    }
+    case 'increasing_daily': {
+      const idx = daysInclusive(rev.effective_from_date, dateKey);
+      const startA = Number(rev.start_amount ?? 0);
+      const inc = Number(rev.increment_amount ?? 0);
+      return startA + (idx - 1) * inc;
+    }
+    case 'increasing_daily_capped': {
+      const idx = daysInclusive(rev.effective_from_date, dateKey);
+      const startA = Number(rev.start_amount ?? 0);
+      const inc = Number(rev.increment_amount ?? 0);
+      const cap = Number(rev.cap_amount ?? Infinity);
+      const raw = startA + (idx - 1) * inc;
+      return raw > cap ? cap : raw;
+    }
+    default:
+      return 0;
+  }
+}
+
+const TARGET_REACH_CACHE = new WeakMap<SavingPlanRevision, { value: string | null }>();
+const TARGET_REACH_HORIZON = 10000;
+
+/**
+ * First Bangkok date on which the revision's raw planned curve
+ * accumulates to `target_amount` from `effective_from_date`. Returns
+ * null when the target is unreachable within the search horizon or
+ * the revision has no positive target.
+ *
+ * The result is cached per revision object — a single walk per fetch.
+ */
+function targetReachDateKey(rev: SavingPlanRevision): string | null {
+  const cached = TARGET_REACH_CACHE.get(rev);
+  if (cached) return cached.value;
+
+  const target = Number(rev.target_amount ?? 0);
+  if (!Number.isFinite(target) || target <= 0) {
+    TARGET_REACH_CACHE.set(rev, { value: null });
+    return null;
+  }
+
+  let cumul = 0;
+  let cursor = rev.effective_from_date;
+  let found: string | null = null;
+  for (let i = 0; i < TARGET_REACH_HORIZON; i++) {
+    const daily = rawDailyForRevision(rev, cursor);
+    if (daily > 0) {
+      cumul += daily;
+      if (cumul + 0.005 >= target) {
+        found = cursor;
+        break;
+      }
+    }
+    cursor = addDays(cursor, 1);
+  }
+  TARGET_REACH_CACHE.set(rev, { value: found });
+  return found;
+}
+
 function revisionEndKey(rev: SavingPlanRevision): string | null {
   let endKey: string | null = rev.end_date;
   if (rev.day_count && rev.day_count > 0) {
     const dayCountEnd = addDays(rev.effective_from_date, rev.day_count - 1);
     if (!endKey || dayCountEnd < endKey) endKey = dayCountEnd;
+  }
+  // When no explicit stop (no end_date, no day_count), the plan's
+  // target_amount acts as the implicit stop: once the planned curve
+  // would accumulate to target, daily amounts go to 0 so expected
+  // cumulative can't push past the target and mark a user "behind"
+  // after they've already reached it.
+  if (endKey === null) {
+    const targetReach = targetReachDateKey(rev);
+    if (targetReach) endKey = targetReach;
   }
   return endKey;
 }
@@ -144,6 +243,14 @@ function revisionDailyAmount(
       const inc = Number(rev.increment_amount ?? 0);
       return startA + (idx - 1) * inc;
     }
+    case 'increasing_daily_capped': {
+      const idx = daysInclusive(rev.effective_from_date, dateKey);
+      const startA = Number(rev.start_amount ?? 0);
+      const inc = Number(rev.increment_amount ?? 0);
+      const cap = Number(rev.cap_amount ?? Infinity);
+      const raw = startA + (idx - 1) * inc;
+      return raw > cap ? cap : raw;
+    }
     default:
       return 0;
   }
@@ -179,6 +286,17 @@ export function plannedCumulativeThroughDate(
     if (cursor > asOfDateKey) break;
     total += plannedAmountForDate(revisions, cursor);
     cursor = addDays(cursor, 1);
+  }
+  // In target-reach mode (no day_count, no end_date on the active
+  // revision), the planned curve overshoots target by at most one
+  // day's amount on the target-reach day itself. Clamp so the
+  // headline expected cumulative never exceeds the plan's target.
+  const active = activeRevisionAt(revisions, asOfDateKey);
+  if (active && !active.end_date && (active.day_count == null || active.day_count <= 0)) {
+    const target = Number(active.target_amount ?? 0);
+    if (Number.isFinite(target) && target > 0 && total > target) {
+      total = target;
+    }
   }
   return total;
 }
@@ -386,6 +504,7 @@ export const RULE_TYPE_LABEL: Record<SavingPlanRuleType, string> = {
   fixed_weekly: 'Fixed weekly',
   fixed_monthly: 'Fixed monthly',
   increasing_daily: 'Increasing daily',
+  increasing_daily_capped: 'Increasing daily (capped)',
 };
 
 export const MONEY_STATE_LABEL: Record<MoneyState, string> = {

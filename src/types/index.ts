@@ -167,7 +167,8 @@ export type SavingPlanRuleType =
   | 'fixed_daily'
   | 'fixed_weekly'
   | 'fixed_monthly'
-  | 'increasing_daily';
+  | 'increasing_daily'
+  | 'increasing_daily_capped';
 
 export interface SavingPlanRevision {
   id: string;

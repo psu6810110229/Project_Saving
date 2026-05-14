@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
+import { Chip } from '../components/Chip/Chip';
 import { FormField } from '../components/FormField/FormField';
 import { PageHeader } from '../components/PageHeader/PageHeader';
-import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { TextInput } from '../components/TextInput/TextInput';
 import { useGoal } from '../hooks/useGoal';
@@ -12,24 +12,39 @@ import { useSavingPlan } from '../hooks/useSavingPlan';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import {
-  RULE_TYPE_LABEL,
   activeRevisionAt,
+  addDays,
+  daysInclusive,
+  plannedCumulativeThroughDate,
+  projectedCompletionDate,
   shortDateLabel,
   todayBangkokKey,
 } from '../lib/savingPlan';
-import type { SavingPlanRuleType } from '../types';
+import type { SavingPlanRevision, SavingPlanRuleType } from '../types';
 
 interface PresetOption {
   id: SavingPlanRuleType;
   label: string;
-  description: string;
 }
 
 const PRESETS: PresetOption[] = [
-  { id: 'fixed_daily',      label: 'Fixed daily',      description: 'Same amount every day.' },
-  { id: 'fixed_weekly',     label: 'Fixed weekly',     description: 'Same amount per week, smoothed across the week.' },
-  { id: 'fixed_monthly',    label: 'Fixed monthly',    description: 'Same amount per month, smoothed across the month.' },
-  { id: 'increasing_daily', label: 'Increasing daily', description: 'Start small, add a little more each day.' },
+  { id: 'fixed_daily',      label: 'Daily' },
+  { id: 'fixed_weekly',     label: 'Weekly' },
+  { id: 'fixed_monthly',    label: 'Monthly' },
+  { id: 'increasing_daily', label: 'Increasing' },
+];
+
+type StopMode = 'target' | 'days' | 'date';
+
+interface StopOption {
+  id: StopMode;
+  label: string;
+}
+
+const STOP_OPTIONS: StopOption[] = [
+  { id: 'target', label: 'When target is reached' },
+  { id: 'days',   label: 'After a number of days' },
+  { id: 'date',   label: 'On a specific date' },
 ];
 
 export function SavingPlan() {
@@ -47,8 +62,11 @@ export function SavingPlan() {
   const [amount, setAmount] = useState('');
   const [startAmount, setStartAmount] = useState('1');
   const [incrementAmount, setIncrementAmount] = useState('1');
+  const [capAmount, setCapAmount] = useState('');
+  const [dayCount, setDayCount] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [stopMode, setStopMode] = useState<StopMode>('target');
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [seededRevisionId, setSeededRevisionId] = useState<string | null>(null);
@@ -60,13 +78,23 @@ export function SavingPlan() {
     if (loading) return;
     if (latestRevision) {
       if (seededRevisionId === latestRevision.id) return;
+      const isCapped = latestRevision.rule_type === 'increasing_daily_capped';
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setRuleType(latestRevision.rule_type);
+      setRuleType(isCapped ? 'increasing_daily' : latestRevision.rule_type);
       setAmount(latestRevision.amount != null ? String(latestRevision.amount) : '');
       setStartAmount(latestRevision.start_amount != null ? String(latestRevision.start_amount) : '1');
       setIncrementAmount(latestRevision.increment_amount != null ? String(latestRevision.increment_amount) : '1');
+      setCapAmount(latestRevision.cap_amount != null ? String(latestRevision.cap_amount) : '');
+      setDayCount(latestRevision.day_count != null ? String(latestRevision.day_count) : '');
       setTargetAmount(String(latestRevision.target_amount));
       setEndDate(latestRevision.end_date ?? '');
+      if (latestRevision.day_count != null) {
+        setStopMode('days');
+      } else if (latestRevision.end_date) {
+        setStopMode('date');
+      } else {
+        setStopMode('target');
+      }
       setSeededRevisionId(latestRevision.id);
       setDidSeedCreateTarget(true);
       return;
@@ -77,6 +105,90 @@ export function SavingPlan() {
       setDidSeedCreateTarget(true);
     }
   }, [loading, latestRevision, goal?.target_amount, goal?.end_date, didSeedCreateTarget, seededRevisionId]);
+
+  const effectiveFromDate = todayBangkokKey();
+
+  // Synthetic revision powering the live preview card. Recalculated
+  // from the live form inputs so estimates update as the user types.
+  const previewRevisions = useMemo<SavingPlanRevision[] | null>(() => {
+    if (ruleType !== 'increasing_daily') return null;
+    const startNum = Number(startAmount);
+    const incNum = Number(incrementAmount);
+    const capNum = Number(capAmount);
+    const targetNum = Number(targetAmount);
+    if (!Number.isFinite(startNum) || startNum <= 0) return null;
+    if (!Number.isFinite(incNum) || incNum < 0) return null;
+    if (!Number.isFinite(capNum) || capNum <= 0 || capNum < startNum) return null;
+    if (!Number.isFinite(targetNum) || targetNum <= 0) return null;
+    const dayCountNum = dayCount.trim() !== '' && /^[0-9]+$/.test(dayCount) ? Number(dayCount) : null;
+    return [{
+      id: 'preview',
+      plan_id: 'preview',
+      room_id: 'preview',
+      user_id: 'preview',
+      effective_from_date: effectiveFromDate,
+      rule_type: 'increasing_daily_capped',
+      amount: null,
+      start_amount: startNum,
+      increment_amount: incNum,
+      cap_amount: capNum,
+      target_amount: targetNum,
+      end_date: stopMode === 'date' && endDate >= effectiveFromDate ? endDate : null,
+      day_count: stopMode === 'days' && dayCountNum && dayCountNum > 0 ? dayCountNum : null,
+      created_at: new Date().toISOString(),
+    }];
+  }, [ruleType, startAmount, incrementAmount, capAmount, targetAmount, stopMode, endDate, dayCount, effectiveFromDate]);
+
+  const preview = useMemo(() => {
+    if (!previewRevisions) return null;
+    const rev = previewRevisions[0];
+    const targetNum = Number(rev.target_amount);
+    const capNum = Number(rev.cap_amount ?? 0);
+    const beforeStart = addDays(effectiveFromDate, -1);
+
+    if (stopMode === 'target') {
+      const finish = projectedCompletionDate(previewRevisions, 0, beforeStart, 3650);
+      if (!finish) {
+        return { mode: 'target' as const, unreachable: true as const, capAmount: capNum };
+      }
+      const days = daysInclusive(effectiveFromDate, finish);
+      const total = plannedCumulativeThroughDate(previewRevisions, finish, Math.max(4000, days + 10));
+      return {
+        mode: 'target' as const,
+        unreachable: false as const,
+        days,
+        finishDateKey: finish,
+        capAmount: capNum,
+        total,
+      };
+    }
+    if (stopMode === 'days') {
+      if (!rev.day_count) return null;
+      const endKey = addDays(effectiveFromDate, rev.day_count - 1);
+      const total = plannedCumulativeThroughDate(previewRevisions, endKey, Math.max(4000, rev.day_count + 10));
+      return {
+        mode: 'days' as const,
+        finishDateKey: endKey,
+        days: rev.day_count,
+        total,
+        target: targetNum,
+        capAmount: capNum,
+        reachesTarget: total + 0.005 >= targetNum,
+      };
+    }
+    if (!rev.end_date) return null;
+    const total = plannedCumulativeThroughDate(previewRevisions, rev.end_date, 4000);
+    const days = daysInclusive(effectiveFromDate, rev.end_date);
+    return {
+      mode: 'date' as const,
+      finishDateKey: rev.end_date,
+      days,
+      total,
+      target: targetNum,
+      capAmount: capNum,
+      reachesTarget: total + 0.005 >= targetNum,
+    };
+  }, [previewRevisions, stopMode, effectiveFromDate]);
 
   if (loading) {
     return (
@@ -94,50 +206,99 @@ export function SavingPlan() {
 
   async function handleSubmit() {
     setMessage(null);
-    const effectiveFromDate = todayBangkokKey();
 
     const targetNum = Number(targetAmount);
     if (!Number.isFinite(targetNum) || targetNum <= 0) {
-      setMessage('Target amount must be greater than zero.');
+      setMessage('Enter a plan target.');
       return;
     }
 
     let amountNum: number | undefined;
     let startNum: number | undefined;
     let incNum: number | undefined;
+    let capNum: number | undefined;
+    let dayCountNum: number | undefined;
+    let endDateOut: string | undefined;
+    let submitRuleType: SavingPlanRuleType = ruleType;
 
     if (ruleType === 'increasing_daily') {
       startNum = Number(startAmount);
       incNum = Number(incrementAmount);
       if (!Number.isFinite(startNum) || startNum <= 0) {
-        setMessage('Start amount must be greater than zero.');
+        setMessage('Enter a start amount.');
         return;
       }
       if (!Number.isFinite(incNum) || incNum < 0) {
-        setMessage('Increment must be zero or more.');
+        setMessage('Increase by must be zero or more.');
         return;
       }
+      if (capAmount.trim() === '') {
+        setMessage('Enter a maximum daily amount.');
+        return;
+      }
+      capNum = Number(capAmount);
+      if (!Number.isFinite(capNum) || capNum <= 0) {
+        setMessage('Maximum daily amount must be greater than zero.');
+        return;
+      }
+      if (capNum < startNum) {
+        setMessage('Maximum daily amount must be at least the start amount.');
+        return;
+      }
+
+      if (stopMode === 'target') {
+        dayCountNum = undefined;
+        endDateOut = undefined;
+      } else if (stopMode === 'days') {
+        if (dayCount.trim() === '') {
+          setMessage('Enter the number of days.');
+          return;
+        }
+        dayCountNum = Number(dayCount);
+        if (!Number.isInteger(dayCountNum) || dayCountNum <= 0) {
+          setMessage('Plan length must be at least 1 day.');
+          return;
+        }
+        endDateOut = undefined;
+      } else {
+        if (!endDate) {
+          setMessage('Choose a stop date.');
+          return;
+        }
+        if (endDate < effectiveFromDate) {
+          setMessage('Choose a future end date.');
+          return;
+        }
+        endDateOut = endDate;
+        dayCountNum = undefined;
+      }
+
+      submitRuleType = 'increasing_daily_capped';
     } else {
       amountNum = Number(amount);
       if (!Number.isFinite(amountNum) || amountNum <= 0) {
-        setMessage('Amount must be greater than zero.');
+        setMessage('Enter an amount.');
         return;
       }
-    }
-    if (endDate && endDate < effectiveFromDate) {
-      setMessage('End date must be on or after the plan start date.');
-      return;
+      if (endDate && endDate < effectiveFromDate) {
+        setMessage('Choose a future end date.');
+        return;
+      }
+      endDateOut = endDate || undefined;
+      dayCountNum = undefined;
     }
 
     setSubmitting(true);
     const input = {
-      ruleType,
+      ruleType: submitRuleType,
       targetAmount: targetNum,
       amount: amountNum,
       startAmount: startNum,
       incrementAmount: incNum,
+      capAmount: capNum,
+      dayCount: dayCountNum,
       effectiveFromDate,
-      endDate: endDate || undefined,
+      endDate: endDateOut,
     };
     const result = isChange ? await changePlan(input) : await createPlan(input);
     setSubmitting(false);
@@ -150,110 +311,141 @@ export function SavingPlan() {
     navigate('/dashboard');
   }
 
+  const amountHelper = ruleType === 'fixed_weekly'
+    ? 'Per week.'
+    : ruleType === 'fixed_monthly'
+      ? 'Per month.'
+      : 'Per day.';
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Saving Plan"
         title={isChange ? 'Change plan' : 'Set up plan'}
-        subtitle={isChange
-          ? 'Changes start from today. Past progress will not be rewritten.'
-          : 'Pick a cadence and your save amount.'}
         showBack
       />
 
-      {goal?.target_amount && (
-        <section className="rounded-3xl bg-surfaceAlt p-4">
-          <SectionLabel tone="muted">Project goal</SectionLabel>
-          <p className="mt-1 font-mono text-sm text-ink">{formatCurrency(Number(goal.target_amount))}</p>
-          {goal.end_date && (
-            <p className="mt-0.5 font-mono text-xs text-ink-muted">Until {shortDateLabel(goal.end_date)}</p>
-          )}
-        </section>
-      )}
-
-      {isChange && latestRevision && (
-        <section className="rounded-3xl bg-surfaceAlt p-4">
-          <SectionLabel tone="muted">Current plan · until today</SectionLabel>
-          <p className="mt-1 font-mono text-sm font-bold text-ink">
-            {RULE_TYPE_LABEL[latestRevision.rule_type]}
-            {latestRevision.amount != null
-              ? ` · ${formatCurrency(Number(latestRevision.amount))}`
-              : ''}
-            {latestRevision.start_amount != null
-              ? ` · from ${formatCurrency(Number(latestRevision.start_amount))}/day`
-              : ''}
-          </p>
-          <p className="mt-0.5 font-mono text-xs text-ink-muted">
-            Target {formatCurrency(Number(latestRevision.target_amount))}
-            {latestRevision.end_date ? ` · until ${shortDateLabel(latestRevision.end_date)}` : ''}
-          </p>
-        </section>
-      )}
-
-      <section className="rounded-3xl bg-surface p-4 shadow-soft">
-        <SectionLabel tone="brand">Cadence</SectionLabel>
-        <div className="mt-3 flex flex-col gap-2">
-          {PRESETS.map(preset => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => setRuleType(preset.id)}
-              className={
-                'w-full rounded-2xl px-4 py-3 text-left font-mono text-sm transition-colors ' +
-                (ruleType === preset.id
-                  ? 'bg-brand-800 text-ink-inverse'
-                  : 'bg-surfaceAlt text-ink hover:bg-brand-50')
-              }
-            >
-              <span className="block font-bold">{preset.label}</span>
-              <span className={
-                'mt-1 block text-xs ' +
-                (ruleType === preset.id ? 'text-ink-inverse/80' : 'text-ink-muted')
-              }>
-                {preset.description}
-              </span>
-            </button>
-          ))}
+      {/* Plan type selector */}
+      <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-brand-800">
+          Plan type
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {PRESETS.map(preset => {
+            const selected = ruleType === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => setRuleType(preset.id)}
+                className={
+                  'rounded-2xl px-4 py-3 text-center font-mono text-sm font-bold transition-colors ' +
+                  (selected
+                    ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
+                    : 'bg-surface text-ink shadow-soft hover:bg-brand-50')
+                }
+              >
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
       </section>
 
-      <section className="rounded-3xl bg-surface p-4 shadow-soft">
-        <SectionLabel tone="brand">{RULE_TYPE_LABEL[ruleType]}</SectionLabel>
-        <div className="mt-3 flex flex-col gap-3">
+      {/* Plan fields */}
+      <section className="rounded-3xl bg-surface p-5 shadow-soft">
+        <div className="flex flex-col gap-4">
           {ruleType === 'increasing_daily' ? (
             <>
-              <FormField label="Start amount" helper="Amount for day 1.">
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Start amount">
+                  <TextInput
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="1"
+                    value={startAmount}
+                    leadingIcon={<span className="font-mono font-bold">฿</span>}
+                    onChange={e => setStartAmount(digitsOnly(e.target.value))}
+                  />
+                </FormField>
+                <FormField label="Increase by">
+                  <TextInput
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="1"
+                    value={incrementAmount}
+                    leadingIcon={<span className="font-mono font-bold">฿</span>}
+                    onChange={e => setIncrementAmount(digitsOnly(e.target.value))}
+                  />
+                </FormField>
+              </div>
+
+              <FormField label="Maximum daily amount">
                 <TextInput
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  placeholder="1"
-                  value={startAmount}
+                  placeholder="180"
+                  value={capAmount}
                   leadingIcon={<span className="font-mono font-bold">฿</span>}
-                  onChange={e => setStartAmount(digitsOnly(e.target.value))}
+                  onChange={e => setCapAmount(digitsOnly(e.target.value))}
                 />
               </FormField>
-              <FormField label="Daily increment" helper="How much to add each day.">
-                <TextInput
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="1"
-                  value={incrementAmount}
-                  leadingIcon={<span className="font-mono font-bold">฿</span>}
-                  onChange={e => setIncrementAmount(digitsOnly(e.target.value))}
-                />
-              </FormField>
+
+              <div>
+                <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                  Stop when
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {STOP_OPTIONS.map(opt => {
+                    const selected = stopMode === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setStopMode(opt.id)}
+                        className={
+                          'rounded-pill px-3 py-1.5 font-mono text-xs font-bold transition-colors ' +
+                          (selected
+                            ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
+                            : 'bg-brand-50 text-brand-800 hover:bg-brand-100')
+                        }
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {stopMode === 'days' && (
+                  <div className="mt-3">
+                    <FormField label="Run this plan for">
+                      <TextInput
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="500"
+                        value={dayCount}
+                        trailingIcon={<span className="font-mono text-xs text-ink-muted">days</span>}
+                        onChange={e => setDayCount(digitsOnly(e.target.value))}
+                      />
+                    </FormField>
+                  </div>
+                )}
+
+                {stopMode === 'date' && (
+                  <div className="mt-3">
+                    <FormField label="End date">
+                      <TextInput
+                        type="date"
+                        value={endDate}
+                        onChange={e => setEndDate(e.target.value)}
+                      />
+                    </FormField>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
-            <FormField
-              label="Amount"
-              helper={
-                ruleType === 'fixed_weekly'
-                  ? 'Total per week. Shown as a smoothed daily target.'
-                  : ruleType === 'fixed_monthly'
-                    ? 'Total per month. Shown as a smoothed daily target.'
-                    : 'Amount to save each day.'
-              }
-            >
+            <FormField label="Amount" helper={amountHelper}>
               <TextInput
                 inputMode="numeric"
                 pattern="[0-9]*"
@@ -265,7 +457,7 @@ export function SavingPlan() {
             </FormField>
           )}
 
-          <FormField label="Plan target" helper="Default from your project goal.">
+          <FormField label="Plan target">
             <TextInput
               inputMode="numeric"
               pattern="[0-9]*"
@@ -276,36 +468,81 @@ export function SavingPlan() {
             />
           </FormField>
 
-          <FormField label="End date" helper="Optional. Defaults to your project goal date.">
-            <TextInput
-              type="date"
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-            />
-          </FormField>
+          {ruleType !== 'increasing_daily' && (
+            <FormField label="End date">
+              <TextInput
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+              />
+            </FormField>
+          )}
         </div>
-
-        {message && (
-          <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>
-        )}
-        {error && (
-          <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>
-        )}
-
-        <div className="mt-4 flex flex-col gap-2">
-          <Button variant="action" fullWidth onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Saving…' : isChange ? 'Save change' : 'Create plan'}
-          </Button>
-          <Button variant="ghost" size="md" fullWidth onClick={() => navigate(-1)}>
-            Cancel
-          </Button>
-        </div>
-        {isChange && (
-          <p className="mt-2 font-mono text-[11px] text-ink-muted">
-            A new revision will be created effective today. Past dates keep their old plan.
-          </p>
-        )}
       </section>
+
+      {/* Preview card */}
+      {preview && (
+        <section className="rounded-3xl bg-brand-50 p-5 shadow-soft">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-brand-800">
+              Preview
+            </p>
+            {preview.mode !== 'target' && !preview.reachesTarget && (
+              <Chip tone="peach">Below target</Chip>
+            )}
+          </div>
+
+          {preview.mode === 'target' && preview.unreachable ? (
+            <p className="mt-3 font-mono text-xs text-ink-muted">
+              Can&apos;t reach your target within 10 years. Try a higher maximum daily amount.
+            </p>
+          ) : (
+            <dl className="mt-3 flex flex-col gap-2 font-mono text-xs">
+              <PreviewRow label="Estimated finish" value={shortDateLabel(preview.finishDateKey)} />
+              <PreviewRow label="Saving days" value={`${preview.days} day${preview.days === 1 ? '' : 's'}`} />
+              <PreviewRow label="Daily cap" value={formatCurrency(Math.round(preview.capAmount))} />
+              <PreviewRow label="Expected total" value={formatCurrency(Math.round(preview.total))} />
+            </dl>
+          )}
+
+          {preview.mode !== 'target' && !preview.reachesTarget && (
+            <p className="mt-3 font-mono text-[11px] text-ink-muted">
+              This may finish below your target.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Validation / error */}
+      {(message || error) && (
+        <p className="rounded-2xl bg-danger-soft px-4 py-3 font-mono text-xs text-danger">
+          {message ?? error}
+        </p>
+      )}
+
+      {/* CTA */}
+      <div className="flex flex-col gap-2">
+        <Button variant="action" fullWidth onClick={handleSubmit} disabled={submitting}>
+          {submitting ? 'Saving…' : 'Save plan'}
+        </Button>
+        <Button variant="ghost" size="md" fullWidth onClick={() => navigate(-1)}>
+          Cancel
+        </Button>
+      </div>
+      {isChange && (
+        <p className="text-center font-mono text-[11px] text-ink-muted">
+          Changes start from today. Past progress is kept.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className="text-ink">{value}</dd>
     </div>
   );
 }

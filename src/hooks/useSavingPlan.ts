@@ -75,6 +75,7 @@ export interface CreatePlanInput {
   amount?: number;
   startAmount?: number;
   incrementAmount?: number;
+  capAmount?: number;
   effectiveFromDate?: string;
   endDate?: string;
   dayCount?: number;
@@ -196,6 +197,7 @@ export function useSavingPlan(roomId: string | null) {
       p_effective_from_date: input.effectiveFromDate ?? null,
       p_end_date: input.endDate ?? null,
       p_day_count: input.dayCount ?? null,
+      p_cap_amount: input.capAmount ?? null,
     });
     if (rpcErr) return { error: rpcErr.message };
     const row = (Array.isArray(data) ? data[0] : data) as { plan_id?: string; revision_id?: string } | undefined;
@@ -217,6 +219,7 @@ export function useSavingPlan(roomId: string | null) {
       p_effective_from_date: input.effectiveFromDate ?? null,
       p_end_date: input.endDate ?? null,
       p_day_count: input.dayCount ?? null,
+      p_cap_amount: input.capAmount ?? null,
     });
     if (rpcErr) return { error: rpcErr.message };
     await fetchPlan();

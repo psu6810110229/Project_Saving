@@ -1,8 +1,22 @@
 ﻿import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { IconButton } from '../IconButton/IconButton';
 import { IconX } from '../Icon/Icon';
+
+const SPRING = { type: 'spring', damping: 28, stiffness: 280 } as const;
+const SPRING_CONTENT = { type: 'spring', damping: 26, stiffness: 260 } as const;
+
+const contentVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.055, delayChildren: 0.08 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: SPRING_CONTENT },
+};
 
 interface ModalProps {
   open: boolean;
@@ -25,31 +39,56 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
 
-  if (!open) return null;
-
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 px-3 pb-3 pt-10 animate-fade-in md:items-center md:p-6">
-      <button
-        type="button"
-        aria-label="Close modal"
-        className="absolute inset-0 cursor-default"
-        onClick={onClose}
-      />
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-        className="relative z-10 max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-bg p-4 shadow-neuRaised animate-scale-in md:rounded-xl md:p-5"
-      >
-        <header className="mb-4 flex items-center justify-between gap-3">
-          <h2 id="modal-title" className="font-mono text-xl font-bold text-ink">{title}</h2>
-          <IconButton ariaLabel="Close" size="sm" onClick={onClose}>
-            <IconX size={18} />
-          </IconButton>
-        </header>
-        {children}
-      </section>
-    </div>,
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            key="modal-backdrop"
+            className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-[2px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+          />
+
+          {/* Card */}
+          <motion.div
+            key="modal-card"
+            className="fixed inset-0 z-50 flex items-end justify-center px-3 pb-3 pt-10 pointer-events-none md:items-center md:p-6"
+          >
+            <motion.section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="modal-title"
+              className="relative pointer-events-auto max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-bg p-4 shadow-neuRaised md:rounded-xl md:p-5"
+              initial={{ opacity: 0, y: 28, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.97 }}
+              transition={SPRING}
+            >
+              <motion.div
+                variants={contentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <motion.header variants={itemVariants} className="mb-4 flex items-center justify-between gap-3">
+                  <h2 id="modal-title" className="font-mono text-xl font-bold text-ink">{title}</h2>
+                  <IconButton ariaLabel="Close" size="sm" onClick={onClose}>
+                    <IconX size={18} />
+                  </IconButton>
+                </motion.header>
+                <motion.div variants={itemVariants}>
+                  {children}
+                </motion.div>
+              </motion.div>
+            </motion.section>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>,
     document.body,
   );
 }

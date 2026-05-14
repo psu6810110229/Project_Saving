@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { motion } from 'framer-motion';
+
+const SPRING = { type: 'spring', damping: 24, stiffness: 200 } as const;
 
 interface PageTransitionProps {
   transitionKey: string;
@@ -7,8 +10,13 @@ interface PageTransitionProps {
 
 export function PageTransition({ transitionKey, children }: PageTransitionProps) {
   return (
-    <div key={transitionKey} className="animate-fade-in-up">
+    <motion.div
+      key={transitionKey}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={SPRING}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 }

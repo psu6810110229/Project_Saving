@@ -1,10 +1,7 @@
 import type { ReactNode } from 'react';
+import { motion } from 'framer-motion';
 
-/**
- * Single tab in the floating bottom tab bar. Inactive = stacked icon + label
- * in ink-muted. Active = brand-800 filled circle around the icon, with the
- * label sitting underneath (Dashboard / Vault / Profile in the mockups).
- */
+const SPRING = { type: 'spring', damping: 26, stiffness: 380 } as const;
 
 interface BottomTabItemProps {
   label: string;
@@ -21,19 +18,25 @@ export function BottomTabItem({ label, icon, active = false, onClick }: BottomTa
       className="flex flex-col items-center gap-1.5 flex-1 py-1"
       aria-current={active ? 'page' : undefined}
     >
-      <span
-        className={
-          'inline-flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 ' +
-          (active ? 'bg-brand-800 text-ink-inverse' : 'text-ink-muted')
-        }
-      >
-        {icon}
+      <span className="relative inline-flex items-center justify-center w-11 h-11">
+        {active && (
+          <motion.span
+            layoutId="bottom-tab-indicator"
+            className="absolute inset-0 rounded-full bg-brand-800"
+            transition={SPRING}
+          />
+        )}
+        <span className={`relative z-10 ${active ? 'text-ink-inverse' : 'text-ink-muted'}`}>
+          {icon}
+        </span>
       </span>
-      <span
-        className={`text-[11px] tracking-wider font-mono uppercase ${active ? 'text-brand-800 font-bold' : 'text-ink-muted'}`}
+      <motion.span
+        animate={{ color: active ? '#8E3F0D' : '#7A6A5E', fontWeight: active ? 700 : 400 }}
+        transition={SPRING}
+        className="text-[11px] tracking-wider font-mono uppercase"
       >
         {label}
-      </span>
+      </motion.span>
     </button>
   );
 }

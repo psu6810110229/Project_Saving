@@ -85,6 +85,7 @@ export function notificationIconKind(eventKey: NotificationEventKey | string): '
     case 'plan_created':
       return 'calendar';
     case 'balance_checked':
+    case 'goal_reached':
       return 'vault';
     case 'goal_changed':
       return 'edit';

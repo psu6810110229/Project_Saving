@@ -77,3 +77,13 @@ export function notifyBucketAdded(bucketId: string): void {
 export function notifyBucketUpdated(bucketId: string): void {
   void call('notify_bucket_updated', { p_bucket_id: bucketId });
 }
+
+/**
+ * Server-side dispatch for the four smart-event threshold checks
+ * (bucket goal reached, overtaking, streak milestone, project goal
+ * reached). Each check is dedupe-guarded inside the RPC so calling
+ * this on every successful deposit is safe.
+ */
+export function evaluateSmartEventsAfterDeposit(logId: string): void {
+  void call('evaluate_smart_events_after_deposit', { p_log_id: logId });
+}

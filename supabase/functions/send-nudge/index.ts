@@ -1,18 +1,28 @@
 // Supabase Edge Function: send-nudge
 //
-// Triggered by the client (POST with a bearer JWT) when a user taps the
-// Nudge button. The function:
-//   1. Verifies the caller is authenticated.
-//   2. Throttles: rejects if the caller has nudged the same target
-//      within the last 5 minutes.
-//   3. Looks up all push_subscriptions rows for the target user
-//      (service-role read; the table's RLS forbids cross-user SELECT
-//      from the client).
-//   4. Encrypts and POSTs a Web Push payload to each endpoint using
-//      VAPID auth.
-//   5. Inserts a row into public.nudges for audit / throttling.
+// Hardened in Task 23.2. The function is now the canonical event
+// source for `nudge_received` notifications. It:
+//   1. Verifies the caller is authenticated and not nudging themselves.
+//   2. Requires `room_id` and validates both sender and recipient are
+//      current members of that room (room_members lookup).
+//   3. Throttles per (from_user, to_user, room_id) at 5 minutes —
+//      throttled requests do NOT create a notification or a nudge
+//      audit row.
+//   4. Inserts a row into `public.nudges` to anchor the dedupe key.
+//   5. Creates an in-app `notifications` row for the recipient,
+//      regardless of push outcome. This row is the source of truth
+//      for the in-app Notification Center.
+//   6. Loads the recipient's notification preferences and decides
+//      whether push is allowed: master_enabled AND nudges_enabled
+//      AND push_enabled.
+//   7. If allowed, sends Web Push to every active subscription with
+//      a sanitized payload that includes notification_id, url,
+//      fallback_url. Expired endpoints (404/410) are cleaned up.
+//   8. Returns a structured response with `status`, `delivered`,
+//      `notification_id`, and `error` so the sender UI can show
+//      clear feedback.
 //
-// Required Edge Function secrets (set via `supabase secrets set ...`):
+// Required Edge Function secrets:
 //   - SUPABASE_URL                 (auto-injected)
 //   - SUPABASE_ANON_KEY            (auto-injected)
 //   - SUPABASE_SERVICE_ROLE_KEY    (service-role key)
@@ -20,8 +30,7 @@
 //   - VAPID_PRIVATE_KEY
 //   - VAPID_SUBJECT                (e.g. "mailto:fran@example.com")
 //
-// See docs/vapid-runbook.md for how to generate these and register
-// the function with the Supabase project.
+// See docs/vapid-runbook.md for VAPID setup.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import webpush from 'https://esm.sh/web-push@3.6.7';
@@ -32,7 +41,46 @@ interface NudgePayload {
   message?: string;
 }
 
+type NudgeStatus =
+  | 'sent'             // push delivered to >=1 device
+  | 'saved_no_push'    // notification saved; push skipped (prefs off, no subs, or all failed)
+  | 'throttled';       // recent nudge exists; nothing created
+
+interface NudgeResult {
+  status: NudgeStatus;
+  delivered: number;
+  notification_id: string | null;
+  error?: string;
+}
+
 const THROTTLE_SECONDS = 300;
+const TARGET_ROUTE = '/dashboard';
+const FALLBACK_ROUTE = '/dashboard';
+const ALLOWED_PUSH_PREFIXES = [
+  '/dashboard',
+  '/add',
+  '/check-balance',
+  '/saving-plan',
+  '/manage-project',
+  '/notifications',
+];
+
+function sanitizeRoute(route: string | null | undefined): string {
+  if (!route) return FALLBACK_ROUTE;
+  if (!route.startsWith('/')) return FALLBACK_ROUTE;
+  if (route.startsWith('//')) return FALLBACK_ROUTE;
+  const matched = ALLOWED_PUSH_PREFIXES.some(prefix =>
+    route === prefix || route.startsWith(`${prefix}?`) || route.startsWith(`${prefix}/`),
+  );
+  return matched ? route : FALLBACK_ROUTE;
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -41,7 +89,7 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Missing auth' }), { status: 401 });
+    return jsonResponse({ error: 'Missing auth' }, 401);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -51,59 +99,182 @@ Deno.serve(async (req) => {
   const vapidPrivate = Deno.env.get('VAPID_PRIVATE_KEY')!;
   const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:noreply@example.com';
 
+  // 1. Caller identity.
   const callerClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: userData, error: userError } = await callerClient.auth.getUser();
   if (userError || !userData.user) {
-    return new Response(JSON.stringify({ error: 'Invalid auth' }), { status: 401 });
+    return jsonResponse({ error: 'Invalid auth' }, 401);
   }
   const fromUser = userData.user;
 
-  const body = (await req.json()) as NudgePayload;
-  if (!body.to_user_id) {
-    return new Response(JSON.stringify({ error: 'to_user_id required' }), { status: 400 });
+  const body = (await req.json().catch(() => null)) as NudgePayload | null;
+  if (!body || !body.to_user_id) {
+    return jsonResponse({ error: 'to_user_id required' }, 400);
+  }
+  if (!body.room_id) {
+    return jsonResponse({ error: 'room_id required' }, 400);
   }
   if (body.to_user_id === fromUser.id) {
-    return new Response(JSON.stringify({ error: 'cannot nudge yourself' }), { status: 400 });
+    return jsonResponse({ error: 'cannot nudge yourself' }, 400);
   }
+
+  const toUserId = body.to_user_id;
+  const roomId = body.room_id;
 
   const admin = createClient(supabaseUrl, serviceKey);
 
-  // Throttle: 5-minute cooldown per (from, to) pair.
+  // 2. Both sender and recipient must be current members of room_id.
+  const { data: members, error: membersError } = await admin
+    .from('room_members')
+    .select('user_id')
+    .eq('room_id', roomId)
+    .in('user_id', [fromUser.id, toUserId]);
+  if (membersError) {
+    return jsonResponse({ error: 'Could not verify room membership.' }, 500);
+  }
+  const memberIds = new Set((members ?? []).map(row => row.user_id));
+  if (!memberIds.has(fromUser.id) || !memberIds.has(toUserId)) {
+    return jsonResponse({ error: 'Sender and recipient must share the same project.' }, 403);
+  }
+
+  // 3. Throttle per (from, to, room).
   const sinceIso = new Date(Date.now() - THROTTLE_SECONDS * 1000).toISOString();
   const { data: recent } = await admin
     .from('nudges')
     .select('id, created_at')
     .eq('from_user', fromUser.id)
-    .eq('to_user', body.to_user_id)
+    .eq('to_user', toUserId)
+    .eq('room_id', roomId)
     .gte('created_at', sinceIso)
     .limit(1);
   if (recent && recent.length > 0) {
-    return new Response(
-      JSON.stringify({ error: 'Slow down — please wait a few minutes before nudging again.' }),
-      { status: 429 },
-    );
+    const result: NudgeResult = {
+      status: 'throttled',
+      delivered: 0,
+      notification_id: null,
+      error: 'Slow down — please wait a few minutes before nudging again.',
+    };
+    return jsonResponse(result, 429);
   }
 
+  // 4. Insert the nudge audit row first so the notification dedupe
+  //    key can pin to a real nudge id.
+  const { data: nudgeRow, error: nudgeError } = await admin
+    .from('nudges')
+    .insert({ from_user: fromUser.id, to_user: toUserId, room_id: roomId })
+    .select('id')
+    .single();
+  if (nudgeError || !nudgeRow) {
+    return jsonResponse({ error: 'Could not record nudge.' }, 500);
+  }
+  const nudgeId = nudgeRow.id as string;
+
+  // 5. Resolve sender display name for the notification copy.
+  const { data: profileRow } = await admin
+    .from('profiles')
+    .select('display_name')
+    .eq('id', fromUser.id)
+    .maybeSingle();
+  const senderName =
+    profileRow?.display_name?.trim()
+    || (fromUser.user_metadata?.full_name as string | undefined)
+    || 'Your partner';
+
+  const notificationTitle = `${senderName} sent a nudge`;
+  const notificationBody = 'They are checking in on the shared goal.';
+
+  // 6. Create the in-app notification row. We always do this on a
+  //    successful (non-throttled) nudge so the recipient's center has
+  //    a record even if push prefs are off or no devices are enrolled.
+  const dedupeKey = `nudge:${nudgeId}:${toUserId}`;
+  const { data: notifRow, error: notifError } = await admin
+    .from('notifications')
+    .insert({
+      recipient_user_id: toUserId,
+      actor_user_id: fromUser.id,
+      room_id: roomId,
+      event_key: 'nudge_received',
+      category: 'nudge',
+      channel_policy: 'push_candidate',
+      title: notificationTitle,
+      body: notificationBody,
+      cta_label: 'Open Dashboard',
+      target_route: TARGET_ROUTE,
+      target_section: null,
+      fallback_route: FALLBACK_ROUTE,
+      push_safe: true,
+      payload: { sender_id: fromUser.id, sender_name: senderName, nudge_id: nudgeId },
+      source_table: 'nudges',
+      source_id: nudgeId,
+      dedupe_key: dedupeKey,
+    })
+    .select('id')
+    .single();
+
+  if (notifError && notifError.code !== '23505') {
+    // 23505 = unique_violation; if dedupe already exists treat as no-op success
+    // and continue trying to push to subscribed devices. Anything else is fatal.
+    return jsonResponse({ error: 'Could not create notification.' }, 500);
+  }
+  const notificationId = (notifRow?.id as string | undefined) ?? null;
+
+  // 7. Load recipient preferences. Service role bypasses RLS so we can
+  //    upsert defaults if the recipient has not opened the settings page
+  //    yet — keeps push gating consistent without forcing them to.
+  await admin
+    .from('notification_preferences')
+    .upsert({ user_id: toUserId }, { onConflict: 'user_id', ignoreDuplicates: true });
+  const { data: prefs } = await admin
+    .from('notification_preferences')
+    .select('master_enabled, push_enabled, nudges_enabled')
+    .eq('user_id', toUserId)
+    .maybeSingle();
+
+  const pushAllowed = Boolean(
+    prefs?.master_enabled && prefs?.push_enabled && prefs?.nudges_enabled,
+  );
+
+  if (!pushAllowed) {
+    const result: NudgeResult = {
+      status: 'saved_no_push',
+      delivered: 0,
+      notification_id: notificationId,
+      error: 'Partner has push notifications off.',
+    };
+    return jsonResponse(result);
+  }
+
+  // 8. Look up active subscriptions for the recipient.
   const { data: subs } = await admin
     .from('push_subscriptions')
-    .select('endpoint, p256dh, auth_key')
-    .eq('user_id', body.to_user_id);
+    .select('id, endpoint, p256dh, auth_key')
+    .eq('user_id', toUserId);
 
   if (!subs || subs.length === 0) {
-    return new Response(
-      JSON.stringify({ delivered: 0, error: 'Partner has no devices enrolled for nudges yet.' }),
-      { status: 404 },
-    );
+    const result: NudgeResult = {
+      status: 'saved_no_push',
+      delivered: 0,
+      notification_id: notificationId,
+      error: 'Partner has no devices enrolled for nudges yet.',
+    };
+    return jsonResponse(result);
   }
 
+  // 9. Send push to every device. Cleanup expired endpoints.
   webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
 
-  const payload = JSON.stringify({
-    title: `${fromUser.user_metadata?.full_name ?? 'Your partner'} sent a nudge`,
-    body: body.message ?? 'Time to add to the vault!',
-    url: '/dashboard',
+  const safeUrl = sanitizeRoute(TARGET_ROUTE);
+  const safeFallback = sanitizeRoute(FALLBACK_ROUTE);
+  const pushPayload = JSON.stringify({
+    notification_id: notificationId,
+    event_key: 'nudge_received',
+    title: notificationTitle,
+    body: notificationBody,
+    url: safeUrl,
+    fallback_url: safeFallback,
+    tag: `nudge:${nudgeId}`,
   });
 
   let delivered = 0;
@@ -111,11 +282,10 @@ Deno.serve(async (req) => {
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-        payload,
+        pushPayload,
       );
       delivered += 1;
     } catch (error) {
-      // 410 = subscription expired. Clean it up so we don't keep retrying.
       const status = typeof error === 'object' && error && 'statusCode' in error
         ? Number((error as { statusCode: number }).statusCode)
         : 0;
@@ -125,13 +295,12 @@ Deno.serve(async (req) => {
     }
   }));
 
-  await admin.from('nudges').insert({
-    from_user: fromUser.id,
-    to_user: body.to_user_id,
-    room_id: body.room_id ?? null,
-  });
+  const result: NudgeResult = {
+    status: delivered > 0 ? 'sent' : 'saved_no_push',
+    delivered,
+    notification_id: notificationId,
+    ...(delivered === 0 ? { error: 'Push could not be delivered. Notification was saved.' } : {}),
+  };
 
-  return new Response(JSON.stringify({ delivered }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  return jsonResponse(result);
 });

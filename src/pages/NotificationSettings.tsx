@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '../components/Button/Button';
 import { PageHeader } from '../components/PageHeader/PageHeader';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
@@ -14,27 +14,20 @@ import { usePushSubscription } from '../hooks/usePushSubscription';
 import { NOTIFICATION_CATEGORY_COPY } from '../lib/notifications';
 import type { NotificationPreferencesUpdate } from '../types';
 
-function browserPermissionState(unsupported: boolean): PushPermissionState {
-  if (unsupported) return 'unsupported';
-  if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
-  const value = Notification.permission;
-  if (value === 'granted' || value === 'denied') return value;
+function toPillState(
+  permission: NotificationPermission | 'unsupported',
+): PushPermissionState {
+  if (permission === 'unsupported') return 'unsupported';
+  if (permission === 'granted' || permission === 'denied') return permission;
   return 'default';
 }
 
 export function NotificationSettings() {
   const { preferences, loading, saving, error, update } = useNotificationPreferences();
-  const { ready, subscribed, unsupported, subscribe, unsubscribe } = usePushSubscription();
-  const [permission, setPermission] = useState<PushPermissionState>(() => browserPermissionState(unsupported));
+  const { ready, subscribed, unsupported, permission: rawPermission, subscribe, unsubscribe } = usePushSubscription();
+  const permission = toPillState(rawPermission);
   const [deviceBusy, setDeviceBusy] = useState(false);
   const [deviceMessage, setDeviceMessage] = useState<string | null>(null);
-
-  // The Notification API is read-only on render; recompute when push
-  // readiness flips so the pill matches the underlying permission.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPermission(browserPermissionState(unsupported));
-  }, [unsupported, ready, subscribed]);
 
   async function applyChange(changes: NotificationPreferencesUpdate) {
     await update(changes);
@@ -53,7 +46,6 @@ export function NotificationSettings() {
     // so categories actually deliver. master/nudges/partner stay as-is.
     await update({ push_enabled: true });
     setDeviceMessage('This device can now receive push notifications.');
-    setPermission(browserPermissionState(unsupported));
   }
 
   async function handleDisableDevice() {

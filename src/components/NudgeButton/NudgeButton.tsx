@@ -12,12 +12,39 @@ interface NudgeButtonProps {
   partnerName?: string;
 }
 
+type NudgeStatus = 'sent' | 'saved_no_push' | 'throttled';
+
+interface NudgeResponse {
+  status?: NudgeStatus;
+  delivered?: number;
+  notification_id?: string | null;
+  error?: string;
+}
+
+const THROTTLED_MESSAGE = 'You already nudged recently. Try again in a few minutes.';
+
+async function messageForInvokeError(error: unknown, response?: Response): Promise<string> {
+  if (response?.status === 429) {
+    return THROTTLED_MESSAGE;
+  }
+
+  const context = (error as { context?: Response } | null)?.context;
+  if (context?.status === 429) {
+    return THROTTLED_MESSAGE;
+  }
+
+  return (error as { message?: string } | null)?.message ?? 'Could not send nudge. Try again in a moment.';
+}
+
 /**
  * Compact button that asks the partner to "come back and save".
- * On first tap, prompts for notification permission and registers
- * the current device so the partner can nudge this user back.
- * Calls the `send-nudge` edge function which throttles + dispatches
- * the web-push payload.
+ * On first tap, prompts for notification permission and registers the
+ * current device so the partner can nudge this user back. The actual
+ * send is done by the `send-nudge` edge function which:
+ *   - validates room membership,
+ *   - throttles,
+ *   - always creates an in-app `notifications` row for the partner,
+ *   - sends Web Push only when the partner's preferences allow it.
  */
 export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonProps) {
   const { ready, subscribed, unsupported, subscribe } = usePushSubscription();
@@ -26,6 +53,23 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
 
   if (!partnerUserId) return null;
   if (unsupported) return null;
+  if (!roomId) return null;
+
+  function messageForStatus(response: NudgeResponse): string {
+    const partner = partnerName ?? 'your partner';
+    switch (response.status) {
+      case 'sent':
+        return `Nudge sent to ${partner}.`;
+      case 'throttled':
+        return response.error ?? 'Slow down — try again in a few minutes.';
+      case 'saved_no_push':
+        return response.error
+          ? `${response.error} Notification saved.`
+          : `Notification saved for ${partner}. Push could not be delivered.`;
+      default:
+        return response.error ?? `Nudge sent to ${partner}.`;
+    }
+  }
 
   async function handleClick() {
     setBusy(true);
@@ -34,14 +78,12 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
       const result = await subscribe();
       if (result.error) { setMessage(result.error); setBusy(false); return; }
     }
-    const { data, error } = await supabase.functions.invoke('send-nudge', {
+    const { data, error, response } = await supabase.functions.invoke('send-nudge', {
       body: { to_user_id: partnerUserId, room_id: roomId },
     });
     setBusy(false);
-    if (error) { setMessage(error.message); return; }
-    const delivered = (data as { delivered?: number; error?: string } | null)?.delivered ?? 0;
-    if (delivered > 0) setMessage(`Nudge sent to ${partnerName ?? 'your partner'}.`);
-    else setMessage((data as { error?: string } | null)?.error ?? 'Partner has not enabled nudges yet.');
+    if (error) { setMessage(await messageForInvokeError(error, response)); return; }
+    setMessage(messageForStatus((data ?? {}) as NudgeResponse));
   }
 
   return (

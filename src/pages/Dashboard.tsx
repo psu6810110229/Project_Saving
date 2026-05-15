@@ -54,7 +54,7 @@ import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency, formatRelativeTime } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import { daysSince, formatSignedCurrency, reasonLabel } from '../lib/reconcile';
+import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
   activeRevisionAt,
   habitStatusFromDeposits,
@@ -600,7 +600,7 @@ function BalanceActivityRow({ entry }: { entry: BalanceActivityEntry }) {
             : d.checkedBalanceDiff(formatSignedCurrency(entry.difference_amount))}
         </p>
         <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">
-          {entry.reason ? `${reasonLabel(entry.reason)} · ` : ''}{formatRelativeTime(entry.checked_at)}
+          {entry.reason ? `${copy.reconcile.reasons[entry.reason].label} · ` : ''}{formatRelativeTime(entry.checked_at)}
         </p>
       </div>
     </div>

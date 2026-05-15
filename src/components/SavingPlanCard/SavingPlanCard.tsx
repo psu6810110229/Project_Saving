@@ -6,7 +6,6 @@ import { Button } from '../Button/Button';
 import { formatCurrency } from '../../lib/format';
 import { formatSignedCurrency, RECONCILE_REASONS } from '../../lib/reconcile';
 import {
-  shortDateLabel,
   type HabitStatus,
   type MoneyStatus,
 } from '../../lib/savingPlan';
@@ -50,8 +49,9 @@ export function SavingPlanCard({
   pausedSince = null,
   planSummary = null,
 }: SavingPlanCardProps) {
-  const { copy } = useI18n();
+  const { copy, formatShortDateKey } = useI18n();
   const d = copy.dashboard;
+  const r = copy.reconcile;
   const [vbExpanded, setVbExpanded] = useState(false);
   const [vbActualValue, setVbActualValue] = useState('');
   const [vbStep, setVbStep] = useState<'enter' | 'reason'>('enter');
@@ -79,7 +79,7 @@ export function SavingPlanCard({
     if (!verifiedBalance || vbSubmitting) return;
     const actual = Number(vbActualValue);
     if (!Number.isFinite(actual) || actual < 0 || vbActualValue.trim() === '') {
-      setVbError('Enter your actual balance.');
+      setVbError(r.inlineEnterActualError);
       return;
     }
     const diff = Math.round((actual - verifiedBalance.amount) * 100) / 100;
@@ -88,7 +88,7 @@ export function SavingPlanCard({
       return;
     }
     if (diff !== 0 && !vbReason) {
-      setVbError('Pick a reason for the difference.');
+      setVbError(r.inlinePickReasonError);
       return;
     }
     setVbSubmitting(true);
@@ -191,7 +191,7 @@ export function SavingPlanCard({
         <div className="mt-1">
           {pausedSince && (
             <p className="font-mono text-base font-bold text-ink-muted">
-              {d.planSince} <span className="text-ink">{shortDateLabel(pausedSince)}</span>
+              {d.planSince} <span className="text-ink">{formatShortDateKey(pausedSince)}</span>
               {planSummary && (
                 <span className="ml-2 font-normal text-ink-muted">· {planSummary}</span>
               )}
@@ -201,7 +201,7 @@ export function SavingPlanCard({
       ) : (
         money.state === 'ahead' && money.coveredUntilDate && (
           <p className="mt-1 font-mono text-base font-bold text-ink-muted">
-            {d.coveredUntil} <span className="text-ink">{shortDateLabel(money.coveredUntilDate)}</span>
+            {d.coveredUntil} <span className="text-ink">{formatShortDateKey(money.coveredUntilDate)}</span>
           </p>
         )
       )}
@@ -286,12 +286,12 @@ export function SavingPlanCard({
               <div className="flex flex-col gap-3 pt-4">
                 {vbDone ? (
                   <p className={`font-mono text-sm font-bold ${vbDone.matched ? 'text-accent-leaf' : 'text-brand-800'}`}>
-                    {vbDone.matched ? '✓ Balance matched' : '✓ Adjustment saved'}
+                    {vbDone.matched ? r.inlineBalanceMatched : r.inlineAdjustmentSaved}
                   </p>
                 ) : vbStep === 'enter' ? (
                   <>
                     <div className="flex items-center justify-between gap-2 rounded-lg bg-brand-50 px-3 py-2">
-                      <span className="font-mono text-xs text-ink-muted">App balance</span>
+                      <span className="font-mono text-xs text-ink-muted">{r.inlineAppBalanceLabel}</span>
                       <span className="font-mono text-sm font-bold text-ink">{formatCurrency(verifiedBalance.amount)}</span>
                     </div>
                     <TextInput
@@ -306,19 +306,19 @@ export function SavingPlanCard({
                     />
                     {vbDiff !== null && vbDiff !== 0 && (
                       <p className="font-mono text-xs text-ink-muted">
-                        Difference: <span className={`font-bold ${vbDiff > 0 ? 'text-accent-leaf' : 'text-danger'}`}>{formatSignedCurrency(vbDiff)}</span>
+                        {r.inlineDifferencePrefix} <span className={`font-bold ${vbDiff > 0 ? 'text-accent-leaf' : 'text-danger'}`}>{formatSignedCurrency(vbDiff)}</span>
                       </p>
                     )}
                     {vbError && <p className="font-mono text-xs text-danger">{vbError}</p>}
                     <div className="grid grid-cols-2 gap-2">
-                      <Button variant="ghost" size="md" onClick={handleVbToggle}>Cancel</Button>
+                      <Button variant="ghost" size="md" onClick={handleVbToggle}>{r.cancelButton}</Button>
                       <Button
                         variant="action"
                         size="md"
                         disabled={vbSubmitting || vbActualValue.trim() === ''}
                         onClick={handleVbSubmit}
                       >
-                        {vbSubmitting ? 'Saving…' : 'Save Check'}
+                        {vbSubmitting ? r.savingButton : r.inlineSaveCheck}
                       </Button>
                     </div>
                   </>
@@ -326,15 +326,15 @@ export function SavingPlanCard({
                   <>
                     <div className="grid grid-cols-3 gap-2 rounded-lg bg-brand-50 px-3 py-2 text-center">
                       <div>
-                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">Actual</p>
+                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">{r.inlineStatActual}</p>
                         <p className="font-mono text-sm font-bold text-ink">{formatCurrency(Number(vbActualValue))}</p>
                       </div>
                       <div>
-                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">App</p>
+                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">{r.inlineStatApp}</p>
                         <p className="font-mono text-sm font-bold text-ink">{formatCurrency(verifiedBalance.amount)}</p>
                       </div>
                       <div>
-                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">Diff</p>
+                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">{r.inlineStatDiff}</p>
                         <p className={`font-mono text-sm font-bold ${(vbDiff ?? 0) > 0 ? 'text-accent-leaf' : 'text-danger'}`}>
                           {formatSignedCurrency(vbDiff ?? 0)}
                         </p>
@@ -348,20 +348,20 @@ export function SavingPlanCard({
                           onClick={() => { setVbReason(opt.id); setVbError(null); }}
                           className={`w-full rounded-lg px-3 py-2 text-left font-mono text-xs font-bold transition-colors ${vbReason === opt.id ? 'bg-brand-800 text-ink-inverse' : 'bg-brand-50 text-ink hover:bg-brand-100'}`}
                         >
-                          {opt.label}
+                          {r.reasons[opt.id].label}
                         </button>
                       ))}
                     </div>
                     {vbError && <p className="font-mono text-xs text-danger">{vbError}</p>}
                     <div className="grid grid-cols-2 gap-2">
-                      <Button variant="ghost" size="md" onClick={() => { setVbStep('enter'); setVbReason(null); setVbError(null); }}>Back</Button>
+                      <Button variant="ghost" size="md" onClick={() => { setVbStep('enter'); setVbReason(null); setVbError(null); }}>{r.backButton}</Button>
                       <Button
                         variant="action"
                         size="md"
                         disabled={vbSubmitting || !vbReason}
                         onClick={handleVbSubmit}
                       >
-                        {vbSubmitting ? 'Saving…' : 'Save'}
+                        {vbSubmitting ? r.savingButton : r.inlineSaveButton}
                       </Button>
                     </div>
                   </>

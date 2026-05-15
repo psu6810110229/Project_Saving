@@ -10,6 +10,7 @@ import {
   formatLocalDateLabel as formatLocalDateLabelImpl,
   formatMoney as formatMoneyImpl,
   formatRelativeTime as formatRelativeTimeImpl,
+  formatShortDateKey as formatShortDateKeyImpl,
 } from './formatters';
 import { I18nContext, type I18nContextValue } from './I18nContext';
 
@@ -54,6 +55,7 @@ export function I18nProvider({ children }: I18nProviderProps) {
       formatMoney: (amount: number) => formatMoneyImpl(amount, language),
       formatRelativeTime: (iso: string) => formatRelativeTimeImpl(iso, language),
       formatLocalDateLabel: (iso: string) => formatLocalDateLabelImpl(iso, language),
+      formatShortDateKey: (dateKey: string) => formatShortDateKeyImpl(dateKey, language),
     };
   }, [language, setLanguage]);
 

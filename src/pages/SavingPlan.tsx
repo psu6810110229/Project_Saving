@@ -9,6 +9,7 @@ import { TextInput } from '../components/TextInput/TextInput';
 import { useGoal } from '../hooks/useGoal';
 import { useRoom } from '../hooks/useRoom';
 import { useSavingPlan } from '../hooks/useSavingPlan';
+import { useI18n } from '../i18n/useI18n';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import {
@@ -17,41 +18,32 @@ import {
   daysInclusive,
   plannedCumulativeThroughDate,
   projectedCompletionDate,
-  shortDateLabel,
   todayBangkokKey,
 } from '../lib/savingPlan';
 import type { SavingPlanRevision, SavingPlanRuleType } from '../types';
 
-interface PresetOption {
-  id: SavingPlanRuleType;
-  label: string;
-}
-
-const PRESETS: PresetOption[] = [
-  { id: 'fixed_daily',      label: 'Daily' },
-  { id: 'fixed_weekly',     label: 'Weekly' },
-  { id: 'fixed_monthly',    label: 'Monthly' },
-  { id: 'increasing_daily', label: 'Increasing' },
-];
-
 type StopMode = 'target' | 'days' | 'date';
-
-interface StopOption {
-  id: StopMode;
-  label: string;
-}
-
-const STOP_OPTIONS: StopOption[] = [
-  { id: 'target', label: 'When target is reached' },
-  { id: 'days',   label: 'After a number of days' },
-  { id: 'date',   label: 'On a specific date' },
-];
 
 export function SavingPlan() {
   const navigate = useNavigate();
   const { activeRoomId } = useRoom();
   const { goal } = useGoal(activeRoomId);
   const { plan, loading, error, isPaused, createPlan, changePlan, pausePlan, resumePlan } = useSavingPlan(activeRoomId);
+  const { copy, formatShortDateKey } = useI18n();
+  const sp = copy.savingPlan;
+
+  const PRESETS: { id: SavingPlanRuleType; label: string }[] = [
+    { id: 'fixed_daily',      label: sp.presetDaily },
+    { id: 'fixed_weekly',     label: sp.presetWeekly },
+    { id: 'fixed_monthly',    label: sp.presetMonthly },
+    { id: 'increasing_daily', label: sp.presetIncreasing },
+  ];
+
+  const STOP_OPTIONS: { id: StopMode; label: string }[] = [
+    { id: 'target', label: sp.stopOptionTarget },
+    { id: 'days',   label: sp.stopOptionDays },
+    { id: 'date',   label: sp.stopOptionDate },
+  ];
 
   const latestRevision = plan
     ? activeRevisionAt(plan.revisions, todayBangkokKey())
@@ -195,7 +187,7 @@ export function SavingPlan() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-4" aria-label="Loading saving plan">
+      <div className="flex flex-col gap-4" aria-label={sp.loadingAriaLabel}>
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32" />
         <Skeleton className="h-40" />
@@ -236,7 +228,7 @@ export function SavingPlan() {
 
     const targetNum = Number(targetAmount);
     if (!Number.isFinite(targetNum) || targetNum <= 0) {
-      setMessage('Enter a plan target.');
+      setMessage(sp.validationTarget);
       return;
     }
 
@@ -252,24 +244,24 @@ export function SavingPlan() {
       startNum = Number(startAmount);
       incNum = Number(incrementAmount);
       if (!Number.isFinite(startNum) || startNum <= 0) {
-        setMessage('Enter a start amount.');
+        setMessage(sp.validationStartAmount);
         return;
       }
       if (!Number.isFinite(incNum) || incNum < 0) {
-        setMessage('Increase by must be zero or more.');
+        setMessage(sp.validationIncrement);
         return;
       }
       if (capAmount.trim() === '') {
-        setMessage('Enter a maximum daily amount.');
+        setMessage(sp.validationMaxRequired);
         return;
       }
       capNum = Number(capAmount);
       if (!Number.isFinite(capNum) || capNum <= 0) {
-        setMessage('Maximum daily amount must be greater than zero.');
+        setMessage(sp.validationMaxAboveZero);
         return;
       }
       if (capNum < startNum) {
-        setMessage('Maximum daily amount must be at least the start amount.');
+        setMessage(sp.validationMaxAboveStart);
         return;
       }
 
@@ -278,22 +270,22 @@ export function SavingPlan() {
         endDateOut = undefined;
       } else if (stopMode === 'days') {
         if (dayCount.trim() === '') {
-          setMessage('Enter the number of days.');
+          setMessage(sp.validationDays);
           return;
         }
         dayCountNum = Number(dayCount);
         if (!Number.isInteger(dayCountNum) || dayCountNum <= 0) {
-          setMessage('Plan length must be at least 1 day.');
+          setMessage(sp.validationDaysAboveZero);
           return;
         }
         endDateOut = undefined;
       } else {
         if (!endDate) {
-          setMessage('Choose a stop date.');
+          setMessage(sp.validationStopDate);
           return;
         }
         if (endDate < effectiveFromDate) {
-          setMessage('Choose a future end date.');
+          setMessage(sp.validationFutureEnd);
           return;
         }
         endDateOut = endDate;
@@ -304,11 +296,11 @@ export function SavingPlan() {
     } else {
       amountNum = Number(amount);
       if (!Number.isFinite(amountNum) || amountNum <= 0) {
-        setMessage('Enter an amount.');
+        setMessage(sp.validationAmount);
         return;
       }
       if (endDate && endDate < effectiveFromDate) {
-        setMessage('Choose a future end date.');
+        setMessage(sp.validationFutureEnd);
         return;
       }
       endDateOut = endDate || undefined;
@@ -343,7 +335,7 @@ export function SavingPlan() {
     <div className="flex flex-col gap-5">
       {/* Back button stays at the top; the rest of the page is lowered. */}
       <div>
-        <IconButton ariaLabel="Go back" size="md" onClick={() => navigate(-1)}>
+        <IconButton ariaLabel={sp.goBackAriaLabel} size="md" onClick={() => navigate(-1)}>
           <IconArrowLeft size={20} />
         </IconButton>
       </div>
@@ -352,10 +344,10 @@ export function SavingPlan() {
       <div className="mt-10 flex flex-col gap-5">
         <header className="min-w-0">
           <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
-            Saving Plan
+            {sp.pageEyebrow}
           </p>
           <h1 className="mt-2 truncate font-mono text-3xl font-bold text-ink">
-            {isChange ? 'Change plan' : 'Set up plan'}
+            {isChange ? sp.changeTitle : sp.setUpTitle}
           </h1>
         </header>
 
@@ -365,7 +357,7 @@ export function SavingPlan() {
       {/* Plan type selector */}
       <section className="rounded-xl bg-surface p-5 shadow-soft">
         <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
-          Plan type
+          {sp.planTypeLabel}
         </p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {PRESETS.map(preset => {
@@ -395,7 +387,7 @@ export function SavingPlan() {
           {ruleType === 'increasing_daily' ? (
             <>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <CardField label="Start amount">
+                <CardField label={sp.startAmountLabel}>
                   <TextInput
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -405,7 +397,7 @@ export function SavingPlan() {
                     onChange={e => setStartAmount(digitsOnly(e.target.value))}
                   />
                 </CardField>
-                <CardField label="Increase by">
+                <CardField label={sp.increaseByLabel}>
                   <TextInput
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -417,7 +409,7 @@ export function SavingPlan() {
                 </CardField>
               </div>
 
-              <CardField label="Maximum daily amount">
+              <CardField label={sp.maxDailyLabel}>
                 <TextInput
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -429,7 +421,7 @@ export function SavingPlan() {
               </CardField>
 
               <div>
-                <p className="font-mono text-sm font-bold text-ink">Stop when</p>
+                <p className="font-mono text-sm font-bold text-ink">{sp.stopWhenLabel}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {STOP_OPTIONS.map(opt => {
                     const selected = stopMode === opt.id;
@@ -453,13 +445,13 @@ export function SavingPlan() {
 
                 {stopMode === 'days' && (
                   <div className="mt-3">
-                    <CardField label="Run this plan for">
+                    <CardField label={sp.runForLabel}>
                       <TextInput
                         inputMode="numeric"
                         pattern="[0-9]*"
                         placeholder="500"
                         value={dayCount}
-                        trailingIcon={<span className="font-mono text-xs text-ink-muted">days</span>}
+                        trailingIcon={<span className="font-mono text-xs text-ink-muted">{sp.daysSuffix}</span>}
                         onChange={e => setDayCount(digitsOnly(e.target.value))}
                       />
                     </CardField>
@@ -468,7 +460,7 @@ export function SavingPlan() {
 
                 {stopMode === 'date' && (
                   <div className="mt-3">
-                    <CardField label="End date">
+                    <CardField label={sp.endDateLabel}>
                       <TextInput
                         type="date"
                         value={endDate}
@@ -479,7 +471,7 @@ export function SavingPlan() {
                 )}
               </div>
 
-              <CardField label="Plan target">
+              <CardField label={sp.planTargetLabel}>
                 <TextInput
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -492,7 +484,7 @@ export function SavingPlan() {
             </>
           ) : (
             <>
-              <BigLabelField label="Amount">
+              <BigLabelField label={sp.amountLabel}>
                 <TextInput
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -503,7 +495,7 @@ export function SavingPlan() {
                 />
               </BigLabelField>
 
-              <BigLabelField label="Plan target">
+              <BigLabelField label={sp.planTargetLabel}>
                 <TextInput
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -514,7 +506,7 @@ export function SavingPlan() {
                 />
               </BigLabelField>
 
-              <BigLabelField label="End date">
+              <BigLabelField label={sp.endDateLabel}>
                 <TextInput
                   type="date"
                   value={endDate}
@@ -531,23 +523,23 @@ export function SavingPlan() {
         <section className="rounded-xl bg-surface p-5 shadow-soft">
           <div className="flex items-center justify-between gap-2">
             <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
-              Preview
+              {sp.previewLabel}
             </p>
             {preview.mode !== 'target' && !preview.reachesTarget && (
-              <Chip tone="peach">Below target</Chip>
+              <Chip tone="peach">{sp.belowTargetChip}</Chip>
             )}
           </div>
 
           {preview.mode === 'target' && preview.unreachable ? (
             <p className="mt-3 font-mono text-xs text-ink-muted">
-              Can&apos;t reach your target within 10 years. Try a higher maximum daily amount.
+              {sp.unreachableHint}
             </p>
           ) : (
             <dl className="mt-3 divide-y divide-well font-mono text-xs">
-              <PreviewRow label="Estimated finish" value={shortDateLabel(preview.finishDateKey)} />
-              <PreviewRow label="Saving days" value={`${preview.days} day${preview.days === 1 ? '' : 's'}`} />
-              <PreviewRow label="Daily cap" value={formatCurrency(Math.round(preview.capAmount))} />
-              <PreviewRow label="Expected total" value={formatCurrency(Math.round(preview.total))} />
+              <PreviewRow label={sp.estimatedFinish} value={formatShortDateKey(preview.finishDateKey)} />
+              <PreviewRow label={sp.savingDays} value={sp.savingDaysValue(preview.days)} />
+              <PreviewRow label={sp.dailyCap} value={formatCurrency(Math.round(preview.capAmount))} />
+              <PreviewRow label={sp.expectedTotal} value={formatCurrency(Math.round(preview.total))} />
             </dl>
           )}
 
@@ -562,11 +554,11 @@ export function SavingPlan() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-800">
-                Plan paused
+                {sp.planPausedLabel}
               </p>
               {pausedSince && (
                 <p className="mt-1 font-mono text-base font-bold text-ink">
-                  Since {shortDateLabel(pausedSince)}
+                  {sp.pausedSinceLabel(formatShortDateKey(pausedSince))}
                 </p>
               )}
             </div>
@@ -578,7 +570,7 @@ export function SavingPlan() {
               onClick={handleResume}
               disabled={submitting}
             >
-              {submitting ? 'Resuming…' : 'Resume plan'}
+              {submitting ? sp.resumingButton : sp.resumeButton}
             </Button>
           </div>
           {pauseMessage && (
@@ -599,10 +591,10 @@ export function SavingPlan() {
         <>
           <div className="flex flex-col gap-2">
             <Button variant="action" fullWidth onClick={handleSubmit} disabled={submitting}>
-              {submitting ? 'Saving…' : 'Save plan'}
+              {submitting ? sp.savingButton : sp.savePlanButton}
             </Button>
             <Button variant="ghost" size="md" fullWidth onClick={() => navigate(-1)}>
-              Cancel
+              {sp.cancelButton}
             </Button>
           </div>
         </>
@@ -612,7 +604,7 @@ export function SavingPlan() {
       {isChange && !isPaused && (
         <section className="rounded-xl bg-surface p-5 shadow-soft">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-            Pause plan
+            {sp.pausePlanSection}
           </p>
           <div className="mt-3">
             <Button
@@ -621,7 +613,7 @@ export function SavingPlan() {
               onClick={handlePause}
               disabled={submitting}
             >
-              Pause plan
+              {sp.pausePlanButton}
             </Button>
           </div>
           {pauseMessage && (

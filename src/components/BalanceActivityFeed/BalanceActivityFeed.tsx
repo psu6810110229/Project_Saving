@@ -1,8 +1,9 @@
 ﻿import { IconBubble } from '../IconBubble/IconBubble';
 import { IconCheck, IconVault } from '../Icon/Icon';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { useI18n } from '../../i18n/useI18n';
 import { formatRelativeTime } from '../../lib/format';
-import { formatSignedCurrency, reasonLabel } from '../../lib/reconcile';
+import { formatSignedCurrency } from '../../lib/reconcile';
 import type { BalanceActivityEntry } from '../../types';
 
 interface BalanceActivityFeedProps {
@@ -26,6 +27,8 @@ export function BalanceActivityFeed({
   currentUserId,
   previewLimit = 3,
 }: BalanceActivityFeedProps) {
+  const { copy } = useI18n();
+  const reasons = copy.reconcile.reasons;
   if (items.length === 0) return null;
 
   const limit = Math.max(1, previewLimit);
@@ -53,7 +56,7 @@ export function BalanceActivityFeed({
                     : ` checked balance — ${formatSignedCurrency(item.difference_amount)}`}
                 </p>
                 <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">
-                  {item.reason ? `${reasonLabel(item.reason)} · ` : ''}{formatRelativeTime(item.checked_at)}
+                  {item.reason ? `${reasons[item.reason].label} · ` : ''}{formatRelativeTime(item.checked_at)}
                 </p>
               </div>
             </div>

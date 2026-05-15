@@ -22,6 +22,23 @@ export function formatRelativeTime(iso: string, language: Language): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+/**
+ * Localized "28 May" / "28 พ.ค." style label for Bangkok-local
+ * day keys (YYYY-MM-DD). Used by Saving Plan / Reconcile UI where
+ * the date string comes from plan helpers rather than a timestamp.
+ */
+export function formatShortDateKey(dateKey: string, language: Language): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return dateKey;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const locale = language === 'th' ? 'th-TH' : 'en-GB';
+  return date.toLocaleDateString(locale, {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
 export function formatLocalDateLabel(iso: string, language: Language): string {
   const date = new Date(iso);
   const today = new Date();

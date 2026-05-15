@@ -9,6 +9,7 @@ import { Skeleton } from '../components/Skeleton/Skeleton';
 import { TextInput } from '../components/TextInput/TextInput';
 import { useReconcile } from '../hooks/useReconcile';
 import { useRoom } from '../hooks/useRoom';
+import { useI18n } from '../i18n/useI18n';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import { formatSignedCurrency, RECONCILE_REASONS } from '../lib/reconcile';
@@ -20,6 +21,8 @@ export function CheckBalance() {
   const navigate = useNavigate();
   const { activeRoomId } = useRoom();
   const { appBalance, createCheckpoint, loading: reconcileLoading } = useReconcile(activeRoomId);
+  const { copy } = useI18n();
+  const r = copy.reconcile;
 
   const [step, setStep] = useState<Step>('enter');
   const [actualValue, setActualValue] = useState('');
@@ -33,7 +36,7 @@ export function CheckBalance() {
   // hardened `current_reconciled_balance` RPC so it stays consistent
   // with what `create_balance_checkpoint` computes server-side, and
   // it is not capped by any client-side log list.
-  if (reconcileLoading || appBalance === null) return <CheckBalanceSkeleton />;
+  if (reconcileLoading || appBalance === null) return <CheckBalanceSkeleton loadingLabel={r.loadingAriaLabel} />;
   const displayedAppBalance = appBalance;
 
   const actualNumber = Number(actualValue);
@@ -42,7 +45,7 @@ export function CheckBalance() {
 
   async function handleConfirmMatch() {
     if (!actualValid) {
-      setError('Enter your actual balance to continue.');
+      setError(r.errorEnterActual);
       return;
     }
     if (difference !== 0) {
@@ -54,7 +57,7 @@ export function CheckBalance() {
 
   async function handleConfirmDifference() {
     if (!reason) {
-      setError('Pick the reason for the difference.');
+      setError(r.errorPickReason);
       return;
     }
     await submit(reason);
@@ -86,7 +89,7 @@ export function CheckBalance() {
     <div className="flex flex-col gap-5">
       {/* Back button stays at the top; the rest of the page is lowered. */}
       <div>
-        <IconButton ariaLabel="Go back" size="md" onClick={() => navigate(-1)}>
+        <IconButton ariaLabel={r.goBackAriaLabel} size="md" onClick={() => navigate(-1)}>
           <IconArrowLeft size={20} />
         </IconButton>
       </div>
@@ -95,15 +98,15 @@ export function CheckBalance() {
       <div className="mt-10 flex flex-col gap-5">
         <header className="min-w-0">
           <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
-            Reconcile
+            {r.pageEyebrow}
           </p>
-          <h1 className="mt-2 truncate font-mono text-3xl font-bold text-ink">Check Balance</h1>
+          <h1 className="mt-2 truncate font-mono text-3xl font-bold text-ink">{r.pageTitle}</h1>
         </header>
 
         <section className="rounded-xl bg-surface p-5 shadow-soft">
           <div className="flex items-center justify-between gap-3">
             <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
-              Verified Balance
+              {r.verifiedBalanceLabel}
             </p>
             <span className="font-mono text-2xl font-bold text-ink">{formatCurrency(displayedAppBalance)}</span>
           </div>
@@ -113,7 +116,7 @@ export function CheckBalance() {
           <section className="rounded-xl bg-surface p-5 shadow-soft">
             <label className="block">
               <span className="block font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
-                Actual Balance
+                {r.actualBalanceLabel}
               </span>
               <div className="mt-3">
                 <TextInput
@@ -129,16 +132,16 @@ export function CheckBalance() {
                 />
               </div>
               <span className="mt-3 block font-mono text-sm text-ink-muted">
-                Total cash, bank, and other storage set aside for this project.
+                {r.actualHelper}
               </span>
             </label>
             {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
             <div className="mt-4 flex flex-col gap-2">
               <Button variant="action" fullWidth onClick={handleConfirmMatch} disabled={submitting || !actualValid}>
-                {submitting ? 'Saving…' : 'Save Check'}
+                {submitting ? r.savingButton : r.saveCheckButton}
               </Button>
               <Button variant="ghost" fullWidth size="md" onClick={() => navigate(-1)}>
-                Cancel
+                {r.cancelButton}
               </Button>
             </div>
           </section>
@@ -146,11 +149,11 @@ export function CheckBalance() {
 
         {step === 'difference' && (
           <section className="rounded-xl bg-surface p-5 shadow-soft">
-            <SectionLabel tone="brand">Difference</SectionLabel>
+            <SectionLabel tone="brand">{r.differenceLabel}</SectionLabel>
             <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-surfaceAlt p-3">
-              <SummaryStat label="Actual" value={formatCurrency(actualNumber)} />
-              <SummaryStat label="Verified" value={formatCurrency(displayedAppBalance)} />
-              <SummaryStat label="Difference" value={formatSignedCurrency(difference)} emphasized />
+              <SummaryStat label={r.statActual} value={formatCurrency(actualNumber)} />
+              <SummaryStat label={r.statVerified} value={formatCurrency(displayedAppBalance)} />
+              <SummaryStat label={r.statDifference} value={formatSignedCurrency(difference)} emphasized />
             </div>
             <div className="mt-4 flex flex-col gap-2">
               {RECONCILE_REASONS.map(option => (
@@ -168,17 +171,17 @@ export function CheckBalance() {
                       : 'bg-surfaceAlt text-ink hover:bg-brand-50')
                   }
                 >
-                  {option.label}
+                  {r.reasons[option.id].label}
                 </button>
               ))}
             </div>
             {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
             <div className="mt-4 flex flex-col gap-2">
               <Button variant="action" fullWidth onClick={handleConfirmDifference} disabled={submitting || !reason}>
-                {submitting ? 'Saving…' : 'Save Check & Adjustment'}
+                {submitting ? r.savingButton : r.saveAdjustmentButton}
               </Button>
               <Button variant="ghost" fullWidth size="md" onClick={() => setStep('enter')}>
-                Back
+                {r.backButton}
               </Button>
             </div>
           </section>
@@ -189,12 +192,12 @@ export function CheckBalance() {
         open={Boolean(outcome)}
         outcome="success"
         icon={outcome?.matched ? <IconCheck size={28} /> : <IconVault size={28} />}
-        title={outcome?.matched ? 'Balance checked' : 'Adjustment saved'}
+        title={outcome?.matched ? r.outcomeMatchedTitle : r.outcomeAdjustmentTitle}
         body={outcome?.matched
-          ? 'Your actual balance matches your verified balance.'
-          : `Recorded difference ${formatSignedCurrency(outcome?.diff ?? 0)}.`}
+          ? r.outcomeMatchedBody
+          : r.outcomeDifferenceBody(formatSignedCurrency(outcome?.diff ?? 0))}
       >
-        <Button variant="action" fullWidth onClick={() => navigate('/dashboard')}>Done</Button>
+        <Button variant="action" fullWidth onClick={() => navigate('/dashboard')}>{r.outcomeDone}</Button>
       </OutcomeModal>
     </div>
   );
@@ -211,9 +214,9 @@ function SummaryStat({ label, value, emphasized }: { label: string; value: strin
   );
 }
 
-function CheckBalanceSkeleton() {
+function CheckBalanceSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
-    <div className="flex flex-col gap-5" aria-label="Loading check balance">
+    <div className="flex flex-col gap-5" aria-label={loadingLabel}>
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-24" />
       <Skeleton className="h-40" />

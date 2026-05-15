@@ -6,16 +6,17 @@ import { Button } from '../Button/Button';
 import { formatCurrency } from '../../lib/format';
 import { formatSignedCurrency, RECONCILE_REASONS } from '../../lib/reconcile';
 import {
-  MONEY_STATE_LABEL,
   shortDateLabel,
   type HabitStatus,
   type MoneyStatus,
 } from '../../lib/savingPlan';
+import { useI18n } from '../../i18n/useI18n';
 import type { BalanceAdjustmentReason, SavingPlanRuleType } from '../../types';
 
 interface VerifiedBalanceSlot {
   amount: number;
-  sinceLabel: string;
+  /** Compact duration string (e.g. "today", "2d ago") or null when never checked. */
+  sinceLabel: string | null;
   matched: boolean;
   diff: number;
   onSubmit: (actualAmount: number, reason?: BalanceAdjustmentReason) => Promise<{ error?: string; differenceAmount?: number }>;
@@ -49,6 +50,8 @@ export function SavingPlanCard({
   pausedSince = null,
   planSummary = null,
 }: SavingPlanCardProps) {
+  const { copy } = useI18n();
+  const d = copy.dashboard;
   const [vbExpanded, setVbExpanded] = useState(false);
   const [vbActualValue, setVbActualValue] = useState('');
   const [vbStep, setVbStep] = useState<'enter' | 'reason'>('enter');
@@ -116,16 +119,16 @@ export function SavingPlanCard({
           </IconBubble>
           <div className="min-w-0 flex-1">
             <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-              Saving Plan
+              {d.savingPlanLabel}
             </p>
-            <p className="mt-1 truncate font-mono text-base font-bold text-ink">No plan yet</p>
+            <p className="mt-1 truncate font-mono text-base font-bold text-ink">{d.noPlanYet}</p>
           </div>
           <button
             type="button"
             onClick={onConfigure}
             className="shrink-0 rounded-pill bg-brand-500 px-4 py-2 font-mono text-xs font-bold text-ink-inverse shadow-haloOrange active:scale-[0.98] transition-transform"
           >
-            Set up plan
+            {d.setUpPlan}
           </button>
         </div>
       </section>
@@ -141,20 +144,22 @@ export function SavingPlanCard({
         : 'text-ink';
 
   const moneyHeadline = isPaused
-    ? 'Plan paused'
+    ? d.planPaused
     : money.state === 'ahead'
-      ? `Ahead by ${formatCurrency(Math.round(money.delta))}`
+      ? d.aheadBy(formatCurrency(Math.round(money.delta)))
       : money.state === 'behind'
-        ? `Behind by ${formatCurrency(Math.round(-money.delta))}`
-        : MONEY_STATE_LABEL[money.state];
+        ? d.behindBy(formatCurrency(Math.round(-money.delta)))
+        : money.state === 'on_track'
+          ? d.onTrack
+          : d.notStarted;
 
   const habitHeadline = habit.lastDepositDateKey === null
-    ? 'No deposits yet'
+    ? d.noDepositsYet
     : habit.hasDepositedToday
-      ? 'Today'
+      ? d.depositedToday
       : habit.daysSinceLastDeposit === 1
-        ? '1 day ago'
-        : `${habit.daysSinceLastDeposit} days ago`;
+        ? d.depositedDaysAgo(1)
+        : d.depositedDaysAgo(habit.daysSinceLastDeposit ?? 0);
 
   const streakFire = fireForStreak(habit.streak);
 
@@ -166,7 +171,7 @@ export function SavingPlanCard({
   return (
     <section className="rounded-xl bg-surface p-5 shadow-soft">
       <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-        Saving Plan
+        {d.savingPlanLabel}
       </p>
 
       <div className="mt-3 flex items-center justify-between gap-3">
@@ -176,7 +181,7 @@ export function SavingPlanCard({
         <button
           type="button"
           onClick={onConfigure}
-          aria-label="Change plan"
+          aria-label={d.changePlan}
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange active:scale-[0.96] transition-transform"
         >
           <IconEdit size={18} />
@@ -186,7 +191,7 @@ export function SavingPlanCard({
         <div className="mt-1">
           {pausedSince && (
             <p className="font-mono text-base font-bold text-ink-muted">
-              Since <span className="text-ink">{shortDateLabel(pausedSince)}</span>
+              {d.planSince} <span className="text-ink">{shortDateLabel(pausedSince)}</span>
               {planSummary && (
                 <span className="ml-2 font-normal text-ink-muted">· {planSummary}</span>
               )}
@@ -196,7 +201,7 @@ export function SavingPlanCard({
       ) : (
         money.state === 'ahead' && money.coveredUntilDate && (
           <p className="mt-1 font-mono text-base font-bold text-ink-muted">
-            Covered until <span className="text-ink">{shortDateLabel(money.coveredUntilDate)}</span>
+            {d.coveredUntil} <span className="text-ink">{shortDateLabel(money.coveredUntilDate)}</span>
           </p>
         )
       )}
@@ -204,10 +209,10 @@ export function SavingPlanCard({
       <div className="mt-5 grid grid-cols-2 divide-x divide-well">
         <div className="pr-4">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-            Money
+            {d.moneyLabel}
           </p>
           <div className="mt-3">
-            <p className="font-mono text-sm text-ink-muted">Today's plan</p>
+            <p className="font-mono text-sm text-ink-muted">{d.todaysPlan}</p>
             <p className="mt-0.5 font-mono text-base font-bold text-ink">
               {formatCurrency(Math.round(money.expectedToday))}
             </p>
@@ -216,20 +221,20 @@ export function SavingPlanCard({
 
         <div className="pl-4">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-            Habit
+            {d.habitLabel}
           </p>
           <div className="mt-3 flex flex-col gap-3">
             <div>
-              <p className="font-mono text-sm text-ink-muted">Last deposit</p>
+              <p className="font-mono text-sm text-ink-muted">{d.lastDeposit}</p>
               <p className="mt-0.5 font-mono text-base font-bold text-ink">
                 {habitHeadline}
               </p>
             </div>
             {habit.streak > 0 && (
               <div>
-                <p className="font-mono text-sm text-ink-muted">Streak</p>
+                <p className="font-mono text-sm text-ink-muted">{d.streakLabel}</p>
                 <p className="mt-0.5 font-mono text-base font-bold text-ink">
-                  {habit.streak} day{habit.streak === 1 ? '' : 's'}
+                  {d.streakDays(habit.streak)}
                   {streakFire && (
                     <span aria-hidden className="ml-1.5 align-middle">{streakFire}</span>
                   )}
@@ -253,15 +258,15 @@ export function SavingPlanCard({
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-                Verified balance
+                {d.verifiedBalanceRowLabel}
               </p>
               <p className="mt-0.5 truncate font-mono text-sm font-bold text-ink">
                 {formatCurrency(verifiedBalance.amount)}
                 <span className="ml-2 font-normal text-ink-muted">
-                  · {verifiedBalance.sinceLabel === 'never'
-                    ? 'not checked'
+                  · {verifiedBalance.sinceLabel === null
+                    ? d.notChecked
                     : verifiedBalance.matched
-                      ? `matched ${verifiedBalance.sinceLabel}`
+                      ? d.matchedSince(verifiedBalance.sinceLabel)
                       : `${formatSignedCurrency(verifiedBalance.diff)} ${verifiedBalance.sinceLabel}`}
                 </span>
               </p>
@@ -272,7 +277,7 @@ export function SavingPlanCard({
             />
           </button>
 
-          {/* Slide-down panel */}
+          {/* Slide-down panel — inline VB form strings deferred to 24.4 */}
           <div
             className="grid transition-[grid-template-rows] duration-300 ease-out"
             style={{ gridTemplateRows: vbExpanded ? '1fr' : '0fr' }}

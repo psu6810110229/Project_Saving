@@ -1,4 +1,4 @@
-﻿import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
@@ -48,6 +48,7 @@ import { useReconcile } from '../hooks/useReconcile';
 import { useRoom } from '../hooks/useRoom';
 import { useSavingPlan } from '../hooks/useSavingPlan';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
+import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
@@ -103,6 +104,10 @@ export function Dashboard() {
   } = useReconcile(activeRoomId);
   const { plan: savingPlan, deposits: planDeposits } = useSavingPlan(activeRoomId);
   const { count: unreadNotifications } = useUnreadNotificationsCount();
+  const { copy, language } = useI18n();
+  const d = copy.dashboard;
+  const c = copy.common;
+
   const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
   const { buckets: partnerBuckets } = usePartnerBuckets(activeRoomId, partnerEntry?.userId);
   const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
@@ -117,7 +122,7 @@ export function Dashboard() {
   const error = goalError ?? logsError;
 
   if (loading) return <DashboardSkeleton />;
-  if (error) return <StatusCard title="Dashboard needs a refresh" body={error} />;
+  if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
   const you = leaderboard.entries.find(entry => entry.isYou);
   const partner = leaderboard.entries.find(entry => !entry.isYou);
@@ -175,7 +180,7 @@ export function Dashboard() {
   const activePlanRevision = savingPlan
     ? activeRevisionAt(savingPlan.revisions, todayKey)
     : null;
-  const planSummary = activePlanRevision ? buildPlanSummary(activePlanRevision) : null;
+  const planSummary = activePlanRevision ? buildPlanSummary(activePlanRevision, d) : null;
   const moneyStatus = savingPlan
     ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey, planPauses)
     : null;
@@ -191,12 +196,10 @@ export function Dashboard() {
   // BalanceCheckStatus card is only used as a fallback empty state.
   const checkpointDays = latestCheckpoint ? daysSince(latestCheckpoint.checked_at) : null;
   const verifiedSinceLabel = checkpointDays === null
-    ? 'never'
+    ? null
     : checkpointDays === 0
-      ? 'today'
-      : checkpointDays === 1
-        ? '1d ago'
-        : `${checkpointDays}d ago`;
+      ? c.today
+      : c.daysAgoShort(checkpointDays);
   const verifiedBalanceSlot = reconciledAppBalance !== null
     ? {
         amount: reconciledAppBalance,
@@ -255,6 +258,8 @@ export function Dashboard() {
     isYou: false,
   };
 
+  const chartLocale = language === 'th' ? 'th-TH' : 'en-US';
+
   async function handleCreateBucket() {
     const nextTarget = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || nextTarget <= 0) {
@@ -287,7 +292,7 @@ export function Dashboard() {
       >
         <div className="flex items-center justify-between gap-3">
           <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-            Project
+            {d.projectLabel}
           </p>
           <div className="flex shrink-0 items-center gap-2">
             <BellIconButton
@@ -356,9 +361,9 @@ export function Dashboard() {
         {hasPartnerBuckets && (
           <div className="flex items-center justify-end gap-2">
             <Segmented
-              ariaLabel="Switch bucket owner"
+              ariaLabel={d.switchBucketOwner}
               options={[
-                { value: 'mine', label: 'You' },
+                { value: 'mine', label: d.youLabel },
                 { value: 'partner', label: partnerName },
               ]}
               value={bucketView}
@@ -373,11 +378,11 @@ export function Dashboard() {
           <section className="flex flex-col gap-3">
             <div>
               <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-800">
-                Smart Buckets
+                {d.smartBuckets}
               </p>
-              <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{partnerName}'s Buckets</h2>
+              <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{d.yourBuckets(partnerName)}</h2>
               <p className="mt-1 font-mono text-sm text-ink-muted">
-                {partnerBucketItems.length} bucket{partnerBucketItems.length === 1 ? '' : 's'} — read-only
+                {d.bucketCount(partnerBucketItems.length)} — {d.bucketReadOnly}
               </p>
             </div>
             <div className="flex flex-col gap-2">
@@ -394,10 +399,10 @@ export function Dashboard() {
           </section>
         ) : (
           <BucketGrid
-            title="Trip Buckets"
-            subtitle={buckets.length > 0 ? `${buckets.length} active buckets` : 'Create your first bucket to split the trip.'}
+            title={d.tripBuckets}
+            subtitle={buckets.length > 0 ? d.bucketCount(buckets.length) : undefined}
             buckets={bucketItems}
-            ctaLabel={buckets.length > 0 ? 'Add Bucket' : 'Create Bucket'}
+            ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
             onAddBucket={() => setBucketModalOpen(true)}
             renderBucket={bucket => (
               <BucketRow
@@ -412,7 +417,7 @@ export function Dashboard() {
         )}
         {buckets.length === 0 && (
           <Button variant="action" fullWidth onClick={() => setBucketModalOpen(true)}>
-            Create First Bucket
+            {d.createFirstBucket}
           </Button>
         )}
         {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
@@ -423,7 +428,7 @@ export function Dashboard() {
         <MomentumChart
           series={dailyAmountSeries(logs, user?.id)}
           partnerSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
-          labels={lastSevenDayLabels()}
+          labels={lastSevenDayLabels(undefined, chartLocale)}
           yourName={profile?.display_name ?? 'You'}
           partnerName={partnerEntry?.displayName ?? 'Partner'}
           expectedSeries={expectedDailySeries}
@@ -446,14 +451,14 @@ export function Dashboard() {
               chronological list, top 3 items only. */}
       <section className="reveal-section flex flex-col gap-3" style={revealStyle(360)}>
         <div className="flex items-center justify-between gap-2">
-          <SectionLabel tone="brand">Activity</SectionLabel>
+          <SectionLabel tone="brand">{d.activity}</SectionLabel>
           {logs.length > 0 && (
             <button
               type="button"
               onClick={() => setHistoryOpen(true)}
               className="font-mono text-xs font-bold text-brand-800 active:scale-[0.98] transition-transform"
             >
-              View all
+              {d.viewAll}
             </button>
           )}
         </div>
@@ -476,7 +481,7 @@ export function Dashboard() {
             ))}
           </div>
         ) : (
-          <StatusCard title="No activity yet" body={`Start with ${formatCurrency(100)} and let the streak begin.`} />
+          <DashboardStatusCard title={d.noActivityYet} body={d.noActivityBody(formatCurrency(100))} />
         )}
         <ActivityHistoryModal
           open={historyOpen}
@@ -485,7 +490,7 @@ export function Dashboard() {
         />
       </section>
 
-      <Modal open={bucketModalOpen} title="Add Bucket" onClose={() => setBucketModalOpen(false)}>
+      <Modal open={bucketModalOpen} title={d.addBucketModalTitle} onClose={() => setBucketModalOpen(false)}>
         <div className="flex flex-col gap-4">
           {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
           <CreateBucketForm
@@ -578,6 +583,8 @@ function buildMergedActivity(
 
 /** One sanitized balance-check row inside the merged activity feed. */
 function BalanceActivityRow({ entry }: { entry: BalanceActivityEntry }) {
+  const { copy } = useI18n();
+  const d = copy.dashboard;
   const matched = entry.difference_amount === 0;
   return (
     <div className="flex items-center gap-3 py-3">
@@ -587,9 +594,10 @@ function BalanceActivityRow({ entry }: { entry: BalanceActivityEntry }) {
       <div className="min-w-0 flex-1">
         <p className="truncate font-mono text-sm text-ink">
           <span className="font-bold">{entry.display_name?.trim() || 'Partner'}</span>
+          {' '}
           {matched
-            ? ' checked balance — matched'
-            : ` checked balance — ${formatSignedCurrency(entry.difference_amount)}`}
+            ? d.checkedBalanceMatched
+            : d.checkedBalanceDiff(formatSignedCurrency(entry.difference_amount))}
         </p>
         <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">
           {entry.reason ? `${reasonLabel(entry.reason)} · ` : ''}{formatRelativeTime(entry.checked_at)}
@@ -599,10 +607,11 @@ function BalanceActivityRow({ entry }: { entry: BalanceActivityEntry }) {
   );
 }
 
-function StatusCard({ title, body }: { title: string; body: string }) {
+function DashboardStatusCard({ title, body }: { title: string; body: string }) {
+  const { copy } = useI18n();
   return (
     <section className="rounded-xl bg-surface p-5 shadow-soft">
-      <SectionLabel tone="brand">Dashboard</SectionLabel>
+      <SectionLabel tone="brand">{copy.nav.dashboard}</SectionLabel>
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
     </section>
@@ -610,8 +619,9 @@ function StatusCard({ title, body }: { title: string; body: string }) {
 }
 
 function DashboardSkeleton() {
+  const { copy } = useI18n();
   return (
-    <div className="flex flex-col gap-6 animate-fade-in" aria-label="Loading dashboard">
+    <div className="flex flex-col gap-6 animate-fade-in" aria-label={copy.common.loadingDashboard}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3 w-20 rounded-pill" />
@@ -732,21 +742,28 @@ function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName,
   );
 }
 
+interface PlanSummaryMessages {
+  planFixedDaily: (amount: string) => string;
+  planFixedWeekly: (amount: string) => string;
+  planFixedMonthly: (amount: string) => string;
+  planIncreasingDaily: (startAmount: string) => string;
+  planIncreasingDailyCapped: (capAmount: string) => string;
+}
+
 /** Short human-readable plan rule summary for display in the Plan card. */
-function buildPlanSummary(rev: SavingPlanRevision): string {
+function buildPlanSummary(rev: SavingPlanRevision, msg: PlanSummaryMessages): string {
   switch (rev.rule_type) {
     case 'fixed_daily':
-      return `Fixed daily · ${formatCurrency(Math.round(Number(rev.amount ?? 0)))}/day`;
+      return msg.planFixedDaily(formatCurrency(Math.round(Number(rev.amount ?? 0))));
     case 'fixed_weekly':
-      return `Fixed weekly · ${formatCurrency(Math.round(Number(rev.amount ?? 0)))}/week`;
+      return msg.planFixedWeekly(formatCurrency(Math.round(Number(rev.amount ?? 0))));
     case 'fixed_monthly':
-      return `Fixed monthly · ${formatCurrency(Math.round(Number(rev.amount ?? 0)))}/month`;
+      return msg.planFixedMonthly(formatCurrency(Math.round(Number(rev.amount ?? 0))));
     case 'increasing_daily':
-      return `Increasing daily · starts ฿${Math.round(Number(rev.start_amount ?? 0))}`;
+      return msg.planIncreasingDaily(String(Math.round(Number(rev.start_amount ?? 0))));
     case 'increasing_daily_capped':
-      return `Increasing daily · capped at ${formatCurrency(Math.round(Number(rev.cap_amount ?? 0)))}`;
+      return msg.planIncreasingDailyCapped(formatCurrency(Math.round(Number(rev.cap_amount ?? 0))));
     default:
       return '';
   }
 }
-

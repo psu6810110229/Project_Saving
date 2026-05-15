@@ -1,10 +1,11 @@
 import { Avatar } from '../Avatar/Avatar';
 import { Chip } from '../Chip/Chip';
 import { IconSlip } from '../Icon/Icon';
-import { formatCurrency, formatRelativeTime } from '../../lib/format';
+import { formatCurrency } from '../../lib/format';
+import { useI18n } from '../../i18n/useI18n';
 
 /**
- * One row in the Activity Timeline on the Profile page. Avatar + actor
+ * One row in the Activity Timeline on the Dashboard. Avatar + actor
  * name + relative time + bucket name, plus the deposit amount on the
  * right. Optional "Slip Attached" chip when the deposit included a slip
  * upload.
@@ -32,6 +33,9 @@ export function ActivityTimelineRow({
   hasSlip = false,
   onViewSlip,
 }: ActivityTimelineRowProps) {
+  const { copy, formatRelativeTime } = useI18n();
+  const d = copy.dashboard;
+
   return (
     <div className="flex items-start gap-3 py-3">
       <Avatar size="sm" fallback={actorFallback} imageUrl={actorAvatarUrl} />
@@ -41,12 +45,12 @@ export function ActivityTimelineRow({
           <span className="font-mono text-xs text-ink-muted shrink-0">{formatRelativeTime(occurredAt)}</span>
         </div>
         <div className="mt-0.5 font-mono text-xs text-ink-muted truncate">
-          deposited into <span className="text-brand-800">{bucketName}</span>
+          {d.depositedInto} <span className="text-brand-800">{bucketName}</span>
         </div>
         {hasSlip && (
           <div className="mt-1.5">
             <button type="button" onClick={onViewSlip} disabled={!onViewSlip}>
-              <Chip tone="peach" icon={<IconSlip size={12} />}>Slip Attached</Chip>
+              <Chip tone="peach" icon={<IconSlip size={12} />}>{d.slipAttached}</Chip>
             </button>
           </div>
         )}

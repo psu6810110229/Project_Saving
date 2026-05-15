@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { Button } from '../components/Button/Button';
@@ -29,6 +29,7 @@ import { TextInput } from '../components/TextInput/TextInput';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
 import { useGoal } from '../hooks/useGoal';
+import { useI18n } from '../i18n/useI18n';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLogs } from '../hooks/useLogs';
 import { usePartnerBuckets } from '../hooks/usePartnerBuckets';
@@ -36,26 +37,24 @@ import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { sumTargets } from '../lib/buckets';
-import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import type { Bucket, BucketCategory } from '../types';
 
 type ManageModal = 'trip-goal' | 'invite-code' | 'quick-amounts' | 'buckets' | null;
 
-/**
- * Manage Project consolidates the per-room admin actions that used to
- * live as separate items inside Profile (trip date, invite code,
- * create project, archive project). It is reached by tapping
- * "Manage Project" on the Profile page — we deliberately do NOT add
- * a new bottom-nav button so the surface stays predictable.
- *
- * Joiners (created_by !== user.id) get a read-only view: they can
- * still see the invite code + trip date but the destructive actions
- * (archive, end-date edit) are hidden. The single-active-project
- * rule from migration 0021 only constrains creators.
- */
+const BUCKET_OPTION_ICONS: { id: BucketCategory; icon: ReactNode }[] = [
+  { id: 'flight', icon: <IconPlane size={22} /> },
+  { id: 'accom', icon: <IconBed size={22} /> },
+  { id: 'dining', icon: <IconFork size={22} /> },
+  { id: 'activities', icon: <IconTicket size={22} /> },
+  { id: 'gear', icon: <IconSmartphone size={22} /> },
+  { id: 'home', icon: <IconHome size={22} /> },
+  { id: 'other', icon: <IconBriefcase size={22} /> },
+];
+
 export function ManageProject() {
   const navigate = useNavigate();
+  const { copy, formatMoney } = useI18n();
   const { user } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const { goal, saveRoomGoal } = useGoal(activeRoomId);
@@ -77,11 +76,15 @@ export function ManageProject() {
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
 
+  const bucketOptions = BUCKET_OPTION_ICONS.map(({ id, icon }) => ({
+    id, icon, label: copy.bucket.categoryLabels[id],
+  }));
+
   if (!activeRoom) {
     return (
       <section className="rounded-xl bg-surface p-5 shadow-soft">
-        <SectionLabel tone="brand">Manage Project</SectionLabel>
-        <p className="mt-2 font-mono text-xs text-ink-muted">No active project. Create or join one from Profile.</p>
+        <SectionLabel tone="brand">{copy.manageProject.noProjectLabel}</SectionLabel>
+        <p className="mt-2 font-mono text-xs text-ink-muted">{copy.manageProject.noProjectBody}</p>
       </section>
     );
   }
@@ -116,16 +119,16 @@ export function ManageProject() {
 
   async function handleTripGoalSave() {
     if (!activeRoomId || !tripDateDraft) {
-      setMessage('Pick a trip date first.');
+      setMessage(copy.manageProject.tripGoalValidationDate);
       return;
     }
     const target = Number(targetAmountDraft);
     if (!Number.isFinite(target) || target <= 0) {
-      setMessage('Enter a target amount greater than 0.');
+      setMessage(copy.manageProject.tripGoalValidationAmount);
       return;
     }
     if (target < highestMemberBucketTargetTotal) {
-      setMessage(`Main goal must be at least ${formatCurrency(highestMemberBucketTargetTotal)} because existing bucket targets already use that much.`);
+      setMessage(copy.manageProject.tripGoalValidationMin(formatMoney(highestMemberBucketTargetTotal)));
       return;
     }
     const goalResult = await saveRoomGoal({
@@ -134,7 +137,7 @@ export function ManageProject() {
     });
     if (goalResult.error) { setMessage(goalResult.error); return; }
     await refetchRooms();
-    setMessage('Trip goal updated.');
+    setMessage(copy.manageProject.tripGoalSuccess);
     closeModal();
   }
 
@@ -142,7 +145,7 @@ export function ManageProject() {
     const result = await updateQuickAmounts(quickAmountDrafts.map(Number));
     if (result.error) setMessage(result.error);
     else {
-      setMessage('Quick amounts updated.');
+      setMessage(copy.manageProject.quickAmountsSuccess);
       closeModal();
     }
   }
@@ -150,11 +153,11 @@ export function ManageProject() {
   async function handleCreateBucket() {
     const target = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || target <= 0) {
-      setMessage('Add a bucket name, target, and category.');
+      setMessage(copy.bucket.validationNameAndTarget);
       return;
     }
     if (goalTarget !== null && yourBucketTargetTotal + target > goalTarget) {
-      setMessage(`Bucket target exceeds remaining capacity. You have ${formatCurrency(Math.max(0, goalTarget - yourBucketTargetTotal))} remaining for bucket targets.`);
+      setMessage(copy.bucket.capacityError(formatMoney(Math.max(0, goalTarget - yourBucketTargetTotal))));
       return;
     }
     const result = await saveBuckets([
@@ -164,7 +167,7 @@ export function ManageProject() {
     if (result.error) setMessage(result.error);
     else {
       haptic('success');
-      setMessage('Bucket created.');
+      setMessage(copy.bucket.createdSuccess);
       setBucketName('');
       setBucketTarget('');
     }
@@ -174,7 +177,7 @@ export function ManageProject() {
     if (goalTarget !== null) {
       const capacityForBucket = goalTarget - (yourBucketTargetTotal - bucket.target_amount);
       if (next.target_amount > capacityForBucket) {
-        const error = `Bucket target exceeds remaining capacity. You have ${formatCurrency(Math.max(0, capacityForBucket))} available for this bucket.`;
+        const error = copy.bucket.capacityErrorForEdit(formatMoney(Math.max(0, capacityForBucket)));
         setMessage(error);
         return { error };
       }
@@ -191,7 +194,7 @@ export function ManageProject() {
       return result;
     }
 
-    setMessage('Bucket updated.');
+    setMessage(copy.bucket.updatedSuccess);
     haptic('success');
     return result;
   }
@@ -208,7 +211,7 @@ export function ManageProject() {
       return result;
     }
 
-    setMessage('Bucket deleted.');
+    setMessage(copy.bucket.deletedSuccess);
     return result;
   }
 
@@ -232,17 +235,17 @@ export function ManageProject() {
     {
       id: 'invite',
       icon: <IconQrCode size={18} />,
-      label: 'Invite Code',
-      description: 'Share with your partner to join this project',
+      label: copy.manageProject.inviteCodeLabel,
+      description: copy.manageProject.inviteCodeDesc,
       meta: <span className="copy-allowed font-mono text-xs text-brand-800">{activeRoom.invite_code}</span>,
       onClick: () => openModal('invite-code'),
     },
     {
       id: 'date',
       icon: <IconCalendar size={18} />,
-      label: 'Trip Goal',
+      label: copy.manageProject.tripGoalLabel,
       description: activeRoom.end_date ?? 'Not set',
-      meta: <span className="font-mono text-xs text-ink-muted">{goal ? formatCurrency(goal.target_amount) : ''}</span>,
+      meta: <span className="font-mono text-xs text-ink-muted">{goal ? formatMoney(goal.target_amount) : ''}</span>,
       onClick: isCreator ? () => openModal('trip-goal') : undefined,
     },
   ];
@@ -251,15 +254,15 @@ export function ManageProject() {
     {
       id: 'quick',
       icon: <IconPiggyBank size={18} />,
-      label: 'Quick Amounts',
-      description: quickAmounts.map(formatCurrency).join(' / '),
+      label: copy.manageProject.quickAmountsLabel,
+      description: quickAmounts.map(formatMoney).join(' / '),
       onClick: () => openModal('quick-amounts'),
     },
     {
       id: 'buckets',
       icon: <IconGear size={18} />,
-      label: 'Manage Buckets',
-      description: `${buckets.length} active`,
+      label: copy.manageProject.manageBucketsLabel,
+      description: copy.manageProject.manageBucketsDesc(buckets.length),
       onClick: () => openModal('buckets'),
     },
   ];
@@ -268,8 +271,8 @@ export function ManageProject() {
     {
       id: 'create-another',
       icon: <IconUserPlus size={18} />,
-      label: 'Create another project',
-      description: 'Archives this project. One active project per creator.',
+      label: copy.manageProject.createAnotherLabel,
+      description: copy.manageProject.createAnotherDesc,
       onClick: isCreator ? () => navigate('/profile?intent=create-project') : undefined,
     },
   ];
@@ -277,10 +280,8 @@ export function ManageProject() {
   const archiveItem = {
     id: 'archive',
     icon: <IconTrash size={18} />,
-    label: isCreator ? 'Archive Project' : 'Leave Project',
-    description: isCreator
-      ? 'Partners will see this project as offline (read-only).'
-      : 'Your partner keeps the project. You can rejoin later with the invite code.',
+    label: isCreator ? copy.manageProject.archiveLabel : copy.manageProject.leaveLabel,
+    description: isCreator ? copy.manageProject.archiveDesc : copy.manageProject.leaveDesc,
     onClick: isCreator
       ? () => setConfirmingArchive(true)
       : () => setConfirmingLeave(true),
@@ -293,19 +294,19 @@ export function ManageProject() {
           type="button"
           onClick={() => navigate('/profile')}
           className="flex items-center gap-1 rounded-pill bg-well px-3 py-1 font-mono text-[11px] text-ink-muted shadow-neuPressed hover:text-ink"
-          aria-label="Back to Profile"
+          aria-label={`Back to ${copy.manageProject.backLabel}`}
         >
-          <IconArrowLeft size={14} /> Profile
+          <IconArrowLeft size={14} /> {copy.manageProject.backLabel}
         </button>
       </div>
-      <PageHeader eyebrow="Project" title="Manage Project" subtitle={activeRoom.name} />
+      <PageHeader eyebrow={copy.manageProject.pageEyebrow} title={copy.manageProject.pageTitle} subtitle={activeRoom.name} />
       {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
-      <SettingsList label="Project Basics" items={projectBasicsItems} />
-      <SettingsList label="Saving Controls" items={savingControlItems} />
-      <SettingsList label="Room Actions" items={roomActionItems} archiveItem={archiveItem} />
-      <Modal open={activeModal === 'trip-goal'} title="Trip Goal" onClose={closeModal}>
+      <SettingsList label={copy.manageProject.sectionProjectBasics} items={projectBasicsItems} />
+      <SettingsList label={copy.manageProject.sectionSavingControls} items={savingControlItems} />
+      <SettingsList label={copy.manageProject.sectionRoomActions} items={roomActionItems} archiveItem={archiveItem} />
+      <Modal open={activeModal === 'trip-goal'} title={copy.manageProject.tripGoalModalTitle} onClose={closeModal}>
         <div className="flex flex-col gap-4">
-          <FormField label="End Date">
+          <FormField label={copy.manageProject.endDateLabel}>
             <TextInput
               type="date"
               value={tripDateDraft}
@@ -318,9 +319,9 @@ export function ManageProject() {
             partnerAllocated={partnerEntry ? partnerBucketTargetTotal : null}
           />
           <FormField
-            label="Target Amount (THB)"
-            helper={`${formatCurrency(Math.max(0, effectiveGoalDraftAmount - yourBucketTargetTotal))} remaining for your bucket targets`}
-            error={goalDraftTooLow ? `Main goal must be at least ${formatCurrency(highestMemberBucketTargetTotal)} to cover existing bucket targets.` : undefined}
+            label={copy.manageProject.targetAmountLabel}
+            helper={copy.manageProject.targetAmountHelper(formatMoney(Math.max(0, effectiveGoalDraftAmount - yourBucketTargetTotal)))}
+            error={goalDraftTooLow ? copy.manageProject.targetAmountError(formatMoney(highestMemberBucketTargetTotal)) : undefined}
           >
             <TextInput
               type="number"
@@ -332,10 +333,10 @@ export function ManageProject() {
               onChange={event => setTargetAmountDraft(event.target.value)}
             />
           </FormField>
-          <Button variant="primary" fullWidth onClick={handleTripGoalSave}>Save</Button>
+          <Button variant="primary" fullWidth onClick={handleTripGoalSave}>{copy.manageProject.saveButton}</Button>
         </div>
       </Modal>
-      <Modal open={activeModal === 'invite-code'} title="Invite Code" onClose={closeModal}>
+      <Modal open={activeModal === 'invite-code'} title={copy.manageProject.inviteCodeModalTitle} onClose={closeModal}>
         <div className="flex flex-col gap-3 text-center">
           <span className="copy-allowed font-mono text-3xl font-bold tracking-[0.4em] text-brand-700">{activeRoom.invite_code}</span>
           <Button
@@ -343,21 +344,21 @@ export function ManageProject() {
             fullWidth
             onClick={() => {
               navigator.clipboard?.writeText(activeRoom.invite_code);
-              setMessage('Copied invite code to clipboard.');
+              setMessage(copy.manageProject.copiedMessage);
             }}
           >
-            Copy Code
+            {copy.manageProject.copyCodeButton}
           </Button>
         </div>
       </Modal>
-      <Modal open={activeModal === 'quick-amounts'} title="Quick Amounts" onClose={closeModal}>
+      <Modal open={activeModal === 'quick-amounts'} title={copy.manageProject.quickAmountsModalTitle} onClose={closeModal}>
         <QuickAmountsEditor
           amounts={quickAmountDrafts}
           onChange={setQuickAmountDrafts}
           onSave={handleQuickAmountsSave}
         />
       </Modal>
-      <Modal open={activeModal === 'buckets'} title="Manage Buckets" onClose={closeModal}>
+      <Modal open={activeModal === 'buckets'} title={copy.manageProject.manageBucketsModalTitle} onClose={closeModal}>
         <BucketManager
           buckets={buckets}
           logs={logs}
@@ -377,18 +378,18 @@ export function ManageProject() {
       </Modal>
       <ConfirmModal
         open={confirmingArchive}
-        title="Archive project?"
-        body="Your partner will see this project as offline with read-only access. You can restore it from Manage Project later."
-        confirmLabel="Archive"
+        title={copy.manageProject.archiveConfirmTitle}
+        body={copy.manageProject.archiveConfirmBody}
+        confirmLabel={copy.manageProject.archiveConfirmLabel}
         danger
         onCancel={() => setConfirmingArchive(false)}
         onConfirm={handleArchive}
       />
       <ConfirmModal
         open={confirmingLeave}
-        title="Leave project?"
-        body="You'll no longer see this project on your dashboard. The project creator stays in and can keep working solo or invite a new partner. You can rejoin later if they share the invite code."
-        confirmLabel="Leave"
+        title={copy.manageProject.leaveConfirmTitle}
+        body={copy.manageProject.leaveConfirmBody}
+        confirmLabel={copy.manageProject.leaveConfirmLabel}
         danger
         onCancel={() => setConfirmingLeave(false)}
         onConfirm={handleLeave}
@@ -406,27 +407,18 @@ function GoalTargetSummary({
   allocated: number;
   partnerAllocated: number | null;
 }) {
+  const { copy, formatMoney } = useI18n();
   const remaining = Math.max(0, goalTarget - allocated);
   const partnerLine = partnerAllocated !== null && partnerAllocated > allocated
-    ? `Partner bucket targets use ${formatCurrency(partnerAllocated)}.`
+    ? copy.manageProject.goalSummaryPartner(formatMoney(partnerAllocated))
     : null;
 
   return (
     <div className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
-      <p className="font-bold text-ink">Main goal target: {formatCurrency(goalTarget)}</p>
-      <p className="mt-1">{formatCurrency(allocated)} allocated of {formatCurrency(goalTarget)}</p>
-      <p className="mt-1">{formatCurrency(remaining)} remaining for bucket targets</p>
+      <p className="font-bold text-ink">{copy.manageProject.goalSummaryTitle(formatMoney(goalTarget))}</p>
+      <p className="mt-1">{copy.manageProject.goalSummaryAllocated(formatMoney(allocated), formatMoney(goalTarget))}</p>
+      <p className="mt-1">{copy.manageProject.goalSummaryRemaining(formatMoney(remaining))}</p>
       {partnerLine && <p className="mt-1 text-brand-800">{partnerLine}</p>}
     </div>
   );
 }
-
-const bucketOptions = [
-  { id: 'flight' as const, label: 'Flight', icon: <IconPlane size={22} /> },
-  { id: 'accom' as const, label: 'Stay', icon: <IconBed size={22} /> },
-  { id: 'dining' as const, label: 'Dining', icon: <IconFork size={22} /> },
-  { id: 'activities' as const, label: 'Activity', icon: <IconTicket size={22} /> },
-  { id: 'gear' as const, label: 'Gear', icon: <IconSmartphone size={22} /> },
-  { id: 'home' as const, label: 'Home', icon: <IconHome size={22} /> },
-  { id: 'other' as const, label: 'Other', icon: <IconBriefcase size={22} /> },
-];

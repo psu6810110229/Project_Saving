@@ -28,13 +28,15 @@ export function AppLayout() {
   const location = useLocation();
   const { activeRoom } = useRoom();
   const { loading, error, createRoom, joinRoomByCode } = useRooms();
+  const { copy } = useI18n();
+  const al = copy.appLayout;
   const activeTab = tabFromPath(location.pathname);
 
   return (
     <AppShell activeTab={activeTab} onTabChange={tab => navigate(pathFromTab(tab))}>
       <ProfileLanguageSync />
-      {loading && <StatusCard title="Loading your project" body="Pulling the latest savings room." />}
-      {!loading && error && <StatusCard title="Could not load projects" body={error} />}
+      {loading && <StatusCard title={al.loadingTitle} body={al.loadingBody} />}
+      {!loading && error && <StatusCard title={al.errorTitle} body={error} />}
       {!loading && !error && !activeRoom && <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />}
       {!loading && !error && activeRoom && (
         <PageTransition transitionKey={location.pathname}>

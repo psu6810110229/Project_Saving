@@ -1,6 +1,5 @@
-﻿import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { bucketSaved, sumTargets } from '../../lib/buckets';
-import { formatCurrency } from '../../lib/format';
 import type { Bucket, BucketCategory, SavingsLog } from '../../types';
 import { Button } from '../Button/Button';
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
@@ -10,6 +9,7 @@ import { IconCheck, IconEdit, IconPiggyBank, IconTrash, IconX } from '../Icon/Ic
 import { IconButton } from '../IconButton/IconButton';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { TextInput } from '../TextInput/TextInput';
+import { useI18n } from '../../i18n/useI18n';
 
 interface BucketCategoryOption {
   id: BucketCategory;
@@ -50,6 +50,7 @@ export function BucketManager({
   onUpdate,
   onDelete,
 }: BucketManagerProps) {
+  const { copy, formatMoney } = useI18n();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draftTarget, setDraftTarget] = useState('');
@@ -82,17 +83,17 @@ export function BucketManager({
   async function saveEdit(bucket: Bucket) {
     const targetAmount = Number(draftTarget);
     if (!draftName.trim()) {
-      setLocalMessage('Add a bucket name before saving.');
+      setLocalMessage(copy.bucket.validationNameBeforeSaving);
       return;
     }
     if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
-      setLocalMessage('Enter a target amount greater than 0.');
+      setLocalMessage(copy.bucket.validationTargetAboveZero);
       return;
     }
     if (typeof goalTarget === 'number') {
       const capacityForEdit = goalTarget - (totalBucketTargets - bucket.target_amount);
       if (targetAmount > capacityForEdit) {
-        setLocalMessage(`Bucket target exceeds remaining capacity. You have ${formatCurrency(Math.max(0, capacityForEdit))} available for this bucket.`);
+        setLocalMessage(copy.bucket.capacityErrorForEdit(formatMoney(Math.max(0, capacityForEdit))));
         return;
       }
     }
@@ -109,7 +110,7 @@ export function BucketManager({
       return;
     }
 
-    setLocalMessage('Bucket updated.');
+    setLocalMessage(copy.bucket.updatedSuccess);
     setEditingId(null);
   }
 
@@ -117,7 +118,7 @@ export function BucketManager({
     if (!pendingDelete) return;
 
     if (bucketSaved(pendingDelete.id, logs) !== 0) {
-      setLocalMessage('This bucket has deposit history. Move or correct those logs before deleting it.');
+      setLocalMessage(copy.bucket.deleteHistoryBody(pendingDelete.name));
       setPendingDelete(null);
       return;
     }
@@ -132,12 +133,12 @@ export function BucketManager({
       return;
     }
 
-    setLocalMessage('Bucket deleted.');
+    setLocalMessage(copy.bucket.deletedSuccess);
   }
 
   function handleCreate() {
     if (createTargetOverCapacity) {
-      setLocalMessage(`Bucket target exceeds remaining capacity. You have ${formatCurrency(remainingCapacity ?? 0)} remaining for bucket targets.`);
+      setLocalMessage(copy.bucket.capacityError(formatMoney(remainingCapacity ?? 0)));
       return;
     }
     onCreate();
@@ -183,10 +184,10 @@ export function BucketManager({
         name={name}
         target={target}
         targetHelper={typeof remainingCapacity === 'number'
-          ? `${formatCurrency(remainingCapacity)} remaining for bucket targets`
+          ? copy.bucket.remainingForBuckets(formatMoney(remainingCapacity))
           : undefined}
         targetError={createTargetOverCapacity
-          ? `This exceeds the remaining bucket target capacity by ${formatCurrency(createTargetAmount - (remainingCapacity ?? 0))}.`
+          ? copy.bucket.capacityExceededBy(formatMoney(createTargetAmount - (remainingCapacity ?? 0)))
           : undefined}
         onCategoryChange={onCategoryChange}
         onNameChange={onNameChange}
@@ -195,15 +196,15 @@ export function BucketManager({
       />
       <ConfirmModal
         open={Boolean(pendingDelete)}
-        title={blockedDelete ? 'Bucket has history' : 'Delete bucket?'}
+        title={blockedDelete ? copy.bucket.deleteHistoryTitle : copy.bucket.deleteConfirmTitle}
         body={
           pendingDelete
             ? blockedDelete
-              ? `${pendingDelete.name} has saved activity attached to it, so it cannot be deleted yet.`
-              : `Delete ${pendingDelete.name}? This only removes the bucket setup and cannot be undone.`
+              ? copy.bucket.deleteHistoryBody(pendingDelete.name)
+              : copy.bucket.deleteConfirmBody(pendingDelete.name)
             : ''
         }
-        confirmLabel={blockedDelete ? 'Got it' : 'Delete'}
+        confirmLabel={blockedDelete ? copy.bucket.deleteHistoryLabel : copy.bucket.deleteConfirmLabel}
         danger={!blockedDelete}
         onCancel={() => setPendingDelete(null)}
         onConfirm={blockedDelete ? () => setPendingDelete(null) : confirmDelete}
@@ -213,13 +214,14 @@ export function BucketManager({
 }
 
 function TargetCapacitySummary({ goalTarget, allocated }: { goalTarget: number; allocated: number }) {
+  const { copy, formatMoney } = useI18n();
   const remaining = Math.max(0, goalTarget - allocated);
 
   return (
     <div className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
-      <p className="font-bold text-ink">Main goal target: {formatCurrency(goalTarget)}</p>
-      <p className="mt-1">{formatCurrency(allocated)} allocated of {formatCurrency(goalTarget)}</p>
-      <p className="mt-1">{formatCurrency(remaining)} remaining for bucket targets</p>
+      <p className="font-bold text-ink">{copy.bucket.mainGoalTarget(formatMoney(goalTarget))}</p>
+      <p className="mt-1">{copy.bucket.allocatedOf(formatMoney(allocated), formatMoney(goalTarget))}</p>
+      <p className="mt-1">{copy.bucket.remainingForBuckets(formatMoney(remaining))}</p>
     </div>
   );
 }
@@ -255,13 +257,15 @@ function BucketSummary({
   onSaveEdit: (bucket: Bucket) => void;
   onAskDelete: (bucket: Bucket) => void;
 }) {
+  const { copy, formatMoney } = useI18n();
+
   if (buckets.length === 0) {
-    return <p className="font-mono text-xs text-ink-muted">No buckets yet. Create one below.</p>;
+    return <p className="font-mono text-xs text-ink-muted">{copy.bucket.noBucketsYet}</p>;
   }
 
   return (
     <div className="rounded-xl bg-surface p-4 shadow-soft">
-      <SectionLabel tone="brand">Current Buckets</SectionLabel>
+      <SectionLabel tone="brand">{copy.bucket.currentBuckets}</SectionLabel>
       <div className="mt-3 flex flex-col gap-3">
         {buckets.map(bucket => {
           const saved = bucketSaved(bucket.id, logs);
@@ -275,14 +279,14 @@ function BucketSummary({
             && typeof capacityForEdit === 'number'
             && Number.isFinite(draftTargetAmount)
             && draftTargetAmount > capacityForEdit
-              ? `This exceeds the remaining bucket target capacity by ${formatCurrency(draftTargetAmount - capacityForEdit)}.`
+              ? copy.bucket.capacityExceededBy(formatMoney(draftTargetAmount - capacityForEdit))
               : undefined;
 
           return (
             <div key={bucket.id} className="rounded-lg bg-brand-50 px-4 py-3">
               {editing ? (
                 <div className="flex flex-col gap-3">
-                  <FormField label="Bucket Name">
+                  <FormField label={copy.bucket.editNameLabel}>
                     <TextInput
                       value={draftName}
                       leadingIcon={<IconEdit size={16} />}
@@ -290,8 +294,8 @@ function BucketSummary({
                     />
                   </FormField>
                   <FormField
-                    label="Target Amount"
-                    helper={typeof capacityForEdit === 'number' ? `${formatCurrency(Math.max(0, capacityForEdit))} available for this bucket` : undefined}
+                    label={copy.bucket.editTargetLabel}
+                    helper={typeof capacityForEdit === 'number' ? copy.bucket.capacityAvailable(formatMoney(Math.max(0, capacityForEdit))) : undefined}
                     error={editTargetError}
                   >
                     <TextInput
@@ -310,7 +314,7 @@ function BucketSummary({
                       onClick={onCancelEdit}
                       disabled={saving}
                     >
-                      Cancel
+                      {copy.bucket.editCancel}
                     </Button>
                     <Button
                       type="button"
@@ -320,7 +324,7 @@ function BucketSummary({
                       onClick={() => onSaveEdit(bucket)}
                       disabled={saving}
                     >
-                      Save
+                      {copy.bucket.editSave}
                     </Button>
                   </div>
                 </div>
@@ -331,17 +335,17 @@ function BucketSummary({
                       <span className="truncate font-mono text-sm font-bold text-ink">{bucket.name}</span>
                     </div>
                     <p className="mt-1 font-mono text-xs text-ink-muted">
-                      {formatCurrency(saved)} saved / {formatCurrency(bucket.target_amount)} target
+                      {copy.bucket.savedOf(formatMoney(saved), formatMoney(bucket.target_amount))}
                     </p>
                     <p className="mt-1 font-mono text-xs text-ink-muted">
-                      {formatCurrency(remaining)} remaining
+                      {copy.bucket.remaining(formatMoney(remaining))}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <IconButton
                       type="button"
                       size="sm"
-                      ariaLabel={`Edit ${bucket.name}`}
+                      ariaLabel={copy.bucket.editAriaLabel(bucket.name)}
                       onClick={() => onStartEdit(bucket)}
                     >
                       <IconEdit size={16} />
@@ -349,7 +353,7 @@ function BucketSummary({
                     <IconButton
                       type="button"
                       size="sm"
-                      ariaLabel={`Delete ${bucket.name}`}
+                      ariaLabel={copy.bucket.deleteAriaLabel(bucket.name)}
                       className="bg-danger-soft text-danger hover:bg-danger-soft/80"
                       onClick={() => onAskDelete(bucket)}
                     >

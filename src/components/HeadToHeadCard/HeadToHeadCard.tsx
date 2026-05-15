@@ -1,6 +1,7 @@
-﻿import { formatCurrency } from '../../lib/format';
+import { formatCurrency } from '../../lib/format';
 import type { ThemeSwatch } from '../../lib/theme';
 import { PlayerProgressRow } from '../PlayerProgressRow/PlayerProgressRow';
+import { useI18n } from '../../i18n/useI18n';
 
 interface PlayerInput {
   name: string;
@@ -25,6 +26,8 @@ interface HeadToHeadCardProps {
  * read once from the leader's row to avoid duplicate state.
  */
 export function HeadToHeadCard({ left, right }: HeadToHeadCardProps) {
+  const { copy } = useI18n();
+  const d = copy.dashboard;
   const tied = left.saved === right.saved;
   const gap = Math.abs(left.saved - right.saved);
   const rows = [left, right].sort((a, b) => {
@@ -34,12 +37,12 @@ export function HeadToHeadCard({ left, right }: HeadToHeadCardProps) {
 
   return (
     <section className="rounded-xl bg-surface shadow-soft p-5">
-      <h2 className="font-mono text-xl font-bold tracking-tight text-ink">Progress Race</h2>
+      <h2 className="font-mono text-xl font-bold tracking-tight text-ink">{d.progressRace}</h2>
       <div className="mt-5 flex flex-col gap-5">
         <PlayerProgressRow
           {...rows[0]}
           isLeader={!tied}
-          gapLabel={tied ? 'Tied' : `Leading by ${formatCurrency(gap)}`}
+          gapLabel={tied ? d.tied : d.leadingBy(formatCurrency(gap))}
         />
         <div className="h-px bg-well" />
         <PlayerProgressRow

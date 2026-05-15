@@ -1,10 +1,11 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityTimelineRow } from '../ActivityTimelineRow/ActivityTimelineRow';
 import { FormField } from '../FormField/FormField';
 import { Modal } from '../Modal/Modal';
 import { Segmented } from '../Segmented/Segmented';
 import { TextInput } from '../TextInput/TextInput';
 import { useLocalStorageState } from '../../hooks/useLocalStorageState';
+import { useI18n } from '../../i18n/useI18n';
 
 export interface ActivityHistoryItem {
   id: string;
@@ -29,7 +30,7 @@ type SortOrder = 'newest' | 'oldest' | 'largest';
 const SORT_STORAGE_KEY = 'activity-history:sort';
 
 /**
- * Full activity history modal opened from the "View more" button on
+ * Full activity history modal opened from the "View all" button on
  * the Dashboard's recent-activity feed. Groups deposits by date,
  * supports a free-text search across actor + bucket names + amount,
  * and offers three sort orders (newest / oldest / largest amount).
@@ -40,6 +41,8 @@ const SORT_STORAGE_KEY = 'activity-history:sort';
  * filter.
  */
 export function ActivityHistoryModal({ open, onClose, items }: ActivityHistoryModalProps) {
+  const { copy, formatLocalDateLabel } = useI18n();
+  const d = copy.dashboard;
   const [query, setQuery] = useState('');
   const [sort, setSort] = useLocalStorageState<SortOrder>(SORT_STORAGE_KEY, 'newest');
 
@@ -59,25 +62,28 @@ export function ActivityHistoryModal({ open, onClose, items }: ActivityHistoryMo
     return sorted;
   }, [items, query, sort]);
 
-  const grouped = useMemo(() => groupByDate(filtered), [filtered]);
+  const grouped = useMemo(
+    () => groupByDate(filtered, formatLocalDateLabel),
+    [filtered, formatLocalDateLabel],
+  );
 
   return (
-    <Modal open={open} title="Activity History" onClose={onClose}>
+    <Modal open={open} title={d.activityHistory} onClose={onClose}>
       <div className="flex flex-col gap-4">
-        <FormField label="Search">
+        <FormField label={d.activitySearch}>
           <TextInput
             value={query}
-            placeholder="Name, bucket, or amount"
+            placeholder={d.activitySearchPlaceholder}
             onChange={event => setQuery(event.target.value)}
           />
         </FormField>
         <div className="flex justify-end">
           <Segmented<SortOrder>
-            ariaLabel="Sort activity history"
+            ariaLabel={d.activitySortAriaLabel}
             options={[
-              { value: 'newest', label: 'Newest' },
-              { value: 'oldest', label: 'Oldest' },
-              { value: 'largest', label: 'Largest' },
+              { value: 'newest', label: d.activitySortNewest },
+              { value: 'oldest', label: d.activitySortOldest },
+              { value: 'largest', label: d.activitySortLargest },
             ]}
             value={sort}
             onChange={setSort}
@@ -85,7 +91,7 @@ export function ActivityHistoryModal({ open, onClose, items }: ActivityHistoryMo
         </div>
         {grouped.length === 0 && (
           <p className="rounded-lg bg-well px-4 py-3 font-mono text-xs text-ink-muted">
-            {query ? 'No deposits match this search.' : 'No deposits yet.'}
+            {query ? d.activityNoMatchSearch : d.activityNoDeposits}
           </p>
         )}
         <div className="flex flex-col gap-3 max-h-[60dvh] overflow-y-auto">
@@ -112,7 +118,10 @@ interface DateGroup {
   items: ActivityHistoryItem[];
 }
 
-function groupByDate(items: ActivityHistoryItem[]): DateGroup[] {
+function groupByDate(
+  items: ActivityHistoryItem[],
+  labelFn: (iso: string) => string,
+): DateGroup[] {
   const buckets = new Map<string, ActivityHistoryItem[]>();
   items.forEach(item => {
     const key = item.occurredAt.slice(0, 10);
@@ -120,22 +129,8 @@ function groupByDate(items: ActivityHistoryItem[]): DateGroup[] {
     list.push(item);
     buckets.set(key, list);
   });
-  const today = new Date().toISOString().slice(0, 10);
   return Array.from(buckets.entries()).map(([key, list]) => ({
-    label: humanLabel(key, today),
+    label: labelFn(`${key}T00:00:00`),
     items: list,
   }));
-}
-
-function humanLabel(key: string, today: string): string {
-  if (key === today) return 'Today';
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (yesterday.toISOString().slice(0, 10) === key) return 'Yesterday';
-  return new Date(`${key}T00:00:00`).toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }

@@ -7,6 +7,7 @@ import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgres
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { SlipAttachField } from '../SlipAttachField/SlipAttachField';
 import { TextInput } from '../TextInput/TextInput';
+import { useI18n } from '../../i18n/useI18n';
 
 interface AddMoneyFormProps {
   bucketIcon: ReactNode;
@@ -37,6 +38,7 @@ export function AddMoneyForm({
   onSlipChange,
   onSubmit,
 }: AddMoneyFormProps) {
+  const { copy } = useI18n();
   const amount = Number(amountValue) || selectedQuickAmount || 0;
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,12 +49,12 @@ export function AddMoneyForm({
     <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <BucketHeader icon={bucketIcon} name={bucketName} saved={saved} target={target} />
       <QuickAddRow
-        label="Deposit Amount"
+        label={copy.addMoney.depositAmountLabel}
         amounts={quickAmounts}
         selected={selectedQuickAmount}
         onSelect={onQuickAmountSelect}
       />
-      <FormField label="Custom Amount" helper="Parent owns validation and saving.">
+      <FormField label={copy.addMoney.customAmountLabel}>
         <TextInput
           value={amountValue}
           inputMode="numeric"
@@ -63,7 +65,7 @@ export function AddMoneyForm({
       </FormField>
       <ProjectedProgressCard bucketName={bucketName} saved={saved} target={target} pendingDeposit={amount} />
       <SlipAttachField file={slip} onChange={onSlipChange} />
-      <Button variant="action" fullWidth type="submit">Confirm Deposit</Button>
+      <Button variant="action" fullWidth type="submit">{copy.addMoney.confirmDepositButton}</Button>
     </form>
   );
 }

@@ -1,7 +1,8 @@
-﻿import { Chip } from '../Chip/Chip';
+import { Chip } from '../Chip/Chip';
 import { IconVault } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { daysSince, formatSignedCurrency } from '../../lib/reconcile';
+import { useI18n } from '../../i18n/useI18n';
 import type { BalanceCheckpoint } from '../../types';
 
 interface BalanceCheckStatusProps {
@@ -15,14 +16,15 @@ interface BalanceCheckStatusProps {
  * hero. Stays visually secondary to the Saving Plan card.
  */
 export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheckStatusProps) {
+  const { copy } = useI18n();
+  const d = copy.dashboard;
+  const c = copy.common;
   const days = latest ? daysSince(latest.checked_at) : null;
   const sinceLabel = latest
     ? days === 0
-      ? 'today'
-      : days === 1
-        ? '1d ago'
-        : `${days}d ago`
-    : 'never';
+      ? c.today
+      : c.daysAgoShort(days!)
+    : c.never;
 
   const diff = latest?.difference_amount ?? 0;
   const matched = latest ? diff === 0 : false;
@@ -35,17 +37,17 @@ export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheck
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-            Verified Balance
+            {d.verifiedBalanceLabel}
           </p>
           {latest && (
             <Chip tone={matched ? 'leaf' : 'peach'}>
-              {matched ? 'Matched' : formatSignedCurrency(diff)}
+              {matched ? d.balanceMatched : formatSignedCurrency(diff)}
             </Chip>
           )}
         </div>
         <p className="mt-0.5 truncate font-mono text-sm font-bold text-ink">
           {formatCurrency(appBalance)}
-          <span className="ml-2 font-normal text-ink-muted">· checked {sinceLabel}</span>
+          <span className="ml-2 font-normal text-ink-muted">· {d.checkedSince(sinceLabel)}</span>
         </p>
       </div>
       <button
@@ -53,7 +55,7 @@ export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheck
         onClick={onCheck}
         className="shrink-0 rounded-pill bg-surfaceAlt px-3 py-1.5 font-mono text-xs font-bold text-brand-800 active:scale-[0.98] transition-transform"
       >
-        Check
+        {d.checkButton}
       </button>
     </section>
   );

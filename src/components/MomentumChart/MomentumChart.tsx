@@ -1,6 +1,7 @@
 import { palette } from '../../lib/theme';
 import { chartIdentityColors } from '../../lib/chartIdentity';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { useI18n } from '../../i18n/useI18n';
 
 /**
  * Dashboard 7-day deposit trend chart. SVG bar chart with one bar per
@@ -48,6 +49,8 @@ export function MomentumChart({
   partnerName = 'Partner',
   expectedSeries,
 }: MomentumChartProps) {
+  const { copy } = useI18n();
+  const d = copy.dashboard;
   const hasPartner = Array.isArray(partnerSeries) && partnerSeries.length === series.length;
   const hasExpected = Array.isArray(expectedSeries) && expectedSeries.length === series.length;
 
@@ -72,14 +75,14 @@ export function MomentumChart({
   return (
     <section className="rounded-xl bg-surface shadow-soft p-5">
       <div className="flex items-start justify-between gap-2">
-        <SectionLabel tone="muted">Daily Deposit Trend</SectionLabel>
+        <SectionLabel tone="muted">{d.dailyDepositTrend}</SectionLabel>
         <div className="flex flex-col items-end gap-1 font-mono text-[9px] text-ink-muted">
           <span className="flex items-center gap-1.5">
             <span
               className="inline-block h-2 w-2 shrink-0 rounded-full"
               style={{ backgroundColor: chartIdentityColors.you }}
             />
-            You
+            {d.youLabel}
           </span>
           {hasPartner && (
             <span className="flex items-center gap-1.5">
@@ -96,7 +99,7 @@ export function MomentumChart({
                 className="inline-block h-[2px] w-3 shrink-0 rounded-full"
                 style={{ backgroundColor: palette.inkMuted }}
               />
-              Your plan
+              {d.yourPlan}
             </span>
           )}
         </div>
@@ -107,12 +110,9 @@ export function MomentumChart({
         preserveAspectRatio="none"
         className="mt-3 w-full h-32"
         role="img"
-        aria-label="7-day recorded deposit trend"
+        aria-label={d.chartAriaLabel}
       >
-        <title>
-          Daily Deposit Trend. Orange bars are You. Green bars are Partner.
-          {hasExpected ? ' Dashed ticks are the Saving Plan expected daily amount.' : ''}
-        </title>
+        <title>{d.chartTitle(hasExpected)}</title>
 
         {/* Y-axis grid lines + labels */}
         {yTicks.map((tick, i) => {

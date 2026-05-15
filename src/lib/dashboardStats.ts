@@ -7,10 +7,10 @@ export function fallbackInitial(name: string | undefined): string {
   return trimmed ? trimmed[0].toUpperCase() : '?';
 }
 
-export function lastSevenDayLabels(today = new Date()): string[] {
+export function lastSevenDayLabels(today = new Date(), locale = 'en-US'): string[] {
   return lastSevenDateKeys(today).map(dateKey => {
     const date = new Date(`${dateKey}T00:00:00`);
-    return date.toLocaleDateString('en-US', { weekday: 'narrow' });
+    return date.toLocaleDateString(locale, { weekday: 'narrow' });
   });
 }
 

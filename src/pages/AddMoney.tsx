@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { AddMoneyForm } from '../components/AddMoneyForm/AddMoneyForm';
 import { Button } from '../components/Button/Button';
 import { ConfirmDepositPanel } from '../components/ConfirmDepositPanel/ConfirmDepositPanel';
@@ -21,17 +21,27 @@ import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { useAuth } from '../hooks/useAuth';
 import { useBuckets } from '../hooks/useBuckets';
+import { useI18n } from '../i18n/useI18n';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLogs } from '../hooks/useLogs';
 import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { bucketSaved } from '../lib/buckets';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
-import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import type { BucketCategory } from '../types';
 
+const BUCKET_OPTION_ICONS: { id: BucketCategory; icon: ReactNode }[] = [
+  { id: 'flight', icon: <IconPlane size={22} /> },
+  { id: 'accom', icon: <IconBed size={22} /> },
+  { id: 'dining', icon: <IconFork size={22} /> },
+  { id: 'activities', icon: <IconTicket size={22} /> },
+  { id: 'gear', icon: <IconSmartphone size={22} /> },
+  { id: 'home', icon: <IconHome size={22} /> },
+];
+
 export function AddMoney() {
+  const { copy, formatMoney } = useI18n();
   const { user, profile } = useAuth();
   const { quickAmounts } = useProfile();
   const { activeRoomId } = useRoom();
@@ -50,17 +60,21 @@ export function AddMoney() {
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
 
+  const bucketOptions = BUCKET_OPTION_ICONS.map(({ id, icon }) => ({
+    id, icon, label: copy.bucket.categoryLabels[id],
+  }));
+
   const selectedBucket = buckets.find(bucket => bucket.id === selectedBucketId) ?? buckets[0];
   const amount = useMemo(() => Number(amountValue) || selectedQuickAmount || 0, [amountValue, selectedQuickAmount]);
   const partner = leaderboard.entries.find(entry => !entry.isYou);
 
   if (bucketsLoading || logsLoading) return <AddMoneySkeleton />;
-  if (logsError) return <StatusCard title="Could not load deposits" body={logsError} />;
+  if (logsError) return <StatusCard title={copy.addMoney.loadError} body={logsError} sectionLabel={copy.addMoney.sectionLabel} />;
 
   async function handleCreateBucket() {
     const target = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || target <= 0) {
-      setMessage('Add a bucket name, target, and category.');
+      setMessage(copy.bucket.validationNameAndTarget);
       return;
     }
     const result = await saveBuckets([
@@ -70,7 +84,7 @@ export function AddMoney() {
     if (result.error) setMessage(result.error);
     else {
       haptic('success');
-      setMessage('Bucket created. Pick an amount when it appears above.');
+      setMessage(copy.bucket.createdAddMoney);
       setBucketName('');
       setBucketTarget('');
     }
@@ -78,7 +92,7 @@ export function AddMoney() {
 
   async function handleConfirmDeposit() {
     if (!selectedBucket || amount <= 0) {
-      setMessage('Choose a bucket and enter an amount above zero.');
+      setMessage(copy.addMoney.validationNoBucket);
       setReviewing(false);
       return;
     }
@@ -103,7 +117,11 @@ export function AddMoney() {
   if (!selectedBucket) {
     return (
       <div className="flex flex-col gap-4">
-        <StatusCard title="Create your first bucket" body="Deposits need a destination before they can be saved." />
+        <StatusCard
+          title={copy.addMoney.createFirstTitle}
+          body={copy.addMoney.createFirstBody}
+          sectionLabel={copy.addMoney.sectionLabel}
+        />
         {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
         <CreateBucketForm
           category={bucketCategory}
@@ -121,16 +139,20 @@ export function AddMoney() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader eyebrow="Add Money" title="Deposit to a bucket" subtitle="Manual entry and slip attachment" />
+      <PageHeader
+        eyebrow={copy.addMoney.pageEyebrow}
+        title={copy.addMoney.pageTitle}
+        subtitle={copy.addMoney.pageSubtitle}
+      />
       <BucketPicker buckets={buckets} selectedId={selectedBucket.id} onSelect={setSelectedBucketId} />
       {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       {reviewing ? (
         <ConfirmDepositPanel
           bannerIcon={<IconRocket size={22} />}
-          bannerTitle={`Confirm ${formatCurrency(amount)} for ${selectedBucket.name}`}
-          bannerBody={slip ? 'A transfer slip marker will be saved with this log.' : 'No slip attached for this deposit.'}
-          mineLabel={profile?.display_name ?? 'You'}
-          theirLabel={partner?.displayName ?? 'Partner'}
+          bannerTitle={copy.addMoney.confirmBannerTitle(formatMoney(amount), selectedBucket.name)}
+          bannerBody={slip ? copy.addMoney.confirmBannerBodySlip : copy.addMoney.confirmBannerBodyNoSlip}
+          mineLabel={profile?.display_name ?? copy.dashboard.youLabel}
+          theirLabel={partner?.displayName ?? copy.addMoney.partnerLabel}
           mineSeries={cumulativeAmountSeries(logs, user?.id, amount)}
           theirSeries={cumulativeAmountSeries(logs, partner?.userId)}
           onPrimary={handleConfirmDeposit}
@@ -162,10 +184,10 @@ export function AddMoney() {
         open={created}
         outcome="success"
         icon={<IconCheck size={28} />}
-        title="Deposit Confirmed"
-        body={`${selectedBucket.name} moved by ${formatCurrency(lastDepositAmount)}.`}
+        title={copy.addMoney.outcomeTitle}
+        body={copy.addMoney.outcomeBody(selectedBucket.name, formatMoney(lastDepositAmount))}
       >
-        <Button variant="action" fullWidth onClick={() => setCreated(false)}>Done</Button>
+        <Button variant="action" fullWidth onClick={() => setCreated(false)}>{copy.addMoney.outcomeDone}</Button>
       </OutcomeModal>
     </div>
   );
@@ -198,10 +220,10 @@ function BucketPicker({
   );
 }
 
-function StatusCard({ title, body }: { title: string; body: string }) {
+function StatusCard({ title, body, sectionLabel }: { title: string; body: string; sectionLabel: string }) {
   return (
     <section className="rounded-xl bg-surface p-5 shadow-soft">
-      <SectionLabel tone="brand">Add Money</SectionLabel>
+      <SectionLabel tone="brand">{sectionLabel}</SectionLabel>
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
     </section>
@@ -242,12 +264,3 @@ function bucketIcon(category: BucketCategory | undefined): ReactNode {
   if (category === 'home') return <IconHome size={28} />;
   return <IconBriefcase size={28} />;
 }
-
-const bucketOptions = [
-  { id: 'flight' as const, label: 'Flight', icon: <IconPlane size={22} /> },
-  { id: 'accom' as const, label: 'Stay', icon: <IconBed size={22} /> },
-  { id: 'dining' as const, label: 'Dining', icon: <IconFork size={22} /> },
-  { id: 'activities' as const, label: 'Activity', icon: <IconTicket size={22} /> },
-  { id: 'gear' as const, label: 'Gear', icon: <IconSmartphone size={22} /> },
-  { id: 'home' as const, label: 'Home', icon: <IconHome size={22} /> },
-];

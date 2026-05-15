@@ -976,6 +976,8 @@ Implement:
 
 Do not implement broad scheduled push engine in 23.1.
 
+Release note (23.1): ships notification foundation only. Event creation is intentionally deferred to 23.2; the first real event source should be `nudge_received` during nudge hardening.
+
 ### 23.2 Nudge Hardening And Push Click Routing
 
 Implement:

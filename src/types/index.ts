@@ -220,3 +220,83 @@ export interface SavingPlanPause {
   created_at: string;
   resumed_at: string | null;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Notifications (Task 23.1, migration 0037).
+ * ──────────────────────────────────────────────────────────────────── */
+
+export type NotificationCategory =
+  | 'nudge'
+  | 'saving_reminder'
+  | 'partner_activity'
+  | 'product';
+
+export type NotificationEventKey =
+  | 'nudge_received'
+  | 'saving_reminder_due'
+  | 'partner_deposited'
+  | 'balance_checked'
+  | 'plan_created'
+  | 'plan_changed'
+  | 'plan_paused'
+  | 'plan_resumed'
+  | 'goal_changed'
+  | 'bucket_added'
+  | 'bucket_updated'
+  | 'bucket_goal_reached'
+  | 'room_joined'
+  | 'room_left'
+  | 'overtaking'
+  | 'streak_milestone'
+  | 'product_update';
+
+export type NotificationChannelPolicy =
+  | 'in_app'
+  | 'push_candidate'
+  | 'push_sent'
+  | 'push_skipped';
+
+/** Row returned by `list_notifications` — UI-safe subset of the table. */
+export interface NotificationItem {
+  id: string;
+  recipient_user_id: string;
+  actor_user_id: string | null;
+  room_id: string | null;
+  event_key: NotificationEventKey | string;
+  category: NotificationCategory;
+  channel_policy: NotificationChannelPolicy;
+  title: string;
+  body: string;
+  cta_label: string | null;
+  target_route: string;
+  target_section: string | null;
+  fallback_route: string;
+  push_safe: boolean;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  clicked_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationPreferences {
+  user_id: string;
+  master_enabled: boolean;
+  push_enabled: boolean;
+  nudges_enabled: boolean;
+  saving_reminders_enabled: boolean;
+  partner_activity_enabled: boolean;
+  product_updates_enabled: boolean;
+  prompt_dismissed_until: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationPreferencesUpdate {
+  master_enabled?: boolean;
+  push_enabled?: boolean;
+  nudges_enabled?: boolean;
+  saving_reminders_enabled?: boolean;
+  partner_activity_enabled?: boolean;
+  product_updates_enabled?: boolean;
+  prompt_dismissed_until?: string | null;
+}

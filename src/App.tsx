@@ -12,6 +12,8 @@ import { SavingPlan } from './pages/SavingPlan';
 import { Login } from './pages/Login';
 import { ManageProject } from './pages/ManageProject';
 import { MoleculesPreview } from './pages/MoleculesPreview';
+import { Notifications } from './pages/Notifications';
+import { NotificationSettings } from './pages/NotificationSettings';
 import { OrganismsPreview } from './pages/OrganismsPreview';
 import { Profile } from './pages/Profile';
 
@@ -40,6 +42,8 @@ function App() {
               <Route path="/saving-plan" element={<SavingPlan />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/manage-project" element={<ManageProject />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/notifications/settings" element={<NotificationSettings />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

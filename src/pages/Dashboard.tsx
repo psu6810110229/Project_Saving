@@ -15,6 +15,8 @@ import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { TotalVaultCard } from '../components/TotalVaultCard/TotalVaultCard';
 import { NudgeButton } from '../components/NudgeButton/NudgeButton';
+import { BellIconButton } from '../components/Notifications/BellIconButton';
+import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Segmented } from '../components/Segmented/Segmented';
 import {
@@ -100,6 +102,7 @@ export function Dashboard() {
     createCheckpoint,
   } = useReconcile(activeRoomId);
   const { plan: savingPlan, deposits: planDeposits } = useSavingPlan(activeRoomId);
+  const { count: unreadNotifications } = useUnreadNotificationsCount();
   const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
   const { buckets: partnerBuckets } = usePartnerBuckets(activeRoomId, partnerEntry?.userId);
   const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
@@ -290,13 +293,19 @@ export function Dashboard() {
             {activeRoom?.name ?? 'Japan 2027'}
           </h1>
         </div>
-        {partnerEntry && (
-          <NudgeButton
-            partnerUserId={partnerEntry.userId}
-            roomId={activeRoomId}
-            partnerName={partnerEntry.displayName ?? 'Partner'}
+        <div className="flex items-center gap-2 shrink-0">
+          <BellIconButton
+            unreadCount={unreadNotifications}
+            onClick={() => navigate('/notifications')}
           />
-        )}
+          {partnerEntry && (
+            <NudgeButton
+              partnerUserId={partnerEntry.userId}
+              roomId={activeRoomId}
+              partnerName={partnerEntry.displayName ?? 'Partner'}
+            />
+          )}
+        </div>
       </header>
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}

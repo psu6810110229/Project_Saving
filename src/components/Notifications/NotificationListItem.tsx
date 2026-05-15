@@ -8,7 +8,8 @@ import {
   IconUser,
   IconVault,
 } from '../Icon/Icon';
-import { formatRelativeTime } from '../../lib/format';
+import { useI18n } from '../../i18n/useI18n';
+import { notificationDisplayCopy } from '../../i18n/notificationCopy';
 import { notificationIconKind } from '../../lib/notifications';
 import type { NotificationItem } from '../../types';
 
@@ -38,8 +39,10 @@ function iconFor(kind: ReturnType<typeof notificationIconKind>) {
  * cause layout shift.
  */
 export function NotificationListItem({ item, onClick }: NotificationListItemProps) {
+  const { copy, formatMoney, formatRelativeTime } = useI18n();
   const unread = !item.read_at;
   const kind = notificationIconKind(item.event_key);
+  const display = notificationDisplayCopy(item, copy, formatMoney);
   return (
     <button
       type="button"
@@ -48,7 +51,7 @@ export function NotificationListItem({ item, onClick }: NotificationListItemProp
         'w-full flex items-start gap-3 rounded-xl shadow-soft p-3 text-left active:scale-[0.99] transition-transform '
         + (unread ? 'bg-brand-50/60' : 'bg-surface')
       }
-      aria-label={`${unread ? 'Unread. ' : ''}${item.title}. ${item.body}`}
+      aria-label={`${unread ? copy.notifications.center.unreadAriaPrefix : ''}${display.title}. ${display.body}`}
     >
       <IconBubble tone={unread ? 'peach' : 'muted'} size="md">
         {iconFor(kind)}
@@ -56,11 +59,11 @@ export function NotificationListItem({ item, onClick }: NotificationListItemProp
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-2">
           <p className={`font-mono text-sm ${unread ? 'font-bold text-ink' : 'font-bold text-ink'} truncate`}>
-            {item.title}
+            {display.title}
           </p>
         </div>
         <p className="mt-0.5 font-mono text-xs text-ink-muted line-clamp-2">
-          {item.body}
+          {display.body}
         </p>
         <p className="mt-1 font-mono text-[11px] text-ink-muted" title={item.created_at}>
           {formatRelativeTime(item.created_at)}

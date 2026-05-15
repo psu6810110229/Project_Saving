@@ -187,7 +187,7 @@ export function Profile() {
             meta: LANGUAGE_NATIVE_LABEL[language],
             onClick: () => openModal('language'),
           },
-          { id: 'notifications', icon: <IconBell size={18} />, label: 'Notifications', description: 'Push, in-app, and reminders', onClick: () => navigate('/notifications/settings') },
+          { id: 'notifications', icon: <IconBell size={18} />, label: copy.profile.notificationSettingsLabel, description: copy.profile.notificationSettingsDescription, onClick: () => navigate('/notifications/settings') },
           { id: 'check-balance', icon: <IconVault size={18} />, label: 'Check Balance', description: balanceCheckDescription(latestCheckpoint?.checked_at), onClick: () => navigate('/check-balance') },
           { id: 'manage-project', icon: <IconCalendar size={18} />, label: 'Manage Project', description: `${activeRoom?.name ?? 'No active project'} - goal, buckets, quick amounts`, onClick: () => navigate('/manage-project') },
           { id: 'create', icon: <IconUserPlus size={18} />, label: 'Create New Project', description: 'One active project per creator', onClick: () => openModal('create-project') },

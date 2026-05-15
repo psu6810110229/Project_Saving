@@ -6,6 +6,7 @@ import { Skeleton } from '../components/Skeleton/Skeleton';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { NotificationListItem } from '../components/Notifications/NotificationListItem';
 import { useNotifications } from '../hooks/useNotifications';
+import { useI18n } from '../i18n/useI18n';
 import { notificationGroupLabel, resolveNotificationTarget } from '../lib/notifications';
 import type { NotificationItem } from '../types';
 
@@ -23,6 +24,8 @@ function groupNotifications(items: NotificationItem[]): Record<GroupKey, Notific
 export function Notifications() {
   const navigate = useNavigate();
   const { notifications, loading, error, refetch, markRead, markAllRead } = useNotifications();
+  const { copy } = useI18n();
+  const n = copy.notifications;
 
   const groups = useMemo(() => groupNotifications(notifications), [notifications]);
   const hasUnread = notifications.some(item => !item.read_at);
@@ -45,9 +48,9 @@ export function Notifications() {
   return (
     <div className="flex flex-col gap-6 pb-24">
       <PageHeader
-        eyebrow="Notifications"
-        title="Updates"
-        subtitle="From your project and reminders"
+        eyebrow={n.center.eyebrow}
+        title={n.center.title}
+        subtitle={n.center.subtitle}
         showBack
       />
 
@@ -57,7 +60,7 @@ export function Notifications() {
           onClick={() => navigate('/notifications/settings')}
           className="font-mono text-xs text-brand-800 underline-offset-2 hover:underline"
         >
-          Notification settings
+          {n.center.settingsLink}
         </button>
         {hasUnread && (
           <button
@@ -65,13 +68,13 @@ export function Notifications() {
             onClick={handleMarkAllRead}
             className="font-mono text-xs font-bold text-brand-800 hover:underline"
           >
-            Mark all read
+            {n.center.markAllRead}
           </button>
         )}
       </div>
 
       {loading && (
-        <section className="flex flex-col gap-2" aria-label="Loading notifications">
+        <section className="flex flex-col gap-2" aria-label={n.center.loadingAriaLabel}>
           <Skeleton className="h-16" />
           <Skeleton className="h-16" />
           <Skeleton className="h-16" />
@@ -81,24 +84,24 @@ export function Notifications() {
 
       {!loading && error && (
         <section className="rounded-xl bg-surface p-5 shadow-soft">
-          <SectionLabel tone="brand">Notifications</SectionLabel>
-          <h2 className="mt-2 font-mono text-base font-bold text-ink">Could not load notifications</h2>
+          <SectionLabel tone="brand">{n.center.errorSection}</SectionLabel>
+          <h2 className="mt-2 font-mono text-base font-bold text-ink">{n.center.errorTitle}</h2>
           <p className="mt-1 font-mono text-xs text-ink-muted">{error}</p>
           <div className="mt-3">
-            <Button variant="ghost" onClick={() => void refetch()}>Try again</Button>
+            <Button variant="ghost" onClick={() => void refetch()}>{copy.common.retry}</Button>
           </div>
         </section>
       )}
 
       {!loading && !error && notifications.length === 0 && (
         <section className="rounded-xl bg-surface p-5 shadow-soft text-center">
-          <SectionLabel tone="brand" className="text-center">Notifications</SectionLabel>
-          <h2 className="mt-2 font-mono text-base font-bold text-ink">No notifications yet</h2>
+          <SectionLabel tone="brand" className="text-center">{n.center.emptySection}</SectionLabel>
+          <h2 className="mt-2 font-mono text-base font-bold text-ink">{n.center.emptyTitle}</h2>
           <p className="mt-1 font-mono text-xs text-ink-muted">
-            Updates from your project will show up here.
+            {n.center.emptyBody}
           </p>
           <div className="mt-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
+            <Button variant="ghost" onClick={() => navigate('/dashboard')}>{n.center.backToDashboard}</Button>
           </div>
         </section>
       )}
@@ -108,7 +111,7 @@ export function Notifications() {
         if (items.length === 0) return null;
         return (
           <section key={key} className="flex flex-col gap-2">
-            <SectionLabel tone="muted">{key}</SectionLabel>
+            <SectionLabel tone="muted">{n.groups[key]}</SectionLabel>
             {items.map(item => (
               <NotificationListItem key={item.id} item={item} onClick={handleItemClick} />
             ))}

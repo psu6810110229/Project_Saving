@@ -1,4 +1,5 @@
 import { IconBell } from '../Icon/Icon';
+import { useI18n } from '../../i18n/useI18n';
 import { NotificationBadge } from './NotificationBadge';
 
 interface BellIconButtonProps {
@@ -14,8 +15,9 @@ interface BellIconButtonProps {
  * announcements.
  */
 export function BellIconButton({ unreadCount, onClick, disabled }: BellIconButtonProps) {
+  const { copy } = useI18n();
   const count = Math.max(0, unreadCount);
-  const label = count > 0 ? `Notifications, ${count} unread` : 'Notifications';
+  const label = copy.notifications.center.bellAria(count);
   return (
     <button
       type="button"

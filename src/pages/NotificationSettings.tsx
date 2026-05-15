@@ -11,7 +11,7 @@ import {
 } from '../components/Notifications/PermissionStatusPill';
 import { useNotificationPreferences } from '../hooks/useNotificationPreferences';
 import { usePushSubscription } from '../hooks/usePushSubscription';
-import { NOTIFICATION_CATEGORY_COPY } from '../lib/notifications';
+import { useI18n } from '../i18n/useI18n';
 import type { NotificationPreferencesUpdate } from '../types';
 
 function toPillState(
@@ -25,9 +25,28 @@ function toPillState(
 export function NotificationSettings() {
   const { preferences, loading, saving, error, update } = useNotificationPreferences();
   const { ready, subscribed, unsupported, permission: rawPermission, subscribe, unsubscribe } = usePushSubscription();
+  const { copy } = useI18n();
+  const n = copy.notifications;
   const permission = toPillState(rawPermission);
   const [deviceBusy, setDeviceBusy] = useState(false);
   const [deviceMessage, setDeviceMessage] = useState<string | null>(null);
+
+  function localizeDeviceError(message: string | undefined): string {
+    switch (message) {
+      case 'Push not supported in this browser.':
+        return n.permission.subscribeNotSupported;
+      case 'Push is not configured for this deployment.':
+        return n.permission.subscribeNotConfigured;
+      case 'Notifications were not allowed.':
+        return n.permission.subscribeNotAllowed;
+      case 'Could not read the push subscription details.':
+        return n.permission.subscriptionReadError;
+      case 'Not authenticated':
+        return n.permission.notAuthenticated;
+      default:
+        return message ?? copy.common.somethingWrong;
+    }
+  }
 
   async function applyChange(changes: NotificationPreferencesUpdate) {
     await update(changes);
@@ -39,13 +58,13 @@ export function NotificationSettings() {
     const result = await subscribe();
     setDeviceBusy(false);
     if (result.error) {
-      setDeviceMessage(result.error);
+      setDeviceMessage(localizeDeviceError(result.error));
       return;
     }
     // Subscribing implies the user wants push: turn the push prefs on
     // so categories actually deliver. master/nudges/partner stay as-is.
     await update({ push_enabled: true });
-    setDeviceMessage('This device can now receive push notifications.');
+    setDeviceMessage(n.permission.enabledMessage);
   }
 
   async function handleDisableDevice() {
@@ -54,17 +73,17 @@ export function NotificationSettings() {
     const result = await unsubscribe();
     setDeviceBusy(false);
     if (result.error) {
-      setDeviceMessage(result.error);
+      setDeviceMessage(localizeDeviceError(result.error));
       return;
     }
-    setDeviceMessage('Push is off for this device. In-app updates still work.');
+    setDeviceMessage(n.permission.disabledMessage);
   }
 
   if (loading) {
     return (
       <div className="flex flex-col gap-6 pb-24">
-        <PageHeader eyebrow="Profile" title="Notifications" subtitle="Push and in-app" showBack />
-        <div className="flex flex-col gap-2" aria-label="Loading notification settings">
+        <PageHeader eyebrow={n.settings.eyebrow} title={n.settings.title} subtitle={n.settings.subtitle} showBack />
+        <div className="flex flex-col gap-2" aria-label={n.settings.loadingAriaLabel}>
           <Skeleton className="h-20" />
           <Skeleton className="h-14" />
           <Skeleton className="h-14" />
@@ -77,11 +96,11 @@ export function NotificationSettings() {
   if (error || !preferences) {
     return (
       <div className="flex flex-col gap-6 pb-24">
-        <PageHeader eyebrow="Profile" title="Notifications" subtitle="Push and in-app" showBack />
+        <PageHeader eyebrow={n.settings.eyebrow} title={n.settings.title} subtitle={n.settings.subtitle} showBack />
         <section className="rounded-xl bg-surface p-5 shadow-soft">
-          <SectionLabel tone="brand">Notifications</SectionLabel>
-          <h2 className="mt-2 font-mono text-base font-bold text-ink">Could not load notification settings</h2>
-          <p className="mt-1 font-mono text-xs text-ink-muted">{error ?? 'Try again in a moment.'}</p>
+          <SectionLabel tone="brand">{n.settings.errorSection}</SectionLabel>
+          <h2 className="mt-2 font-mono text-base font-bold text-ink">{n.settings.errorTitle}</h2>
+          <p className="mt-1 font-mono text-xs text-ink-muted">{error ?? n.settings.errorFallback}</p>
         </section>
       </div>
     );
@@ -94,35 +113,35 @@ export function NotificationSettings() {
 
   return (
     <div className="flex flex-col gap-6 pb-24">
-      <PageHeader eyebrow="Profile" title="Notifications" subtitle="Push and in-app" showBack />
+      <PageHeader eyebrow={n.settings.eyebrow} title={n.settings.title} subtitle={n.settings.subtitle} showBack />
 
       {/* Push / device status card. Separate from category toggles so the
           user can tell push-permission state from preference state. */}
       <section className="rounded-xl bg-surface p-4 shadow-soft flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <SectionLabel tone="brand">This device</SectionLabel>
-            <h2 className="mt-1 font-mono text-base font-bold text-ink">Push permission</h2>
+            <SectionLabel tone="brand">{n.settings.deviceSection}</SectionLabel>
+            <h2 className="mt-1 font-mono text-base font-bold text-ink">{n.settings.permissionTitle}</h2>
             <p className="mt-1 font-mono text-xs text-ink-muted">
               {permission === 'denied'
-                ? 'Enable notifications in your browser settings to receive push updates on this device.'
+                ? n.permission.deniedBody
                 : permission === 'unsupported'
-                  ? 'This browser cannot receive GO-OUT push notifications. In-app updates still appear here.'
+                  ? n.permission.unsupportedBody
                   : subscribed
-                    ? 'This device can receive push notifications.'
-                    : 'Push is off on this device. In-app notifications still work.'}
+                    ? n.permission.subscribedBody
+                    : n.permission.offBody}
             </p>
           </div>
           <PermissionStatusPill permission={permission} subscribed={subscribed} />
         </div>
         {showEnableDeviceCta && (
           <Button variant="primary" onClick={handleEnableDevice} disabled={deviceBusy || !ready}>
-            {deviceBusy ? 'Enabling…' : 'Enable this device'}
+            {deviceBusy ? n.permission.enablingButton : n.permission.enableButton}
           </Button>
         )}
         {showDisableDeviceCta && (
           <Button variant="ghost" onClick={handleDisableDevice} disabled={deviceBusy}>
-            {deviceBusy ? 'Turning off…' : 'Turn off this device'}
+            {deviceBusy ? n.permission.disablingButton : n.permission.disableButton}
           </Button>
         )}
         {deviceMessage && (
@@ -133,13 +152,13 @@ export function NotificationSettings() {
       {/* Master switch. Turning off does not delete history; it only
           mutes future deliveries. */}
       <section className="flex flex-col gap-2">
-        <SectionLabel tone="brand">Master</SectionLabel>
+        <SectionLabel tone="brand">{n.settings.masterSection}</SectionLabel>
         <NotificationToggle
           checked={master}
-          label="Notifications"
+          label={n.settings.masterLabel}
           description={master
-            ? 'Nudges, reminders, and partner updates can appear here.'
-            : 'All notification categories are off.'}
+            ? n.settings.masterOnDescription
+            : n.settings.masterOffDescription}
           disabled={saving}
           onChange={next => applyChange({ master_enabled: next })}
         />
@@ -148,32 +167,32 @@ export function NotificationSettings() {
       {/* Per-category toggles. Disabled (not hidden) when master is off
           so the user can see what would resume on re-enable. */}
       <section className="flex flex-col gap-2">
-        <SectionLabel tone="brand">Categories</SectionLabel>
+        <SectionLabel tone="brand">{n.settings.categoriesSection}</SectionLabel>
         <NotificationToggle
           checked={preferences.nudges_enabled}
-          label={NOTIFICATION_CATEGORY_COPY.nudges.label}
-          description={NOTIFICATION_CATEGORY_COPY.nudges.description}
+          label={n.categories.toggles.nudges.label}
+          description={n.categories.toggles.nudges.description}
           disabled={categoryDisabled || saving}
           onChange={next => applyChange({ nudges_enabled: next })}
         />
         <NotificationToggle
           checked={preferences.saving_reminders_enabled}
-          label={NOTIFICATION_CATEGORY_COPY.saving_reminders.label}
-          description={NOTIFICATION_CATEGORY_COPY.saving_reminders.description}
+          label={n.categories.toggles.saving_reminders.label}
+          description={n.categories.toggles.saving_reminders.description}
           disabled={categoryDisabled || saving}
           onChange={next => applyChange({ saving_reminders_enabled: next })}
         />
         <NotificationToggle
           checked={preferences.partner_activity_enabled}
-          label={NOTIFICATION_CATEGORY_COPY.partner_activity.label}
-          description={NOTIFICATION_CATEGORY_COPY.partner_activity.description}
+          label={n.categories.toggles.partner_activity.label}
+          description={n.categories.toggles.partner_activity.description}
           disabled={categoryDisabled || saving}
           onChange={next => applyChange({ partner_activity_enabled: next })}
         />
         <NotificationToggle
           checked={preferences.product_updates_enabled}
-          label={NOTIFICATION_CATEGORY_COPY.product_updates.label}
-          description={NOTIFICATION_CATEGORY_COPY.product_updates.description}
+          label={n.categories.toggles.product_updates.label}
+          description={n.categories.toggles.product_updates.description}
           disabled={categoryDisabled || saving}
           onChange={next => applyChange({ product_updates_enabled: next })}
         />
@@ -181,7 +200,7 @@ export function NotificationSettings() {
 
       {saving && (
         <div className="flex items-center gap-2 font-mono text-[11px] text-ink-muted">
-          <Spinner size="sm" /> Saving…
+          <Spinner size="sm" /> {n.settings.savingStatus}
         </div>
       )}
 
@@ -189,8 +208,7 @@ export function NotificationSettings() {
           everything is off. Removes the most common confusion about
           the master toggle without adding new controls. */}
       <p className="font-mono text-[11px] text-ink-muted leading-relaxed">
-        Past notifications stay in the Notification Center even when these
-        are off. Toggles only affect future deliveries.
+        {n.settings.historyNote}
       </p>
     </div>
   );

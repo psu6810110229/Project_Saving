@@ -1,3 +1,5 @@
+import { useI18n } from '../../i18n/useI18n';
+
 interface NotificationBadgeProps {
   count: number;
   max?: number;
@@ -12,13 +14,14 @@ interface NotificationBadgeProps {
  * implies a fake update.
  */
 export function NotificationBadge({ count, max = 9, size = 'sm', decorative = false }: NotificationBadgeProps) {
+  const { copy } = useI18n();
   if (!count || count <= 0) return null;
   const label = count > max ? `${max}+` : String(count);
   const dimension = size === 'sm' ? 'min-w-[16px] h-4 text-[10px] px-1' : 'min-w-[20px] h-5 text-[11px] px-1.5';
   return (
     <span
       aria-hidden={decorative || undefined}
-      aria-label={decorative ? undefined : `${count} unread notifications`}
+      aria-label={decorative ? undefined : copy.notifications.center.unreadCountAria(count)}
       className={
         `inline-flex items-center justify-center rounded-full bg-brand-500 text-ink-inverse font-mono font-bold ${dimension}`
       }

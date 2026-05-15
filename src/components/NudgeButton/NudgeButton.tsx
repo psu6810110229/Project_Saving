@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Button } from '../Button/Button';
 import { supabase } from '../../lib/supabase';
 import { usePushSubscription } from '../../hooks/usePushSubscription';
+import { IconHeart } from '../Icon/Icon';
 
 interface NudgeButtonProps {
   /** Partner user id (the recipient of the nudge). */
@@ -61,7 +61,7 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
       case 'sent':
         return `Nudge sent to ${partner}.`;
       case 'throttled':
-        return response.error ?? 'Slow down — try again in a few minutes.';
+        return response.error ?? 'Slow down - try again in a few minutes.';
       case 'saved_no_push':
         return response.error
           ? `${response.error} Notification saved.`
@@ -87,11 +87,29 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <Button variant="action" onClick={handleClick} disabled={busy || !ready}>
-        {busy ? 'Sending…' : subscribed ? 'Nudge partner' : 'Enable & Nudge'}
-      </Button>
-      {message && <span className="font-mono text-[11px] text-ink-muted max-w-[12rem] text-right">{message}</span>}
+    <div className="relative flex shrink-0 justify-end">
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={busy || !ready}
+        aria-label="Nudge partner"
+        aria-describedby={message ? 'nudge-button-status' : undefined}
+        title={subscribed ? 'Nudge partner' : 'Enable notifications to nudge partner'}
+        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-pill border border-brand-100 bg-brand-50 px-3 text-xs font-bold tracking-wide text-brand-800 shadow-soft transition-all duration-200 hover:bg-brand-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+      >
+        <IconHeart size={15} />
+        <span>{busy ? 'Sending' : 'Nudge'}</span>
+      </button>
+      {message && (
+        <span
+          id="nudge-button-status"
+          role="status"
+          aria-live="polite"
+          className="absolute right-0 top-full z-10 mt-2 w-[min(14rem,calc(100vw-2rem))] rounded-lg bg-surface px-3 py-2 text-right font-mono text-[11px] leading-snug text-ink-muted shadow-soft"
+        >
+          {message}
+        </span>
+      )}
     </div>
   );
 }

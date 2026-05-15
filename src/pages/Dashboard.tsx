@@ -282,30 +282,30 @@ export function Dashboard() {
     <div className="flex flex-col gap-6">
       {/* Project header. Compact, no heavy card. */}
       <header
-        className="reveal-section flex items-end justify-between gap-3"
+        className="reveal-section flex flex-col gap-2"
         style={revealStyle(0)}
       >
-        <div className="min-w-0">
+        <div className="flex items-center justify-between gap-3">
           <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
             Project
           </p>
-          <h1 className="mt-1 truncate font-mono text-2xl font-bold text-ink">
-            {activeRoom?.name ?? 'Japan 2027'}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <BellIconButton
-            unreadCount={unreadNotifications}
-            onClick={() => navigate('/notifications')}
-          />
-          {partnerEntry && (
-            <NudgeButton
-              partnerUserId={partnerEntry.userId}
-              roomId={activeRoomId}
-              partnerName={partnerEntry.displayName ?? 'Partner'}
+          <div className="flex shrink-0 items-center gap-2">
+            <BellIconButton
+              unreadCount={unreadNotifications}
+              onClick={() => navigate('/notifications')}
             />
-          )}
+            {partnerEntry && (
+              <NudgeButton
+                partnerUserId={partnerEntry.userId}
+                roomId={activeRoomId}
+                partnerName={partnerEntry.displayName ?? 'Partner'}
+              />
+            )}
+          </div>
         </div>
+        <h1 className="max-w-full break-words font-mono text-2xl font-bold leading-tight text-ink line-clamp-2">
+          {activeRoom?.name ?? 'Japan 2027'}
+        </h1>
       </header>
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}

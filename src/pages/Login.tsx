@@ -1,12 +1,9 @@
-﻿import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../i18n/useI18n';
 
-/**
- * Sign-in landing page. Visual shell is intentionally minimal — the final
- * brand treatment will land alongside the Dashboard in Step 7 once the
- * atoms / molecules from Steps 5–6 are available.
- */
 export function Login() {
   const { signInWithGoogle } = useAuth();
+  const { copy } = useI18n();
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center p-6">
@@ -14,9 +11,9 @@ export function Login() {
         <span className="font-mono text-brand-800 text-base tracking-widest uppercase">
           GO-OUT
         </span>
-        <h1 className="text-2xl text-center">Save together. Win together.</h1>
+        <h1 className="text-2xl text-center">{copy.auth.loginTitle}</h1>
         <p className="text-sm text-ink-muted text-center">
-          Sign in to keep growing your shared vault.
+          {copy.auth.loginBody}
         </p>
 
         <button
@@ -35,7 +32,7 @@ export function Login() {
             <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/>
             <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
           </svg>
-          Continue with Google
+          {copy.auth.continueWithGoogle}
         </button>
       </div>
     </div>

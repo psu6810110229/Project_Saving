@@ -5,9 +5,9 @@ export const chartIdentityColors = {
   partner: palette.accentTeal,
 } as const;
 
-export function chartLegendLabel(role: 'You' | 'Partner', displayName: string): string {
+export function chartLegendLabel(role: string, displayName: string): string {
   const trimmed = displayName.trim();
   return trimmed && trimmed.toLowerCase() !== role.toLowerCase()
-    ? `${role} · ${trimmed}`
+    ? `${role} - ${trimmed}`
     : role;
 }

@@ -2,6 +2,7 @@ import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
 import { Avatar } from '../Avatar/Avatar';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
+import { useI18n } from '../../i18n/useI18n';
 
 /**
  * One player's row inside the Progress Race card. Renders the
@@ -62,6 +63,7 @@ export function PlayerProgressRow({
   gapLabel,
   isYou = false,
 }: PlayerProgressRowProps) {
+  const { copy } = useI18n();
   const pct = target > 0 ? (saved / target) * 100 : 0;
   return (
     <div className={`flex items-center gap-4 rounded-lg px-2 py-2 ${isYou ? 'bg-brand-50' : ''}`}>
@@ -78,7 +80,7 @@ export function PlayerProgressRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between gap-2">
           <span className="font-mono text-base font-bold text-ink truncate">
-            {isYou ? `You · ${name}` : name}
+            {isYou ? `${copy.dashboard.youLabel} - ${name}` : name}
           </span>
         </div>
         <div className="mt-1 flex items-baseline justify-between gap-2 font-mono">

@@ -1,5 +1,6 @@
 import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { useI18n } from '../../i18n/useI18n';
 
 /**
  * Profile → Theme Colors swatch picker. Three round swatches (terracotta
@@ -15,10 +16,12 @@ interface ThemeSwatchPickerProps {
 
 const ORDER: ThemeSwatch[] = ['terracotta', 'slate', 'teal'];
 
-export function ThemeSwatchPicker({ value, onChange, label = 'Theme Colors' }: ThemeSwatchPickerProps) {
+export function ThemeSwatchPicker({ value, onChange, label }: ThemeSwatchPickerProps) {
+  const { copy } = useI18n();
+  const resolvedLabel = label ?? copy.sharedControls.themeColors;
   return (
     <div>
-      <SectionLabel tone="muted">{label}</SectionLabel>
+      <SectionLabel tone="muted">{resolvedLabel}</SectionLabel>
       <div className="mt-3 flex items-center gap-4">
         {ORDER.map(key => {
           const hex = themeSwatches[key];
@@ -28,7 +31,7 @@ export function ThemeSwatchPicker({ value, onChange, label = 'Theme Colors' }: T
               key={key}
               type="button"
               onClick={() => onChange(key)}
-              aria-label={`Select ${key} theme`}
+              aria-label={copy.sharedControls.selectTheme(key)}
               aria-pressed={selected}
               className={
                 'flex flex-col items-center gap-1.5 transition-transform active:scale-[0.95] ' +

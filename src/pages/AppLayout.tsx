@@ -80,6 +80,8 @@ function ProjectSetup({
   onJoin: ReturnType<typeof useRooms>['joinRoomByCode'];
 }) {
   const navigate = useNavigate();
+  const { copy } = useI18n();
+  const ps = copy.projectSetup;
   const [mode, setMode] = useState<SetupMode>('create');
   const [category, setCategory] = useState<ProjectCategory | null>('travel');
   const [name, setName] = useState('Japan 2027');
@@ -87,11 +89,16 @@ function ProjectSetup({
   const [endDate, setEndDate] = useState('2027-11-01');
   const [code, setCode] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const projectOptions = projectOptionIcons.map(({ id, icon }) => ({
+    id,
+    icon,
+    label: copy.profile.projectCategories[id],
+  }));
 
   async function handleCreate() {
     const targetAmount = Number(target);
     if (!category || !name.trim() || !endDate || targetAmount <= 0) {
-      setMessage('Fill in a project name, target, category, and end date.');
+      setMessage(ps.createValidation);
       return;
     }
     const result = await onCreate({ name, target_amount: targetAmount, end_date: endDate, category });
@@ -109,15 +116,15 @@ function ProjectSetup({
     <div className="flex flex-col gap-4">
       <header>
         <SectionLabel tone="brand">GO-OUT</SectionLabel>
-        <h1 className="mt-2 font-mono text-3xl font-bold text-ink">Start a savings project</h1>
-        <p className="mt-2 font-mono text-xs text-ink-muted">Create the Japan trip vault or join with Art's code.</p>
+        <h1 className="mt-2 font-mono text-3xl font-bold text-ink">{ps.title}</h1>
+        <p className="mt-2 font-mono text-xs text-ink-muted">{ps.subtitle}</p>
       </header>
       <div className="grid grid-cols-2 gap-2">
         <Button variant={mode === 'create' ? 'primary' : 'ghost'} size="md" onClick={() => setMode('create')}>
-          Create
+          {ps.createTab}
         </Button>
         <Button variant={mode === 'join' ? 'primary' : 'ghost'} size="md" onClick={() => setMode('join')}>
-          Join
+          {ps.joinTab}
         </Button>
       </div>
       {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
@@ -137,8 +144,8 @@ function ProjectSetup({
       ) : (
         <JoinProjectFlow
           code={code}
-          error={code.length > 0 && code.length < 6 ? 'Enter the full 6-character code.' : undefined}
-          preview={code.length >= 6 ? joinPreview(code) : null}
+          error={code.length > 0 && code.length < 6 ? ps.joinCodeValidation : undefined}
+          preview={code.length >= 6 ? joinPreview(code, copy) : null}
           onCodeChange={setCode}
           onJoin={handleJoin}
         />
@@ -169,19 +176,19 @@ function pathFromTab(tab: BottomNavTab): string {
   return '/dashboard';
 }
 
-const projectOptions = [
-  { id: 'travel' as const, label: 'Travel', icon: <IconPlane size={28} /> },
-  { id: 'gadget' as const, label: 'Gadget', icon: <IconSmartphone size={28} /> },
-  { id: 'wedding' as const, label: 'Wedding', icon: <IconHeart size={28} /> },
-  { id: 'home' as const, label: 'Home', icon: <IconHome size={28} /> },
-  { id: 'other' as const, label: 'Other', icon: <IconBriefcase size={28} /> },
+const projectOptionIcons = [
+  { id: 'travel' as const, icon: <IconPlane size={28} /> },
+  { id: 'gadget' as const, icon: <IconSmartphone size={28} /> },
+  { id: 'wedding' as const, icon: <IconHeart size={28} /> },
+  { id: 'home' as const, icon: <IconHome size={28} /> },
+  { id: 'other' as const, icon: <IconBriefcase size={28} /> },
 ];
 
-function joinPreview(code: string) {
+function joinPreview(code: string, copy: ReturnType<typeof useI18n>['copy']) {
   return {
     icon: <IconPlane size={32} />,
-    name: `Invite ${code.toUpperCase()}`,
-    creatorName: 'Project owner',
+    name: copy.projectSetup.inviteName(code.toUpperCase()),
+    creatorName: copy.projectSetup.projectOwner,
     creatorFallback: 'P',
     memberCount: 2,
   };

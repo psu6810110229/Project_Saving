@@ -4,6 +4,8 @@ import type { Language } from './languages';
 
 type Loosen<T> = T extends string
   ? string
+  : T extends readonly (infer U)[]
+  ? readonly Loosen<U>[]
   : T extends (...args: infer A) => infer R
   ? (...args: A) => R
   : { [K in keyof T]: Loosen<T[K]> };
@@ -12,6 +14,7 @@ export type Messages = Loosen<typeof en>;
 
 function withFallback<T>(fallback: T, override: T): T {
   if (override == null) return fallback;
+  if (Array.isArray(fallback) || Array.isArray(override)) return override;
   if (typeof fallback !== 'object' || typeof override !== 'object') return override;
 
   const merged: Record<string, unknown> = { ...(fallback as Record<string, unknown>) };
@@ -26,8 +29,8 @@ function withFallback<T>(fallback: T, override: T): T {
 }
 
 export const messagesByLanguage: Record<Language, Messages> = {
-  en,
-  th: withFallback(en, th),
+  en: en as Messages,
+  th: withFallback(en as Messages, th),
 };
 
 export { en, th };

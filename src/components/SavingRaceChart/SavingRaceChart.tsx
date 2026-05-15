@@ -2,6 +2,7 @@
 import { formatCurrency } from '../../lib/format';
 import { chartIdentityColors, chartLegendLabel } from '../../lib/chartIdentity';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { useI18n } from '../../i18n/useI18n';
 
 /**
  * "Deposit Race" — cumulative 7-day line chart showing you vs. partner.
@@ -45,6 +46,8 @@ export function SavingRaceChart({
   scopeLabel,
   expectedSeries,
 }: SavingRaceChartProps) {
+  const { copy } = useI18n();
+  const d = copy.dashboard;
   const hasExpected = Array.isArray(expectedSeries) && expectedSeries.length === yourSeries.length;
   const max = Math.max(
     1,
@@ -65,18 +68,18 @@ export function SavingRaceChart({
     <section className="rounded-xl bg-surface shadow-soft p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <SectionLabel tone="muted">Deposit Race</SectionLabel>
+          <SectionLabel tone="muted">{d.depositRace}</SectionLabel>
           <p className="mt-1 font-mono text-[11px] text-ink-muted">{scopeLabel}</p>
         </div>
         <div className="flex max-w-[58%] flex-col items-end gap-1 font-mono text-[10px] text-ink-muted">
           <span className="inline-flex max-w-full items-center gap-1">
             <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: chartIdentityColors.you }} />
-            <span className="truncate">{chartLegendLabel('You', yourName)}:</span>
+            <span className="truncate">{chartLegendLabel(d.youLabel, yourName)}:</span>
             <span className="shrink-0">{formatCurrency(yourTotal)}</span>
           </span>
           <span className="inline-flex max-w-full items-center gap-1">
             <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: chartIdentityColors.partner }} />
-            <span className="truncate">{chartLegendLabel('Partner', partnerName)}:</span>
+            <span className="truncate">{chartLegendLabel(d.partnerLabel, partnerName)}:</span>
             <span className="shrink-0">{formatCurrency(partnerTotal)}</span>
           </span>
           {hasExpected && (
@@ -85,7 +88,7 @@ export function SavingRaceChart({
                 className="inline-block h-[2px] w-3 shrink-0 rounded-full"
                 style={{ backgroundColor: palette.inkMuted }}
               />
-              <span className="truncate">Your plan</span>
+              <span className="truncate">{d.yourPlan}</span>
             </span>
           )}
         </div>
@@ -95,12 +98,9 @@ export function SavingRaceChart({
         preserveAspectRatio="none"
         className="mt-3 w-full h-28"
         role="img"
-        aria-label="Cumulative recorded deposit race"
+        aria-label={d.cumulativeRaceAria}
       >
-        <title>
-          Deposit Race. Orange line is You. Green line is Partner.
-          {hasExpected ? ' Dashed grey line is your Saving Plan expected cumulative.' : ''}
-        </title>
+        <title>{d.cumulativeRaceTitle(hasExpected)}</title>
         {[0.25, 0.5, 0.75].map(frac => (
           <line
             key={frac}

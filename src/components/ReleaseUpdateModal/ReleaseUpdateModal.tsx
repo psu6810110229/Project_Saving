@@ -2,13 +2,15 @@
 import { Button } from '../Button/Button';
 import { IconBell, IconCheck } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
+import { useI18n } from '../../i18n/useI18n';
 import { currentReleaseNotes } from '../../lib/releaseNotes';
 
 const UNDERSTOOD_KEY = 'releaseUnderstoodVersion';
 const SESSION_DISMISSED_KEY = 'releaseDismissedSessionVersion';
 
 export function ReleaseUpdateModal() {
-  const release = useMemo(() => currentReleaseNotes(), []);
+  const { copy } = useI18n();
+  const release = useMemo(() => currentReleaseNotes(copy.release), [copy.release]);
   const [open, setOpen] = useState(() => shouldOpenRelease(release.version));
   const [showAll, setShowAll] = useState(false);
   const visibleNotes = showAll ? release.notes : release.notes.slice(0, 4);
@@ -35,7 +37,7 @@ export function ReleaseUpdateModal() {
             </span>
             <div className="min-w-0">
               <p className="font-mono text-xs font-bold uppercase tracking-wide text-brand-800">
-                Version {release.version}
+                {copy.release.versionLabel(release.version)}
               </p>
               <p className="mt-1 font-mono text-xs text-ink-muted">{release.intro}</p>
             </div>
@@ -61,12 +63,12 @@ export function ReleaseUpdateModal() {
               ))}
               {hiddenCount > 0 && (
                 <Button variant="ghost" size="md" fullWidth onClick={() => setShowAll(true)}>
-                  View all changes ({hiddenCount} more)
+                  {copy.release.viewAllChanges(hiddenCount)}
                 </Button>
               )}
               {showAll && release.notes.length > 4 && (
                 <Button variant="ghost" size="md" fullWidth onClick={() => setShowAll(false)}>
-                  Show less
+                  {copy.release.showLess}
                 </Button>
               )}
             </div>
@@ -76,7 +78,7 @@ export function ReleaseUpdateModal() {
 
         <div className="shrink-0 border-t border-brand-100 bg-bg pt-3">
           <Button variant="action" fullWidth onClick={handleUnderstand}>
-            Got it
+            {copy.common.gotIt}
           </Button>
         </div>
       </div>

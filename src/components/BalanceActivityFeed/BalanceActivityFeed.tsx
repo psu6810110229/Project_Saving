@@ -2,7 +2,6 @@
 import { IconCheck, IconVault } from '../Icon/Icon';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { useI18n } from '../../i18n/useI18n';
-import { formatRelativeTime } from '../../lib/format';
 import { formatSignedCurrency } from '../../lib/reconcile';
 import type { BalanceActivityEntry } from '../../types';
 
@@ -22,12 +21,13 @@ interface BalanceActivityFeedProps {
  * private to the owner per plan 21.
  */
 export function BalanceActivityFeed({
-  label = 'Balance Activity',
+  label,
   items,
   currentUserId,
   previewLimit = 3,
 }: BalanceActivityFeedProps) {
-  const { copy } = useI18n();
+  const { copy, formatRelativeTime } = useI18n();
+  const resolvedLabel = label ?? copy.dashboard.balanceActivity;
   const reasons = copy.reconcile.reasons;
   if (items.length === 0) return null;
 
@@ -36,13 +36,13 @@ export function BalanceActivityFeed({
 
   return (
     <section>
-      <SectionLabel tone="brand">{label}</SectionLabel>
+      <SectionLabel tone="brand">{resolvedLabel}</SectionLabel>
       <div className="mt-3 rounded-xl bg-surface shadow-soft px-4 divide-y divide-well">
         {previewed.map(item => {
           const matched = item.difference_amount === 0;
           const actorName = item.user_id === currentUserId
-            ? 'You'
-            : item.display_name?.trim() || 'Partner';
+            ? copy.dashboard.youLabel
+            : item.display_name?.trim() || copy.dashboard.partnerLabel;
           return (
             <div key={item.checkpoint_id} className="flex items-center gap-3 py-3">
               <IconBubble tone={matched ? 'peach' : 'muted'} size="md">
@@ -52,8 +52,8 @@ export function BalanceActivityFeed({
                 <p className="truncate font-mono text-sm text-ink">
                   <span className="font-bold">{actorName}</span>
                   {matched
-                    ? ' checked balance — amounts matched'
-                    : ` checked balance — ${formatSignedCurrency(item.difference_amount)}`}
+                    ? ` ${copy.dashboard.checkedBalanceMatchedLong}`
+                    : ` ${copy.dashboard.checkedBalanceDiff(formatSignedCurrency(item.difference_amount))}`}
                 </p>
                 <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">
                   {item.reason ? `${reasons[item.reason].label} · ` : ''}{formatRelativeTime(item.checked_at)}

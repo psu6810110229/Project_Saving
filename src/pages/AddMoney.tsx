@@ -231,8 +231,9 @@ function StatusCard({ title, body, sectionLabel }: { title: string; body: string
 }
 
 function AddMoneySkeleton() {
+  const { copy } = useI18n();
   return (
-    <div className="flex flex-col gap-5" aria-label="Loading deposit flow">
+    <div className="flex flex-col gap-5" aria-label={copy.addMoney.loadingAriaLabel}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3 w-20 rounded-pill" />

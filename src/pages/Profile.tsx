@@ -68,6 +68,11 @@ export function Profile() {
   const [projectTarget, setProjectTarget] = useState('100000');
   const [projectEndDate, setProjectEndDate] = useState('2027-11-01');
   const [joinCode, setJoinCode] = useState('');
+  const projectOptions = projectOptionIcons.map(({ id, icon }) => ({
+    id,
+    icon,
+    label: copy.profile.projectCategories[id],
+  }));
 
   // Manage Project -> "Create another project" links here with an
   // ?intent=create-project query param. Opening the modal is the only
@@ -82,7 +87,7 @@ export function Profile() {
   }, [searchParams, setSearchParams]);
 
   if (loading) return <ProfileSkeleton ariaLabel={copy.common.loadingProfile} />;
-  if (error) return <StatusCard title="Profile needs a refresh" body={error} />;
+  if (error) return <StatusCard title={copy.profile.errorTitle} body={error} />;
 
   async function handleLanguageChange(next: Language) {
     if (next !== language) setLanguage(next);
@@ -113,13 +118,25 @@ export function Profile() {
       setDisplayNameDraft(null);
       setThemeDraft(null);
     }
-    setMessage(result.error ?? 'Profile updated.');
+    setMessage(result.error ?? copy.profile.profileUpdated);
+  }
+
+  async function handleAvatarUpload(file: File) {
+    const result = await uploadAvatar(file);
+    if (!result.error) return result;
+    if (result.error === 'Please choose an image file.') {
+      return { error: copy.sharedControls.imageTypeError };
+    }
+    if (result.error === 'Image must be smaller than 5 MB.') {
+      return { error: copy.sharedControls.imageSizeError };
+    }
+    return result;
   }
 
   async function handleCreateProject(options: { archiveExisting?: boolean } = {}) {
     const target = Number(projectTarget);
     if (!projectCategory || !projectName.trim() || !projectEndDate || target <= 0) {
-      setMessage('Fill in the project details first.');
+      setMessage(copy.profile.projectDetailsValidation);
       return;
     }
     const result = await createRoom({
@@ -166,19 +183,19 @@ export function Profile() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow={copy.profile.pageEyebrow} title={copy.profile.pageTitle} subtitle={activeRoom?.name ?? 'Project settings'} />
+      <PageHeader eyebrow={copy.profile.pageEyebrow} title={copy.profile.pageTitle} subtitle={activeRoom?.name ?? copy.profile.pageSubtitleFallback} />
       <ProfileHeader
-        name={profile?.display_name ?? 'You'}
+        name={profile?.display_name ?? copy.profile.youFallback}
         fallback={fallbackInitial(profile?.display_name)}
         avatarUrl={profile?.avatar_url}
-        memberLabel={`${activeRoom?.name ?? 'Project'} member`}
+        memberLabel={copy.profile.profileMember(activeRoom?.name ?? copy.profile.noActiveProject)}
         themeColor={themeColor}
         onEdit={() => openModal('profile')}
       />
       {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList
         items={[
-          { id: 'profile', icon: <IconEdit size={18} />, label: 'Edit Profile', description: 'Name, photo, and theme color', onClick: () => openModal('profile') },
+          { id: 'profile', icon: <IconEdit size={18} />, label: copy.profile.editProfileLabel, description: copy.profile.editProfileDescription, onClick: () => openModal('profile') },
           {
             id: 'language',
             icon: <IconGear size={18} />,
@@ -188,36 +205,36 @@ export function Profile() {
             onClick: () => openModal('language'),
           },
           { id: 'notifications', icon: <IconBell size={18} />, label: copy.profile.notificationSettingsLabel, description: copy.profile.notificationSettingsDescription, onClick: () => navigate('/notifications/settings') },
-          { id: 'check-balance', icon: <IconVault size={18} />, label: 'Check Balance', description: balanceCheckDescription(latestCheckpoint?.checked_at), onClick: () => navigate('/check-balance') },
-          { id: 'manage-project', icon: <IconCalendar size={18} />, label: 'Manage Project', description: `${activeRoom?.name ?? 'No active project'} - goal, buckets, quick amounts`, onClick: () => navigate('/manage-project') },
-          { id: 'create', icon: <IconUserPlus size={18} />, label: 'Create New Project', description: 'One active project per creator', onClick: () => openModal('create-project') },
-          { id: 'join', icon: <IconBell size={18} />, label: 'Join Project', description: 'Use a 6-character invite code', onClick: () => openModal('join-project') },
+          { id: 'check-balance', icon: <IconVault size={18} />, label: copy.profile.checkBalanceLabel, description: balanceCheckDescription(latestCheckpoint?.checked_at, copy), onClick: () => navigate('/check-balance') },
+          { id: 'manage-project', icon: <IconCalendar size={18} />, label: copy.profile.manageProjectLabel, description: copy.profile.manageProjectDescription(activeRoom?.name ?? copy.profile.noActiveProject), onClick: () => navigate('/manage-project') },
+          { id: 'create', icon: <IconUserPlus size={18} />, label: copy.profile.createNewProjectLabel, description: copy.profile.createNewProjectDescription, onClick: () => openModal('create-project') },
+          { id: 'join', icon: <IconBell size={18} />, label: copy.profile.joinProjectLabel, description: copy.profile.joinProjectDescription, onClick: () => openModal('join-project') },
           ...(canLeaveFromProfile ? [{
             id: 'leave-project',
             icon: <IconTrash size={18} />,
-            label: 'Leave Project',
-            description: 'Your partner keeps the project',
+            label: copy.profile.leaveProjectLabel,
+            description: copy.profile.leaveProjectDescription,
             onClick: () => setConfirmingLeave(true),
           }] : []),
         ]}
-        archiveItem={{ id: 'signout', icon: <IconUser size={18} />, label: 'Sign Out', onClick: () => setConfirmingSignOut(true) }}
+        archiveItem={{ id: 'signout', icon: <IconUser size={18} />, label: copy.profile.signOutLabel, onClick: () => setConfirmingSignOut(true) }}
       />
       <VersionBadge />
-      <Modal open={activeModal === 'profile'} title="Edit Profile" onClose={closeModal}>
+      <Modal open={activeModal === 'profile'} title={copy.profile.editProfileModalTitle} onClose={closeModal}>
         <div className="flex flex-col gap-4">
           <AvatarUpload
             avatarUrl={profile?.avatar_url ?? null}
             fallback={fallbackInitial(profile?.display_name)}
-            onUpload={uploadAvatar}
+            onUpload={handleAvatarUpload}
           />
-          <FormField label="Display Name">
+          <FormField label={copy.profile.displayNameLabel}>
             <TextInput value={displayName} leadingIcon={<IconEdit size={16} />} onChange={event => setDisplayNameDraft(event.target.value)} />
           </FormField>
           <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
-          <Button variant="primary" fullWidth onClick={handleProfileSave}>Save Profile</Button>
+          <Button variant="primary" fullWidth onClick={handleProfileSave}>{copy.profile.saveProfileButton}</Button>
         </div>
       </Modal>
-      <Modal open={activeModal === 'create-project'} title="Create Project" onClose={closeModal}>
+      <Modal open={activeModal === 'create-project'} title={copy.createProject.sectionLabel} onClose={closeModal}>
         <CreateProjectForm
           category={projectCategory}
           options={projectOptions}
@@ -250,40 +267,40 @@ export function Profile() {
           })}
         </div>
       </Modal>
-      <Modal open={activeModal === 'join-project'} title="Join Project" onClose={closeModal}>
+      <Modal open={activeModal === 'join-project'} title={copy.joinProject.modalTitle} onClose={closeModal}>
         <JoinProjectFlow
           code={joinCode}
-          error={joinCode.length > 0 && joinCode.length < 6 ? 'Enter the full 6-character code.' : undefined}
-          preview={joinCode.length >= 6 ? joinPreview(joinCode) : null}
+          error={joinCode.length > 0 && joinCode.length < 6 ? copy.profile.joinCodeValidation : undefined}
+          preview={joinCode.length >= 6 ? joinPreview(joinCode, copy) : null}
           onCodeChange={setJoinCode}
           onJoin={handleJoinProject}
         />
       </Modal>
       <ConfirmModal
         open={confirmingSignOut}
-        title="Sign out?"
-        body="You will return to the login screen. Your project data stays saved."
-        confirmLabel="Sign Out"
+        title={copy.profile.signOutConfirmTitle}
+        body={copy.profile.signOutConfirmBody}
+        confirmLabel={copy.profile.signOutLabel}
         danger
         onCancel={() => setConfirmingSignOut(false)}
         onConfirm={signOut}
       />
       <ConfirmModal
         open={confirmingLeave}
-        title="Leave project?"
-        body="You'll no longer see this project on your dashboard. Your partner keeps the project and can invite you again later."
-        confirmLabel="Leave"
+        title={copy.profile.leaveConfirmTitle}
+        body={copy.profile.leaveConfirmBody}
+        confirmLabel={copy.profile.leaveProjectLabel}
         danger
         onCancel={() => setConfirmingLeave(false)}
         onConfirm={handleLeaveProject}
       />
       <ConfirmModal
         open={Boolean(pendingCreateValues)}
-        title="Archive current project?"
+        title={copy.profile.archiveCurrentTitle}
         body={pendingCreateValues
-          ? `You already own an active project (${pendingCreateValues.existingName}). Creating a new one will archive it. Your partner will see the old project as offline (read-only) and can still browse past activity.`
+          ? copy.profile.archiveCurrentBody(pendingCreateValues.existingName)
           : ''}
-        confirmLabel="Archive & Continue"
+        confirmLabel={copy.profile.archiveContinueLabel}
         danger
         onCancel={() => setPendingCreateValues(null)}
         onConfirm={() => handleCreateProject({ archiveExisting: true })}
@@ -293,9 +310,10 @@ export function Profile() {
 }
 
 function StatusCard({ title, body }: { title: string; body: string }) {
+  const { copy } = useI18n();
   return (
     <section className="rounded-xl bg-surface p-5 shadow-soft">
-      <SectionLabel tone="brand">Profile</SectionLabel>
+      <SectionLabel tone="brand">{copy.profile.errorSection}</SectionLabel>
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
     </section>
@@ -332,27 +350,27 @@ function ProfileSkeleton({ ariaLabel }: { ariaLabel: string }) {
   );
 }
 
-const projectOptions = [
-  { id: 'travel' as const, label: 'Travel', icon: <IconPlane size={28} /> },
-  { id: 'gadget' as const, label: 'Gadget', icon: <IconSmartphone size={28} /> },
-  { id: 'wedding' as const, label: 'Wedding', icon: <IconHeart size={28} /> },
-  { id: 'home' as const, label: 'Home', icon: <IconHome size={28} /> },
-  { id: 'other' as const, label: 'Other', icon: <IconBriefcase size={28} /> },
+const projectOptionIcons = [
+  { id: 'travel' as const, icon: <IconPlane size={28} /> },
+  { id: 'gadget' as const, icon: <IconSmartphone size={28} /> },
+  { id: 'wedding' as const, icon: <IconHeart size={28} /> },
+  { id: 'home' as const, icon: <IconHome size={28} /> },
+  { id: 'other' as const, icon: <IconBriefcase size={28} /> },
 ];
 
-function balanceCheckDescription(lastCheckedAt: string | undefined): string {
-  if (!lastCheckedAt) return 'Confirm your actual savings vs the app';
+function balanceCheckDescription(lastCheckedAt: string | undefined, copy: ReturnType<typeof useI18n>['copy']): string {
+  if (!lastCheckedAt) return copy.profile.checkBalanceDescriptionNever;
   const days = daysSince(lastCheckedAt);
-  if (days === 0) return 'Last check: today';
-  if (days === 1) return 'Last check: 1 day ago';
-  return `Last check: ${days} days ago`;
+  if (days === 0) return copy.profile.checkBalanceDescriptionToday;
+  if (days === 1) return copy.profile.checkBalanceDescriptionOneDay;
+  return copy.profile.checkBalanceDescriptionDays(days);
 }
 
-function joinPreview(code: string) {
+function joinPreview(code: string, copy: ReturnType<typeof useI18n>['copy']) {
   return {
     icon: <IconPlane size={32} />,
-    name: `Invite ${code.toUpperCase()}`,
-    creatorName: 'Project owner',
+    name: copy.projectSetup.inviteName(code.toUpperCase()),
+    creatorName: copy.projectSetup.projectOwner,
     creatorFallback: 'P',
     memberCount: 2,
   };

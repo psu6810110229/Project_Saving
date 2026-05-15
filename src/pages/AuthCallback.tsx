@@ -2,12 +2,14 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { Spinner } from '../components/Spinner/Spinner';
+import { useI18n } from '../i18n/useI18n';
 import { supabase } from '../lib/supabase';
 
 const CALLBACK_TIMEOUT_MS = 12_000;
 
 export function AuthCallback() {
   const navigate = useNavigate();
+  const { copy } = useI18n();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export function AuthCallback() {
           const { error: exchangeError } = await withTimeout(
             supabase.auth.exchangeCodeForSession(code),
             CALLBACK_TIMEOUT_MS,
+            copy.auth.timeoutError,
           );
           if (exchangeError) throw exchangeError;
         }
@@ -36,14 +39,15 @@ export function AuthCallback() {
         const { data, error: sessionError } = await withTimeout(
           supabase.auth.getSession(),
           CALLBACK_TIMEOUT_MS,
+          copy.auth.timeoutError,
         );
         if (sessionError) throw sessionError;
-        if (!data.session) throw new Error('Sign-in finished without a saved session. Please try again.');
+        if (!data.session) throw new Error(copy.auth.noSessionError);
 
         if (!cancelled) navigate('/', { replace: true });
       } catch (caught) {
         if (!cancelled) {
-          const message = caught instanceof Error ? caught.message : 'Could not finish sign-in. Please try again.';
+          const message = caught instanceof Error ? caught.message : copy.auth.genericError;
           setError(message);
         }
       }
@@ -54,17 +58,17 @@ export function AuthCallback() {
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [copy.auth.genericError, copy.auth.noSessionError, copy.auth.timeoutError, navigate]);
 
   if (error) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-6">
         <section className="w-full max-w-sm rounded-xl bg-surface p-6 text-center shadow-soft">
-          <p className="font-mono text-xs font-bold uppercase tracking-wide text-brand-800">Sign In</p>
-          <h1 className="mt-3 font-mono text-2xl font-bold text-ink">Could not finish sign-in</h1>
+          <p className="font-mono text-xs font-bold uppercase tracking-wide text-brand-800">{copy.auth.callbackSection}</p>
+          <h1 className="mt-3 font-mono text-2xl font-bold text-ink">{copy.auth.callbackErrorTitle}</h1>
           <p className="mt-2 font-mono text-xs leading-5 text-ink-muted">{error}</p>
           <Button className="mt-5" variant="action" fullWidth onClick={() => navigate('/login', { replace: true })}>
-            Back to Login
+            {copy.auth.callbackBackToLogin}
           </Button>
         </section>
       </div>
@@ -78,10 +82,10 @@ export function AuthCallback() {
   );
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
-      reject(new Error('Sign-in took too long. Check your connection and try again.'));
+      reject(new Error(timeoutMessage));
     }, ms);
 
     promise.then(

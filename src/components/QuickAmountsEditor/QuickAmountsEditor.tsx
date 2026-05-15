@@ -2,6 +2,7 @@ import { Button } from '../Button/Button';
 import { FormField } from '../FormField/FormField';
 import { IconPiggyBank } from '../Icon/Icon';
 import { TextInput } from '../TextInput/TextInput';
+import { useI18n } from '../../i18n/useI18n';
 
 interface QuickAmountsEditorProps {
   amounts: string[];
@@ -10,11 +11,12 @@ interface QuickAmountsEditorProps {
 }
 
 export function QuickAmountsEditor({ amounts, onChange, onSave }: QuickAmountsEditorProps) {
+  const { copy } = useI18n();
   return (
     <div className="flex flex-col gap-3">
       {amounts.map((amount, index) => (
         <div key={index} className="flex items-center gap-2">
-          <FormField label={`Amount ${index + 1}`}>
+          <FormField label={copy.quickAmounts.amountLabel(index + 1)}>
             <TextInput
               value={amount}
               inputMode="numeric"
@@ -30,17 +32,17 @@ export function QuickAmountsEditor({ amounts, onChange, onSave }: QuickAmountsEd
               size="md"
               onClick={() => onChange(amounts.filter((_, itemIndex) => itemIndex !== index))}
             >
-              Remove
+              {copy.quickAmounts.remove}
             </Button>
           )}
         </div>
       ))}
       {amounts.length < 6 && (
         <Button variant="ghost" size="md" onClick={() => onChange([...amounts, ''])}>
-          Add Amount
+          {copy.quickAmounts.addAmount}
         </Button>
       )}
-      <Button variant="primary" fullWidth onClick={onSave}>Save Quick Amounts</Button>
+      <Button variant="primary" fullWidth onClick={onSave}>{copy.quickAmounts.save}</Button>
     </div>
   );
 }

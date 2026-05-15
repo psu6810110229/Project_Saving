@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Avatar } from '../Avatar/Avatar';
 import { Button } from '../Button/Button';
+import { useI18n } from '../../i18n/useI18n';
 
 interface AvatarUploadProps {
   /** Current avatar URL (Google profile image, previous upload, or null). */
@@ -20,11 +21,10 @@ interface AvatarUploadProps {
 /**
  * Tiny composite that renders an Avatar + "Change photo" button.
  * The actual upload is delegated to the parent via onUpload so the
- * hook contract stays single-purpose. We keep this component
- * presentational + thin per CLAUDE.md ("Components must be under
- * 100 lines").
+ * hook contract stays single-purpose.
  */
 export function AvatarUpload({ avatarUrl, fallback, onUpload, disabled }: AvatarUploadProps) {
+  const { copy } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export function AvatarUpload({ avatarUrl, fallback, onUpload, disabled }: Avatar
     const result = await onUpload(file);
     setBusy(false);
     if (result.error) setMessage(result.error);
-    else setMessage('Photo updated.');
+    else setMessage(copy.sharedControls.photoUpdated);
     if (inputRef.current) inputRef.current.value = '';
   }
 
@@ -50,7 +50,7 @@ export function AvatarUpload({ avatarUrl, fallback, onUpload, disabled }: Avatar
           onClick={() => inputRef.current?.click()}
           disabled={Boolean(disabled) || busy}
         >
-          {busy ? 'Uploading…' : 'Change photo'}
+          {busy ? copy.sharedControls.uploadingPhoto : copy.sharedControls.changePhoto}
         </Button>
         {message && <span className="font-mono text-[11px] text-ink-muted">{message}</span>}
         <input
@@ -59,7 +59,7 @@ export function AvatarUpload({ avatarUrl, fallback, onUpload, disabled }: Avatar
           accept="image/*"
           className="hidden"
           onChange={handleFile}
-          aria-label="Upload profile photo"
+          aria-label={copy.sharedControls.uploadProfilePhoto}
         />
       </div>
     </div>

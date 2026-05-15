@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { IconButton } from '../IconButton/IconButton';
 import { IconX } from '../Icon/Icon';
+import { useI18n } from '../../i18n/useI18n';
 
 const SPRING = { type: 'spring', damping: 28, stiffness: 280 } as const;
 const SPRING_CONTENT = { type: 'spring', damping: 26, stiffness: 260 } as const;
@@ -26,6 +27,7 @@ interface ModalProps {
 }
 
 export function Modal({ open, title, children, onClose }: ModalProps) {
+  const { copy } = useI18n();
   useBodyScrollLock(open);
 
   useEffect(() => {
@@ -76,7 +78,7 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
               >
                 <motion.header variants={itemVariants} className="mb-4 flex items-center justify-between gap-3">
                   <h2 id="modal-title" className="font-mono text-xl font-bold text-ink">{title}</h2>
-                  <IconButton ariaLabel="Close" size="sm" onClick={onClose}>
+                  <IconButton ariaLabel={copy.common.close} size="sm" onClick={onClose}>
                     <IconX size={18} />
                   </IconButton>
                 </motion.header>

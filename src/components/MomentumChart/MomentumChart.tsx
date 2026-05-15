@@ -46,11 +46,12 @@ export function MomentumChart({
   series,
   partnerSeries,
   labels,
-  partnerName = 'Partner',
+  partnerName,
   expectedSeries,
 }: MomentumChartProps) {
   const { copy } = useI18n();
   const d = copy.dashboard;
+  const resolvedPartnerName = partnerName ?? d.partnerLabel;
   const hasPartner = Array.isArray(partnerSeries) && partnerSeries.length === series.length;
   const hasExpected = Array.isArray(expectedSeries) && expectedSeries.length === series.length;
 
@@ -90,7 +91,7 @@ export function MomentumChart({
                 className="inline-block h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: chartIdentityColors.partner }}
               />
-              {partnerName}
+              {resolvedPartnerName}
             </span>
           )}
           {hasExpected && (

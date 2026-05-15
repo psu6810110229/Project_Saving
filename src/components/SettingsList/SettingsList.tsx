@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { SettingsRow } from '../SettingsRow/SettingsRow';
+import { useI18n } from '../../i18n/useI18n';
 
 interface SettingsListItem {
   id: string;
@@ -22,10 +23,12 @@ interface SettingsListProps {
   archiveItem?: SettingsListItem;
 }
 
-export function SettingsList({ label = 'Settings', items, archiveItem }: SettingsListProps) {
+export function SettingsList({ label, items, archiveItem }: SettingsListProps) {
+  const { copy } = useI18n();
+  const resolvedLabel = label ?? copy.sharedControls.settings;
   return (
     <section>
-      <SectionLabel tone="brand">{label}</SectionLabel>
+      <SectionLabel tone="brand">{resolvedLabel}</SectionLabel>
       <div className="mt-3 flex flex-col gap-2">
         {items.map(item => (
           <SettingsRow key={item.id} {...item} />

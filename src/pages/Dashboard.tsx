@@ -52,7 +52,7 @@ import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
-import { formatCurrency, formatRelativeTime } from '../lib/format';
+import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
@@ -104,7 +104,7 @@ export function Dashboard() {
   } = useReconcile(activeRoomId);
   const { plan: savingPlan, deposits: planDeposits } = useSavingPlan(activeRoomId);
   const { count: unreadNotifications } = useUnreadNotificationsCount();
-  const { copy, language } = useI18n();
+  const { copy, language, formatMoney } = useI18n();
   const d = copy.dashboard;
   const c = copy.common;
 
@@ -118,6 +118,11 @@ export function Dashboard() {
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
   const [message, setMessage] = useState<string | null>(null);
+  const bucketOptions = bucketOptionIcons.map(({ id, icon }) => ({
+    id,
+    icon,
+    label: copy.bucket.categoryLabels[id],
+  }));
   const loading = goalLoading || bucketsLoading || logsLoading || leaderboard.loading;
   const error = goalError ?? logsError;
 
@@ -135,7 +140,7 @@ export function Dashboard() {
   const newBucketExceedsCapacity = bucketTargetRemaining !== null
     && Number.isFinite(newBucketTargetAmount)
     && newBucketTargetAmount > bucketTargetRemaining;
-  const selectedBucket = bestMicroGoalBucket(buckets, logs);
+  const selectedBucket = bestMicroGoalBucket(buckets, logs, d, formatMoney);
   const bucketItems = buckets.map(bucket => ({
     id: bucket.id,
     icon: bucketIcon(bucket.category),
@@ -154,12 +159,12 @@ export function Dashboard() {
     saved: bucketSaved(bucket.id, logs),
     target: bucket.target_amount,
   }));
-  const partnerName = partnerEntry?.displayName ?? 'Partner';
+  const partnerName = partnerEntry?.displayName ?? d.partnerLabel;
   const activityItems = logs.map(log => ({
     id: log.id,
-    actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? 'You' : 'Partner'),
+    actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? d.youLabel : d.partnerLabel),
     actorFallback: fallbackInitial(log.display_name),
-    bucketName: log.bucket_name ?? 'Savings',
+    bucketName: log.bucket_name ?? d.savingsFallback,
     amount: log.amount,
     occurredAt: log.created_at,
     hasSlip: Boolean(log.slip_url),
@@ -238,7 +243,7 @@ export function Dashboard() {
       })()
     : undefined;
 
-  const youName = you?.displayName ?? profile?.display_name ?? 'You';
+  const youName = you?.displayName ?? profile?.display_name ?? d.youLabel;
   const leftPlayer = {
     name: youName,
     fallback: fallbackInitial(you?.displayName ?? profile?.display_name),
@@ -249,8 +254,8 @@ export function Dashboard() {
     isYou: true,
   };
   const rightPlayer = {
-    name: partner?.displayName ?? 'Partner',
-    fallback: fallbackInitial(partner?.displayName ?? 'Partner'),
+    name: partner?.displayName ?? d.partnerLabel,
+    fallback: fallbackInitial(partner?.displayName ?? d.partnerLabel),
     imageUrl: partner?.avatarUrl,
     saved: partner?.saved ?? 0,
     target: partner?.target ?? target,
@@ -263,11 +268,11 @@ export function Dashboard() {
   async function handleCreateBucket() {
     const nextTarget = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || nextTarget <= 0) {
-      setMessage('Add a bucket name, target, and category.');
+      setMessage(copy.bucket.validationNameAndTarget);
       return;
     }
     if (newBucketExceedsCapacity) {
-      setMessage(`Bucket target exceeds remaining capacity. You have ${formatCurrency(bucketTargetRemaining ?? 0)} remaining for bucket targets.`);
+      setMessage(copy.bucket.capacityError(formatMoney(bucketTargetRemaining ?? 0)));
       return;
     }
     const result = await saveBuckets([
@@ -303,7 +308,7 @@ export function Dashboard() {
               <NudgeButton
                 partnerUserId={partnerEntry.userId}
                 roomId={activeRoomId}
-                partnerName={partnerEntry.displayName ?? 'Partner'}
+                partnerName={partnerEntry.displayName ?? d.partnerLabel}
               />
             )}
           </div>
@@ -429,8 +434,8 @@ export function Dashboard() {
           series={dailyAmountSeries(logs, user?.id)}
           partnerSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
           labels={lastSevenDayLabels(undefined, chartLocale)}
-          yourName={profile?.display_name ?? 'You'}
-          partnerName={partnerEntry?.displayName ?? 'Partner'}
+          yourName={profile?.display_name ?? d.youLabel}
+          partnerName={partnerEntry?.displayName ?? d.partnerLabel}
           expectedSeries={expectedDailySeries}
         />
         {SHOW_DEPOSIT_RACE && partnerEntry && (
@@ -439,7 +444,7 @@ export function Dashboard() {
             buckets={[...buckets, ...partnerBuckets]}
             yourUserId={user?.id}
             partnerUserId={partnerEntry.userId}
-            yourName={profile?.display_name ?? 'You'}
+            yourName={profile?.display_name ?? d.youLabel}
             partnerName={partnerEntry.displayName}
             activeRoomId={activeRoomId}
             expectedSeries={expectedCumulativeSeries}
@@ -481,7 +486,7 @@ export function Dashboard() {
             ))}
           </div>
         ) : (
-          <DashboardStatusCard title={d.noActivityYet} body={d.noActivityBody(formatCurrency(100))} />
+          <DashboardStatusCard title={d.noActivityYet} body={d.noActivityBody(formatMoney(100))} />
         )}
         <ActivityHistoryModal
           open={historyOpen}
@@ -498,8 +503,8 @@ export function Dashboard() {
             options={bucketOptions}
             name={bucketName}
             target={bucketTarget}
-            targetHelper={bucketTargetRemaining !== null ? `${formatCurrency(bucketTargetRemaining)} remaining for bucket targets` : undefined}
-            targetError={newBucketExceedsCapacity ? `This exceeds the remaining bucket target capacity by ${formatCurrency(newBucketTargetAmount - (bucketTargetRemaining ?? 0))}.` : undefined}
+            targetHelper={bucketTargetRemaining !== null ? copy.bucket.remainingForBuckets(formatMoney(bucketTargetRemaining)) : undefined}
+            targetError={newBucketExceedsCapacity ? copy.bucket.capacityExceededBy(formatMoney(newBucketTargetAmount - (bucketTargetRemaining ?? 0))) : undefined}
             onCategoryChange={setBucketCategory}
             onNameChange={setBucketName}
             onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
@@ -521,7 +526,7 @@ export function Dashboard() {
             target={selectedBucketItem?.target ?? 0}
             quickAmounts={quickAmounts}
             onConfirm={async amount => {
-              if (!expandedBucketId) return { error: 'No bucket selected' };
+              if (!expandedBucketId) return { error: copy.bucket.validationNameAndTarget };
               const prev = selectedBucketItem?.saved ?? 0;
               const result = await insert(amount, expandedBucketId);
               if (!result.error) {
@@ -583,7 +588,7 @@ function buildMergedActivity(
 
 /** One sanitized balance-check row inside the merged activity feed. */
 function BalanceActivityRow({ entry }: { entry: BalanceActivityEntry }) {
-  const { copy } = useI18n();
+  const { copy, formatRelativeTime } = useI18n();
   const d = copy.dashboard;
   const matched = entry.difference_amount === 0;
   return (
@@ -593,7 +598,7 @@ function BalanceActivityRow({ entry }: { entry: BalanceActivityEntry }) {
       </IconBubble>
       <div className="min-w-0 flex-1">
         <p className="truncate font-mono text-sm text-ink">
-          <span className="font-bold">{entry.display_name?.trim() || 'Partner'}</span>
+          <span className="font-bold">{entry.display_name?.trim() || d.partnerLabel}</span>
           {' '}
           {matched
             ? d.checkedBalanceMatched
@@ -649,7 +654,12 @@ function DashboardSkeleton() {
   );
 }
 
-function bestMicroGoalBucket(buckets: Bucket[], logs: ReturnType<typeof useLogs>['logs']) {
+function bestMicroGoalBucket(
+  buckets: Bucket[],
+  logs: ReturnType<typeof useLogs>['logs'],
+  copy: ReturnType<typeof useI18n>['copy']['dashboard'],
+  formatMoney: (amount: number) => string,
+) {
   const bucket = buckets
     .map(item => ({ bucket: item, saved: bucketSaved(item.id, logs) }))
     .sort((a, b) => (a.bucket.target_amount - a.saved) - (b.bucket.target_amount - b.saved))[0];
@@ -657,10 +667,10 @@ function bestMicroGoalBucket(buckets: Bucket[], logs: ReturnType<typeof useLogs>
   if (!bucket) {
     return {
       icon: <IconRocket size={26} />,
-      title: 'First bucket',
+      title: copy.firstBucketTitle,
       remaining: 0,
       pct: 0,
-      subtitle: 'Create a bucket from Profile',
+      subtitle: copy.firstBucketSubtitle,
     };
   }
 
@@ -669,7 +679,7 @@ function bestMicroGoalBucket(buckets: Bucket[], logs: ReturnType<typeof useLogs>
     title: bucket.bucket.name,
     remaining: Math.max(0, bucket.bucket.target_amount - bucket.saved),
     pct: bucket.bucket.target_amount > 0 ? Math.min(100, Math.round((bucket.saved / bucket.bucket.target_amount) * 100)) : 0,
-    subtitle: `${formatCurrency(bucket.saved)} saved`,
+    subtitle: copy.savedLabel(formatMoney(bucket.saved)),
   };
 }
 
@@ -683,13 +693,13 @@ function bucketIcon(category: BucketCategory | undefined): ReactNode {
   return <IconBriefcase size={22} />;
 }
 
-const bucketOptions = [
-  { id: 'flight' as const, label: 'Flight', icon: <IconPlane size={22} /> },
-  { id: 'accom' as const, label: 'Stay', icon: <IconBed size={22} /> },
-  { id: 'dining' as const, label: 'Dining', icon: <IconFork size={22} /> },
-  { id: 'activities' as const, label: 'Activity', icon: <IconTicket size={22} /> },
-  { id: 'gear' as const, label: 'Gear', icon: <IconSmartphone size={22} /> },
-  { id: 'home' as const, label: 'Home', icon: <IconHome size={22} /> },
+const bucketOptionIcons = [
+  { id: 'flight' as const, icon: <IconPlane size={22} /> },
+  { id: 'accom' as const, icon: <IconBed size={22} /> },
+  { id: 'dining' as const, icon: <IconFork size={22} /> },
+  { id: 'activities' as const, icon: <IconTicket size={22} /> },
+  { id: 'gear' as const, icon: <IconSmartphone size={22} /> },
+  { id: 'home' as const, icon: <IconHome size={22} /> },
 ];
 
 interface SavingRaceSectionProps {
@@ -715,11 +725,12 @@ interface SavingRaceSectionProps {
  * different scopes silently.
  */
 function SavingRaceSection({ logs, buckets, yourUserId, partnerUserId, yourName, partnerName, activeRoomId, expectedSeries }: SavingRaceSectionProps) {
+  const { copy } = useI18n();
   const storageKey = `saving-race-filter:${activeRoomId ?? 'no-room'}`;
   const [bucketFilter, setBucketFilter] = useLocalStorageState<string | null>(storageKey, null);
   const dedupedOptions = Array.from(new Map(buckets.map(b => [b.id, { id: b.id, name: b.name }])).values());
   const scopeBucket = buckets.find(b => b.id === bucketFilter) ?? null;
-  const scopeLabel = scopeBucket ? `Scope: ${scopeBucket.name}` : 'All buckets';
+  const scopeLabel = scopeBucket ? copy.dashboard.scopeBucket(scopeBucket.name) : copy.dashboard.scopeAllBuckets;
   const yourSeries = cumulativeRaceSeries(logs, yourUserId, bucketFilter);
   const partnerSeries = cumulativeRaceSeries(logs, partnerUserId, bucketFilter);
   const overlay = bucketFilter === null ? expectedSeries : undefined;

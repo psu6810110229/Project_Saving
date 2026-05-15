@@ -1,5 +1,6 @@
 import { OtpDigitInput } from '../OtpDigitInput/OtpDigitInput';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { useI18n } from '../../i18n/useI18n';
 
 /**
  * Form-shaped wrapper around the 6-box OtpDigitInput. Adds the
@@ -14,10 +15,12 @@ interface OtpFieldProps {
   error?: string;
 }
 
-export function OtpField({ value, onChange, label = 'Join Code', error }: OtpFieldProps) {
+export function OtpField({ value, onChange, label, error }: OtpFieldProps) {
+  const { copy } = useI18n();
+  const resolvedLabel = label ?? copy.joinProject.codeLabel;
   return (
     <div>
-      <SectionLabel tone="muted" className="text-center">{label}</SectionLabel>
+      <SectionLabel tone="muted" className="text-center">{resolvedLabel}</SectionLabel>
       <div className="mt-3">
         <OtpDigitInput value={value} onChange={onChange} error={!!error} />
       </div>

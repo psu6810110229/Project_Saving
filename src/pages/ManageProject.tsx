@@ -244,7 +244,7 @@ export function ManageProject() {
       id: 'date',
       icon: <IconCalendar size={18} />,
       label: copy.manageProject.tripGoalLabel,
-      description: activeRoom.end_date ?? 'Not set',
+      description: activeRoom.end_date ?? copy.manageProject.notSet,
       meta: <span className="font-mono text-xs text-ink-muted">{goal ? formatMoney(goal.target_amount) : ''}</span>,
       onClick: isCreator ? () => openModal('trip-goal') : undefined,
     },
@@ -328,7 +328,7 @@ export function ManageProject() {
               min={0}
               step={100}
               inputMode="decimal"
-              placeholder="e.g. 80000"
+              placeholder={copy.manageProject.targetAmountPlaceholder}
               value={targetAmountDraft}
               onChange={event => setTargetAmountDraft(event.target.value)}
             />

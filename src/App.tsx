@@ -17,6 +17,7 @@ import { Notifications } from './pages/Notifications';
 import { NotificationSettings } from './pages/NotificationSettings';
 import { OrganismsPreview } from './pages/OrganismsPreview';
 import { Profile } from './pages/Profile';
+import { NotFound } from './pages/NotFound';
 
 function App() {
   return (
@@ -47,7 +48,7 @@ function App() {
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </RoomProvider>
         </I18nProvider>

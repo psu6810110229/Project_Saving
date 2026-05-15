@@ -9,6 +9,7 @@ import { IconPiggyBank, IconTrash } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { TextInput } from '../TextInput/TextInput';
+import { useI18n } from '../../i18n/useI18n';
 
 const SPRING = { type: 'spring', damping: 30, stiffness: 300 } as const;
 const SPRING_CONTENT = { type: 'spring', damping: 26, stiffness: 260 } as const;
@@ -46,6 +47,7 @@ export function BucketSheet({
   onConfirm,
   onDelete,
 }: BucketSheetProps) {
+  const { copy } = useI18n();
   const defaultPill = quickAmounts[1] ?? quickAmounts[0] ?? 100;
   const [selectedPill, setSelectedPill] = useState<number | null>(defaultPill);
   const [customValue, setCustomValue] = useState('');
@@ -149,7 +151,7 @@ export function BucketSheet({
                   {/* Quick add */}
                   <motion.div variants={itemVariants}>
                     <QuickAddRow
-                      label="Quick Add"
+                      label={copy.addMoney.depositAmountLabel}
                       amounts={quickAmounts}
                       selected={selectedPill}
                       onSelect={handlePillSelect}
@@ -158,7 +160,7 @@ export function BucketSheet({
 
                   {/* Custom amount */}
                   <motion.div variants={itemVariants}>
-                    <FormField label="Custom Amount">
+                    <FormField label={copy.addMoney.customAmountLabel}>
                       <TextInput
                         value={customValue}
                         inputMode="numeric"
@@ -182,7 +184,7 @@ export function BucketSheet({
                   {/* Actions */}
                   <motion.div variants={itemVariants} className="grid grid-cols-2 gap-2">
                     <Button variant="ghost" size="md" onClick={handleClose}>
-                      Cancel
+                      {copy.common.cancel}
                     </Button>
                     <Button
                       variant="action"
@@ -190,7 +192,7 @@ export function BucketSheet({
                       disabled={saving || resolvedAmount <= 0}
                       onClick={handleConfirm}
                     >
-                      {saving ? 'Saving…' : 'Confirm'}
+                      {saving ? copy.savingPlan.savingButton : copy.common.confirm}
                     </Button>
                   </motion.div>
 
@@ -203,7 +205,7 @@ export function BucketSheet({
                         className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 font-mono text-xs font-bold text-danger hover:bg-danger-soft active:scale-[0.98] transition-all"
                       >
                         <IconTrash size={14} />
-                        Delete bucket
+                        {copy.bucket.deleteConfirmLabel}
                       </button>
                     </motion.div>
                   )}

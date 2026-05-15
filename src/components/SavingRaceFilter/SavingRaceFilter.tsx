@@ -21,9 +21,10 @@ interface SavingRaceFilterProps {
 const ALL = '__all__';
 
 export function SavingRaceFilter({ buckets, value, onChange }: SavingRaceFilterProps) {
+  const { copy } = useI18n();
   return (
     <label className="inline-flex items-center gap-2 font-mono text-[11px] text-ink-muted">
-      <span className="sr-only">Filter deposit race scope</span>
+      <span className="sr-only">{copy.dashboard.depositRaceFilterAria}</span>
       <select
         value={value ?? ALL}
         onChange={event => {
@@ -32,7 +33,7 @@ export function SavingRaceFilter({ buckets, value, onChange }: SavingRaceFilterP
         }}
         className="rounded-pill bg-well px-2 py-1 font-mono text-xs text-ink shadow-neuPressed focus:outline-none"
       >
-        <option value={ALL}>All buckets (main goal)</option>
+        <option value={ALL}>{copy.dashboard.allBucketsMainGoal}</option>
         {buckets.map(bucket => (
           <option key={bucket.id} value={bucket.id}>{bucket.name}</option>
         ))}
@@ -40,3 +41,4 @@ export function SavingRaceFilter({ buckets, value, onChange }: SavingRaceFilterP
     </label>
   );
 }
+import { useI18n } from '../../i18n/useI18n';

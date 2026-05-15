@@ -4,6 +4,7 @@ import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { CategoryTile } from '../CategoryTile/CategoryTile';
 import { IconMoreVertical } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
+import { useI18n } from '../../i18n/useI18n';
 
 /**
  * Horizontal scroll-able row of CategoryTiles. Used on both:
@@ -38,6 +39,7 @@ export function CategoryRow<T extends string>({
   onChange,
   maxVisible = 4,
 }: CategoryRowProps<T>) {
+  const { copy } = useI18n();
   const [pickerOpen, setPickerOpen] = useState(false);
   const visibleOptions = options.slice(0, maxVisible);
   const hasMore = options.length > maxVisible;
@@ -72,14 +74,14 @@ export function CategoryRow<T extends string>({
           <div className={shape === 'square' ? 'snap-start shrink-0' : 'shrink-0'}>
             <CategoryTile
               shape={shape}
-              label="More"
+              label={copy.sharedControls.more}
               icon={<IconMoreVertical size={shape === 'circle' ? 22 : 28} />}
               onClick={() => setPickerOpen(true)}
             />
           </div>
         )}
       </div>
-      <Modal open={pickerOpen} title={label ?? 'Choose Category'} onClose={() => setPickerOpen(false)}>
+      <Modal open={pickerOpen} title={label ?? copy.sharedControls.chooseCategory} onClose={() => setPickerOpen(false)}>
         <div className="grid grid-cols-2 gap-3">
           {options.map(opt => (
             <CategoryTile

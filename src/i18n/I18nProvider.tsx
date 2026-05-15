@@ -22,6 +22,8 @@ function readStoredLanguage(): Language {
   } catch {
     // Storage may be unavailable (private mode, SSR) — fall through.
   }
+  const systemLanguages = navigator.languages?.length ? navigator.languages : [navigator.language];
+  if (systemLanguages.some(value => value?.toLowerCase().startsWith('th'))) return 'th';
   return DEFAULT_LANGUAGE;
 }
 

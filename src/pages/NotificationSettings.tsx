@@ -184,6 +184,14 @@ export function NotificationSettings() {
           <Spinner size="sm" /> Saving…
         </div>
       )}
+
+      {/* Quiet, calm reassurance that history persists even when
+          everything is off. Removes the most common confusion about
+          the master toggle without adding new controls. */}
+      <p className="font-mono text-[11px] text-ink-muted leading-relaxed">
+        Past notifications stay in the Notification Center even when these
+        are off. Toggles only affect future deliveries.
+      </p>
     </div>
   );
 }

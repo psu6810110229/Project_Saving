@@ -46,7 +46,19 @@ interface RemindersSummary {
   push_delivered: number;
   push_skipped_no_prefs: number;
   push_skipped_no_devices: number;
+  cleanup_notifications_deleted: number;
+  cleanup_delivery_attempts_deleted: number;
   errors: string[];
+}
+
+interface AttemptInsert {
+  notification_id: string;
+  recipient_user_id: string;
+  push_subscription_id: string | null;
+  channel: 'push';
+  status: 'sent' | 'failed' | 'expired';
+  error_code: string | null;
+  error_message: string | null;
 }
 
 const TARGET_ROUTE = '/saving-plan';
@@ -132,21 +144,48 @@ Deno.serve(async (req) => {
 
   const admin = createClient(supabaseUrl, serviceKey);
 
-  // 1. Run eligibility + dedupe + insert in a single SQL pass.
-  const { data, error } = await admin.rpc('enqueue_saving_plan_reminders');
-  if (error) {
-    return jsonResponse({ error: error.message }, 500);
-  }
-  const created = (data ?? []) as EnqueuedRow[];
-
   const summary: RemindersSummary = {
-    created: created.length,
+    created: 0,
     push_attempted: 0,
     push_delivered: 0,
     push_skipped_no_prefs: 0,
     push_skipped_no_devices: 0,
+    cleanup_notifications_deleted: 0,
+    cleanup_delivery_attempts_deleted: 0,
     errors: [],
   };
+
+  // 0. Retention cleanup. Each call is bounded by the date cutoff
+  //    inside the RPC, so running every scheduler tick stays cheap
+  //    once the backlog clears. Failures are non-fatal — we still
+  //    want reminders to fire.
+  const { data: notifDeleted, error: cleanupNotifErr } = await admin
+    .rpc('cleanup_old_notifications', { p_days_old: 90 });
+  if (cleanupNotifErr) {
+    summary.errors.push(`cleanup_old_notifications: ${cleanupNotifErr.message}`);
+  } else {
+    summary.cleanup_notifications_deleted = typeof notifDeleted === 'number'
+      ? notifDeleted
+      : Number(notifDeleted ?? 0);
+  }
+
+  const { data: attemptsDeleted, error: cleanupAttErr } = await admin
+    .rpc('cleanup_old_delivery_attempts', { p_days_old: 30 });
+  if (cleanupAttErr) {
+    summary.errors.push(`cleanup_old_delivery_attempts: ${cleanupAttErr.message}`);
+  } else {
+    summary.cleanup_delivery_attempts_deleted = typeof attemptsDeleted === 'number'
+      ? attemptsDeleted
+      : Number(attemptsDeleted ?? 0);
+  }
+
+  // 1. Run eligibility + dedupe + insert in a single SQL pass.
+  const { data, error } = await admin.rpc('enqueue_saving_plan_reminders');
+  if (error) {
+    return jsonResponse({ ...summary, error: error.message }, 500);
+  }
+  const created = (data ?? []) as EnqueuedRow[];
+  summary.created = created.length;
 
   if (created.length === 0) {
     return jsonResponse(summary);
@@ -180,6 +219,7 @@ Deno.serve(async (req) => {
   // 3. Deliver push for each newly created notification.
   const safeUrl = sanitizeRoute(TARGET_ROUTE);
   const safeFallback = sanitizeRoute(FALLBACK_ROUTE);
+  const attempts: AttemptInsert[] = [];
 
   for (const note of created) {
     if (!pushEnabledFor.get(note.recipient_user_id)) {
@@ -210,20 +250,58 @@ Deno.serve(async (req) => {
           payload,
         );
         summary.push_delivered += 1;
+        attempts.push({
+          notification_id: note.notification_id,
+          recipient_user_id: note.recipient_user_id,
+          push_subscription_id: sub.id,
+          channel: 'push',
+          status: 'sent',
+          error_code: null,
+          error_message: null,
+        });
       } catch (err) {
         const status = typeof err === 'object' && err && 'statusCode' in err
           ? Number((err as { statusCode: number }).statusCode)
           : 0;
+        const message = typeof err === 'object' && err && 'message' in err
+          ? String((err as { message: string }).message)
+          : 'push failed';
         if (status === 404 || status === 410) {
           await admin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+          attempts.push({
+            notification_id: note.notification_id,
+            recipient_user_id: note.recipient_user_id,
+            push_subscription_id: sub.id,
+            channel: 'push',
+            status: 'expired',
+            error_code: String(status),
+            error_message: null,
+          });
         } else {
-          const message = typeof err === 'object' && err && 'message' in err
-            ? String((err as { message: string }).message)
-            : 'push failed';
           summary.errors.push(`${sub.endpoint.slice(0, 32)}...: ${message}`);
+          attempts.push({
+            notification_id: note.notification_id,
+            recipient_user_id: note.recipient_user_id,
+            push_subscription_id: sub.id,
+            channel: 'push',
+            status: 'failed',
+            error_code: status ? String(status) : null,
+            error_message: message.slice(0, 500),
+          });
         }
       }
     }));
+  }
+
+  // 4. Persist delivery attempts in a single batched insert. The
+  //    table is debug-grade audit only; failures are non-fatal.
+  if (attempts.length > 0) {
+    const { error: attemptErr } = await admin
+      .from('notification_delivery_attempts')
+      .insert(attempts);
+    if (attemptErr) {
+      summary.errors.push(`delivery_attempts insert: ${attemptErr.message}`);
+    }
   }
 
   return jsonResponse(summary);

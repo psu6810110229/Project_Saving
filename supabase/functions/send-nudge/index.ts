@@ -56,6 +56,13 @@ interface NudgeResult {
 const THROTTLE_SECONDS = 300;
 const TARGET_ROUTE = '/dashboard';
 const FALLBACK_ROUTE = '/dashboard';
+const ALLOWED_ORIGINS = new Set([
+  'https://project-saving-brown.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]);
+const CORS_ALLOW_HEADERS = 'authorization, x-client-info, apikey, content-type';
+const CORS_ALLOW_METHODS = 'OPTIONS, POST';
 const ALLOWED_PUSH_PREFIXES = [
   '/dashboard',
   '/add',
@@ -75,21 +82,45 @@ function sanitizeRoute(route: string | null | undefined): string {
   return matched ? route : FALLBACK_ROUTE;
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
+function corsHeadersFor(req: Request): HeadersInit {
+  const origin = req.headers.get('Origin');
+  const allowOrigin = origin && ALLOWED_ORIGINS.has(origin)
+    ? origin
+    : 'https://project-saving-brown.vercel.app';
+
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS,
+    'Access-Control-Allow-Methods': CORS_ALLOW_METHODS,
+    'Vary': 'Origin',
+  };
+}
+
+function jsonResponse(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      ...corsHeadersFor(req),
+      'Content-Type': 'application/json',
+    },
   });
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeadersFor(req) });
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return new Response('Method not allowed', {
+      status: 405,
+      headers: corsHeadersFor(req),
+    });
   }
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
-    return jsonResponse({ error: 'Missing auth' }, 401);
+    return jsonResponse(req, { error: 'Missing auth' }, 401);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -105,19 +136,19 @@ Deno.serve(async (req) => {
   });
   const { data: userData, error: userError } = await callerClient.auth.getUser();
   if (userError || !userData.user) {
-    return jsonResponse({ error: 'Invalid auth' }, 401);
+    return jsonResponse(req, { error: 'Invalid auth' }, 401);
   }
   const fromUser = userData.user;
 
   const body = (await req.json().catch(() => null)) as NudgePayload | null;
   if (!body || !body.to_user_id) {
-    return jsonResponse({ error: 'to_user_id required' }, 400);
+    return jsonResponse(req, { error: 'to_user_id required' }, 400);
   }
   if (!body.room_id) {
-    return jsonResponse({ error: 'room_id required' }, 400);
+    return jsonResponse(req, { error: 'room_id required' }, 400);
   }
   if (body.to_user_id === fromUser.id) {
-    return jsonResponse({ error: 'cannot nudge yourself' }, 400);
+    return jsonResponse(req, { error: 'cannot nudge yourself' }, 400);
   }
 
   const toUserId = body.to_user_id;
@@ -132,11 +163,11 @@ Deno.serve(async (req) => {
     .eq('room_id', roomId)
     .in('user_id', [fromUser.id, toUserId]);
   if (membersError) {
-    return jsonResponse({ error: 'Could not verify room membership.' }, 500);
+    return jsonResponse(req, { error: 'Could not verify room membership.' }, 500);
   }
   const memberIds = new Set((members ?? []).map(row => row.user_id));
   if (!memberIds.has(fromUser.id) || !memberIds.has(toUserId)) {
-    return jsonResponse({ error: 'Sender and recipient must share the same project.' }, 403);
+    return jsonResponse(req, { error: 'Sender and recipient must share the same project.' }, 403);
   }
 
   // 3. Throttle per (from, to, room).
@@ -156,7 +187,7 @@ Deno.serve(async (req) => {
       notification_id: null,
       error: 'Slow down — please wait a few minutes before nudging again.',
     };
-    return jsonResponse(result, 429);
+    return jsonResponse(req, result, 429);
   }
 
   // 4. Insert the nudge audit row first so the notification dedupe
@@ -167,7 +198,7 @@ Deno.serve(async (req) => {
     .select('id')
     .single();
   if (nudgeError || !nudgeRow) {
-    return jsonResponse({ error: 'Could not record nudge.' }, 500);
+    return jsonResponse(req, { error: 'Could not record nudge.' }, 500);
   }
   const nudgeId = nudgeRow.id as string;
 
@@ -216,7 +247,7 @@ Deno.serve(async (req) => {
   if (notifError && notifError.code !== '23505') {
     // 23505 = unique_violation; if dedupe already exists treat as no-op success
     // and continue trying to push to subscribed devices. Anything else is fatal.
-    return jsonResponse({ error: 'Could not create notification.' }, 500);
+    return jsonResponse(req, { error: 'Could not create notification.' }, 500);
   }
   const notificationId = (notifRow?.id as string | undefined) ?? null;
 
@@ -243,7 +274,7 @@ Deno.serve(async (req) => {
       notification_id: notificationId,
       error: 'Partner has push notifications off.',
     };
-    return jsonResponse(result);
+    return jsonResponse(req, result);
   }
 
   // 8. Look up active subscriptions for the recipient.
@@ -259,7 +290,7 @@ Deno.serve(async (req) => {
       notification_id: notificationId,
       error: 'Partner has no devices enrolled for nudges yet.',
     };
-    return jsonResponse(result);
+    return jsonResponse(req, result);
   }
 
   // 9. Send push to every device. Cleanup expired endpoints.
@@ -351,5 +382,5 @@ Deno.serve(async (req) => {
     ...(delivered === 0 ? { error: 'Push could not be delivered. Notification was saved.' } : {}),
   };
 
-  return jsonResponse(result);
+  return jsonResponse(req, result);
 });

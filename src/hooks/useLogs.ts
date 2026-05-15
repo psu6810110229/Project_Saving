@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { notifyPartnerDeposit } from '../lib/notifyEvents';
 import { useAuth } from './useAuth';
 import type { SavingsLog } from '../types';
 
@@ -120,6 +121,9 @@ export function useLogs(limit = 30, roomId: string | null = null) {
       setLogs(prev => prev.filter(l => l.id !== tempId));
       return { error: err.message };
     }
+    // Fire-and-forget partner notification. The deposit flow must
+    // succeed even if notification creation fails.
+    notifyPartnerDeposit(tempId);
     return {};
   }
 

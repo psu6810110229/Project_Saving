@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 import { useRoom } from './useRoom';
 import { generateInviteCode } from '../lib/inviteCode';
+import { notifyRoomJoined, notifyRoomLeft } from '../lib/notifyEvents';
 import type { ProjectCategory, Room } from '../types';
 
 interface CreateRoomValues {
@@ -186,6 +187,8 @@ export function useRooms() {
 
     setActiveRoomId(roomId);
     await fetchRooms();
+    // Fire-and-forget: tell the existing room creator that we joined.
+    notifyRoomJoined(roomId);
     return { roomId };
   }
 
@@ -214,6 +217,10 @@ export function useRooms() {
    */
   async function leaveRoom(roomId: string): Promise<ActionResult> {
     if (!user) return { error: 'Not authenticated' };
+    // Notify BEFORE the membership row is deleted — otherwise the
+    // server-side `_other_room_member()` lookup loses context. The
+    // call resolves quietly on failure so the leave still proceeds.
+    await notifyRoomLeft(roomId);
     const { error: leaveError } = await supabase
       .from('room_members')
       .delete()

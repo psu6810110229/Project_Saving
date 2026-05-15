@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { notifyBucketAdded, notifyBucketUpdated } from '../lib/notifyEvents';
 import { useAuth } from './useAuth';
 import type { Bucket, BucketDraft } from '../types';
 import { formatCurrency } from '../lib/format';
@@ -101,6 +102,21 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       position: i + updates.length,
     }));
 
+    // Detect updates whose user-facing fields (not just position)
+    // changed compared to the loaded state. Position-only changes
+    // should not trigger a partner notification.
+    const changedUpdateIds: string[] = [];
+    for (const u of updates) {
+      const before = buckets.find(b => b.id === u.id);
+      if (!before) continue;
+      const nameChanged = before.name !== u.name;
+      const targetChanged = Number(before.target_amount) !== Number(u.target_amount);
+      const categoryChanged = (before.category ?? 'other') !== u.category;
+      if (nameChanged || targetChanged || categoryChanged) {
+        changedUpdateIds.push(u.id);
+      }
+    }
+
     // Execute updates
     if (updates.length > 0) {
       const { error: upErr } = await supabase
@@ -109,15 +125,25 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       if (upErr) return { error: upErr.message };
     }
 
-    // Execute inserts
+    // Execute inserts and capture the new ids so each added bucket
+    // can fire a partner notification.
+    let insertedIds: string[] = [];
     if (inserts.length > 0) {
-      const { error: insErr } = await supabase
+      const { data: insertedRows, error: insErr } = await supabase
         .from('buckets')
-        .insert(inserts);
+        .insert(inserts)
+        .select('id');
       if (insErr) return { error: insErr.message };
+      insertedIds = (insertedRows ?? []).map(row => row.id as string);
     }
 
     await fetchBuckets();
+
+    // Fire-and-forget partner notifications. Bucket failures must
+    // not block the save itself; the helpers swallow errors.
+    for (const id of insertedIds) notifyBucketAdded(id);
+    for (const id of changedUpdateIds) notifyBucketUpdated(id);
+
     return {};
   }
 

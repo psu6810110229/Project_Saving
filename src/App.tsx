@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './components/AuthProvider/AuthProvider';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
 import { RoomProvider } from './components/RoomContext/RoomContext';
+import { I18nProvider } from './i18n/I18nProvider';
 import { AddMoney } from './pages/AddMoney';
 import { AppLayout } from './pages/AppLayout';
 import { AtomsPreview } from './pages/AtomsPreview';
@@ -21,6 +22,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <I18nProvider>
         <RoomProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -48,6 +50,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </RoomProvider>
+        </I18nProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -1,5 +1,5 @@
 ﻿import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppShell } from '../components/AppShell/AppShell';
 import type { BottomNavTab } from '../components/BottomNav/BottomNav';
 import { Button } from '../components/Button/Button';
@@ -16,6 +16,9 @@ import {
 } from '../components/Icon/Icon';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
+import { useProfile } from '../hooks/useProfile';
+import { useI18n } from '../i18n/useI18n';
+import { LANGUAGE_STORAGE_KEY, isLanguage } from '../i18n/languages';
 import type { ProjectCategory } from '../types';
 
 type SetupMode = 'create' | 'join';
@@ -29,6 +32,7 @@ export function AppLayout() {
 
   return (
     <AppShell activeTab={activeTab} onTabChange={tab => navigate(pathFromTab(tab))}>
+      <ProfileLanguageSync />
       {loading && <StatusCard title="Loading your project" body="Pulling the latest savings room." />}
       {!loading && error && <StatusCard title="Could not load projects" body={error} />}
       {!loading && !error && !activeRoom && <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />}
@@ -39,6 +43,31 @@ export function AppLayout() {
       )}
     </AppShell>
   );
+}
+
+/**
+ * Adopt the persisted UI language from the user's profile once it loads.
+ * The I18nProvider already hydrates from localStorage synchronously, so
+ * this bridge only matters when the profile value differs (e.g. the user
+ * picked Thai on another device).
+ */
+function ProfileLanguageSync() {
+  const { profile } = useProfile();
+  const { language, setLanguage } = useI18n();
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (isLanguage(stored)) return;
+    } catch {
+      // If storage is unavailable, profile remains the safest persisted source.
+    }
+
+    const next = profile?.ui_language;
+    if (!isLanguage(next)) return;
+    if (next === language) return;
+    setLanguage(next);
+  }, [profile?.ui_language, language, setLanguage]);
+  return null;
 }
 
 function ProjectSetup({

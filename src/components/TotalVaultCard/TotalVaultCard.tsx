@@ -1,6 +1,7 @@
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
+import { useI18n } from '../../i18n/useI18n';
 
 interface TotalVaultCardProps {
   saved: number;
@@ -15,12 +16,13 @@ function pctColor(pct: number): string {
 }
 
 export function TotalVaultCard({ saved, target }: TotalVaultCardProps) {
+  const { copy } = useI18n();
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const pctRounded = Math.round(pct);
   return (
     <section className="rounded-xl bg-surface shadow-soft p-5">
       <div className="flex items-center justify-between">
-        <SectionLabel tone="muted">Recorded Vault</SectionLabel>
+        <SectionLabel tone="muted">{copy.dashboard.recordedVault}</SectionLabel>
         <span className={`font-mono text-sm font-bold tabular-nums ${pctColor(pct)}`}>
           {pctRounded}%
         </span>

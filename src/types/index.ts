@@ -11,8 +11,13 @@ export interface Profile {
   theme_color?: ProfileTheme;
   /** User-editable quick deposit presets. Added in migration 0015. */
   quick_add_amounts?: number[] | null;
+  /** Persisted UI language preference. Added in migration 0045. */
+  ui_language?: ProfileLanguage;
   created_at: string;
 }
+
+/** Allowed UI language values mirrored from migration 0045. */
+export type ProfileLanguage = 'en' | 'th';
 
 export interface Room {
   id: string;

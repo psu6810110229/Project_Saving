@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DEFAULT_THEME, type ThemeSwatch } from '../lib/theme';
 import { supabase } from '../lib/supabase';
-import type { Profile } from '../types';
+import type { Profile, ProfileLanguage } from '../types';
 import { useAuth } from './useAuth';
 
 interface ProfileUpdateValues {
@@ -28,7 +28,7 @@ export function useProfile() {
     setError(null);
     const { data, error: fetchError } = await supabase
       .from('profiles')
-      .select('id, display_name, avatar_url, theme_color, quick_add_amounts, created_at')
+      .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, created_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -57,7 +57,7 @@ export function useProfile() {
       setError(null);
       const { data, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, theme_color, quick_add_amounts, created_at')
+        .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, created_at')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -134,6 +134,20 @@ export function useProfile() {
     return { url };
   }
 
+  async function updateLanguage(language: ProfileLanguage): Promise<{ error?: string }> {
+    if (!user) return { error: 'Not authenticated' };
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ ui_language: language })
+      .eq('id', user.id);
+
+    if (updateError) return { error: updateError.message };
+
+    setProfile(prev => prev ? { ...prev, ui_language: language } : prev);
+    return {};
+  }
+
   async function updateQuickAmounts(amounts: number[]): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };
 
@@ -163,6 +177,7 @@ export function useProfile() {
     refetch: fetchProfile,
     updateProfile,
     updateQuickAmounts,
+    updateLanguage,
     uploadAvatar,
   };
 }

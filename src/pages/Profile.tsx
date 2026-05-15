@@ -9,7 +9,9 @@ import {
   IconBell,
   IconBriefcase,
   IconCalendar,
+  IconCheck,
   IconEdit,
+  IconGear,
   IconHeart,
   IconHome,
   IconPlane,
@@ -35,13 +37,15 @@ import { useProfile } from '../hooks/useProfile';
 import { useReconcile } from '../hooks/useReconcile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
+import { useI18n } from '../i18n/useI18n';
+import { LANGUAGE_NATIVE_LABEL, SUPPORTED_LANGUAGES, type Language } from '../i18n/languages';
 import { fallbackInitial } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
 import { daysSince } from '../lib/reconcile';
 import type { ThemeSwatch } from '../lib/theme';
 import type { ProjectCategory } from '../types';
 
-type ProfileModal = 'profile' | 'create-project' | 'join-project' | null;
+type ProfileModal = 'profile' | 'create-project' | 'join-project' | 'language' | null;
 
 export function Profile() {
   const navigate = useNavigate();
@@ -49,7 +53,8 @@ export function Profile() {
   const { user, signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const { createRoom, joinRoomByCode, leaveRoom } = useRooms();
-  const { profile, loading, error, themeColor, updateProfile, uploadAvatar } = useProfile();
+  const { profile, loading, error, themeColor, updateProfile, uploadAvatar, updateLanguage } = useProfile();
+  const { copy, language, setLanguage } = useI18n();
   const { latest: latestCheckpoint } = useReconcile(activeRoomId);
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
@@ -76,8 +81,17 @@ export function Profile() {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  if (loading) return <ProfileSkeleton />;
+  if (loading) return <ProfileSkeleton ariaLabel={copy.common.loadingProfile} />;
   if (error) return <StatusCard title="Profile needs a refresh" body={error} />;
+
+  async function handleLanguageChange(next: Language) {
+    if (next !== language) setLanguage(next);
+    closeModal();
+    if (user) {
+      const result = await updateLanguage(next);
+      if (result.error) setMessage(result.error);
+    }
+  }
 
   const displayName = displayNameDraft ?? profile?.display_name ?? '';
   const theme = themeDraft ?? themeColor;
@@ -152,7 +166,7 @@ export function Profile() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Profile" title="Settings" subtitle={activeRoom?.name ?? 'Project settings'} />
+      <PageHeader eyebrow={copy.profile.pageEyebrow} title={copy.profile.pageTitle} subtitle={activeRoom?.name ?? 'Project settings'} />
       <ProfileHeader
         name={profile?.display_name ?? 'You'}
         fallback={fallbackInitial(profile?.display_name)}
@@ -165,6 +179,14 @@ export function Profile() {
       <SettingsList
         items={[
           { id: 'profile', icon: <IconEdit size={18} />, label: 'Edit Profile', description: 'Name, photo, and theme color', onClick: () => openModal('profile') },
+          {
+            id: 'language',
+            icon: <IconGear size={18} />,
+            label: copy.profile.languageLabel,
+            description: copy.profile.languageDescription,
+            meta: LANGUAGE_NATIVE_LABEL[language],
+            onClick: () => openModal('language'),
+          },
           { id: 'notifications', icon: <IconBell size={18} />, label: 'Notifications', description: 'Push, in-app, and reminders', onClick: () => navigate('/notifications/settings') },
           { id: 'check-balance', icon: <IconVault size={18} />, label: 'Check Balance', description: balanceCheckDescription(latestCheckpoint?.checked_at), onClick: () => navigate('/check-balance') },
           { id: 'manage-project', icon: <IconCalendar size={18} />, label: 'Manage Project', description: `${activeRoom?.name ?? 'No active project'} - goal, buckets, quick amounts`, onClick: () => navigate('/manage-project') },
@@ -208,6 +230,25 @@ export function Profile() {
           onEndDateChange={setProjectEndDate}
           onSubmit={handleCreateProject}
         />
+      </Modal>
+      <Modal open={activeModal === 'language'} title={copy.profile.languageModalTitle} onClose={closeModal}>
+        <div className="flex flex-col gap-2">
+          {SUPPORTED_LANGUAGES.map(option => {
+            const isActive = option === language;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => handleLanguageChange(option)}
+                className="w-full flex items-center justify-between gap-3 rounded-lg bg-surface shadow-soft p-3 active:scale-[0.99] transition-transform text-left"
+                aria-pressed={isActive}
+              >
+                <span className="font-mono text-sm font-bold text-ink">{LANGUAGE_NATIVE_LABEL[option]}</span>
+                {isActive && <IconCheck size={18} className="text-brand-600" />}
+              </button>
+            );
+          })}
+        </div>
       </Modal>
       <Modal open={activeModal === 'join-project'} title="Join Project" onClose={closeModal}>
         <JoinProjectFlow
@@ -261,9 +302,9 @@ function StatusCard({ title, body }: { title: string; body: string }) {
   );
 }
 
-function ProfileSkeleton() {
+function ProfileSkeleton({ ariaLabel }: { ariaLabel: string }) {
   return (
-    <div className="flex flex-col gap-6" aria-label="Loading profile">
+    <div className="flex flex-col gap-6" aria-label={ariaLabel}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3 w-16 rounded-pill" />

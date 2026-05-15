@@ -45,7 +45,6 @@ export function MomentumChart({
   series,
   partnerSeries,
   labels,
-  yourName: _yourName,
   partnerName = 'Partner',
   expectedSeries,
 }: MomentumChartProps) {

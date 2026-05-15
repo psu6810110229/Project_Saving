@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { notifyGoalChanged } from '../lib/notifyEvents';
 import { useAuth } from './useAuth';
 import type { Goal } from '../types';
 
@@ -90,6 +91,8 @@ export function useGoal(roomId: string | null = null) {
       updated_at: new Date().toISOString(),
     };
     setGoal(nextGoal);
+    // Fire-and-forget partner notification.
+    notifyGoalChanged(roomId);
     return {};
   }
 

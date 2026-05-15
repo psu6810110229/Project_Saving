@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { notifyBalanceChecked } from '../lib/notifyEvents';
 import { useAuth } from './useAuth';
 import type {
   BalanceActivityEntry,
@@ -191,6 +192,12 @@ export function useReconcile(roomId: string | null) {
     if (!row) return { error: 'No checkpoint returned' };
 
     await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAppBalance()]);
+
+    // Fire-and-forget partner notification. Reuse is no-op on the
+    // server side, so retrying the same checkpoint id is safe.
+    if (!row.reused) {
+      notifyBalanceChecked(row.checkpoint_id);
+    }
 
     return {
       checkpointId: row.checkpoint_id,

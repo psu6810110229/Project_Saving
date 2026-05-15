@@ -16,23 +16,28 @@ export interface ReleaseNotes {
 export function currentReleaseNotes(): ReleaseNotes {
   return {
     version: appVersion(),
-    heading: 'GO-OUT v0.9.4',
-    intro: 'Notifications now have a safer nudge flow.',
+    heading: 'GO-OUT v0.9.5',
+    intro: 'Notifications cover more of the project, more quietly.',
     notes: [
       {
-        id: 'nudge-notification',
-        title: 'Nudges now land in Notifications',
-        body: 'A partner nudge creates an in-app notification, so the check-in is visible even when push delivery is skipped.',
+        id: 'saving-reminders',
+        title: 'Saving reminders for active plans',
+        body: 'If you have an active Saving Plan and have not recorded for the current day, week, or month, a calm reminder appears after 18:00 Bangkok time.',
       },
       {
-        id: 'nudge-routing',
-        title: 'Push taps open the right place',
-        body: 'Nudge push notifications now use safe dashboard routing when the app is opened or focused from a notification.',
+        id: 'partner-activity',
+        title: 'Partner activity in Notifications',
+        body: 'Deposits, balance checks, plan and goal changes, new buckets, and partner joining or leaving the project now show up in the in-app Notification Center.',
       },
       {
-        id: 'nudge-cooldown',
-        title: 'Clear cooldown feedback',
-        body: 'If you already nudged recently, the button now explains the short wait instead of showing a generic error.',
+        id: 'milestone-moments',
+        title: 'Milestone moments',
+        body: 'Reaching a bucket target, the shared project goal, a saving-day streak, or moving ahead of your partner now creates a quiet, positive notification.',
+      },
+      {
+        id: 'settings-honor-toggles',
+        title: 'Settings respect your toggles',
+        body: 'Turning Notifications or Partner activity off mutes future deliveries while keeping your past history visible. Reminders and nudges still follow their own toggles.',
       },
     ],
   };

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { isPausedOnDate, todayBangkokKey } from '../lib/savingPlan';
+import {
+  notifyPlanChanged,
+  notifyPlanCreated,
+  notifyPlanPaused,
+  notifyPlanResumed,
+} from '../lib/notifyEvents';
 import { useAuth } from './useAuth';
 import type {
   RecordedDepositsSummary,
@@ -240,6 +246,7 @@ export function useSavingPlan(roomId: string | null) {
     if (rpcErr) return { error: rpcErr.message };
     const row = (Array.isArray(data) ? data[0] : data) as { plan_id?: string; revision_id?: string } | undefined;
     await fetchPlan();
+    if (row?.revision_id) notifyPlanCreated(row.revision_id);
     return { planId: row?.plan_id, revisionId: row?.revision_id };
   }
 
@@ -261,28 +268,34 @@ export function useSavingPlan(roomId: string | null) {
     });
     if (rpcErr) return { error: rpcErr.message };
     await fetchPlan();
-    return { planId: plan.id, revisionId: typeof data === 'string' ? data : undefined };
+    const revisionId = typeof data === 'string' ? data : undefined;
+    if (revisionId) notifyPlanChanged(revisionId);
+    return { planId: plan.id, revisionId };
   }
 
   async function pausePlan(): Promise<MutationResult> {
     if (!user) return { error: 'Not authenticated' };
     if (!plan) return { error: 'No active plan' };
-    const { error: rpcErr } = await supabase.rpc('pause_saving_plan', {
+    const { data, error: rpcErr } = await supabase.rpc('pause_saving_plan', {
       p_plan_id: plan.id,
     });
     if (rpcErr) return { error: rpcErr.message };
     await fetchPlan();
+    const pauseId = typeof data === 'string' ? data : undefined;
+    if (pauseId) notifyPlanPaused(pauseId);
     return { planId: plan.id };
   }
 
   async function resumePlan(): Promise<MutationResult> {
     if (!user) return { error: 'Not authenticated' };
     if (!plan) return { error: 'No active plan' };
-    const { error: rpcErr } = await supabase.rpc('resume_saving_plan', {
+    const { data, error: rpcErr } = await supabase.rpc('resume_saving_plan', {
       p_plan_id: plan.id,
     });
     if (rpcErr) return { error: rpcErr.message };
     await fetchPlan();
+    const pauseId = typeof data === 'string' ? data : undefined;
+    if (pauseId) notifyPlanResumed(pauseId);
     return { planId: plan.id };
   }
 

@@ -278,6 +278,17 @@ Deno.serve(async (req) => {
   });
 
   let delivered = 0;
+  type AttemptRow = {
+    notification_id: string | null;
+    recipient_user_id: string;
+    push_subscription_id: string | null;
+    channel: 'push';
+    status: 'sent' | 'failed' | 'expired';
+    error_code: string | null;
+    error_message: string | null;
+  };
+  const attempts: AttemptRow[] = [];
+
   await Promise.all(subs.map(async (sub) => {
     try {
       await webpush.sendNotification(
@@ -285,15 +296,53 @@ Deno.serve(async (req) => {
         pushPayload,
       );
       delivered += 1;
+      attempts.push({
+        notification_id: notificationId,
+        recipient_user_id: toUserId,
+        push_subscription_id: sub.id,
+        channel: 'push',
+        status: 'sent',
+        error_code: null,
+        error_message: null,
+      });
     } catch (error) {
       const status = typeof error === 'object' && error && 'statusCode' in error
         ? Number((error as { statusCode: number }).statusCode)
         : 0;
+      const message = typeof error === 'object' && error && 'message' in error
+        ? String((error as { message: string }).message).slice(0, 500)
+        : null;
       if (status === 404 || status === 410) {
         await admin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+        attempts.push({
+          notification_id: notificationId,
+          recipient_user_id: toUserId,
+          push_subscription_id: sub.id,
+          channel: 'push',
+          status: 'expired',
+          error_code: String(status),
+          error_message: null,
+        });
+      } else {
+        attempts.push({
+          notification_id: notificationId,
+          recipient_user_id: toUserId,
+          push_subscription_id: sub.id,
+          channel: 'push',
+          status: 'failed',
+          error_code: status ? String(status) : null,
+          error_message: message,
+        });
       }
     }
   }));
+
+  // 10. Persist push delivery attempts. The table is debug audit
+  //     only — clients don't read it. Failures are non-fatal so a
+  //     missing row never breaks the sender feedback.
+  if (attempts.length > 0) {
+    await admin.from('notification_delivery_attempts').insert(attempts);
+  }
 
   const result: NudgeResult = {
     status: delivered > 0 ? 'sent' : 'saved_no_push',

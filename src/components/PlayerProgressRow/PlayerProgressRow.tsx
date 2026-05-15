@@ -1,4 +1,4 @@
-﻿import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
+import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
 import { Avatar } from '../Avatar/Avatar';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
@@ -44,6 +44,13 @@ function CrownBadge() {
   );
 }
 
+function pctColor(pct: number): string {
+  if (pct >= 100) return 'text-accent-leaf';
+  if (pct >= 75)  return 'text-accent-gold';
+  if (pct >= 25)  return 'text-brand-800';
+  return 'text-ink-muted';
+}
+
 export function PlayerProgressRow({
   name,
   fallback,
@@ -74,9 +81,14 @@ export function PlayerProgressRow({
             {isYou ? `You · ${name}` : name}
           </span>
         </div>
-        <div className="mt-1 flex items-baseline gap-2 font-mono">
-          <span className="text-lg font-bold text-ink">{formatCurrency(saved)}</span>
-          <span className="text-xs text-ink-muted shrink-0">/ {formatCurrency(target)}</span>
+        <div className="mt-1 flex items-baseline justify-between gap-2 font-mono">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <span className="text-lg font-bold text-ink">{formatCurrency(saved)}</span>
+            <span className="text-xs text-ink-muted shrink-0">/ {formatCurrency(target)}</span>
+          </div>
+          <span className={`text-sm font-bold tabular-nums shrink-0 ${pctColor(pct)}`}>
+            {Math.round(pct)}%
+          </span>
         </div>
         {gapLabel && (
           <p className="mt-1 font-mono text-xs text-ink-muted">{gapLabel}</p>

@@ -2,7 +2,7 @@ import type { ChangeEvent, FormEvent, ReactNode } from 'react';
 import { BucketHeader } from '../BucketHeader/BucketHeader';
 import { Button } from '../Button/Button';
 import { FormField } from '../FormField/FormField';
-import { IconPiggyBank } from '../Icon/Icon';
+import { IconEdit, IconPiggyBank } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { SlipAttachField } from '../SlipAttachField/SlipAttachField';
@@ -22,6 +22,7 @@ interface AddMoneyFormProps {
   onAmountChange: (value: string) => void;
   onSlipChange: (file: File | null) => void;
   onSubmit: () => void;
+  onEditQuickAmounts?: () => void;
 }
 
 export function AddMoneyForm({
@@ -37,6 +38,7 @@ export function AddMoneyForm({
   onAmountChange,
   onSlipChange,
   onSubmit,
+  onEditQuickAmounts,
 }: AddMoneyFormProps) {
   const { copy } = useI18n();
   const amount = Number(amountValue) || selectedQuickAmount || 0;
@@ -48,12 +50,24 @@ export function AddMoneyForm({
   return (
     <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <BucketHeader icon={bucketIcon} name={bucketName} saved={saved} target={target} />
-      <QuickAddRow
-        label={copy.addMoney.depositAmountLabel}
-        amounts={quickAmounts}
-        selected={selectedQuickAmount}
-        onSelect={onQuickAmountSelect}
-      />
+      <div className="flex flex-col gap-2">
+        <QuickAddRow
+          label={copy.addMoney.depositAmountLabel}
+          amounts={quickAmounts}
+          selected={selectedQuickAmount}
+          onSelect={onQuickAmountSelect}
+        />
+        {onEditQuickAmounts && (
+          <button
+            type="button"
+            onClick={onEditQuickAmounts}
+            className="self-end inline-flex items-center gap-1 font-mono text-xs font-bold text-ink-muted hover:text-ink"
+          >
+            <IconEdit size={14} />
+            {copy.addMoney.editQuickAmountsLabel}
+          </button>
+        )}
+      </div>
       <FormField label={copy.addMoney.customAmountLabel}>
         <TextInput
           value={amountValue}

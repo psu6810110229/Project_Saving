@@ -207,6 +207,7 @@ export const th: Messages = {
     projectedLabel: (amount: string, percent: number) => `เพิ่ม ${amount} ซึ่งจะทำให้คุณคืบหน้ากว่า ${percent}%`,
     confirmDepositButton: 'ยืนยันยอดนี้',
     editAmountButton: 'แก้ไขยอด',
+    editQuickAmountsLabel: 'แก้ไข',
     slipLabel: 'แนบสลิป (ถ้ามี)',
     slipAttached: 'มีสลิปแนบ',
     slipRemoveAriaLabel: 'ลบสลิป',

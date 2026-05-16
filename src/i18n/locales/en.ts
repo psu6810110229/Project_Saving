@@ -218,6 +218,7 @@ export const en = {
     projectedLabel: (amount: string, percent: number) => `+${amount} projected → ${percent}%`,
     confirmDepositButton: 'Confirm Deposit',
     editAmountButton: 'Edit Amount',
+    editQuickAmountsLabel: 'Edit',
     slipLabel: 'Attach slip (optional)',
     slipAttached: 'Slip Attached',
     slipRemoveAriaLabel: 'Remove slip',

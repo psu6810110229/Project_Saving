@@ -3,7 +3,9 @@ import { AddMoneyForm } from '../components/AddMoneyForm/AddMoneyForm';
 import { Button } from '../components/Button/Button';
 import { ConfirmDepositPanel } from '../components/ConfirmDepositPanel/ConfirmDepositPanel';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
+import { Modal } from '../components/Modal/Modal';
 import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
+import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
   IconBed,
@@ -40,7 +42,7 @@ export function AddMoney() {
   const { copy, formatMoney } = useI18n();
   const { user, profile } = useAuth();
   const data = useSharedData();
-  const { quickAmounts } = data.profile;
+  const { quickAmounts, updateQuickAmounts } = data.profile;
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const leaderboard = data.leaderboard;
@@ -55,6 +57,8 @@ export function AddMoney() {
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
+  const [editingQuickAmounts, setEditingQuickAmounts] = useState(false);
+  const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>([]);
 
   const bucketOptions = BUCKET_OPTION_ICONS.map(({ id, icon }) => ({
     id, icon, label: copy.bucket.categoryLabels[id],
@@ -83,6 +87,27 @@ export function AddMoney() {
       setMessage(copy.bucket.createdAddMoney);
       setBucketName('');
       setBucketTarget('');
+    }
+  }
+
+  function openQuickAmountsEditor() {
+    setQuickAmountDrafts(quickAmounts.map(String));
+    setEditingQuickAmounts(true);
+  }
+
+  async function handleQuickAmountsSave() {
+    const parsed = quickAmountDrafts
+      .map(value => Number(value))
+      .filter(value => Number.isFinite(value) && value > 0);
+    if (parsed.length === 0) {
+      setMessage(copy.addMoney.validationNoBucket);
+      return;
+    }
+    const result = await updateQuickAmounts(parsed);
+    if (result.error) setMessage(result.error);
+    else {
+      setEditingQuickAmounts(false);
+      setMessage(copy.manageProject.quickAmountsSuccess);
     }
   }
 
@@ -174,8 +199,20 @@ export function AddMoney() {
           }}
           onSlipChange={setSlip}
           onSubmit={() => setReviewing(true)}
+          onEditQuickAmounts={openQuickAmountsEditor}
         />
       )}
+      <Modal
+        open={editingQuickAmounts}
+        title={copy.manageProject.quickAmountsModalTitle}
+        onClose={() => setEditingQuickAmounts(false)}
+      >
+        <QuickAmountsEditor
+          amounts={quickAmountDrafts}
+          onChange={setQuickAmountDrafts}
+          onSave={handleQuickAmountsSave}
+        />
+      </Modal>
       <OutcomeModal
         open={created}
         outcome="success"

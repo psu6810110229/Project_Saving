@@ -191,7 +191,6 @@ export function Profile() {
       {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList
         items={[
-          { id: 'profile', icon: <IconEdit size={18} />, label: copy.profile.editProfileLabel, description: copy.profile.editProfileDescription, onClick: () => openModal('profile') },
           {
             id: 'language',
             icon: <IconGear size={18} />,

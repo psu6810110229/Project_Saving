@@ -5,6 +5,7 @@ import { useGoal } from '../../hooks/useGoal';
 import { useLeaderboard } from '../../hooks/useLeaderboard';
 import { useLogs } from '../../hooks/useLogs';
 import { usePartnerBuckets } from '../../hooks/usePartnerBuckets';
+import { usePartnerSavingPlan } from '../../hooks/usePartnerSavingPlan';
 import { useProfile } from '../../hooks/useProfile';
 import { useReconcile } from '../../hooks/useReconcile';
 import { useSavingPlan } from '../../hooks/useSavingPlan';
@@ -22,11 +23,12 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
   const partnerBuckets = usePartnerBuckets(roomId, partnerEntry?.userId ?? null);
   const savingPlan = useSavingPlan(roomId);
+  const partnerSavingPlan = usePartnerSavingPlan(roomId, partnerEntry?.userId ?? null);
   const reconcile = useReconcile(roomId);
 
   const value = useMemo<DataContextValue>(
-    () => ({ profile, buckets, logs, leaderboard, goal, partnerBuckets, savingPlan, reconcile }),
-    [profile, buckets, logs, leaderboard, goal, partnerBuckets, savingPlan, reconcile],
+    () => ({ profile, buckets, logs, leaderboard, goal, partnerBuckets, savingPlan, partnerSavingPlan, reconcile }),
+    [profile, buckets, logs, leaderboard, goal, partnerBuckets, savingPlan, partnerSavingPlan, reconcile],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

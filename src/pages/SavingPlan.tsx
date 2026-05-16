@@ -6,6 +6,7 @@ import { Chip } from '../components/Chip/Chip';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { IconArrowLeft } from '../components/Icon/Icon';
 import { IconButton } from '../components/IconButton/IconButton';
+import { Segmented } from '../components/Segmented/Segmented';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { TextInput } from '../components/TextInput/TextInput';
 import { useSharedData } from '../hooks/useSharedData';
@@ -22,7 +23,7 @@ import {
   todayBangkokKey,
 } from '../lib/savingPlan';
 import type { CreatePlanInput } from '../hooks/useSavingPlan';
-import type { SavingPlanRevision, SavingPlanRuleType } from '../types';
+import type { SavingPlan, SavingPlanRevision, SavingPlanRuleType } from '../types';
 
 type StopMode = 'target' | 'days' | 'date';
 
@@ -31,6 +32,11 @@ export function SavingPlan() {
   const data = useSharedData();
   const { goal } = data.goal;
   const { plan, loading, error, isPaused, createPlan, changePlan, pausePlan, resumePlan } = data.savingPlan;
+  const { plan: partnerPlan, loading: partnerLoading } = data.partnerSavingPlan;
+  const partnerEntry = data.leaderboard.entries.find(entry => !entry.isYou);
+  const partnerName = partnerEntry?.displayName ?? '';
+  const hasPartner = Boolean(partnerEntry);
+  const [view, setView] = useState<'mine' | 'partner'>('mine');
   const { copy, formatShortDateKey } = useI18n();
   const sp = copy.savingPlan;
 
@@ -493,14 +499,34 @@ export function SavingPlan() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Top bar: back only */}
-      <div>
+      {/* Top bar: back + (optional) Mine / Partner toggle */}
+      <div className="flex items-center justify-between gap-2">
         <IconButton ariaLabel={sp.goBackAriaLabel} size="md" onClick={() => navigate(-1)}>
           <IconArrowLeft size={20} />
         </IconButton>
+        {hasPartner && (
+          <Segmented
+            ariaLabel={sp.switchPlanOwnerAria}
+            options={[
+              { value: 'mine', label: sp.viewMineTab },
+              { value: 'partner', label: sp.viewPartnerTab(partnerName) },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+        )}
       </div>
 
-      {/* Lowered content. */}
+      {view === 'partner' && renderPartnerView({
+        partnerName,
+        partnerPlan,
+        loading: partnerLoading,
+        formatShortDateKey,
+        sp,
+      })}
+
+      {view === 'mine' && (
+      /* Lowered content. */
       <div className="mt-10 flex flex-col gap-5">
         <header className="min-w-0">
           <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
@@ -783,6 +809,7 @@ export function SavingPlan() {
         </div>
       )}
       </div>
+      )}
       <ConfirmModal
         open={confirmingPause}
         title={sp.pauseConfirmTitle}
@@ -857,4 +884,134 @@ function PreviewRow({ label, value }: { label: string; value: string }) {
       <dd className="font-bold text-ink">{value}</dd>
     </div>
   );
+}
+
+type SavingPlanCopy = ReturnType<typeof useI18n>['copy']['savingPlan'];
+
+function renderPartnerView({
+  partnerName,
+  partnerPlan,
+  loading,
+  formatShortDateKey,
+  sp,
+}: {
+  partnerName: string;
+  partnerPlan: SavingPlan | null;
+  loading: boolean;
+  formatShortDateKey: (key: string) => string;
+  sp: SavingPlanCopy;
+}) {
+  if (loading) {
+    return (
+      <div className="mt-10 flex flex-col gap-4" aria-label={sp.loadingAriaLabel}>
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32" />
+      </div>
+    );
+  }
+
+  const todayKey = todayBangkokKey();
+  const activeRev = partnerPlan
+    ? activeRevisionAt(partnerPlan.revisions, todayKey)
+    : null;
+  const openPause = partnerPlan?.pauses.find(p => p.resumed_from === null) ?? null;
+  const isPaused = Boolean(openPause);
+  const pausedSince = openPause?.paused_from ?? null;
+
+  if (!partnerPlan || !activeRev) {
+    return (
+      <div className="mt-10 flex flex-col gap-4">
+        <header className="min-w-0">
+          <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
+            {sp.partnerPlanEyebrow(partnerName)}
+          </p>
+        </header>
+        <div className="rounded-xl bg-surface p-8 shadow-soft text-center">
+          <p className="font-mono text-base font-bold text-ink">
+            {sp.partnerEmptyTitle(partnerName)}
+          </p>
+          <p className="mt-2 font-mono text-sm text-ink-muted">
+            {sp.partnerEmptyBody}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const ruleLabel = ruleTypeLabel(activeRev.rule_type, sp);
+
+  return (
+    <div className="mt-10 flex flex-col gap-5">
+      <header className="min-w-0 flex flex-col gap-2">
+        <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
+          {sp.partnerPlanEyebrow(partnerName)}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip tone="peach">{sp.partnerPlanReadOnly}</Chip>
+          <Chip tone={isPaused ? 'peach' : 'leaf'}>
+            {isPaused ? sp.partnerPausedStatus : sp.partnerActiveStatus}
+          </Chip>
+        </div>
+        {isPaused && pausedSince && (
+          <p className="font-mono text-sm text-ink-muted">
+            {sp.pausedSinceLabel(formatShortDateKey(pausedSince))}
+          </p>
+        )}
+      </header>
+
+      <section className="rounded-xl bg-surface p-5 shadow-soft">
+        <dl className="divide-y divide-well font-mono text-xs">
+          <PreviewRow label={sp.partnerPlanTypeLabel} value={ruleLabel} />
+          {activeRev.rule_type === 'increasing_daily_capped' ? (
+            <>
+              <PreviewRow
+                label={sp.partnerStartAmountLabel}
+                value={formatCurrency(Math.round(Number(activeRev.start_amount ?? 0)))}
+              />
+              <PreviewRow
+                label={sp.partnerIncreaseByLabel}
+                value={formatCurrency(Math.round(Number(activeRev.increment_amount ?? 0)))}
+              />
+              <PreviewRow
+                label={sp.partnerCapLabel}
+                value={formatCurrency(Math.round(Number(activeRev.cap_amount ?? 0)))}
+              />
+            </>
+          ) : (
+            <PreviewRow
+              label={sp.partnerAmountLabel}
+              value={formatCurrency(Math.round(Number(activeRev.amount ?? 0)))}
+            />
+          )}
+          <PreviewRow
+            label={sp.partnerTargetLabel}
+            value={formatCurrency(Math.round(Number(activeRev.target_amount)))}
+          />
+          {activeRev.end_date && (
+            <PreviewRow
+              label={sp.partnerStopAtDate}
+              value={formatShortDateKey(activeRev.end_date)}
+            />
+          )}
+          {activeRev.day_count != null && (
+            <PreviewRow
+              label={sp.partnerStopAtDays}
+              value={sp.savingDaysValue(activeRev.day_count)}
+            />
+          )}
+        </dl>
+      </section>
+    </div>
+  );
+}
+
+function ruleTypeLabel(ruleType: SavingPlanRevision['rule_type'], sp: SavingPlanCopy): string {
+  switch (ruleType) {
+    case 'fixed_daily':              return sp.presetDaily;
+    case 'fixed_weekly':             return sp.presetWeekly;
+    case 'fixed_monthly':            return sp.presetMonthly;
+    case 'increasing_daily':         return sp.presetIncreasing;
+    case 'increasing_daily_capped':  return sp.presetIncreasing;
+    default:                         return sp.presetDaily;
+  }
 }

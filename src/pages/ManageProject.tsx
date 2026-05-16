@@ -10,7 +10,6 @@ import {
   IconBriefcase,
   IconCalendar,
   IconFork,
-  IconGear,
   IconHome,
   IconPiggyBank,
   IconPlane,
@@ -261,13 +260,6 @@ export function ManageProject() {
       label: copy.manageProject.quickAmountsLabel,
       description: quickAmounts.map(formatMoney).join(' / '),
       onClick: () => openModal('quick-amounts'),
-    },
-    {
-      id: 'buckets',
-      icon: <IconGear size={18} />,
-      label: copy.manageProject.manageBucketsLabel,
-      description: copy.manageProject.manageBucketsDesc(buckets.length),
-      onClick: () => openModal('buckets'),
     },
   ];
 

@@ -188,8 +188,15 @@ Deno.serve(async (req) => {
   summary.created = created.length;
 
   if (created.length === 0) {
+    console.info('[saving-reminders] enqueue produced no rows (time gate, dedupe, prefs, or no candidates)');
     return jsonResponse(summary);
   }
+
+  console.info(
+    `[saving-reminders] enqueue created=${created.length} recipients=${
+      new Set(created.map((r) => r.recipient_user_id)).size
+    }`,
+  );
 
   webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
 
@@ -224,11 +231,17 @@ Deno.serve(async (req) => {
   for (const note of created) {
     if (!pushEnabledFor.get(note.recipient_user_id)) {
       summary.push_skipped_no_prefs += 1;
+      console.warn(
+        `[saving-reminders] skip recipient=${note.recipient_user_id} plan=${note.plan_id} reason=push_disabled`,
+      );
       continue;
     }
     const subs = subsFor.get(note.recipient_user_id) ?? [];
     if (subs.length === 0) {
       summary.push_skipped_no_devices += 1;
+      console.warn(
+        `[saving-reminders] skip recipient=${note.recipient_user_id} plan=${note.plan_id} reason=no_devices`,
+      );
       continue;
     }
 

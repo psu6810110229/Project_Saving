@@ -28,8 +28,33 @@ async function call(rpc: string, args: Record<string, unknown>): Promise<void> {
   }
 }
 
+/**
+ * Partner-deposit notifications go through the `notify-partner-deposit`
+ * edge function so the partner also gets a Web Push (not just the
+ * in-app row). The edge function itself invokes the same
+ * `notify_partner_deposit` RPC, so the in-app behavior is preserved
+ * even if push delivery fails inside the function. If the function
+ * call itself fails (network error, function not deployed, cold-start
+ * timeout), we fall back to calling the RPC directly so the in-app
+ * notification still lands. Both paths swallow errors — the deposit
+ * save must not be blocked by notification failures.
+ */
 export function notifyPartnerDeposit(logId: string): void {
-  void call('notify_partner_deposit', { p_log_id: logId });
+  void (async () => {
+    try {
+      const { error } = await supabase.functions.invoke('notify-partner-deposit', {
+        body: { log_id: logId },
+      });
+      if (!error) return;
+      logFailure('notify-partner-deposit', error);
+    } catch (err) {
+      logFailure('notify-partner-deposit', err);
+    }
+    // Fallback: at least insert the in-app notification row so the
+    // partner still sees the deposit in their Notification Center even
+    // when the edge function is unreachable.
+    await call('notify_partner_deposit', { p_log_id: logId });
+  })();
 }
 
 export function notifyBalanceChecked(checkpointId: string): void {

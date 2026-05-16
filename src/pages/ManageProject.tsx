@@ -64,6 +64,7 @@ export function ManageProject() {
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [pendingGoalSave, setPendingGoalSave] = useState<{ target: number; endDate: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [tripDateDraft, setTripDateDraft] = useState(activeRoom?.end_date ?? '');
   const [targetAmountDraft, setTargetAmountDraft] = useState(goal?.target_amount ? String(goal.target_amount) : '');
@@ -113,7 +114,7 @@ export function ManageProject() {
     setMessage(null);
   }
 
-  async function handleTripGoalSave() {
+  function handleTripGoalSave() {
     if (!activeRoomId || !tripDateDraft) {
       setMessage(copy.manageProject.tripGoalValidationDate);
       return;
@@ -127,9 +128,16 @@ export function ManageProject() {
       setMessage(copy.manageProject.tripGoalValidationMin(formatMoney(highestMemberBucketTargetTotal)));
       return;
     }
+    setPendingGoalSave({ target, endDate: tripDateDraft });
+  }
+
+  async function confirmTripGoalSave() {
+    if (!pendingGoalSave || !activeRoomId) return;
+    const { target, endDate } = pendingGoalSave;
+    setPendingGoalSave(null);
     const goalResult = await saveRoomGoal({
       target_amount: target,
-      end_date: tripDateDraft,
+      end_date: endDate,
     });
     if (goalResult.error) { setMessage(goalResult.error); return; }
     await refetchRooms();
@@ -389,6 +397,14 @@ export function ManageProject() {
         danger
         onCancel={() => setConfirmingLeave(false)}
         onConfirm={handleLeave}
+      />
+      <ConfirmModal
+        open={pendingGoalSave !== null}
+        title={copy.manageProject.tripGoalConfirmTitle}
+        body={copy.manageProject.tripGoalConfirmBody}
+        confirmLabel={copy.manageProject.tripGoalConfirmLabel}
+        onCancel={() => setPendingGoalSave(null)}
+        onConfirm={confirmTripGoalSave}
       />
     </div>
   );

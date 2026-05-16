@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { CalendarPicker } from '../components/CalendarPicker/CalendarPicker';
 import { Chip } from '../components/Chip/Chip';
+import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { IconArrowLeft } from '../components/Icon/Icon';
 import { IconButton } from '../components/IconButton/IconButton';
 import { Skeleton } from '../components/Skeleton/Skeleton';
@@ -20,6 +21,7 @@ import {
   projectedCompletionDate,
   todayBangkokKey,
 } from '../lib/savingPlan';
+import type { CreatePlanInput } from '../hooks/useSavingPlan';
 import type { SavingPlanRevision, SavingPlanRuleType } from '../types';
 
 type StopMode = 'target' | 'days' | 'date';
@@ -67,6 +69,9 @@ export function SavingPlan() {
   const [submitting, setSubmitting] = useState(false);
   const [seededRevisionId, setSeededRevisionId] = useState<string | null>(null);
   const [didSeedCreateTarget, setDidSeedCreateTarget] = useState(false);
+  const [confirmingPause, setConfirmingPause] = useState(false);
+  const [confirmingResume, setConfirmingResume] = useState(false);
+  const [pendingChangeInput, setPendingChangeInput] = useState<CreatePlanInput | null>(null);
 
   // Seed defaults from the active revision when changing an existing
   // plan, otherwise pull the target from the synchronized room goal.
@@ -329,7 +334,8 @@ export function SavingPlan() {
     return value.replace(/[^0-9]/g, '');
   }
 
-  async function handlePause() {
+  async function runPause() {
+    setConfirmingPause(false);
     setPauseMessage(null);
     setSubmitting(true);
     const result = await pausePlan();
@@ -341,7 +347,8 @@ export function SavingPlan() {
     }
   }
 
-  async function handleResume() {
+  async function runResume() {
+    setConfirmingResume(false);
     setPauseMessage(null);
     setSubmitting(true);
     const result = await resumePlan();
@@ -438,8 +445,7 @@ export function SavingPlan() {
       dayCountNum = undefined;
     }
 
-    setSubmitting(true);
-    const input = {
+    const input: CreatePlanInput = {
       ruleType: submitRuleType,
       targetAmount: targetNum,
       amount: amountNum,
@@ -450,7 +456,30 @@ export function SavingPlan() {
       effectiveFromDate: ruleType === 'increasing_daily' ? (planStartDate || effectiveFromDate) : effectiveFromDate,
       endDate: endDateOut,
     };
-    const result = isChange ? await changePlan(input) : await createPlan(input);
+
+    if (isChange) {
+      setPendingChangeInput(input);
+      return;
+    }
+
+    setSubmitting(true);
+    const result = await createPlan(input);
+    setSubmitting(false);
+
+    if (result.error) {
+      setMessage(result.error);
+      return;
+    }
+    haptic('success');
+    navigate('/dashboard');
+  }
+
+  async function runChange() {
+    if (!pendingChangeInput) return;
+    const input = pendingChangeInput;
+    setPendingChangeInput(null);
+    setSubmitting(true);
+    const result = await changePlan(input);
     setSubmitting(false);
 
     if (result.error) {
@@ -484,7 +513,7 @@ export function SavingPlan() {
             <button
               type="button"
               disabled={submitting}
-              onClick={isPaused ? handleResume : handlePause}
+              onClick={isPaused ? () => setConfirmingResume(true) : () => setConfirmingPause(true)}
               className={
                 'mt-4 inline-flex items-center gap-2 rounded-pill px-5 py-2.5 font-mono text-sm font-bold transition-all active:scale-95 ' +
                 (isPaused
@@ -754,6 +783,30 @@ export function SavingPlan() {
         </div>
       )}
       </div>
+      <ConfirmModal
+        open={confirmingPause}
+        title={sp.pauseConfirmTitle}
+        body={sp.pauseConfirmBody}
+        confirmLabel={sp.pauseConfirmLabel}
+        onCancel={() => setConfirmingPause(false)}
+        onConfirm={runPause}
+      />
+      <ConfirmModal
+        open={confirmingResume}
+        title={sp.resumeConfirmTitle}
+        body={sp.resumeConfirmBody}
+        confirmLabel={sp.resumeConfirmLabel}
+        onCancel={() => setConfirmingResume(false)}
+        onConfirm={runResume}
+      />
+      <ConfirmModal
+        open={pendingChangeInput !== null}
+        title={sp.changeConfirmTitle}
+        body={sp.changeConfirmBody}
+        confirmLabel={sp.changeConfirmLabel}
+        onCancel={() => setPendingChangeInput(null)}
+        onConfirm={runChange}
+      />
     </div>
   );
 }

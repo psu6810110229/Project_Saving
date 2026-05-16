@@ -81,6 +81,10 @@ export function notifyGoalChanged(roomId: string): void {
   void call('notify_goal_changed', { p_room_id: roomId });
 }
 
+export function notifyGoalChangeRequest(roomId: string, message: string): void {
+  void call('notify_goal_change_request', { p_room_id: roomId, p_message: message });
+}
+
 export function notifyRoomJoined(roomId: string): void {
   void call('notify_room_joined', { p_room_id: roomId });
 }

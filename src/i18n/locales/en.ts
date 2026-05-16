@@ -188,6 +188,34 @@ export const en = {
     chartAriaLabel: '7-day recorded deposit trend',
     chartTitle: (hasExpected: boolean) =>
       `Daily Deposit Trend. Orange bars are You. Green bars are Partner.${hasExpected ? ' Dashed ticks are the Saving Plan expected daily amount.' : ''}`,
+    // Project goal management (owner-only direct edit, partner request flow)
+    goalEditAria: 'Edit project goal',
+    goalRequestAria: 'Request project goal change',
+    goalEditModalTitle: 'Edit project goal',
+    goalEditDateLabel: 'End date',
+    goalEditAmountLabel: 'Target amount (THB)',
+    goalEditAmountPlaceholder: 'e.g. 80000',
+    goalEditAmountHelper: (remaining: string) => `${remaining} remaining for your bucket targets`,
+    goalEditAmountError: (min: string) => `Main goal must be at least ${min} to cover existing bucket targets.`,
+    goalEditValidationDate: 'Pick a trip date first.',
+    goalEditValidationAmount: 'Enter a target amount greater than 0.',
+    goalEditValidationMin: (amount: string) => `Main goal must be at least ${amount} because existing bucket targets already use that much.`,
+    goalEditSummaryTitle: (amount: string) => `Main goal target: ${amount}`,
+    goalEditSummaryAllocated: (allocated: string, total: string) => `${allocated} allocated of ${total}`,
+    goalEditSummaryRemaining: (amount: string) => `${amount} remaining for bucket targets`,
+    goalEditSummaryPartner: (amount: string) => `Partner bucket targets use ${amount}.`,
+    goalEditSaveButton: 'Save',
+    goalEditConfirmTitle: 'Save project goal?',
+    goalEditConfirmBody: 'This updates the shared target and end date for both of you.',
+    goalEditConfirmLabel: 'Save goal',
+    goalEditSuccess: 'Project goal updated.',
+    goalRequestModalTitle: 'Request goal change',
+    goalRequestSubtitle: 'Only the project creator can change the goal. Send them a request and they will see it in their notifications.',
+    goalRequestMessageLabel: 'Message (optional)',
+    goalRequestMessagePlaceholder: 'What would you like to change?',
+    goalRequestSendButton: 'Send request',
+    goalRequestSendingButton: 'Sending...',
+    goalRequestSuccess: 'Request sent. Your partner will see it in their notifications.',
     // Plan rule summary (used in SavingPlanCard subtitle)
     planFixedDaily: (amount: string) => `Fixed daily · ${amount}/day`,
     planFixedWeekly: (amount: string) => `Fixed weekly · ${amount}/week`,
@@ -675,6 +703,13 @@ export const en = {
         title: 'Project goal updated',
         body: `${name} changed the target or end date.`,
         ctaLabel: 'Manage project',
+      }),
+      goalChangeRequest: (name: string, message: string | null) => ({
+        title: 'Goal change requested',
+        body: message
+          ? `${name} is asking to change the project goal: "${message}"`
+          : `${name} is asking to change the project goal.`,
+        ctaLabel: 'Open Dashboard',
       }),
       bucketAdded: (name: string, bucketName: string | null) => ({
         title: 'Bucket added',

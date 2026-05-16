@@ -77,6 +77,14 @@ export function notificationDisplayCopy(
       return withStoredFallback(item, n.events.planResumed(actorName(payload, fallbackPartner)));
     case 'goal_changed':
       return withStoredFallback(item, n.events.goalChanged(actorName(payload, fallbackPartner)));
+    case 'goal_change_request':
+      return withStoredFallback(
+        item,
+        n.events.goalChangeRequest(
+          actorName(payload, fallbackPartner),
+          payloadString(payload, 'message'),
+        ),
+      );
     case 'bucket_added':
       return withStoredFallback(
         item,

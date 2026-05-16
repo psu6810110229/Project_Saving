@@ -8,7 +8,11 @@ import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { Button } from '../components/Button/Button';
+import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
+import { FormField } from '../components/FormField/FormField';
+import { TextInput } from '../components/TextInput/TextInput';
+import { notifyGoalChangeRequest } from '../lib/notifyEvents';
 import { HeadToHeadCard } from '../components/HeadToHeadCard/HeadToHeadCard';
 import { IconBubble } from '../components/IconBubble/IconBubble';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
@@ -42,6 +46,7 @@ import { useSharedData } from '../hooks/useSharedData';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
 import { useRoom } from '../hooks/useRoom';
+import { useRooms } from '../hooks/useRooms';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, sumTargets } from '../lib/buckets';
@@ -92,7 +97,8 @@ export function Dashboard() {
   const { activeRoom, activeRoomId } = useRoom();
   const data = useSharedData();
   const { quickAmounts } = data.profile;
-  const { goal, loading: goalLoading, error: goalError } = data.goal;
+  const { goal, loading: goalLoading, error: goalError, saveRoomGoal } = data.goal;
+  const { refetch: refetchRooms } = useRooms();
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const { total } = useSavingsTotal(user?.id, logs);
@@ -118,6 +124,15 @@ export function Dashboard() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [vbReminder, setVbReminder] = useState<{ open: boolean; days: number | null }>({ open: false, days: null });
   const vbReminderEvaluatedRef = useRef(false);
+  const [goalEditOpen, setGoalEditOpen] = useState(false);
+  const [goalEditDate, setGoalEditDate] = useState('');
+  const [goalEditAmount, setGoalEditAmount] = useState('');
+  const [goalEditMessage, setGoalEditMessage] = useState<string | null>(null);
+  const [pendingGoalSave, setPendingGoalSave] = useState<{ target: number; endDate: string } | null>(null);
+  const [goalRequestOpen, setGoalRequestOpen] = useState(false);
+  const [goalRequestMessage, setGoalRequestMessage] = useState('');
+  const [goalRequestBusy, setGoalRequestBusy] = useState(false);
+  const [goalRequestStatus, setGoalRequestStatus] = useState<string | null>(null);
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
@@ -181,6 +196,87 @@ export function Dashboard() {
     const pctB = b.target > 0 ? b.saved / b.target : 0;
     return pctB - pctA;
   });
+  // Project-goal management lives on the Dashboard. Only the room
+  // creator can edit directly; the partner can send an in-app
+  // "request goal change" notification.
+  const isCreator = Boolean(user?.id && activeRoom?.created_by === user.id);
+  const partnerBucketTotal = sumTargets(partnerBuckets);
+  const highestBucketTotal = Math.max(bucketTargetTotal, partnerBucketTotal);
+  const goalEditAmountNumber = Number(goalEditAmount);
+  const effectiveGoalDraftAmount = Number.isFinite(goalEditAmountNumber) && goalEditAmountNumber > 0
+    ? goalEditAmountNumber
+    : goal?.target_amount ?? 0;
+  const goalDraftTooLow = Number.isFinite(goalEditAmountNumber)
+    && goalEditAmountNumber > 0
+    && goalEditAmountNumber < highestBucketTotal;
+
+  function openGoalEditor() {
+    setGoalEditDate(activeRoom?.end_date ?? '');
+    setGoalEditAmount(goal?.target_amount ? String(goal.target_amount) : '');
+    setGoalEditMessage(null);
+    setGoalEditOpen(true);
+  }
+
+  function closeGoalEditor() {
+    setGoalEditOpen(false);
+    setGoalEditMessage(null);
+  }
+
+  function handleGoalEditSave() {
+    if (!goalEditDate) {
+      setGoalEditMessage(d.goalEditValidationDate);
+      return;
+    }
+    const target = Number(goalEditAmount);
+    if (!Number.isFinite(target) || target <= 0) {
+      setGoalEditMessage(d.goalEditValidationAmount);
+      return;
+    }
+    if (target < highestBucketTotal) {
+      setGoalEditMessage(d.goalEditValidationMin(formatMoney(highestBucketTotal)));
+      return;
+    }
+    setPendingGoalSave({ target, endDate: goalEditDate });
+  }
+
+  async function confirmGoalEditSave() {
+    if (!pendingGoalSave) return;
+    const { target, endDate } = pendingGoalSave;
+    setPendingGoalSave(null);
+    const result = await saveRoomGoal({ target_amount: target, end_date: endDate });
+    if (result.error) { setGoalEditMessage(result.error); return; }
+    await refetchRooms();
+    setGoalEditMessage(null);
+    setGoalEditOpen(false);
+    setMessage(d.goalEditSuccess);
+  }
+
+  function openGoalRequest() {
+    setGoalRequestMessage('');
+    setGoalRequestStatus(null);
+    setGoalRequestOpen(true);
+  }
+
+  function closeGoalRequest() {
+    if (goalRequestBusy) return;
+    setGoalRequestOpen(false);
+    setGoalRequestStatus(null);
+  }
+
+  async function handleGoalRequestSend() {
+    if (!activeRoomId || goalRequestBusy) return;
+    setGoalRequestBusy(true);
+    notifyGoalChangeRequest(activeRoomId, goalRequestMessage);
+    // The notify helper is fire-and-forget; surface success immediately
+    // so the partner gets feedback without waiting on the RPC.
+    setGoalRequestBusy(false);
+    setGoalRequestStatus(d.goalRequestSuccess);
+    setTimeout(() => {
+      setGoalRequestOpen(false);
+      setGoalRequestStatus(null);
+    }, 1200);
+  }
+
   const partnerBucketItems = partnerBuckets.map(bucket => ({
     id: bucket.id,
     icon: bucketIcon(bucket.category),
@@ -349,7 +445,12 @@ export function Dashboard() {
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}
       <div className="reveal-section" style={revealStyle(60)}>
-        <TotalVaultCard saved={totalSaved} target={totalTarget} />
+        <TotalVaultCard
+          saved={totalSaved}
+          target={totalTarget}
+          onEdit={isCreator ? openGoalEditor : openGoalRequest}
+          editAriaLabel={isCreator ? d.goalEditAria : d.goalRequestAria}
+        />
       </div>
 
       {/* 2 — Progress Race (Head-to-Head). */}
@@ -539,6 +640,80 @@ export function Dashboard() {
             onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
             onSubmit={handleCreateBucket}
           />
+        </div>
+      </Modal>
+
+      <Modal open={goalEditOpen} title={d.goalEditModalTitle} onClose={closeGoalEditor}>
+        <div className="flex flex-col gap-4">
+          {goalEditMessage && (
+            <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{goalEditMessage}</p>
+          )}
+          <FormField label={d.goalEditDateLabel}>
+            <TextInput
+              type="date"
+              value={goalEditDate}
+              onChange={event => setGoalEditDate(event.target.value)}
+            />
+          </FormField>
+          <GoalTargetSummary
+            goalTarget={goal?.target_amount ?? 0}
+            allocated={bucketTargetTotal}
+            partnerAllocated={partnerEntry ? partnerBucketTotal : null}
+          />
+          <FormField
+            label={d.goalEditAmountLabel}
+            helper={d.goalEditAmountHelper(formatMoney(Math.max(0, effectiveGoalDraftAmount - bucketTargetTotal)))}
+            error={goalDraftTooLow ? d.goalEditAmountError(formatMoney(highestBucketTotal)) : undefined}
+          >
+            <TextInput
+              type="number"
+              min={0}
+              step={100}
+              inputMode="decimal"
+              placeholder={d.goalEditAmountPlaceholder}
+              value={goalEditAmount}
+              onChange={event => setGoalEditAmount(event.target.value)}
+            />
+          </FormField>
+          <Button variant="primary" fullWidth onClick={handleGoalEditSave}>
+            {d.goalEditSaveButton}
+          </Button>
+        </div>
+      </Modal>
+
+      <ConfirmModal
+        open={pendingGoalSave !== null}
+        title={d.goalEditConfirmTitle}
+        body={d.goalEditConfirmBody}
+        confirmLabel={d.goalEditConfirmLabel}
+        onCancel={() => setPendingGoalSave(null)}
+        onConfirm={confirmGoalEditSave}
+      />
+
+      <Modal open={goalRequestOpen} title={d.goalRequestModalTitle} onClose={closeGoalRequest}>
+        <div className="flex flex-col gap-4">
+          <p className="font-mono text-xs text-ink-muted">{d.goalRequestSubtitle}</p>
+          {goalRequestStatus && (
+            <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{goalRequestStatus}</p>
+          )}
+          <FormField label={d.goalRequestMessageLabel}>
+            <textarea
+              value={goalRequestMessage}
+              onChange={event => setGoalRequestMessage(event.target.value)}
+              placeholder={d.goalRequestMessagePlaceholder}
+              rows={4}
+              maxLength={280}
+              className="w-full rounded-lg bg-well px-4 py-3 font-mono text-sm text-ink shadow-neuPressed focus:outline-none focus:ring-2 focus:ring-brand-700"
+            />
+          </FormField>
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={handleGoalRequestSend}
+            disabled={goalRequestBusy}
+          >
+            {goalRequestBusy ? d.goalRequestSendingButton : d.goalRequestSendButton}
+          </Button>
         </div>
       </Modal>
 
@@ -798,6 +973,38 @@ interface PlanSummaryMessages {
   planFixedMonthly: (amount: string) => string;
   planIncreasingDaily: (startAmount: string) => string;
   planIncreasingDailyCapped: (capAmount: string) => string;
+}
+
+/**
+ * Summary of how the project goal is allocated across personal +
+ * partner buckets. Rendered inside the owner's goal-edit modal so the
+ * room creator can see whether the new target will fit existing
+ * bucket targets.
+ */
+function GoalTargetSummary({
+  goalTarget,
+  allocated,
+  partnerAllocated,
+}: {
+  goalTarget: number;
+  allocated: number;
+  partnerAllocated: number | null;
+}) {
+  const { copy, formatMoney } = useI18n();
+  const d = copy.dashboard;
+  const remaining = Math.max(0, goalTarget - allocated);
+  const partnerLine = partnerAllocated !== null && partnerAllocated > allocated
+    ? d.goalEditSummaryPartner(formatMoney(partnerAllocated))
+    : null;
+
+  return (
+    <div className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
+      <p className="font-bold text-ink">{d.goalEditSummaryTitle(formatMoney(goalTarget))}</p>
+      <p className="mt-1">{d.goalEditSummaryAllocated(formatMoney(allocated), formatMoney(goalTarget))}</p>
+      <p className="mt-1">{d.goalEditSummaryRemaining(formatMoney(remaining))}</p>
+      {partnerLine && <p className="mt-1 text-brand-800">{partnerLine}</p>}
+    </div>
+  );
 }
 
 /** Short human-readable plan rule summary for display in the Plan card. */

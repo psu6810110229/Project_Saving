@@ -4,6 +4,7 @@ import { AppShell } from '../components/AppShell/AppShell';
 import type { BottomNavTab } from '../components/BottomNav/BottomNav';
 import { Button } from '../components/Button/Button';
 import { CreateProjectForm } from '../components/CreateProjectForm/CreateProjectForm';
+import { DataProvider } from '../components/DataContext/DataContext';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { PageTransition } from '../components/PageTransition/PageTransition';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
@@ -39,9 +40,11 @@ export function AppLayout() {
       {!loading && error && <StatusCard title={al.errorTitle} body={error} />}
       {!loading && !error && !activeRoom && <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />}
       {!loading && !error && activeRoom && (
-        <PageTransition transitionKey={location.pathname}>
-          <Outlet />
-        </PageTransition>
+        <DataProvider roomId={activeRoom.id}>
+          <PageTransition transitionKey={location.pathname}>
+            <Outlet />
+          </PageTransition>
+        </DataProvider>
       )}
     </AppShell>
   );

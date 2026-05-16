@@ -42,7 +42,8 @@ export function useGoal(roomId: string | null = null) {
 
     if (!user || !roomId) return;
 
-    const channel = supabase.channel(`goal:${roomId}-${user.id}`)
+    const channelId = `goal:${roomId}-${user.id}-${Math.random().toString(36).slice(2, 9)}`;
+    const channel = supabase.channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'goals', filter: `room_id=eq.${roomId}` },

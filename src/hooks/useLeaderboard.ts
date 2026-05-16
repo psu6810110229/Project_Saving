@@ -104,7 +104,8 @@ export function useLeaderboard(
 
     void fetchLeaderboardData();
 
-    const goalChannel = supabase.channel(`leaderboard-goals:${roomId}`)
+    const channelId = `leaderboard-goals:${roomId}-${Math.random().toString(36).slice(2, 9)}`;
+    const goalChannel = supabase.channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'goals', filter: `room_id=eq.${roomId}` },

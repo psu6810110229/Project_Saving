@@ -7,9 +7,7 @@ import { IconArrowLeft } from '../components/Icon/Icon';
 import { IconButton } from '../components/IconButton/IconButton';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { TextInput } from '../components/TextInput/TextInput';
-import { useGoal } from '../hooks/useGoal';
-import { useRoom } from '../hooks/useRoom';
-import { useSavingPlan } from '../hooks/useSavingPlan';
+import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
@@ -28,9 +26,9 @@ type StopMode = 'target' | 'days' | 'date';
 
 export function SavingPlan() {
   const navigate = useNavigate();
-  const { activeRoomId } = useRoom();
-  const { goal } = useGoal(activeRoomId);
-  const { plan, loading, error, isPaused, createPlan, changePlan, pausePlan, resumePlan } = useSavingPlan(activeRoomId);
+  const data = useSharedData();
+  const { goal } = data.goal;
+  const { plan, loading, error, isPaused, createPlan, changePlan, pausePlan, resumePlan } = data.savingPlan;
   const { copy, formatShortDateKey } = useI18n();
   const sp = copy.savingPlan;
 

@@ -7,8 +7,7 @@ import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { TextInput } from '../components/TextInput/TextInput';
-import { useReconcile } from '../hooks/useReconcile';
-import { useRoom } from '../hooks/useRoom';
+import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
@@ -19,8 +18,7 @@ type Step = 'enter' | 'difference';
 
 export function CheckBalance() {
   const navigate = useNavigate();
-  const { activeRoomId } = useRoom();
-  const { appBalance, createCheckpoint, loading: reconcileLoading } = useReconcile(activeRoomId);
+  const { appBalance, createCheckpoint, loading: reconcileLoading } = useSharedData().reconcile;
   const { copy } = useI18n();
   const r = copy.reconcile;
 

@@ -37,16 +37,10 @@ import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilte
 import { useAuth } from '../hooks/useAuth';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
-import { useBuckets } from '../hooks/useBuckets';
-import { useGoal } from '../hooks/useGoal';
-import { useLeaderboard } from '../hooks/useLeaderboard';
+import { useSharedData } from '../hooks/useSharedData';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
-import { usePartnerBuckets } from '../hooks/usePartnerBuckets';
-import { useProfile } from '../hooks/useProfile';
-import { useReconcile } from '../hooks/useReconcile';
 import { useRoom } from '../hooks/useRoom';
-import { useSavingPlan } from '../hooks/useSavingPlan';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, sumTargets } from '../lib/buckets';
@@ -89,27 +83,28 @@ const SHOW_DEPOSIT_RACE = false;
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const { quickAmounts } = useProfile();
   const { activeRoom, activeRoomId } = useRoom();
-  const { goal, loading: goalLoading, error: goalError } = useGoal(activeRoomId);
-  const { buckets, loading: bucketsLoading, saveBuckets } = useBuckets(activeRoomId);
-  const { logs, loading: logsLoading, error: logsError, insert } = useLogs(100, activeRoomId);
+  const data = useSharedData();
+  const { quickAmounts } = data.profile;
+  const { goal, loading: goalLoading, error: goalError } = data.goal;
+  const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
+  const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const { total } = useSavingsTotal(user?.id, logs);
-  const leaderboard = useLeaderboard(logs, user?.id, activeRoomId);
+  const leaderboard = data.leaderboard;
   const {
     latest: latestCheckpoint,
     activity: balanceActivity,
     appBalance: reconciledAppBalance,
     createCheckpoint,
-  } = useReconcile(activeRoomId);
-  const { plan: savingPlan, deposits: planDeposits } = useSavingPlan(activeRoomId);
+  } = data.reconcile;
+  const { plan: savingPlan, deposits: planDeposits } = data.savingPlan;
   const { count: unreadNotifications } = useUnreadNotificationsCount();
   const { copy, language, formatMoney } = useI18n();
   const d = copy.dashboard;
   const c = copy.common;
 
   const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
-  const { buckets: partnerBuckets } = usePartnerBuckets(activeRoomId, partnerEntry?.userId);
+  const { buckets: partnerBuckets } = data.partnerBuckets;
   const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);

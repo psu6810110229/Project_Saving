@@ -390,7 +390,7 @@ export function Dashboard() {
                 {d.bucketCount(partnerBucketItems.length)} — {d.bucketReadOnly}
               </p>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {partnerBucketItems.map(bucket => (
                 <BucketRow
                   key={bucket.id}

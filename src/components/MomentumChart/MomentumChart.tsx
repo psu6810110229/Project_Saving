@@ -36,6 +36,21 @@ function niceMax(v: number): number {
   return 10 * mag;
 }
 
+function roundedTopBar(x: number, y: number, w: number, h: number, r: number): string {
+  const actualH = Math.max(h, 0);
+  if (actualH === 0) return '';
+  const actualR = Math.min(r, w / 2, actualH);
+  return [
+    `M ${x},${y + actualH}`,
+    `L ${x},${y + actualR}`,
+    `A ${actualR},${actualR} 0 0,1 ${x + actualR},${y}`,
+    `L ${x + w - actualR},${y}`,
+    `A ${actualR},${actualR} 0 0,1 ${x + w},${y + actualR}`,
+    `L ${x + w},${y + actualH}`,
+    'Z',
+  ].join(' ');
+}
+
 function fmtShort(v: number): string {
   if (v >= 10000) return `${Math.round(v / 1000)}k`;
   if (v >= 1000) return `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k`;
@@ -154,12 +169,8 @@ export function MomentumChart({
           return (
             <g key={i}>
               {/* You bar */}
-              <rect
-                x={groupX}
-                y={yourY}
-                width={barW}
-                height={yourH || 2}
-                rx={2}
+              <path
+                d={roundedTopBar(groupX, yourY, barW, yourH || 2, barW / 2)}
                 fill={chartIdentityColors.you}
               />
               {v > 0 && yourH > 14 && (
@@ -178,12 +189,8 @@ export function MomentumChart({
               {/* Partner bar */}
               {hasPartner && (
                 <>
-                  <rect
-                    x={groupX + barW + innerGap}
-                    y={partnerY}
-                    width={barW}
-                    height={partnerH || 2}
-                    rx={2}
+                  <path
+                    d={roundedTopBar(groupX + barW + innerGap, partnerY, barW, partnerH || 2, barW / 2)}
                     fill={chartIdentityColors.partner}
                   />
                   {partnerVal > 0 && partnerH > 14 && (

@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
+import { CalendarPicker } from '../components/CalendarPicker/CalendarPicker';
 import { Chip } from '../components/Chip/Chip';
 import { IconArrowLeft } from '../components/Icon/Icon';
 import { IconButton } from '../components/IconButton/IconButton';
@@ -15,6 +16,7 @@ import { haptic } from '../lib/haptics';
 import {
   activeRevisionAt,
   addDays,
+  daysBetween,
   daysInclusive,
   plannedCumulativeThroughDate,
   projectedCompletionDate,
@@ -60,6 +62,7 @@ export function SavingPlan() {
   const [dayCount, setDayCount] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [planStartDate, setPlanStartDate] = useState(todayBangkokKey());
   const [stopMode, setStopMode] = useState<StopMode>('target');
   const [message, setMessage] = useState<string | null>(null);
   const [pauseMessage, setPauseMessage] = useState<string | null>(null);
@@ -106,84 +109,213 @@ export function SavingPlan() {
   // Synthetic revision powering the live preview card. Recalculated
   // from the live form inputs so estimates update as the user types.
   const previewRevisions = useMemo<SavingPlanRevision[] | null>(() => {
-    if (ruleType !== 'increasing_daily') return null;
-    const startNum = Number(startAmount);
-    const incNum = Number(incrementAmount);
-    const capNum = Number(capAmount);
     const targetNum = Number(targetAmount);
-    if (!Number.isFinite(startNum) || startNum <= 0) return null;
-    if (!Number.isFinite(incNum) || incNum < 0) return null;
-    if (!Number.isFinite(capNum) || capNum <= 0 || capNum < startNum) return null;
     if (!Number.isFinite(targetNum) || targetNum <= 0) return null;
-    const dayCountNum = dayCount.trim() !== '' && /^[0-9]+$/.test(dayCount) ? Number(dayCount) : null;
+
+    if (ruleType === 'increasing_daily') {
+      const startNum = Number(startAmount);
+      const incNum = Number(incrementAmount);
+      const capNum = Number(capAmount);
+      if (!Number.isFinite(startNum) || startNum <= 0) return null;
+      if (!Number.isFinite(incNum) || incNum < 0) return null;
+      if (!Number.isFinite(capNum) || capNum <= 0 || capNum < startNum) return null;
+      const dayCountNum = dayCount.trim() !== '' && /^[0-9]+$/.test(dayCount) ? Number(dayCount) : null;
+      return [{
+        id: 'preview',
+        plan_id: 'preview',
+        room_id: 'preview',
+        user_id: 'preview',
+        effective_from_date: planStartDate || effectiveFromDate,
+        rule_type: 'increasing_daily_capped',
+        amount: null,
+        start_amount: startNum,
+        increment_amount: incNum,
+        cap_amount: capNum,
+        target_amount: targetNum,
+        end_date: stopMode === 'date' && endDate >= effectiveFromDate ? endDate : null,
+        day_count: stopMode === 'days' && dayCountNum && dayCountNum > 0 ? dayCountNum : null,
+        created_at: new Date().toISOString(),
+      }];
+    }
+
+    // Fixed plan types — allow amount = 0 so the preview card still
+    // renders with a "needs input" hint when the user hasn't entered
+    // an amount yet. Without this the card would disappear entirely.
+    const amountRaw = Number(amount);
+    const amountNum = Number.isFinite(amountRaw) && amountRaw > 0 ? amountRaw : 0;
     return [{
       id: 'preview',
       plan_id: 'preview',
       room_id: 'preview',
       user_id: 'preview',
       effective_from_date: effectiveFromDate,
-      rule_type: 'increasing_daily_capped',
-      amount: null,
-      start_amount: startNum,
-      increment_amount: incNum,
-      cap_amount: capNum,
+      rule_type: ruleType,
+      amount: amountNum,
+      start_amount: null,
+      increment_amount: null,
+      cap_amount: null,
       target_amount: targetNum,
-      end_date: stopMode === 'date' && endDate >= effectiveFromDate ? endDate : null,
-      day_count: stopMode === 'days' && dayCountNum && dayCountNum > 0 ? dayCountNum : null,
+      end_date: endDate && endDate >= effectiveFromDate ? endDate : null,
+      day_count: null,
       created_at: new Date().toISOString(),
     }];
-  }, [ruleType, startAmount, incrementAmount, capAmount, targetAmount, stopMode, endDate, dayCount, effectiveFromDate]);
+  }, [ruleType, amount, startAmount, incrementAmount, capAmount, targetAmount, stopMode, endDate, dayCount, effectiveFromDate, planStartDate]);
 
   const preview = useMemo(() => {
     if (!previewRevisions) return null;
     const rev = previewRevisions[0];
     const targetNum = Number(rev.target_amount);
-    const capNum = Number(rev.cap_amount ?? 0);
     const beforeStart = addDays(effectiveFromDate, -1);
 
-    if (stopMode === 'target') {
-      const finish = projectedCompletionDate(previewRevisions, 0, beforeStart, 3650);
-      if (!finish) {
-        return { mode: 'target' as const, unreachable: true as const, capAmount: capNum };
+    // Increasing daily (capped)
+    if (rev.rule_type === 'increasing_daily_capped') {
+      const capNum = Number(rev.cap_amount ?? 0);
+      if (stopMode === 'target') {
+        const finish = projectedCompletionDate(previewRevisions, 0, beforeStart, 3650);
+        if (!finish) {
+          return { mode: 'target' as const, unreachable: true as const, capAmount: capNum };
+        }
+        const days = daysInclusive(effectiveFromDate, finish);
+        const total = plannedCumulativeThroughDate(previewRevisions, finish, Math.max(4000, days + 10));
+        return {
+          mode: 'target' as const,
+          unreachable: false as const,
+          days,
+          finishDateKey: finish,
+          capAmount: capNum,
+          total,
+        };
       }
-      const days = daysInclusive(effectiveFromDate, finish);
-      const total = plannedCumulativeThroughDate(previewRevisions, finish, Math.max(4000, days + 10));
+      if (stopMode === 'days') {
+        if (!rev.day_count) return null;
+        const endKey = addDays(effectiveFromDate, rev.day_count - 1);
+        const total = plannedCumulativeThroughDate(previewRevisions, endKey, Math.max(4000, rev.day_count + 10));
+        return {
+          mode: 'days' as const,
+          finishDateKey: endKey,
+          days: rev.day_count,
+          total,
+          target: targetNum,
+          capAmount: capNum,
+          reachesTarget: total + 0.005 >= targetNum,
+        };
+      }
+      if (!rev.end_date) return null;
+      const total = plannedCumulativeThroughDate(previewRevisions, rev.end_date, 4000);
+      const days = daysInclusive(effectiveFromDate, rev.end_date);
       return {
-        mode: 'target' as const,
-        unreachable: false as const,
+        mode: 'date' as const,
+        finishDateKey: rev.end_date,
         days,
-        finishDateKey: finish,
-        capAmount: capNum,
-        total,
-      };
-    }
-    if (stopMode === 'days') {
-      if (!rev.day_count) return null;
-      const endKey = addDays(effectiveFromDate, rev.day_count - 1);
-      const total = plannedCumulativeThroughDate(previewRevisions, endKey, Math.max(4000, rev.day_count + 10));
-      return {
-        mode: 'days' as const,
-        finishDateKey: endKey,
-        days: rev.day_count,
         total,
         target: targetNum,
         capAmount: capNum,
         reachesTarget: total + 0.005 >= targetNum,
       };
     }
-    if (!rev.end_date) return null;
-    const total = plannedCumulativeThroughDate(previewRevisions, rev.end_date, 4000);
-    const days = daysInclusive(effectiveFromDate, rev.end_date);
+
+    // Fixed plan types
+    const amountNum = Number(rev.amount ?? 0);
+    const fixedRuleType = rev.rule_type as 'fixed_daily' | 'fixed_weekly' | 'fixed_monthly';
+    // Show a "needs input" preview when the user hasn't entered an
+    // amount yet, so the card stays visible across all plan modes.
+    if (amountNum <= 0) {
+      return {
+        mode: 'fixed' as const,
+        unreachable: false as const,
+        needsAmount: true as const,
+        ruleType: fixedRuleType,
+        amount: 0,
+        target: targetNum,
+      };
+    }
+    if (rev.end_date) {
+      const days = daysInclusive(effectiveFromDate, rev.end_date);
+      const total = plannedCumulativeThroughDate(previewRevisions, rev.end_date, Math.max(4000, days + 10));
+      return {
+        mode: 'fixed' as const,
+        unreachable: false as const,
+        needsAmount: false as const,
+        ruleType: fixedRuleType,
+        finishDateKey: rev.end_date,
+        days,
+        amount: amountNum,
+        total,
+        target: targetNum,
+        reachesTarget: total + 0.005 >= targetNum,
+      };
+    }
+    // Use the same 10 000-day horizon as TARGET_REACH_HORIZON so the
+    // projection and the endKey calculation stay in sync.
+    const finish = projectedCompletionDate(previewRevisions, 0, beforeStart, 10000);
+    if (!finish) {
+      return {
+        mode: 'fixed' as const,
+        unreachable: true as const,
+        needsAmount: false as const,
+        ruleType: fixedRuleType,
+        amount: amountNum,
+        target: targetNum,
+      };
+    }
+    const days = daysInclusive(effectiveFromDate, finish);
+    const total = plannedCumulativeThroughDate(previewRevisions, finish, Math.max(4000, days + 10));
     return {
-      mode: 'date' as const,
-      finishDateKey: rev.end_date,
+      mode: 'fixed' as const,
+      unreachable: false as const,
+      needsAmount: false as const,
+      ruleType: fixedRuleType,
+      finishDateKey: finish,
       days,
+      amount: amountNum,
       total,
       target: targetNum,
-      capAmount: capNum,
-      reachesTarget: total + 0.005 >= targetNum,
+      reachesTarget: true,
     };
   }, [previewRevisions, stopMode, effectiveFromDate]);
+
+  // Per-date amount function passed to CalendarPicker cells.
+  const getAmountForDate = useMemo<((dateKey: string) => number | undefined) | undefined>(() => {
+    if (ruleType === 'increasing_daily') {
+      const startNum = Number(startAmount);
+      const incNum = Number(incrementAmount);
+      const capNum = Number(capAmount);
+      if (!startNum || startNum <= 0 || incNum < 0 || capNum <= 0) return undefined;
+      const ref = planStartDate || todayBangkokKey();
+      return (dateKey: string) => {
+        if (dateKey < ref) return undefined;
+        const idx = daysInclusive(ref, dateKey); // 1-based
+        const raw = startNum + (idx - 1) * incNum;
+        return Math.min(raw, capNum);
+      };
+    }
+    if (ruleType === 'fixed_daily') {
+      const amountNum = Number(amount);
+      if (!amountNum || amountNum <= 0) return undefined;
+      const ref = todayBangkokKey();
+      return (dateKey: string) => (dateKey >= ref ? amountNum : undefined);
+    }
+    if (ruleType === 'fixed_weekly') {
+      const amountNum = Number(amount);
+      if (!amountNum || amountNum <= 0) return undefined;
+      const ref = todayBangkokKey();
+      return (dateKey: string) => {
+        const diff = daysBetween(ref, dateKey);
+        if (diff < 0) return undefined;
+        return diff % 7 === 0 ? amountNum : undefined;
+      };
+    }
+    if (ruleType === 'fixed_monthly') {
+      const amountNum = Number(amount);
+      if (!amountNum || amountNum <= 0) return undefined;
+      const refDay = Number(todayBangkokKey().split('-')[2]);
+      return (dateKey: string) => {
+        const d = Number(dateKey.split('-')[2]);
+        return d === refDay && dateKey >= todayBangkokKey() ? amountNum : undefined;
+      };
+    }
+    return undefined;
+  }, [ruleType, startAmount, incrementAmount, capAmount, amount, planStartDate]);
 
   if (loading) {
     return (
@@ -284,7 +416,8 @@ export function SavingPlan() {
           setMessage(sp.validationStopDate);
           return;
         }
-        if (endDate < effectiveFromDate) {
+        const startRef = planStartDate || effectiveFromDate;
+        if (endDate < startRef) {
           setMessage(sp.validationFutureEnd);
           return;
         }
@@ -316,7 +449,7 @@ export function SavingPlan() {
       incrementAmount: incNum,
       capAmount: capNum,
       dayCount: dayCountNum,
-      effectiveFromDate,
+      effectiveFromDate: ruleType === 'increasing_daily' ? (planStartDate || effectiveFromDate) : effectiveFromDate,
       endDate: endDateOut,
     };
     const result = isChange ? await changePlan(input) : await createPlan(input);
@@ -333,7 +466,7 @@ export function SavingPlan() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Back button stays at the top; the rest of the page is lowered. */}
+      {/* Top bar: back only */}
       <div>
         <IconButton ariaLabel={sp.goBackAriaLabel} size="md" onClick={() => navigate(-1)}>
           <IconArrowLeft size={20} />
@@ -349,10 +482,38 @@ export function SavingPlan() {
           <h1 className="mt-2 truncate font-mono text-3xl font-bold text-ink">
             {isChange ? sp.changeTitle : sp.setUpTitle}
           </h1>
+          {isChange && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={isPaused ? handleResume : handlePause}
+              className={
+                'mt-4 inline-flex items-center gap-2 rounded-pill px-5 py-2.5 font-mono text-sm font-bold transition-all active:scale-95 ' +
+                (isPaused
+                  ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
+                  : 'bg-well text-ink hover:bg-brand-100 hover:text-brand-800')
+              }
+            >
+              <span className="text-base leading-none">{isPaused ? '▶' : '⏸'}</span>
+              {submitting ? '...' : isPaused ? sp.resumeButton : sp.pausePlanButton}
+            </button>
+          )}
         </header>
 
-      {/* Form sections — non-interactive while plan is paused */}
-      <div className={`flex flex-col gap-5${isChange && isPaused ? ' pointer-events-none select-none opacity-50' : ''}`}>
+      {/* Paused state: hide all form fields, show resume prompt */}
+      {isChange && isPaused && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl bg-surface p-8 shadow-soft text-center">
+          <p className="font-mono text-base font-bold text-ink">{sp.planPausedLabel}</p>
+          {pausedSince && (
+            <p className="font-mono text-sm text-ink-muted">{sp.pausedSinceLabel(formatShortDateKey(pausedSince))}</p>
+          )}
+          <p className="font-mono text-sm text-ink-muted">Resume your plan before making changes.</p>
+          {pauseMessage && <p className="font-mono text-xs text-danger">{pauseMessage}</p>}
+        </div>
+      )}
+
+      {/* Form sections — only shown when plan is active */}
+      <div className={isChange && isPaused ? 'hidden' : 'flex flex-col gap-5'}>
 
       {/* Plan type selector */}
       <section className="rounded-xl bg-surface p-5 shadow-soft">
@@ -460,13 +621,14 @@ export function SavingPlan() {
 
                 {stopMode === 'date' && (
                   <div className="mt-3">
-                    <CardField label={sp.endDateLabel}>
-                      <TextInput
-                        type="date"
-                        value={endDate}
-                        onChange={e => setEndDate(e.target.value)}
-                      />
-                    </CardField>
+                    <CalendarPicker
+                      mode="range"
+                      rangeStart={planStartDate}
+                      rangeEnd={endDate}
+                      onRangeChange={(start, end) => { setPlanStartDate(start); setEndDate(end); }}
+                      minDate={todayBangkokKey()}
+                      getAmountForDate={getAmountForDate}
+                    />
                   </div>
                 )}
               </div>
@@ -507,10 +669,11 @@ export function SavingPlan() {
               </BigLabelField>
 
               <BigLabelField label={sp.endDateLabel}>
-                <TextInput
-                  type="date"
+                <CalendarPicker
                   value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
+                  onChange={setEndDate}
+                  minDate={todayBangkokKey()}
+                  getAmountForDate={getAmountForDate}
                 />
               </BigLabelField>
             </>
@@ -525,7 +688,7 @@ export function SavingPlan() {
             <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
               {sp.previewLabel}
             </p>
-            {preview.mode !== 'target' && !preview.reachesTarget && (
+            {preview.mode !== 'target' && !preview.unreachable && !preview.needsAmount && !preview.reachesTarget && (
               <Chip tone="peach">{sp.belowTargetChip}</Chip>
             )}
           </div>
@@ -534,6 +697,32 @@ export function SavingPlan() {
             <p className="mt-3 font-mono text-xs text-ink-muted">
               {sp.unreachableHint}
             </p>
+          ) : preview.mode === 'fixed' && preview.needsAmount ? (
+            <p className="mt-3 font-mono text-xs text-ink-muted">
+              {sp.needsAmountHint}
+            </p>
+          ) : preview.mode === 'fixed' && preview.unreachable ? (
+            <p className="mt-3 font-mono text-xs text-ink-muted">
+              {sp.unreachableFixedHint}
+            </p>
+          ) : preview.mode === 'fixed' ? (
+            <dl className="mt-3 divide-y divide-well font-mono text-xs">
+              <PreviewRow label={sp.estimatedFinish} value={formatShortDateKey(preview.finishDateKey)} />
+              <PreviewRow
+                label={preview.ruleType === 'fixed_weekly' ? sp.savingWeeks : preview.ruleType === 'fixed_monthly' ? sp.savingMonths : sp.savingDays}
+                value={preview.ruleType === 'fixed_weekly'
+                  ? sp.savingWeeksValue(Math.ceil(preview.days / 7))
+                  : preview.ruleType === 'fixed_monthly'
+                    ? sp.savingMonthsValue(Math.ceil(preview.days / 30))
+                    : sp.savingDaysValue(preview.days)
+                }
+              />
+              <PreviewRow
+                label={preview.ruleType === 'fixed_weekly' ? sp.perWeek : preview.ruleType === 'fixed_monthly' ? sp.perMonth : sp.perDay}
+                value={formatCurrency(Math.round(preview.amount))}
+              />
+              <PreviewRow label={sp.expectedTotal} value={formatCurrency(Math.round(preview.total))} />
+            </dl>
           ) : (
             <dl className="mt-3 divide-y divide-well font-mono text-xs">
               <PreviewRow label={sp.estimatedFinish} value={formatShortDateKey(preview.finishDateKey)} />
@@ -548,37 +737,6 @@ export function SavingPlan() {
 
       </div>{/* end form sections */}
 
-      {/* Paused banner — shown prominently when plan is paused. */}
-      {isChange && isPaused && (
-        <section className="rounded-xl bg-surface p-5 shadow-soft">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-800">
-                {sp.planPausedLabel}
-              </p>
-              {pausedSince && (
-                <p className="mt-1 font-mono text-base font-bold text-ink">
-                  {sp.pausedSinceLabel(formatShortDateKey(pausedSince))}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="mt-4">
-            <Button
-              variant="action"
-              fullWidth
-              onClick={handleResume}
-              disabled={submitting}
-            >
-              {submitting ? sp.resumingButton : sp.resumeButton}
-            </Button>
-          </div>
-          {pauseMessage && (
-            <p className="mt-2 font-mono text-xs text-danger">{pauseMessage}</p>
-          )}
-        </section>
-      )}
-
       {/* Validation / error */}
       {(message || error) && (
         <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">
@@ -588,38 +746,14 @@ export function SavingPlan() {
 
       {/* CTA — hidden while the plan is paused */}
       {!(isChange && isPaused) && (
-        <>
-          <div className="flex flex-col gap-2">
-            <Button variant="action" fullWidth onClick={handleSubmit} disabled={submitting}>
-              {submitting ? sp.savingButton : sp.savePlanButton}
-            </Button>
-            <Button variant="ghost" size="md" fullWidth onClick={() => navigate(-1)}>
-              {sp.cancelButton}
-            </Button>
-          </div>
-        </>
-      )}
-
-      {/* Pause section — shown when plan is active (not paused). */}
-      {isChange && !isPaused && (
-        <section className="rounded-xl bg-surface p-5 shadow-soft">
-          <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-            {sp.pausePlanSection}
-          </p>
-          <div className="mt-3">
-            <Button
-              variant="primary"
-              fullWidth
-              onClick={handlePause}
-              disabled={submitting}
-            >
-              {sp.pausePlanButton}
-            </Button>
-          </div>
-          {pauseMessage && (
-            <p className="mt-2 font-mono text-xs text-danger">{pauseMessage}</p>
-          )}
-        </section>
+        <div className="flex flex-col gap-2">
+          <Button variant="action" fullWidth onClick={handleSubmit} disabled={submitting}>
+            {submitting ? sp.savingButton : sp.savePlanButton}
+          </Button>
+          <Button variant="ghost" size="md" fullWidth onClick={() => navigate(-1)}>
+            {sp.cancelButton}
+          </Button>
+        </div>
       )}
       </div>
     </div>

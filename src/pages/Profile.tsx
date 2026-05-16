@@ -18,7 +18,6 @@ import {
   IconSmartphone,
   IconTrash,
   IconUser,
-  IconUserPlus,
 } from '../components/Icon/Icon';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { Modal } from '../components/Modal/Modal';
@@ -203,7 +202,6 @@ export function Profile() {
           },
           { id: 'notifications', icon: <IconBell size={18} />, label: copy.profile.notificationSettingsLabel, description: copy.profile.notificationSettingsDescription, onClick: () => navigate('/notifications/settings') },
           { id: 'manage-project', icon: <IconCalendar size={18} />, label: copy.profile.manageProjectLabel, description: copy.profile.manageProjectDescription(activeRoom?.name ?? copy.profile.noActiveProject), onClick: () => navigate('/manage-project') },
-          { id: 'create', icon: <IconUserPlus size={18} />, label: copy.profile.createNewProjectLabel, description: copy.profile.createNewProjectDescription, onClick: () => openModal('create-project') },
           ...(!activeRoom ? [{ id: 'join', icon: <IconBell size={18} />, label: copy.profile.joinProjectLabel, description: copy.profile.joinProjectDescription, onClick: () => openModal('join-project') }] : []),
           ...(canLeaveFromProfile ? [{
             id: 'leave-project',

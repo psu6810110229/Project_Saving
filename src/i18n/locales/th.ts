@@ -407,6 +407,12 @@ export const th: Messages = {
     inlineAdjustmentSaved: '✓ บันทึกส่วนต่างแล้ว',
     inlineSaveCheck: 'บันทึกผลเช็ก',
     inlineSaveButton: 'บันทึก',
+    reminderTitle: 'ได้เวลาตรวจสอบยอดแล้ว',
+    reminderBodyNever: 'ยังไม่เคยตรวจสอบยอดเลย ลองยืนยันยอดเงินสด เงินในบัญชี หรือที่เก็บไว้จริงดูนะ',
+    reminderBodyDays: (days: number) =>
+      `ผ่านมา ${days} วันแล้วตั้งแต่ตรวจสอบครั้งก่อน มาเช็กยอดจริงที่เก็บไว้กันหน่อย`,
+    reminderCheckNow: 'เช็กเลย',
+    reminderLater: 'ไว้ก่อน',
     outcomeMatchedTitle: 'เช็กยอดเรียบร้อย',
     outcomeAdjustmentTitle: 'บันทึกส่วนต่างแล้ว',
     outcomeMatchedBody: 'ยอดจริงตรงกับยอดที่เช็กไว้แล้ว',

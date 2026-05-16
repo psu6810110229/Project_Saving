@@ -418,6 +418,14 @@ export const en = {
     inlineAdjustmentSaved: '✓ Adjustment saved',
     inlineSaveCheck: 'Save Check',
     inlineSaveButton: 'Save',
+    reminderTitle: 'Time to check your balance',
+    reminderBodyNever: "You haven't verified your balance yet. Confirm what's really in cash, bank, or storage.",
+    reminderBodyDays: (days: number) =>
+      days === 1
+        ? "It's been 1 day since your last balance check. Take a moment to confirm what you've really saved."
+        : `It's been ${days} days since your last balance check. Take a moment to confirm what you've really saved.`,
+    reminderCheckNow: 'Check now',
+    reminderLater: 'Later',
     outcomeMatchedTitle: 'Balance checked',
     outcomeAdjustmentTitle: 'Adjustment saved',
     outcomeMatchedBody: 'Your actual balance matches your verified balance.',

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
@@ -14,6 +14,7 @@ import { IconBubble } from '../components/IconBubble/IconBubble';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { TotalVaultCard } from '../components/TotalVaultCard/TotalVaultCard';
+import { VerifiedBalanceReminderModal } from '../components/VerifiedBalanceReminderModal/VerifiedBalanceReminderModal';
 import { NudgeButton } from '../components/NudgeButton/NudgeButton';
 import { BellIconButton } from '../components/Notifications/BellIconButton';
 import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
@@ -75,6 +76,11 @@ function revealStyle(delayMs: number): CSSProperties {
 // Dashboard hierarchy focuses on Vault / Race / Plan.
 const SHOW_NEXT_WIN = false;
 
+// Session-scoped flag so the Verified Balance reminder popup does not
+// respawn after a dismissal or after the user taps "Check now". Survives
+// in-tab remounts; clears naturally when the browser tab closes.
+const VB_REMINDER_SESSION_KEY = 'verifiedBalanceReminderDismissed';
+
 // Old Deposit Race chart is hidden from the primary Dashboard while
 // Daily Trend (MomentumChart) covers expected-vs-recorded. Component
 // preserved for re-enablement.
@@ -96,6 +102,7 @@ export function Dashboard() {
     activity: balanceActivity,
     appBalance: reconciledAppBalance,
     createCheckpoint,
+    loading: reconcileLoading,
   } = data.reconcile;
   const { plan: savingPlan, deposits: planDeposits } = data.savingPlan;
   const { count: unreadNotifications } = useUnreadNotificationsCount();
@@ -109,6 +116,8 @@ export function Dashboard() {
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [vbReminder, setVbReminder] = useState<{ open: boolean; days: number | null }>({ open: false, days: null });
+  const vbReminderEvaluatedRef = useRef(false);
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
@@ -120,6 +129,31 @@ export function Dashboard() {
   }));
   const loading = goalLoading || bucketsLoading || logsLoading || leaderboard.loading;
   const error = goalError ?? logsError;
+
+  // Verified balance reminder: open once per session when the last
+  // check is ≥ 3 days old (or there has never been one). The session
+  // flag survives in-tab navigation so the popup never respawns after
+  // the user dismisses or starts a check. Plan type / streak are not
+  // consulted — eligibility is purely date-based.
+  useEffect(() => {
+    if (vbReminderEvaluatedRef.current) return;
+    if (loading || reconcileLoading) return;
+    vbReminderEvaluatedRef.current = true;
+    if (typeof window === 'undefined') return;
+    if (window.sessionStorage.getItem(VB_REMINDER_SESSION_KEY) === '1') return;
+    const days = latestCheckpoint ? daysSince(latestCheckpoint.checked_at) : null;
+    const eligible = days === null || days >= 3;
+    if (!eligible) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVbReminder({ open: true, days });
+  }, [loading, reconcileLoading, latestCheckpoint]);
+
+  function closeVbReminder() {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(VB_REMINDER_SESSION_KEY, '1');
+    }
+    setVbReminder(prev => ({ ...prev, open: false }));
+  }
 
   if (loading) return <DashboardSkeleton />;
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
@@ -507,6 +541,16 @@ export function Dashboard() {
           />
         </div>
       </Modal>
+
+      <VerifiedBalanceReminderModal
+        open={vbReminder.open}
+        daysSinceLast={vbReminder.days}
+        onClose={closeVbReminder}
+        onCheckNow={() => {
+          closeVbReminder();
+          navigate('/check-balance');
+        }}
+      />
 
       {/* Bucket deposit bottom sheet */}
       {(() => {

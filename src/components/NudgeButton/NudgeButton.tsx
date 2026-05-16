@@ -63,6 +63,10 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
 
   function messageForStatus(response: NudgeResponse): string {
     const partner = partnerName ?? n.fallbackPartner;
+    if (import.meta.env.DEV) {
+      // Helps trace the "saved but not delivered" mismatch reported in 0.9.6.
+      console.debug('[NudgeButton] response', response);
+    }
     switch (response.status) {
       case 'sent':
         return n.sent(partner);
@@ -71,7 +75,11 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
       case 'saved_no_push':
         return n.savedNoPush(partner);
       default:
-        return response.error ?? n.sent(partner);
+        // Unknown status: prefer the success copy when at least one push
+        // was accepted, so a missing `status` field never surfaces the
+        // misleading "push could not be delivered" message.
+        if ((response.delivered ?? 0) > 0) return n.sent(partner);
+        return n.savedNoPush(partner);
     }
   }
 

@@ -1,24 +1,43 @@
 import { type ReactNode, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { PAGE_TRANSITION, REDUCED_MOTION_TRANSITION } from '../../lib/motion';
 
 interface PageTransitionProps {
   transitionKey: string;
   children: ReactNode;
 }
 
-const TRANSITION = { type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.28 } as const;
+const EDGE_SHADOW = '0 0 44px rgba(42, 26, 14, 0.16)';
 
-// New page slides in from the edge; old page slides away at 30% speed (iOS parallax feel).
+// Native-style push: the new page travels over the old page while the old page
+// drifts slightly away, creating a small depth/parallax cue without moving the app chrome.
 const variants = {
-  enter: (dir: number) => ({ x: dir > 0 ? '100%' : '-100%' }),
-  center: { x: 0 },
-  exit: (dir: number) => ({ x: dir > 0 ? '-30%' : '30%' }),
+  enter: (dir: number) => ({
+    x: dir > 0 ? '96%' : '-96%',
+    opacity: 0.98,
+    scale: 0.995,
+    boxShadow: EDGE_SHADOW,
+    zIndex: 2,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    scale: 1,
+    boxShadow: '0 0 0 rgba(42, 26, 14, 0)',
+    zIndex: 2,
+  },
+  exit: (dir: number) => ({
+    x: dir > 0 ? '-14%' : '14%',
+    opacity: 0.82,
+    scale: 0.99,
+    zIndex: 1,
+  }),
 };
 
 const reducedVariants = {
-  enter: { opacity: 0 },
-  center: { opacity: 1 },
-  exit: { opacity: 0 },
+  enter: { opacity: 0, zIndex: 2 },
+  center: { opacity: 1, zIndex: 2 },
+  exit: { opacity: 0, zIndex: 1 },
 };
 
 function currentHistoryIdx(): number {
@@ -37,30 +56,31 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
     direction: 1,
   }));
 
+  let activeNav = nav;
   if (nav.key !== transitionKey) {
     const idx = currentHistoryIdx();
-    setNav({
+    activeNav = {
       key: transitionKey,
       idx,
       direction: idx >= nav.idx ? 1 : -1,
-    });
+    };
+    setNav(activeNav);
   }
 
-  const reduceMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduceMotion = useReducedMotion();
 
   return (
-    <div className="relative overflow-x-hidden">
-      <AnimatePresence mode="popLayout" custom={nav.direction}>
+    <div className="relative isolate overflow-x-hidden bg-bg">
+      <AnimatePresence mode="popLayout" custom={activeNav.direction}>
         <motion.div
           key={transitionKey}
-          custom={nav.direction}
+          custom={activeNav.direction}
           variants={reduceMotion ? reducedVariants : variants}
           initial="enter"
           animate="center"
           exit="exit"
-          transition={reduceMotion ? { duration: 0.15 } : TRANSITION}
+          transition={reduceMotion ? REDUCED_MOTION_TRANSITION : PAGE_TRANSITION}
+          className="relative w-full min-w-full min-h-[calc(100dvh-10.5rem)] bg-bg will-change-[transform,opacity]"
         >
           {children}
         </motion.div>

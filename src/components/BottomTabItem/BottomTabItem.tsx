@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
-
-const SPRING = { type: 'spring', damping: 26, stiffness: 380 } as const;
+import { SPRING } from '../../lib/motion';
 
 interface BottomTabItemProps {
   label: string;
@@ -23,7 +22,7 @@ export function BottomTabItem({ label, icon, active = false, onClick }: BottomTa
           <motion.span
             layoutId="bottom-tab-indicator"
             className="absolute inset-0 rounded-full bg-brand-800"
-            transition={SPRING}
+            transition={SPRING.tab}
           />
         )}
         <span className={`relative z-10 ${active ? 'text-ink-inverse' : 'text-ink-muted'}`}>
@@ -32,7 +31,7 @@ export function BottomTabItem({ label, icon, active = false, onClick }: BottomTa
       </span>
       <motion.span
         animate={{ color: active ? '#8E3F0D' : '#7A6A5E', fontWeight: active ? 700 : 400 }}
-        transition={SPRING}
+        transition={SPRING.tab}
         className="text-[11px] tracking-wider font-mono uppercase"
       >
         {label}

@@ -1,8 +1,7 @@
 ﻿import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { OutcomeModalBody } from '../OutcomeModalBody/OutcomeModalBody';
-
-const SPRING = { type: 'spring', damping: 26, stiffness: 280 } as const;
+import { FADE_TRANSITION, SPRING } from '../../lib/motion';
 
 type Outcome = 'success' | 'fail' | 'expired';
 
@@ -32,14 +31,14 @@ export function OutcomeModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={FADE_TRANSITION}
         >
           <motion.section
             className="w-full max-w-sm rounded-xl bg-surface shadow-neuRaised"
             initial={{ opacity: 0, scale: 0.92, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
-            transition={SPRING}
+            transition={SPRING.outcome}
           >
             <OutcomeModalBody outcome={outcome} icon={icon} title={title} body={body}>
               {children}

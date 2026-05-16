@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
-import { Spinner } from '../components/Spinner/Spinner';
+import { LoadingState } from '../components/LoadingState/LoadingState';
 import { useI18n } from '../i18n/useI18n';
 import { supabase } from '../lib/supabase';
 
@@ -76,9 +76,12 @@ export function AuthCallback() {
   }
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center">
-      <Spinner />
-    </div>
+    <LoadingState
+      variant="fullscreen"
+      label={copy.common.loading}
+      title={copy.auth.callbackSection}
+      body={copy.common.loading}
+    />
   );
 }
 

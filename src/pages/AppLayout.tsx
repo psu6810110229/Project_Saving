@@ -1,4 +1,4 @@
-﻿import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { AppShell } from '../components/AppShell/AppShell';
 import type { BottomNavTab } from '../components/BottomNav/BottomNav';
@@ -6,6 +6,7 @@ import { Button } from '../components/Button/Button';
 import { CreateProjectForm } from '../components/CreateProjectForm/CreateProjectForm';
 import { DataProvider } from '../components/DataContext/DataContext';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
+import { LoadingState } from '../components/LoadingState/LoadingState';
 import { PageTransition } from '../components/PageTransition/PageTransition';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
@@ -32,17 +33,25 @@ export function AppLayout() {
   const { copy } = useI18n();
   const al = copy.appLayout;
   const activeTab = tabFromPath(location.pathname);
+  const outlet = useOutlet();
 
   return (
-    <AppShell activeTab={activeTab} onTabChange={tab => navigate(pathFromTab(tab))}>
+    <AppShell
+      activeTab={activeTab}
+      onTabChange={tab => {
+        const nextPath = pathFromTab(tab);
+        if (nextPath === location.pathname) return;
+        navigate(nextPath);
+      }}
+    >
       <ProfileLanguageSync />
-      {loading && <StatusCard title={al.loadingTitle} body={al.loadingBody} />}
+      {loading && <LoadingState variant="card" label={al.loadingTitle} title={al.loadingTitle} body={al.loadingBody} />}
       {!loading && error && <StatusCard title={al.errorTitle} body={error} />}
       {!loading && !error && !activeRoom && <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />}
       {!loading && !error && activeRoom && (
         <DataProvider roomId={activeRoom.id}>
           <PageTransition transitionKey={location.pathname}>
-            <Outlet />
+            {outlet}
           </PageTransition>
         </DataProvider>
       )}

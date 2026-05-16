@@ -628,7 +628,7 @@ function DashboardSkeleton() {
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-3 w-36 rounded-pill" />
         </div>
-        <Spinner size="sm" />
+        <Spinner size="sm" tone="neutral" />
       </div>
       <section className="rounded-xl bg-brand-50 p-5 shadow-soft">
         <Skeleton className="h-4 w-28 rounded-pill" />

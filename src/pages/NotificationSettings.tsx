@@ -200,7 +200,7 @@ export function NotificationSettings() {
 
       {saving && (
         <div className="flex items-center gap-2 font-mono text-[11px] text-ink-muted">
-          <Spinner size="sm" /> {n.settings.savingStatus}
+          <Spinner size="sm" tone="neutral" /> {n.settings.savingStatus}
         </div>
       )}
 

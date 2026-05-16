@@ -274,28 +274,13 @@ export const en = {
     versionLabel: (version: string) => `Version ${version}`,
     viewAllChanges: (count: number) => `View all changes (${count} more)`,
     showLess: 'Show less',
-    heading: 'GO-OUT v0.9.6',
-    intro: 'Thai language support is now available across the entire app.',
+    heading: 'GO-OUT v0.9.7',
+    intro: 'Navigation now feels smoother and more app-like.',
     notes: [
       {
-        id: 'thai-language',
-        title: 'Thai language throughout the app',
-        body: 'Every screen — Dashboard, Add Money, Buckets, Manage Project, Reconcile, Saving Plan, Profile, and Notifications — is now fully translated into Thai.',
-      },
-      {
-        id: 'language-switcher',
-        title: 'Switch language in Settings',
-        body: 'Open Profile → Settings to switch between English and Thai at any time. Your choice is saved across sessions.',
-      },
-      {
-        id: 'thai-dates',
-        title: 'Dates and numbers in Thai',
-        body: 'Charts, streaks, plan summaries, and activity feeds all display dates and numbers correctly in Thai format.',
-      },
-      {
-        id: 'not-found-page',
-        title: 'Friendly 404 page',
-        body: 'Visiting an unknown URL now shows a clear "Page not found" screen with a link back to the Dashboard.',
+        id: 'apple-style-motion',
+        title: 'Smoother page motion',
+        body: 'Page changes and loading states now feel cleaner and softer.',
       },
     ],
   },

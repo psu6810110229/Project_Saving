@@ -5,9 +5,7 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { IconButton } from '../IconButton/IconButton';
 import { IconX } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
-
-const SPRING = { type: 'spring', damping: 28, stiffness: 280 } as const;
-const SPRING_CONTENT = { type: 'spring', damping: 26, stiffness: 260 } as const;
+import { FADE_TRANSITION, SPRING } from '../../lib/motion';
 
 const contentVariants = {
   hidden: {},
@@ -16,7 +14,7 @@ const contentVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: SPRING_CONTENT },
+  visible: { opacity: 1, y: 0, transition: SPRING.content },
 };
 
 interface ModalProps {
@@ -52,7 +50,7 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={FADE_TRANSITION}
             onClick={onClose}
           />
 
@@ -69,7 +67,7 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
               initial={{ opacity: 0, y: 28, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.97 }}
-              transition={SPRING}
+              transition={SPRING.modal}
             >
               <motion.div
                 variants={contentVariants}

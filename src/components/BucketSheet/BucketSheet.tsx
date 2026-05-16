@@ -10,9 +10,7 @@ import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgres
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
-
-const SPRING = { type: 'spring', damping: 30, stiffness: 300 } as const;
-const SPRING_CONTENT = { type: 'spring', damping: 26, stiffness: 260 } as const;
+import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/motion';
 
 const contentVariants = {
   hidden: {},
@@ -21,7 +19,7 @@ const contentVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: SPRING_CONTENT },
+  visible: { opacity: 1, y: 0, transition: SPRING.content },
 };
 
 interface BucketSheetProps {
@@ -89,7 +87,7 @@ export function BucketSheet({
       // Micro-bounce: sheet nudges down then exits
       await innerControls.start({
         y: 12,
-        transition: { duration: 0.08, ease: [0.36, 0, 0.66, -0.56] },
+        transition: MICRO_BOUNCE_TRANSITION,
       });
       handleClose();
     }
@@ -106,7 +104,7 @@ export function BucketSheet({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={FADE_TRANSITION}
             onClick={handleClose}
           />
 
@@ -117,7 +115,7 @@ export function BucketSheet({
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={SPRING}
+            transition={SPRING.sheet}
             drag="y"
             dragConstraints={{ top: 0 }}
             dragElastic={{ top: 0, bottom: 0.45 }}

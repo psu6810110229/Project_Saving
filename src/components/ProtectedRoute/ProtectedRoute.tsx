@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { Spinner } from '../Spinner/Spinner';
+import { useI18n } from '../../i18n/useI18n';
+import { LoadingState } from '../LoadingState/LoadingState';
 
 /**
  * Gate that wraps every authenticated route. Signed-out users go to
@@ -11,13 +12,10 @@ import { Spinner } from '../Spinner/Spinner';
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { session, user, loading } = useAuth();
+  const { copy } = useI18n();
 
   if (loading) {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center">
-        <Spinner />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" label={copy.common.loading} body={copy.common.loading} />;
   }
 
   if (!session || !user) return <Navigate to="/login" replace state={{ from: location }} />;

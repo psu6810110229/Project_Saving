@@ -236,7 +236,7 @@ function AddMoneySkeleton() {
           <Skeleton className="h-8 w-56" />
           <Skeleton className="h-3 w-44 rounded-pill" />
         </div>
-        <Spinner size="sm" />
+        <Spinner size="sm" tone="neutral" />
       </div>
       <div className="flex gap-2 overflow-hidden">
         <Skeleton className="h-9 w-24 rounded-pill" />

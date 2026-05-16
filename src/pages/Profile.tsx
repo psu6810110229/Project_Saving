@@ -329,7 +329,7 @@ function ProfileSkeleton({ ariaLabel }: { ariaLabel: string }) {
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-3 w-44 rounded-pill" />
         </div>
-        <Spinner size="sm" />
+        <Spinner size="sm" tone="neutral" />
       </div>
       <section className="rounded-xl bg-surface p-5 shadow-soft">
         <div className="flex items-center gap-4">

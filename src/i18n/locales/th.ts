@@ -263,28 +263,13 @@ export const th: Messages = {
     versionLabel: (version: string) => `เวอร์ชัน ${version}`,
     viewAllChanges: (count: number) => `ดูทั้งหมด (อีก ${count} รายการ)`,
     showLess: 'แสดงน้อยลง',
-    heading: 'GO-OUT v0.9.6',
-    intro: 'รองรับภาษาไทยครบทุกหน้าจอในแอปแล้ว',
+    heading: 'GO-OUT v0.9.7',
+    intro: 'การเปลี่ยนหน้าลื่นขึ้นและดูเป็นแอปมากขึ้น',
     notes: [
       {
-        id: 'thai-language',
-        title: 'ภาษาไทยครบทุกหน้าจอ',
-        body: 'ทุกหน้า ไม่ว่าจะเป็น Dashboard, Add Money, เป้าหมายย่อย, Manage Project, Reconcile, Saving Plan, โปรไฟล์ และการแจ้งเตือน ตอนนี้แปลเป็นภาษาไทยครบแล้ว',
-      },
-      {
-        id: 'language-switcher',
-        title: 'สลับภาษาได้ใน Settings',
-        body: 'เปิด Profile → Settings เพื่อสลับระหว่างภาษาอังกฤษและภาษาไทยได้ตลอดเวลา แอปจะจำการตั้งค่านี้ไว้',
-      },
-      {
-        id: 'thai-dates',
-        title: 'วันที่และตัวเลขเป็นภาษาไทย',
-        body: 'กราฟ สตรีค สรุปแผน และฟีดกิจกรรม แสดงวันที่และตัวเลขในรูปแบบภาษาไทยอย่างถูกต้อง',
-      },
-      {
-        id: 'not-found-page',
-        title: 'หน้า 404 ที่เป็นมิตร',
-        body: 'การเข้า URL ที่ไม่มีอยู่จะแสดงหน้า "ไม่พบหน้านี้" พร้อมลิงก์กลับไปยัง Dashboard',
+        id: 'apple-style-motion',
+        title: 'การเปลี่ยนหน้าลื่นขึ้น',
+        body: 'หน้าโหลดและการเปลี่ยนหน้าดูนุ่มขึ้นกว่าเดิม',
       },
     ],
   },

@@ -19,7 +19,6 @@ import {
   IconTrash,
   IconUser,
   IconUserPlus,
-  IconVault,
 } from '../components/Icon/Icon';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { Modal } from '../components/Modal/Modal';
@@ -40,7 +39,6 @@ import { useI18n } from '../i18n/useI18n';
 import { LANGUAGE_NATIVE_LABEL, SUPPORTED_LANGUAGES, type Language } from '../i18n/languages';
 import { fallbackInitial } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
-import { daysSince } from '../lib/reconcile';
 import type { ThemeSwatch } from '../lib/theme';
 import type { ProjectCategory } from '../types';
 
@@ -55,7 +53,6 @@ export function Profile() {
   const data = useSharedData();
   const { profile, loading, error, themeColor, updateProfile, uploadAvatar, updateLanguage } = data.profile;
   const { copy, language, setLanguage } = useI18n();
-  const { latest: latestCheckpoint } = data.reconcile;
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
@@ -205,7 +202,6 @@ export function Profile() {
             onClick: () => openModal('language'),
           },
           { id: 'notifications', icon: <IconBell size={18} />, label: copy.profile.notificationSettingsLabel, description: copy.profile.notificationSettingsDescription, onClick: () => navigate('/notifications/settings') },
-          { id: 'check-balance', icon: <IconVault size={18} />, label: copy.profile.checkBalanceLabel, description: balanceCheckDescription(latestCheckpoint?.checked_at, copy), onClick: () => navigate('/check-balance') },
           { id: 'manage-project', icon: <IconCalendar size={18} />, label: copy.profile.manageProjectLabel, description: copy.profile.manageProjectDescription(activeRoom?.name ?? copy.profile.noActiveProject), onClick: () => navigate('/manage-project') },
           { id: 'create', icon: <IconUserPlus size={18} />, label: copy.profile.createNewProjectLabel, description: copy.profile.createNewProjectDescription, onClick: () => openModal('create-project') },
           ...(!activeRoom ? [{ id: 'join', icon: <IconBell size={18} />, label: copy.profile.joinProjectLabel, description: copy.profile.joinProjectDescription, onClick: () => openModal('join-project') }] : []),
@@ -357,14 +353,6 @@ const projectOptionIcons = [
   { id: 'home' as const, icon: <IconHome size={28} /> },
   { id: 'other' as const, icon: <IconBriefcase size={28} /> },
 ];
-
-function balanceCheckDescription(lastCheckedAt: string | undefined, copy: ReturnType<typeof useI18n>['copy']): string {
-  if (!lastCheckedAt) return copy.profile.checkBalanceDescriptionNever;
-  const days = daysSince(lastCheckedAt);
-  if (days === 0) return copy.profile.checkBalanceDescriptionToday;
-  if (days === 1) return copy.profile.checkBalanceDescriptionOneDay;
-  return copy.profile.checkBalanceDescriptionDays(days);
-}
 
 function joinPreview(code: string, copy: ReturnType<typeof useI18n>['copy']) {
   return {

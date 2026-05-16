@@ -208,7 +208,7 @@ export function Profile() {
           { id: 'check-balance', icon: <IconVault size={18} />, label: copy.profile.checkBalanceLabel, description: balanceCheckDescription(latestCheckpoint?.checked_at, copy), onClick: () => navigate('/check-balance') },
           { id: 'manage-project', icon: <IconCalendar size={18} />, label: copy.profile.manageProjectLabel, description: copy.profile.manageProjectDescription(activeRoom?.name ?? copy.profile.noActiveProject), onClick: () => navigate('/manage-project') },
           { id: 'create', icon: <IconUserPlus size={18} />, label: copy.profile.createNewProjectLabel, description: copy.profile.createNewProjectDescription, onClick: () => openModal('create-project') },
-          { id: 'join', icon: <IconBell size={18} />, label: copy.profile.joinProjectLabel, description: copy.profile.joinProjectDescription, onClick: () => openModal('join-project') },
+          ...(!activeRoom ? [{ id: 'join', icon: <IconBell size={18} />, label: copy.profile.joinProjectLabel, description: copy.profile.joinProjectDescription, onClick: () => openModal('join-project') }] : []),
           ...(canLeaveFromProfile ? [{
             id: 'leave-project',
             icon: <IconTrash size={18} />,

@@ -147,7 +147,8 @@ export function MomentumChart({
                 x={PAD_LEFT - 3}
                 y={y + 3.5}
                 textAnchor="end"
-                fontSize="7"
+                fontSize="9"
+                fontWeight="700"
                 fontFamily="ui-monospace, monospace"
                 fill={palette.inkMuted}
               >
@@ -178,7 +179,8 @@ export function MomentumChart({
                   x={groupX + barW / 2}
                   y={yourY - 3}
                   textAnchor="middle"
-                  fontSize="7"
+                  fontSize="9"
+                  fontWeight="700"
                   fontFamily="ui-monospace, monospace"
                   fill={chartIdentityColors.you}
                 >
@@ -198,7 +200,8 @@ export function MomentumChart({
                       x={groupX + barW + innerGap + barW / 2}
                       y={partnerY - 3}
                       textAnchor="middle"
-                      fontSize="7"
+                      fontSize="9"
+                      fontWeight="700"
                       fontFamily="ui-monospace, monospace"
                       fill={chartIdentityColors.partner}
                     >
@@ -227,7 +230,8 @@ export function MomentumChart({
                   x={groupX + groupW / 2}
                   y={H - 4}
                   textAnchor="middle"
-                  fontSize="9"
+                  fontSize="11"
+                  fontWeight="700"
                   fontFamily="ui-monospace, monospace"
                   fill={palette.inkMuted}
                 >

@@ -60,6 +60,7 @@ import {
   habitStatusFromDeposits,
   isPausedOnDate,
   moneyStatusFor,
+  nextUpcomingRevision,
   plannedAmountForDate,
   todayBangkokKey,
 } from '../lib/savingPlan';
@@ -300,16 +301,19 @@ export function Dashboard() {
 
   // Saving Plan status — computed once for the primary insight card.
   const todayKey = todayBangkokKey();
-  const activeRule = savingPlan
-    ? activeRevisionAt(savingPlan.revisions, todayKey)?.rule_type ?? null
+  // HOTFIX-004: fall back to the earliest future revision so future-
+  // start plans still appear in the SavingPlanCard instead of the
+  // "no plan yet" empty state.
+  const activeOrUpcoming = savingPlan
+    ? (activeRevisionAt(savingPlan.revisions, todayKey)
+       ?? nextUpcomingRevision(savingPlan.revisions, todayKey))
     : null;
+  const activeRule = activeOrUpcoming?.rule_type ?? null;
   const planPauses = savingPlan?.pauses ?? [];
   const isPausedToday = savingPlan ? isPausedOnDate(planPauses, todayKey) : false;
   const openPause = planPauses.find(p => p.resumed_from === null) ?? null;
   const pausedSince = openPause?.paused_from ?? null;
-  const activePlanRevision = savingPlan
-    ? activeRevisionAt(savingPlan.revisions, todayKey)
-    : null;
+  const activePlanRevision = activeOrUpcoming;
   const planSummary = activePlanRevision ? buildPlanSummary(activePlanRevision, d) : null;
   const moneyStatus = savingPlan
     ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey, planPauses)

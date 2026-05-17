@@ -18,6 +18,7 @@ import {
   addDays,
   daysBetween,
   daysInclusive,
+  nextUpcomingRevision,
   plannedCumulativeThroughDate,
   projectedCompletionDate,
   todayBangkokKey,
@@ -53,8 +54,11 @@ export function SavingPlan() {
     { id: 'date',   label: sp.stopOptionDate },
   ];
 
+  // HOTFIX-004: fall back to the earliest future revision when no
+  // revision is active today (future-start plans).
   const latestRevision = plan
-    ? activeRevisionAt(plan.revisions, todayBangkokKey())
+    ? (activeRevisionAt(plan.revisions, todayBangkokKey())
+       ?? nextUpcomingRevision(plan.revisions, todayBangkokKey()))
     : null;
   const isChange = Boolean(plan);
   const openPause = plan?.pauses.find(p => p.resumed_from === null) ?? null;
@@ -95,11 +99,12 @@ export function SavingPlan() {
       setDayCount(latestRevision.day_count != null ? String(latestRevision.day_count) : '');
       setTargetAmount(String(latestRevision.target_amount));
       setEndDate(latestRevision.end_date ?? '');
-      // Plan changes apply from today by default. Without this reset
-      // any prior drift (e.g. a future date picked via the range
-      // picker before re-seeding) would be sent as effective_from_date
-      // and 0048's supersede step would leave the old revision active.
-      setPlanStartDate(todayBangkokKey());
+      // HOTFIX-004: seed the start date from the revision's own
+      // effective_from_date. For future-start plans this preserves the
+      // user's selected start date; for today-start plans the value is
+      // today anyway. Changes still apply from today unless the
+      // revision is genuinely future-dated.
+      setPlanStartDate(latestRevision.effective_from_date);
       if (latestRevision.day_count != null) {
         setStopMode('days');
       } else if (latestRevision.end_date) {
@@ -533,7 +538,7 @@ export function SavingPlan() {
               { value: 'partner', label: sp.viewPartnerTab(partnerName) },
             ]}
             value={view}
-            onChange={setView}
+            onChange={setView as (v: string) => void}
           />
         )}
       </div>
@@ -933,7 +938,8 @@ function renderPartnerView({
 
   const todayKey = todayBangkokKey();
   const activeRev = partnerPlan
-    ? activeRevisionAt(partnerPlan.revisions, todayKey)
+    ? (activeRevisionAt(partnerPlan.revisions, todayKey)
+       ?? nextUpcomingRevision(partnerPlan.revisions, todayKey))
     : null;
   const openPause = partnerPlan?.pauses.find(p => p.resumed_from === null) ?? null;
   const isPaused = Boolean(openPause);

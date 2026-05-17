@@ -137,6 +137,28 @@ export function activeRevisionAt(
 }
 
 /**
+ * Earliest revision whose effective_from_date is strictly after
+ * `dateKey`. Returns null when no future revision exists.
+ *
+ * HOTFIX-004: used as a fallback when `activeRevisionAt` returns null
+ * for future-start plans so the Dashboard and SavingPlan page can
+ * still reference a plan that hasn't started yet.
+ */
+export function nextUpcomingRevision(
+  revisions: SavingPlanRevision[],
+  dateKey: string,
+): SavingPlanRevision | null {
+  const future = revisions
+    .filter(r => r.effective_from_date > dateKey)
+    .sort((a, b) => {
+      const dateCmp = a.effective_from_date.localeCompare(b.effective_from_date);
+      if (dateCmp !== 0) return dateCmp;
+      return a.created_at.localeCompare(b.created_at);
+    });
+  return future[0] ?? null;
+}
+
+/**
  * Daily planned amount IGNORING any stop (end_date, day_count,
  * target reach). Used to drive the target-reach search without
  * recursing through revisionEndKey.

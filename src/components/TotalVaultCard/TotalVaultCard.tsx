@@ -35,7 +35,7 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVa
           {onEdit && (
             <button
               type="button"
-              onClick={onEdit}
+              onClick={e => { e.stopPropagation(); onEdit?.(); }}
               aria-label={editAriaLabel}
               className="flex h-7 w-7 items-center justify-center rounded-pill text-ink-muted hover:text-ink active:scale-95 transition-transform"
             >

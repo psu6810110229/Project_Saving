@@ -1,4 +1,4 @@
-﻿interface SkeletonProps {
+interface SkeletonProps {
   className?: string;
 }
 

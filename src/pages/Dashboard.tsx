@@ -322,8 +322,23 @@ export function Dashboard() {
   const openPause = planPauses.find(p => p.resumed_from === null) ?? null;
   const pausedSince = openPause?.paused_from ?? null;
   const planSummary = displayRevision ? buildPlanSummary(displayRevision, d) : null;
+  // HOTFIX-008: when the displayRevision is a future-start revision
+  // (effective_from_date > todayKey), compute moneyStatus against only
+  // that single revision so the card reads "Not started" with
+  // expectedToday = 0.  Using all revisions would leak the currently
+  // active revision's accrual figures into the dashboard summary card.
+  const displayIsFuture = displayRevision
+    ? displayRevision.effective_from_date > todayKey
+    : false;
   const moneyStatus = savingPlan
-    ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey, planPauses)
+    ? moneyStatusFor(
+        displayIsFuture && displayRevision
+          ? [displayRevision]
+          : savingPlan.revisions,
+        displayIsFuture ? 0 : planDeposits.total,
+        todayKey,
+        planPauses,
+      )
     : null;
   const habitStatus = habitStatusFromDeposits(
     accrualRevision?.rule_type ?? null,

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
@@ -454,6 +455,11 @@ export function Dashboard() {
   }
 
   return (
+    <>
+      {createPortal(
+        <div aria-hidden className="dashboard-mesh-bg pointer-events-none fixed inset-0 -z-10" />,
+        document.body,
+      )}
     <motion.div className="flex flex-col gap-6" variants={containerVariants} initial="hidden" animate="visible">
       {/* Project header. Compact, no heavy card. */}
       <motion.header
@@ -796,6 +802,7 @@ export function Dashboard() {
         );
       })()}
     </motion.div>
+    </>
   );
 }
 

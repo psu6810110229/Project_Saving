@@ -26,7 +26,7 @@ export const REDUCED_MOTION_TRANSITION = {
 } as const;
 
 export const SPRING = {
-  tab: { type: 'spring', damping: 26, stiffness: 380 },
+  tab: { type: 'spring', damping: 20, stiffness: 300, mass: 1.1 },
   modal: { type: 'spring', damping: 28, stiffness: 280 },
   sheet: { type: 'spring', damping: 30, stiffness: 300 },
   content: { type: 'spring', damping: 26, stiffness: 260 },

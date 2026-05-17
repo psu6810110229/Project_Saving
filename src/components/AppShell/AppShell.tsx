@@ -11,7 +11,7 @@ interface AppShellProps {
 
 export function AppShell({ activeTab, onTabChange, children }: AppShellProps) {
   return (
-    <div className="min-h-[100dvh] bg-bg text-ink">
+    <div className="min-h-[100dvh] text-ink">
       <div className="pointer-events-none fixed inset-x-0 top-[max(env(safe-area-inset-top),0.5rem)] z-30 flex justify-end px-4">
         <div className="mx-auto flex w-full max-w-md justify-end">
           <VersionChip />

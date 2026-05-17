@@ -50,6 +50,7 @@ export function BucketSheet({
   const [selectedPill, setSelectedPill] = useState<number | null>(defaultPill);
   const [customValue, setCustomValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showRing, setShowRing] = useState(false);
   const innerControls = useAnimation();
 
   useBodyScrollLock(open);
@@ -74,6 +75,7 @@ export function BucketSheet({
     setTimeout(() => {
       setCustomValue('');
       setSelectedPill(defaultPill);
+      setShowRing(false);
       innerControls.set({ y: 0 });
     }, 350);
   }
@@ -84,7 +86,9 @@ export function BucketSheet({
     const result = await onConfirm(resolvedAmount);
     setSaving(false);
     if (!result.error) {
-      // Micro-bounce: sheet nudges down then exits
+      // Success ring pulse, then micro-bounce close
+      setShowRing(true);
+      await new Promise((r) => setTimeout(r, 480));
       await innerControls.start({
         y: 12,
         transition: MICRO_BOUNCE_TRANSITION,
@@ -126,7 +130,7 @@ export function BucketSheet({
             {/* Inner wrapper — bounces on confirm */}
             <motion.div
               animate={innerControls}
-              className="rounded-t-3xl bg-bg shadow-neuRaised overflow-hidden"
+              className={`rounded-t-3xl bg-bg shadow-neuRaised overflow-hidden${showRing ? ' animate-success-ring' : ''}`}
             >
               {/* Drag handle */}
               <div className="flex justify-center pt-3 pb-1">

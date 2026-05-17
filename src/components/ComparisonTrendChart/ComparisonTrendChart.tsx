@@ -83,7 +83,7 @@ export function ComparisonTrendChart({
   };
 
   return (
-    <section className="liquid-glass-warm p-5">
+    <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
       <div className="flex items-center justify-between">
         <SectionLabel tone="muted">Trend vs {theirLabel}</SectionLabel>
         <div className="flex items-center gap-3 font-mono text-[11px]">

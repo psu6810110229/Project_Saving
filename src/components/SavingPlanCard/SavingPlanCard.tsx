@@ -114,7 +114,7 @@ export function SavingPlanCard({
   if (!money || !ruleType) {
     return (
       <Pressable onClick={onConfigure}>
-        <section className="rounded-xl liquid-glass-warm p-5">
+        <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
           <div className="flex items-center gap-3">
             <IconBubble tone="peach" size="md">
               <IconTrendingUp size={20} />
@@ -173,7 +173,7 @@ export function SavingPlanCard({
 
   return (
     <Pressable onClick={onConfigure}>
-    <section className="rounded-xl liquid-glass-warm p-5">
+    <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
       <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
         {d.savingPlanLabel}
       </p>

@@ -170,6 +170,8 @@ export const th: Messages = {
     scopeBucket: (name: string) => `ขอบเขต: ${name}`,
     switchBucketOwner: 'เปลี่ยนดูของใคร',
     dailyDepositTrend: 'ยอดฝากรายวัน',
+    last7Days: '7 วันที่ผ่านมา',
+    thisWeek: 'สัปดาห์นี้',
     yourPlan: 'แผนของคุณ',
     depositRace: 'ความคืบหน้าสะสม',
     depositRaceFilterAria: 'กรองขอบเขตกราฟความคืบหน้า',

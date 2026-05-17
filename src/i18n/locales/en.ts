@@ -180,6 +180,8 @@ export const en = {
     switchBucketOwner: 'Switch bucket owner',
     // Daily trend chart
     dailyDepositTrend: 'Daily Deposit Trend',
+    last7Days: 'Last 7 days',
+    thisWeek: 'This week',
     yourPlan: 'Your plan',
     depositRace: 'Deposit Race',
     depositRaceFilterAria: 'Filter deposit race scope',

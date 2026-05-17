@@ -87,6 +87,15 @@ export default {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
         },
+        'success-ring': {
+          '0%':   { boxShadow: '0 0 0 0 rgba(242,107,26,0.3)' },
+          '70%':  { boxShadow: '0 0 0 16px rgba(242,107,26,0)' },
+          '100%': { boxShadow: '0 0 0 0 rgba(242,107,26,0)' },
+        },
+        'bar-grow': {
+          '0%': { transform: 'scaleY(0)' },
+          '100%': { transform: 'scaleY(1)' },
+        },
       },
       animation: {
         'fade-in-up': 'fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
@@ -94,6 +103,8 @@ export default {
         'scale-in': 'scale-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both',
         'fill-bar': 'fill-bar 0.8s cubic-bezier(0.16, 1, 0.3, 1) both',
         shimmer: 'shimmer 1.6s ease-in-out infinite',
+        'success-ring': 'success-ring 0.5s ease-out both',
+        'bar-grow': 'bar-grow 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
       },
     },
   },

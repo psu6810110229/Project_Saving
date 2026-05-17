@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import Pressable from '../Pressable/Pressable';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { IconChevronDown, IconEdit, IconTrendingUp, IconVault } from '../Icon/Icon';
 import { TextInput } from '../TextInput/TextInput';
@@ -112,26 +113,28 @@ export function SavingPlanCard({
 
   if (!money || !ruleType) {
     return (
-      <section className="rounded-xl bg-surface p-5 shadow-soft">
-        <div className="flex items-center gap-3">
-          <IconBubble tone="peach" size="md">
-            <IconTrendingUp size={20} />
-          </IconBubble>
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-              {d.savingPlanLabel}
-            </p>
-            <p className="mt-1 truncate font-mono text-base font-bold text-ink">{d.noPlanYet}</p>
+      <Pressable onClick={onConfigure}>
+        <section className="rounded-xl liquid-glass-warm p-5">
+          <div className="flex items-center gap-3">
+            <IconBubble tone="peach" size="md">
+              <IconTrendingUp size={20} />
+            </IconBubble>
+            <div className="min-w-0 flex-1">
+              <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+                {d.savingPlanLabel}
+              </p>
+              <p className="mt-1 truncate font-mono text-base font-bold text-ink">{d.noPlanYet}</p>
+            </div>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onConfigure(); }}
+              className="shrink-0 rounded-pill bg-brand-500 px-4 py-2 font-mono text-xs font-bold text-ink-inverse shadow-haloOrange transition-transform"
+            >
+              {d.setUpPlan}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onConfigure}
-            className="shrink-0 rounded-pill bg-brand-500 px-4 py-2 font-mono text-xs font-bold text-ink-inverse shadow-haloOrange active:scale-[0.98] transition-transform"
-          >
-            {d.setUpPlan}
-          </button>
-        </div>
-      </section>
+        </section>
+      </Pressable>
     );
   }
 
@@ -169,7 +172,8 @@ export function SavingPlanCard({
     : null;
 
   return (
-    <section className="rounded-xl bg-surface p-5 shadow-soft">
+    <Pressable onClick={onConfigure}>
+    <section className="rounded-xl liquid-glass-warm p-5">
       <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
         {d.savingPlanLabel}
       </p>
@@ -180,9 +184,9 @@ export function SavingPlanCard({
         </p>
         <button
           type="button"
-          onClick={onConfigure}
+          onClick={e => { e.stopPropagation(); onConfigure(); }}
           aria-label={d.changePlan}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange active:scale-[0.96] transition-transform"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-transform"
         >
           <IconEdit size={18} />
         </button>
@@ -247,7 +251,7 @@ export function SavingPlanCard({
 
       {/* Verified Balance — expandable inline form */}
       {verifiedBalance && (
-        <div className="mt-4 border-t border-well pt-4">
+        <div className="mt-4 border-t border-well pt-4" onClick={e => e.stopPropagation()}>
           <button
             type="button"
             onClick={handleVbToggle}
@@ -372,5 +376,6 @@ export function SavingPlanCard({
         </div>
       )}
     </section>
+    </Pressable>
   );
 }

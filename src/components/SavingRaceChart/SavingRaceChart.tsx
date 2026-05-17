@@ -1,4 +1,5 @@
-﻿import { palette } from '../../lib/theme';
+﻿import type { CSSProperties } from 'react';
+import { palette } from '../../lib/theme';
 import { formatCurrency } from '../../lib/format';
 import { chartIdentityColors, chartLegendLabel } from '../../lib/chartIdentity';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
@@ -58,14 +59,46 @@ export function SavingRaceChart({
   const chartH = H - PAD_TOP - PAD_BOTTOM;
   const chartW = W - PAD_X * 2;
   const step = yourSeries.length > 1 ? chartW / (yourSeries.length - 1) : 0;
-  const pointsFor = (series: number[]) => series
-    .map((v, i) => `${PAD_X + i * step},${PAD_TOP + chartH - (v / max) * chartH}`)
+  const coordsFor = (series: number[]) => series
+    .map((v, i) => [PAD_X + i * step, PAD_TOP + chartH - (v / max) * chartH] as const);
+  const pointsFor = (series: number[]) => coordsFor(series)
+    .map(([x, y]) => `${x},${y}`)
     .join(' ');
+  const lengthFor = (series: number[]) => {
+    const pts = coordsFor(series);
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i][0] - pts[i - 1][0];
+      const dy = pts[i][1] - pts[i - 1][1];
+      total += Math.sqrt(dx * dx + dy * dy);
+    }
+    // Add a small buffer so the line never visually pre-clips on the
+    // final pixel of the animation, and never falls below a usable
+    // minimum for very-flat series.
+    return Math.max(50, Math.ceil(total) + 4);
+  };
+  const yourLength = lengthFor(yourSeries);
+  const partnerLength = lengthFor(partnerSeries);
+  const drawStyle = (length: number, delay: string): CSSProperties => ({
+    strokeDasharray: length,
+    strokeDashoffset: length,
+    ['--path-length' as never]: length,
+    animation: 'line-draw 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+    animationDelay: delay,
+  });
+  // The expected-plan polyline is intrinsically dashed, so we cannot
+  // animate it via stroke-dashoffset without destroying its dash
+  // pattern. Fade it in after the solid lines finish drawing instead.
+  const expectedFadeStyle: CSSProperties = {
+    opacity: 0,
+    animation: 'line-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+    animationDelay: '0.9s',
+  };
   const yourTotal = yourSeries[yourSeries.length - 1] ?? 0;
   const partnerTotal = partnerSeries[partnerSeries.length - 1] ?? 0;
 
   return (
-    <section className="rounded-xl bg-surface shadow-soft p-5">
+    <section className="liquid-glass-warm p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <SectionLabel tone="muted">{d.depositRace}</SectionLabel>
@@ -119,6 +152,7 @@ export function SavingRaceChart({
           strokeLinejoin="round"
           strokeLinecap="round"
           points={pointsFor(yourSeries)}
+          style={drawStyle(yourLength, '0.1s')}
         />
         <polyline
           fill="none"
@@ -127,6 +161,7 @@ export function SavingRaceChart({
           strokeLinejoin="round"
           strokeLinecap="round"
           points={pointsFor(partnerSeries)}
+          style={drawStyle(partnerLength, '0.2s')}
         />
         {hasExpected && (
           <polyline
@@ -137,6 +172,7 @@ export function SavingRaceChart({
             strokeLinejoin="round"
             strokeLinecap="round"
             points={pointsFor(expectedSeries!)}
+            style={expectedFadeStyle}
           />
         )}
         {labels.map((label, i) => (

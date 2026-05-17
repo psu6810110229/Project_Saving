@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
@@ -54,6 +56,7 @@ import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
+import { SPRING } from '../lib/motion';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
   activeRevisionAt,
@@ -67,15 +70,23 @@ import {
 import type { SavingPlanRevision } from '../types';
 import type { BalanceActivityEntry, Bucket, BucketCategory } from '../types';
 
-/**
- * Subtle staggered reveal so the Dashboard reads as one composed page
- * instead of independently-popping cards. Pair `.reveal-section` with
- * a CSS animation-delay; the global `prefers-reduced-motion` block in
- * `styles/global.css` collapses every duration to ~0ms automatically.
- */
-function revealStyle(delayMs: number): CSSProperties {
-  return { animationDelay: `${delayMs}ms` };
-}
+/** Framer Motion spring stagger variants for the Dashboard cascade. */
+const containerVariants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.06, delayChildren: 0.04 },
+  },
+};
+
+const sectionVariants = {
+  hidden: { opacity: 0, y: 16, scale: 0.995 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: SPRING.content,
+  },
+};
 
 // Toggle to re-enable the "Next Win" micro-goal block without
 // untangling its data preparation. Kept off-canvas while the
@@ -384,6 +395,10 @@ export function Dashboard() {
   const expectedDailySeries = revisions
     ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
+  const weekRecordedTotal = dailyAmountSeries(logs, user?.id).reduce((sum, v) => sum + v, 0);
+  const weekExpectedTotal = expectedDailySeries
+    ? expectedDailySeries.reduce((sum, v) => sum + v, 0)
+    : undefined;
   const expectedCumulativeSeries = revisions
     ? (() => {
         let running = 0;
@@ -440,11 +455,16 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
+      {createPortal(
+        <div aria-hidden className="dashboard-mesh-bg pointer-events-none fixed inset-0 -z-10" />,
+        document.body,
+      )}
+    <motion.div className="flex flex-col gap-6" variants={containerVariants} initial="hidden" animate="visible">
       {/* Project header. Compact, no heavy card. */}
-      <header
-        className="reveal-section flex flex-col gap-2"
-        style={revealStyle(0)}
+      <motion.header
+        className="flex flex-col gap-2"
+        variants={sectionVariants}
       >
         <div className="flex items-center justify-between gap-3">
           <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
@@ -467,25 +487,25 @@ export function Dashboard() {
         <h1 className="max-w-full break-words font-mono text-2xl font-bold leading-tight text-ink line-clamp-2">
           {activeRoom?.name ?? 'Japan 2027'}
         </h1>
-      </header>
+      </motion.header>
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}
-      <div className="reveal-section" style={revealStyle(60)}>
+      <motion.div variants={sectionVariants}>
         <TotalVaultCard
           saved={totalSaved}
           target={totalTarget}
           onEdit={isCreator ? openGoalEditor : openGoalRequest}
           editAriaLabel={isCreator ? d.goalEditAria : d.goalRequestAria}
         />
-      </div>
+      </motion.div>
 
       {/* 2 — Progress Race (Head-to-Head). */}
-      <div className="reveal-section" style={revealStyle(120)}>
+      <motion.div variants={sectionVariants}>
         <HeadToHeadCard left={leftPlayer} right={rightPlayer} />
-      </div>
+      </motion.div>
 
       {/* 3 — Saving Plan island (with embedded Verified Balance). */}
-      <div className="reveal-section" style={revealStyle(180)}>
+      <motion.div variants={sectionVariants}>
         {reconciledAppBalance === null && verifiedBalanceSlot === null && (
           // Fallback row only when there is no Verified Balance to fold
           // into the Saving Plan island — kept lightweight so it still
@@ -508,17 +528,17 @@ export function Dashboard() {
           pausedSince={pausedSince}
           planSummary={planSummary}
         />
-      </div>
+      </motion.div>
 
       {/* (Next Win — hidden for now; component preserved.) */}
       {SHOW_NEXT_WIN && (
-        <div className="reveal-section" style={revealStyle(220)}>
+        <motion.div variants={sectionVariants}>
           <MicroGoalCard {...selectedBucket} />
-        </div>
+        </motion.div>
       )}
 
       {/* 4 — Smart Buckets. */}
-      <div className="reveal-section flex flex-col gap-3" style={revealStyle(240)}>
+      <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
         {hasPartnerBuckets && (
           <div className="flex items-center justify-end gap-2">
             <Segmented
@@ -582,10 +602,10 @@ export function Dashboard() {
           </Button>
         )}
         {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
-      </div>
+      </motion.div>
 
       {/* 5 — Graphs. Lighter than the insight cards above. */}
-      <div className="reveal-section flex flex-col gap-3" style={revealStyle(300)}>
+      <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
         <MomentumChart
           series={dailyAmountSeries(logs, user?.id)}
           partnerSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
@@ -593,6 +613,9 @@ export function Dashboard() {
           yourName={profile?.display_name ?? d.youLabel}
           partnerName={partnerEntry?.displayName ?? d.partnerLabel}
           expectedSeries={expectedDailySeries}
+          todayIndex={6}
+          weekTotal={weekRecordedTotal}
+          weekExpected={weekExpectedTotal}
         />
         {SHOW_DEPOSIT_RACE && partnerEntry && (
           <SavingRaceSection
@@ -606,11 +629,11 @@ export function Dashboard() {
             expectedSeries={expectedCumulativeSeries}
           />
         )}
-      </div>
+      </motion.div>
 
       {/* 6 — Activity. Deposits and balance checks merged into one
               chronological list, top 3 items only. */}
-      <section className="reveal-section flex flex-col gap-3" style={revealStyle(360)}>
+      <motion.section className="flex flex-col gap-3" variants={sectionVariants}>
         <div className="flex items-center justify-between gap-2">
           <SectionLabel tone="brand">{d.activity}</SectionLabel>
           {logs.length > 0 && (
@@ -649,7 +672,7 @@ export function Dashboard() {
           onClose={() => setHistoryOpen(false)}
           items={activityItems}
         />
-      </section>
+      </motion.section>
 
       <Modal open={bucketModalOpen} title={d.addBucketModalTitle} onClose={() => setBucketModalOpen(false)}>
         <div className="flex flex-col gap-4">
@@ -778,7 +801,8 @@ export function Dashboard() {
           />
         );
       })()}
-    </div>
+    </motion.div>
+    </>
   );
 }
 

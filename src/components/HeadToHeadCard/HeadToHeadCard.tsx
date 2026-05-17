@@ -36,7 +36,7 @@ export function HeadToHeadCard({ left, right }: HeadToHeadCardProps) {
   });
 
   return (
-    <section className="rounded-xl bg-surface shadow-soft p-5">
+    <section className="rounded-xl liquid-glass-warm ambient-glass p-5">
       <h2 className="font-mono text-xl font-bold tracking-tight text-ink">{d.progressRace}</h2>
       <div className="mt-5 flex flex-col gap-5">
         <PlayerProgressRow

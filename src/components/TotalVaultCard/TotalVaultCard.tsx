@@ -3,6 +3,7 @@ import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { IconEdit } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { useI18n } from '../../i18n/useI18n';
+import Pressable from '../Pressable/Pressable';
 
 interface TotalVaultCardProps {
   saved: number;
@@ -22,8 +23,9 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVa
   const { copy } = useI18n();
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const pctRounded = Math.round(pct);
-  return (
-    <section className="rounded-xl bg-surface shadow-soft p-5">
+
+  const card = (
+    <section className="rounded-xl liquid-glass-warm ambient-glass p-5">
       <div className="flex items-center justify-between gap-2">
         <SectionLabel tone="muted">{copy.dashboard.recordedVault}</SectionLabel>
         <div className="flex items-center gap-2">
@@ -33,7 +35,7 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVa
           {onEdit && (
             <button
               type="button"
-              onClick={onEdit}
+              onClick={e => { e.stopPropagation(); onEdit?.(); }}
               aria-label={editAriaLabel}
               className="flex h-7 w-7 items-center justify-center rounded-pill text-ink-muted hover:text-ink active:scale-95 transition-transform"
             >
@@ -51,4 +53,10 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVa
       </div>
     </section>
   );
+
+  if (onEdit) {
+    return <Pressable onClick={onEdit}>{card}</Pressable>;
+  }
+
+  return card;
 }

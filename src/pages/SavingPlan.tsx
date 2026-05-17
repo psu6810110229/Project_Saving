@@ -95,6 +95,11 @@ export function SavingPlan() {
       setDayCount(latestRevision.day_count != null ? String(latestRevision.day_count) : '');
       setTargetAmount(String(latestRevision.target_amount));
       setEndDate(latestRevision.end_date ?? '');
+      // Plan changes apply from today by default. Without this reset
+      // any prior drift (e.g. a future date picked via the range
+      // picker before re-seeding) would be sent as effective_from_date
+      // and 0048's supersede step would leave the old revision active.
+      setPlanStartDate(todayBangkokKey());
       if (latestRevision.day_count != null) {
         setStopMode('days');
       } else if (latestRevision.end_date) {

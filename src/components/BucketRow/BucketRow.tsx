@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
+import Pressable from '../Pressable/Pressable';
 
 interface BucketRowProps {
   icon: ReactNode;
@@ -25,10 +26,9 @@ export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps
   }, [saved, target]);
 
   return (
-    <button
-      type="button"
+    <Pressable
       onClick={onClick}
-      className="w-full flex flex-col items-center rounded-xl bg-surface shadow-soft p-3 text-center active:scale-[0.98] transition-transform"
+      className="w-full flex flex-col items-center rounded-xl bg-surface shadow-soft p-3 text-center"
     >
       <div className="w-full flex justify-end mb-1">
         <span className="font-mono text-[10px] text-ink-dim">{Math.round(pct)}%</span>
@@ -46,6 +46,6 @@ export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps
       <div className="mt-2 w-full">
         <ProgressBar key={saved} value={pct} tone="primary" size="sm" animate />
       </div>
-    </button>
+    </Pressable>
   );
 }

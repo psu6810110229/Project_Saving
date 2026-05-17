@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
 import { Avatar } from '../Avatar/Avatar';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
@@ -24,6 +25,7 @@ interface PlayerProgressRowProps {
   isLeader?: boolean;
   gapLabel?: string;
   isYou?: boolean;
+  trailing?: ReactNode;
 }
 
 function CrownBadge() {
@@ -62,6 +64,7 @@ export function PlayerProgressRow({
   isLeader = false,
   gapLabel,
   isYou = false,
+  trailing,
 }: PlayerProgressRowProps) {
   const { copy } = useI18n();
   const pct = target > 0 ? (saved / target) * 100 : 0;
@@ -82,6 +85,7 @@ export function PlayerProgressRow({
           <span className="font-mono text-base font-bold text-ink truncate">
             {isYou ? `${copy.dashboard.youLabel} - ${name}` : name}
           </span>
+          {trailing && <div className="shrink-0">{trailing}</div>}
         </div>
         <div className="mt-1 flex items-baseline justify-between gap-2 font-mono">
           <div className="flex items-baseline gap-2 min-w-0">

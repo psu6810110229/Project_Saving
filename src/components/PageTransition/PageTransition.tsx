@@ -74,7 +74,7 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
   // start at scrollTop=0 naturally, and the exiting page keeps its scroll
   // position during the exit animation. No window.scrollTo hacks needed.
   return (
-    <div className="relative isolate overflow-hidden bg-bg h-[calc(100dvh-2.5rem)]">
+    <div className="relative isolate overflow-hidden bg-bg h-full">
       <AnimatePresence mode="popLayout" custom={activeNav.direction}>
         <motion.div
           key={transitionKey}

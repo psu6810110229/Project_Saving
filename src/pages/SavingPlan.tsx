@@ -87,6 +87,32 @@ export function SavingPlan() {
   const [confirmingResume, setConfirmingResume] = useState(false);
   const [pendingChangeInput, setPendingChangeInput] = useState<CreatePlanInput | null>(null);
 
+  // Handle plan type switch with proper field resets so cross-type
+  // state (amount vs start/increment/cap, stopMode, etc.) doesn't
+  // leave the form in an invalid state that silently blocks saving.
+  function handleRuleTypeChange(newType: SavingPlanRuleType) {
+    if (newType === ruleType) return;
+    const wasIncreasing = ruleType === 'increasing_daily';
+    const isIncreasing = newType === 'increasing_daily';
+
+    setRuleType(newType);
+    setMessage(null); // clear stale validation errors
+
+    if (wasIncreasing && !isIncreasing) {
+      // Switching FROM increasing → fixed: fixed types don't use
+      // stopMode/dayCount, and the range-picker planStartDate might
+      // be stale. Reset these so validation and the RPC see clean
+      // values. Leave amount as-is (user may have already typed one).
+      setStopMode('target');
+      setDayCount('');
+      setPlanStartDate(todayBangkokKey());
+    } else if (!wasIncreasing && isIncreasing) {
+      // Switching FROM fixed → increasing: clear amount since
+      // increasing uses startAmount/incrementAmount/capAmount instead.
+      setAmount('');
+    }
+  }
+
   // Seed defaults from the active revision when changing an existing
   // plan, otherwise pull the target from the synchronized room goal.
   useEffect(() => {
@@ -642,7 +668,7 @@ export function SavingPlan() {
               <button
                 key={preset.id}
                 type="button"
-                onClick={() => setRuleType(preset.id)}
+                onClick={() => handleRuleTypeChange(preset.id)}
                 className={
                   'rounded-lg px-4 py-3 text-center font-mono text-sm font-bold transition-colors ' +
                   (selected

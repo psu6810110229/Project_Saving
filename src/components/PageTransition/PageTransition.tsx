@@ -59,18 +59,19 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
   let activeNav = nav;
   if (nav.key !== transitionKey) {
     const idx = currentHistoryIdx();
-    activeNav = {
-      key: transitionKey,
-      idx,
-      direction: idx >= nav.idx ? 1 : -1,
-    };
+    const direction = idx >= nav.idx ? 1 : -1;
+    activeNav = { key: transitionKey, idx, direction };
     setNav(activeNav);
   }
 
   const reduceMotion = useReducedMotion();
 
+  // Each motion.div is its own scroll container (overflow-y: auto) so pages
+  // scroll independently — like native iOS view controllers. New pages always
+  // start at scrollTop=0 naturally, and the exiting page keeps its scroll
+  // position during the exit animation. No window.scrollTo hacks needed.
   return (
-    <div className="relative isolate overflow-x-hidden bg-bg">
+    <div className="relative isolate overflow-hidden bg-bg h-[calc(100dvh-2.5rem)]">
       <AnimatePresence mode="popLayout" custom={activeNav.direction}>
         <motion.div
           key={transitionKey}
@@ -80,7 +81,7 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
           animate="center"
           exit="exit"
           transition={reduceMotion ? REDUCED_MOTION_TRANSITION : PAGE_TRANSITION}
-          className="relative w-full min-w-full min-h-[calc(100dvh-10.5rem)] bg-bg will-change-[transform,opacity]"
+          className="relative w-full min-w-full h-full overflow-y-auto bg-bg will-change-[transform,opacity]"
         >
           {children}
         </motion.div>
@@ -88,3 +89,4 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
     </div>
   );
 }
+

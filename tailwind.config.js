@@ -83,12 +83,17 @@ export default {
           '0%': { width: '0%' },
           '100%': { width: 'var(--target-width, 100%)' },
         },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
       animation: {
         'fade-in-up': 'fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
         'fade-in': 'fade-in 0.35s ease-out both',
         'scale-in': 'scale-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both',
         'fill-bar': 'fill-bar 0.8s cubic-bezier(0.16, 1, 0.3, 1) both',
+        shimmer: 'shimmer 1.6s ease-in-out infinite',
       },
     },
   },

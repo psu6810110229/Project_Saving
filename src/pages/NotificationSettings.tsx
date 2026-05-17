@@ -83,11 +83,14 @@ export function NotificationSettings() {
     return (
       <div className="flex flex-col gap-6 pb-24">
         <PageHeader eyebrow={n.settings.eyebrow} title={n.settings.title} subtitle={n.settings.subtitle} showBack />
-        <div className="flex flex-col gap-2" aria-label={n.settings.loadingAriaLabel}>
-          <Skeleton className="h-20" />
-          <Skeleton className="h-14" />
-          <Skeleton className="h-14" />
-          <Skeleton className="h-14" />
+        <div className="flex flex-col gap-3" aria-label={n.settings.loadingAriaLabel}>
+          <div className="flex items-center justify-end">
+            <Spinner size="sm" tone="neutral" />
+          </div>
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-14 rounded-xl" />
+          <Skeleton className="h-14 rounded-xl" />
+          <Skeleton className="h-14 rounded-xl" />
         </div>
       </div>
     );

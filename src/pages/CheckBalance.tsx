@@ -1,4 +1,4 @@
-﻿import { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { IconArrowLeft, IconCheck, IconVault } from '../components/Icon/Icon';
@@ -6,6 +6,7 @@ import { IconButton } from '../components/IconButton/IconButton';
 import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Skeleton } from '../components/Skeleton/Skeleton';
+import { Spinner } from '../components/Spinner/Spinner';
 import { TextInput } from '../components/TextInput/TextInput';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
@@ -215,9 +216,34 @@ function SummaryStat({ label, value, emphasized }: { label: string; value: strin
 function CheckBalanceSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
     <div className="flex flex-col gap-5" aria-label={loadingLabel}>
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-24" />
-      <Skeleton className="h-40" />
+      {/* Back button placeholder */}
+      <div>
+        <Skeleton className="h-10 w-10 rounded-full" />
+      </div>
+      {/* Lowered header area */}
+      <div className="mt-10 flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-3 w-32 rounded-pill" />
+          <Skeleton className="h-8 w-48" />
+        </div>
+        <Spinner size="sm" tone="neutral" />
+      </div>
+      {/* Verified balance card */}
+      <section className="rounded-xl bg-surface p-5 shadow-soft">
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-4 w-28 rounded-pill" />
+          <Skeleton className="h-7 w-24" />
+        </div>
+      </section>
+      {/* Input card */}
+      <section className="rounded-xl bg-surface p-5 shadow-soft">
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-36 rounded-pill" />
+          <Skeleton className="h-12 rounded-lg" />
+          <Skeleton className="h-3 w-full rounded-pill" />
+          <Skeleton className="mt-1 h-12 rounded-pill" />
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { Button } from '../components/Button/Button';
@@ -334,10 +334,10 @@ function ProfileSkeleton({ ariaLabel }: { ariaLabel: string }) {
         </div>
       </section>
       <section className="flex flex-col gap-2">
-        <Skeleton className="h-16" />
-        <Skeleton className="h-16" />
-        <Skeleton className="h-16" />
-        <Skeleton className="h-16" />
+        <Skeleton className="h-16 rounded-xl" />
+        <Skeleton className="h-16 rounded-xl" />
+        <Skeleton className="h-16 rounded-xl" />
+        <Skeleton className="h-16 rounded-xl" />
       </section>
     </div>
   );

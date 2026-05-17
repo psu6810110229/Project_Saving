@@ -1,4 +1,4 @@
-﻿import { useEffect, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
@@ -66,7 +66,7 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
               className="relative pointer-events-auto max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-bg p-4 shadow-neuRaised md:rounded-xl md:p-5"
               initial={{ opacity: 0, y: 28, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.97 }}
+              exit={{ opacity: 0, y: 14, scale: 0.97 }}
               transition={SPRING.modal}
             >
               <motion.div

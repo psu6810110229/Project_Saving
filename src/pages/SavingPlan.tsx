@@ -8,6 +8,7 @@ import { IconArrowLeft } from '../components/Icon/Icon';
 import { IconButton } from '../components/IconButton/IconButton';
 import { Segmented } from '../components/Segmented/Segmented';
 import { Skeleton } from '../components/Skeleton/Skeleton';
+import { Spinner } from '../components/Spinner/Spinner';
 import { TextInput } from '../components/TextInput/TextInput';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
@@ -344,10 +345,38 @@ export function SavingPlan() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-4" aria-label={sp.loadingAriaLabel}>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-32" />
-        <Skeleton className="h-40" />
+      <div className="flex flex-col gap-5" aria-label={sp.loadingAriaLabel}>
+        {/* Back-button placeholder */}
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+        {/* Header area */}
+        <div className="mt-10 flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-3 w-24 rounded-pill" />
+            <Skeleton className="h-8 w-48" />
+          </div>
+          <Spinner size="sm" tone="neutral" />
+        </div>
+        {/* Plan type selector card */}
+        <section className="rounded-xl bg-surface p-5 shadow-soft">
+          <Skeleton className="h-4 w-28 rounded-pill" />
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Skeleton className="h-11 rounded-lg" />
+            <Skeleton className="h-11 rounded-lg" />
+            <Skeleton className="h-11 rounded-lg" />
+            <Skeleton className="h-11 rounded-lg" />
+          </div>
+        </section>
+        {/* Plan fields card */}
+        <section className="rounded-xl bg-surface p-5 shadow-soft">
+          <div className="flex flex-col gap-4">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-12 rounded-lg" />
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-12 rounded-lg" />
+          </div>
+        </section>
       </div>
     );
   }

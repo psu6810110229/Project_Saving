@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { OutcomeModalBody } from '../OutcomeModalBody/OutcomeModalBody';
 import { FADE_TRANSITION, SPRING } from '../../lib/motion';
@@ -35,9 +35,9 @@ export function OutcomeModal({
         >
           <motion.section
             className="w-full max-w-sm rounded-xl bg-surface shadow-neuRaised"
-            initial={{ opacity: 0, scale: 0.92, y: 20 }}
+            initial={{ opacity: 0, scale: 0.94, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 10 }}
+            exit={{ opacity: 0, scale: 0.97, y: 14 }}
             transition={SPRING.outcome}
           >
             <OutcomeModalBody outcome={outcome} icon={icon} title={title} body={body}>

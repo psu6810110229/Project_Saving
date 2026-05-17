@@ -880,15 +880,15 @@ function DashboardSkeleton() {
         <Skeleton className="mt-4 h-8 w-3/4" />
         <Skeleton className="mt-3 h-3 w-1/2 rounded-pill" />
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
         </div>
       </section>
       <section className="flex flex-col gap-3">
-        <Skeleton className="h-6 w-36" />
-        <Skeleton className="h-16" />
-        <Skeleton className="h-16" />
-        <Skeleton className="h-16" />
+        <Skeleton className="h-6 w-36 rounded-pill" />
+        <Skeleton className="h-16 rounded-xl" />
+        <Skeleton className="h-16 rounded-xl" />
+        <Skeleton className="h-16 rounded-xl" />
       </section>
     </div>
   );

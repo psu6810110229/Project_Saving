@@ -281,8 +281,8 @@ function AddMoneySkeleton() {
         <Skeleton className="h-9 w-20 rounded-pill" />
       </div>
       <section className="rounded-xl bg-surface p-5 shadow-soft">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="mt-4 h-32" />
+        <Skeleton className="h-5 w-40 rounded-pill" />
+        <Skeleton className="mt-4 h-32 rounded-lg" />
         <Skeleton className="mt-4 h-12 rounded-pill" />
       </section>
     </div>

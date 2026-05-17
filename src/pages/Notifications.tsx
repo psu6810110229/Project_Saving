@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { PageHeader } from '../components/PageHeader/PageHeader';
 import { Skeleton } from '../components/Skeleton/Skeleton';
+import { Spinner } from '../components/Spinner/Spinner';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { NotificationListItem } from '../components/Notifications/NotificationListItem';
 import { useNotifications } from '../hooks/useNotifications';
@@ -74,11 +75,15 @@ export function Notifications() {
       </div>
 
       {loading && (
-        <section className="flex flex-col gap-2" aria-label={n.center.loadingAriaLabel}>
-          <Skeleton className="h-16" />
-          <Skeleton className="h-16" />
-          <Skeleton className="h-16" />
-          <Skeleton className="h-16" />
+        <section className="flex flex-col gap-3" aria-label={n.center.loadingAriaLabel}>
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton className="h-3 w-24 rounded-pill" />
+            <Spinner size="sm" tone="neutral" />
+          </div>
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
         </section>
       )}
 

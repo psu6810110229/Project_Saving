@@ -14,7 +14,7 @@ export function BottomTabItem({ label, icon, active = false, onClick }: BottomTa
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-1.5 flex-1 py-1"
+      className="flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform duration-100 ease-out active:scale-[0.96]"
       aria-current={active ? 'page' : undefined}
     >
       <span className="relative inline-flex items-center justify-center w-11 h-11">
@@ -25,14 +25,16 @@ export function BottomTabItem({ label, icon, active = false, onClick }: BottomTa
             transition={SPRING.tab}
           />
         )}
-        <span className={`relative z-10 ${active ? 'text-ink-inverse' : 'text-ink-muted'}`}>
+        <span className={`relative z-10 transition-colors duration-150 ${active ? 'text-ink-inverse' : 'text-ink-muted'}`}>
           {icon}
         </span>
       </span>
+      {/* Stable font-semibold in both states to prevent text-width jumps.
+          Only color changes — animate via framer-motion spring. */}
       <motion.span
-        animate={{ color: active ? '#8E3F0D' : '#7A6A5E', fontWeight: active ? 700 : 400 }}
+        animate={{ color: active ? '#8E3F0D' : '#7A6A5E' }}
         transition={SPRING.tab}
-        className="text-[11px] tracking-wider font-mono uppercase"
+        className="text-[11px] tracking-wider font-mono font-semibold uppercase"
       >
         {label}
       </motion.span>

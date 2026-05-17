@@ -135,6 +135,41 @@
       transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
       box-shadow 0.28s ease;
   }
+
+  /* ── Ambient Material Highlight ──────────────────────────────────
+     A slow drifting specular band that sweeps across liquid-glass
+     cards, suggesting a light-responsive material surface.
+     Applied via ::after so it overlays content non-destructively.
+     The parent must have `position: relative` (liquid-glass classes
+     already set this).
+     Under reduced-motion the global guard kills the animation and
+     the pseudo-element starts at -200% off-canvas → invisible. */
+
+  .ambient-glass::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(
+        105deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.08) 30%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.08) 70%,
+        transparent 100%
+      );
+    background-size: 300% 100%;
+    background-position: -200% 0;
+    animation: ambient-highlight 8s ease-in-out infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes ambient-highlight {
+  0%   { background-position: -200% 0; }
+  50%  { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Global reduced-motion guard. Disables Tailwind keyframe animations,

@@ -122,6 +122,23 @@ export function usePushSubscription(): PushSubscriptionState {
       }, { onConflict: 'user_id,endpoint' });
     if (insertError) return { error: insertError.message };
 
+    // Mirror Notification Settings: granting push on this device should
+    // also flip the push_enabled preference on. Without this, send-nudge
+    // gates the push off (push_enabled defaults to false) and the
+    // sender sees a misleading "saved, push could not be delivered".
+    // Non-fatal: device subscription already succeeded.
+    const { error: prefsError } = await supabase.rpc('update_notification_preferences', {
+      p_master_enabled: null,
+      p_push_enabled: true,
+      p_nudges_enabled: null,
+      p_saving_reminders_enabled: null,
+      p_partner_activity_enabled: null,
+      p_product_updates_enabled: null,
+      p_prompt_dismissed_until: null,
+      p_clear_prompt_dismissed: false,
+    });
+    if (prefsError) console.warn('[usePushSubscription] could not enable push pref', prefsError);
+
     setSubscribed(true);
     return {};
   }, [user, unsupported]);

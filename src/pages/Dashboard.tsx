@@ -394,6 +394,10 @@ export function Dashboard() {
   const expectedDailySeries = revisions
     ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
+  const weekRecordedTotal = dailyAmountSeries(logs, user?.id).reduce((sum, v) => sum + v, 0);
+  const weekExpectedTotal = expectedDailySeries
+    ? expectedDailySeries.reduce((sum, v) => sum + v, 0)
+    : undefined;
   const expectedCumulativeSeries = revisions
     ? (() => {
         let running = 0;
@@ -603,6 +607,9 @@ export function Dashboard() {
           yourName={profile?.display_name ?? d.youLabel}
           partnerName={partnerEntry?.displayName ?? d.partnerLabel}
           expectedSeries={expectedDailySeries}
+          todayIndex={6}
+          weekTotal={weekRecordedTotal}
+          weekExpected={weekExpectedTotal}
         />
         {SHOW_DEPOSIT_RACE && partnerEntry && (
           <SavingRaceSection

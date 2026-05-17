@@ -27,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Personal Downloads dump accidentally committed once — keep out of repo
+docs/design-references/graph-redesign/Downloads/

@@ -172,6 +172,19 @@
   100% { background-position: -200% 0; }
 }
 
+/* SVG line draw-on reveal. Pair with inline
+   `stroke-dasharray: <len>; stroke-dashoffset: <len>` on the path so
+   the animation reveals it from start to end. */
+@keyframes line-draw {
+  from { stroke-dashoffset: var(--path-length, 500); }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes line-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 /* Global reduced-motion guard. Disables Tailwind keyframe animations,
    `animate-*` utilities, and any CSS transition for users who request
    reduced motion at the OS level. */

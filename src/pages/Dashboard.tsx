@@ -475,13 +475,6 @@ export function Dashboard() {
               unreadCount={unreadNotifications}
               onClick={() => navigate('/notifications')}
             />
-            {partnerEntry && (
-              <NudgeButton
-                partnerUserId={partnerEntry.userId}
-                roomId={activeRoomId}
-                partnerName={partnerEntry.displayName ?? d.partnerLabel}
-              />
-            )}
           </div>
         </div>
         <h1 className="max-w-full break-words font-mono text-2xl font-bold leading-tight text-ink line-clamp-2">
@@ -501,7 +494,17 @@ export function Dashboard() {
 
       {/* 2 — Progress Race (Head-to-Head). */}
       <motion.div variants={sectionVariants}>
-        <HeadToHeadCard left={leftPlayer} right={rightPlayer} />
+        <HeadToHeadCard
+          left={leftPlayer}
+          right={rightPlayer}
+          partnerSlot={partnerEntry ? (
+            <NudgeButton
+              partnerUserId={partnerEntry.userId}
+              roomId={activeRoomId}
+              partnerName={partnerEntry.displayName ?? d.partnerLabel}
+            />
+          ) : undefined}
+        />
       </motion.div>
 
       {/* 3 — Saving Plan island (with embedded Verified Balance). */}

@@ -106,6 +106,156 @@ function jsonResponse(req: Request, body: unknown, status = 200): Response {
   });
 }
 
+// ─── Nudge message pool ────────────────────────────────────────────
+// Thai-only. A nudge body is picked at random from the candidates
+// whose required data is available. Pure random (no anti-repeat) —
+// the pool is large enough that occasional repeats are fine.
+
+interface NudgeContext {
+  senderName: string;
+  fromUserId: string;
+  toUserId: string;
+  roomId: string;
+}
+
+interface NudgeStats {
+  pct: number | null;            // shared progress toward shared goal, 0-200+
+  remaining: number | null;      // baht remaining to shared goal
+  daysToDeadline: number | null; // calendar days until room end_date
+  senderSaved: number | null;    // sender's lifetime total
+  recipientSaved: number | null; // recipient's lifetime total
+}
+
+const thbFormatter = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 });
+const fmtBaht = (n: number) => `${thbFormatter.format(Math.max(0, Math.round(n)))} บาท`;
+
+async function fetchNudgeStats(
+  admin: ReturnType<typeof createClient>,
+  ctx: NudgeContext,
+): Promise<NudgeStats> {
+  const stats: NudgeStats = {
+    pct: null,
+    remaining: null,
+    daysToDeadline: null,
+    senderSaved: null,
+    recipientSaved: null,
+  };
+
+  try {
+    const [{ data: goalRows }, { data: roomRow }, { data: logRows }] = await Promise.all([
+      admin.from('goals').select('user_id, target_amount').in('user_id', [ctx.fromUserId, ctx.toUserId]),
+      admin.from('rooms').select('end_date').eq('id', ctx.roomId).maybeSingle(),
+      admin.from('savings_logs').select('user_id, amount').in('user_id', [ctx.fromUserId, ctx.toUserId]),
+    ]);
+
+    let senderSaved = 0;
+    let recipientSaved = 0;
+    for (const row of (logRows ?? []) as Array<{ user_id: string; amount: number | string }>) {
+      const amount = Number(row.amount) || 0;
+      if (row.user_id === ctx.fromUserId) senderSaved += amount;
+      else if (row.user_id === ctx.toUserId) recipientSaved += amount;
+    }
+    stats.senderSaved = senderSaved;
+    stats.recipientSaved = recipientSaved;
+    const totalSaved = senderSaved + recipientSaved;
+
+    let totalTarget = 0;
+    for (const row of (goalRows ?? []) as Array<{ target_amount: number | string }>) {
+      totalTarget += Number(row.target_amount) || 0;
+    }
+    if (totalTarget > 0) {
+      stats.pct = (totalSaved / totalTarget) * 100;
+      stats.remaining = Math.max(0, totalTarget - totalSaved);
+    }
+
+    const endDate = (roomRow as { end_date?: string } | null)?.end_date;
+    if (endDate) {
+      const end = new Date(`${endDate}T00:00:00+07:00`).getTime();
+      const now = Date.now();
+      const ms = end - now;
+      if (Number.isFinite(ms)) {
+        stats.daysToDeadline = Math.max(0, Math.ceil(ms / 86_400_000));
+      }
+    }
+  } catch (_error) {
+    // Best-effort — fall back to static-only pool.
+  }
+
+  return stats;
+}
+
+function buildNudgeCandidates(stats: NudgeStats, ctx: NudgeContext): string[] {
+  const candidates: string[] = [
+    // A. Encouragement
+    'มาเก็บเงินด้วยกันวันนี้นะ',
+    'เป้าหมายของเรารออยู่ อย่ายอมแพ้!',
+    'ทุกบาทมีค่า มาเก็บกันต่อ',
+    'วันนี้เก็บนิดหน่อยก็ยังดีนะ',
+    'ค่อย ๆ เก็บ ค่อย ๆ ไป เดี๋ยวก็ถึงเป้า',
+    'เริ่มวันนี้ดีกว่าเริ่มพรุ่งนี้',
+    'อย่าลืมเก็บเงินวันนี้นะ',
+    'เก็บเงินเก่ง ๆ เดี๋ยวเป้าก็มาเอง',
+    // C. Playful
+    'ขอสะกิดเบา ๆ หน่อย',
+    'คิดถึงเป้าหมายของเราไหม?',
+    'แอบมาเตือนแบบน่ารัก ๆ',
+    'ทักมาเช็คอินเรื่องเก็บเงิน',
+  ];
+
+  // B. Progress-aware
+  if (stats.pct !== null) {
+    const pctRounded = Math.round(stats.pct);
+    candidates.push(`ตอนนี้เราเก็บได้ ${pctRounded}% แล้ว สู้ ๆ ต่อ!`);
+  }
+  if (stats.remaining !== null && stats.remaining > 0) {
+    candidates.push(`เหลืออีก ${fmtBaht(stats.remaining)} ก็ถึงเป้าแล้ว`);
+  }
+  if (stats.daysToDeadline !== null && stats.daysToDeadline > 0) {
+    candidates.push(`อีก ${stats.daysToDeadline} วันถึงวันเป้าหมาย — มาเร่งกันหน่อย`);
+  }
+  if (stats.senderSaved !== null && stats.senderSaved > 0) {
+    candidates.push(`${ctx.senderName} เก็บไปแล้ว ${fmtBaht(stats.senderSaved)} คุณล่ะ?`);
+  }
+  if (
+    stats.senderSaved !== null
+    && stats.recipientSaved !== null
+    && stats.senderSaved > stats.recipientSaved
+  ) {
+    const gap = stats.senderSaved - stats.recipientSaved;
+    candidates.push(`${ctx.senderName} นำอยู่ ${fmtBaht(gap)} — ตามให้ทันนะ`);
+  }
+
+  // D. Milestone — fires when shared progress is in a band near 25/50/75/100%.
+  if (stats.pct !== null) {
+    const milestones = [25, 50, 75, 100];
+    const hit = milestones.find(m => Math.abs(stats.pct! - m) <= 2);
+    if (hit === 100) {
+      candidates.push('เกือบถึงเป้าแล้ว! ดันอีกนิดเดียว');
+    } else if (hit === 75) {
+      candidates.push('เก็บมาแล้ว 75% — ใกล้ถึงเป้าแล้วนะ');
+    } else if (hit === 50) {
+      candidates.push('ครึ่งทางแล้ว! มาต่อกันให้ครบเป้า');
+    } else if (hit === 25) {
+      candidates.push('เริ่มเก็บมาได้ 1 ใน 4 แล้ว ค่อย ๆ ไป');
+    }
+  }
+
+  return candidates;
+}
+
+function pickRandom<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+async function pickNudgeBody(
+  admin: ReturnType<typeof createClient>,
+  ctx: NudgeContext,
+): Promise<string> {
+  const stats = await fetchNudgeStats(admin, ctx);
+  const candidates = buildNudgeCandidates(stats, ctx);
+  return pickRandom(candidates);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeadersFor(req) });
@@ -185,7 +335,7 @@ Deno.serve(async (req) => {
       status: 'throttled',
       delivered: 0,
       notification_id: null,
-      error: 'Slow down — please wait a few minutes before nudging again.',
+      error: 'รอสักครู่แล้วลองใหม่อีกครั้ง',
     };
     return jsonResponse(req, result, 429);
   }
@@ -211,10 +361,15 @@ Deno.serve(async (req) => {
   const senderName =
     profileRow?.display_name?.trim()
     || (fromUser.user_metadata?.full_name as string | undefined)
-    || 'Your partner';
+    || 'คู่ของคุณ';
 
-  const notificationTitle = `${senderName} sent a nudge`;
-  const notificationBody = 'They are checking in on the shared goal.';
+  const notificationTitle = `${senderName} ส่งสะกิดมา`;
+  const notificationBody = await pickNudgeBody(admin, {
+    senderName,
+    fromUserId: fromUser.id,
+    toUserId,
+    roomId,
+  });
 
   // 6. Create the in-app notification row. We always do this on a
   //    successful (non-throttled) nudge so the recipient's center has
@@ -231,7 +386,7 @@ Deno.serve(async (req) => {
       channel_policy: 'push_candidate',
       title: notificationTitle,
       body: notificationBody,
-      cta_label: 'Open Dashboard',
+      cta_label: 'เปิดหน้าหลัก',
       target_route: TARGET_ROUTE,
       target_section: null,
       fallback_route: FALLBACK_ROUTE,
@@ -272,7 +427,7 @@ Deno.serve(async (req) => {
       status: 'saved_no_push',
       delivered: 0,
       notification_id: notificationId,
-      error: 'Partner has push notifications off.',
+      error: 'คู่ของคุณปิดการแจ้งเตือนไว้',
     };
     return jsonResponse(req, result);
   }
@@ -288,7 +443,7 @@ Deno.serve(async (req) => {
       status: 'saved_no_push',
       delivered: 0,
       notification_id: notificationId,
-      error: 'Partner has no devices enrolled for nudges yet.',
+      error: 'คู่ของคุณยังไม่ได้ลงทะเบียนอุปกรณ์สำหรับรับสะกิด',
     };
     return jsonResponse(req, result);
   }
@@ -379,7 +534,7 @@ Deno.serve(async (req) => {
     status: delivered > 0 ? 'sent' : 'saved_no_push',
     delivered,
     notification_id: notificationId,
-    ...(delivered === 0 ? { error: 'Push could not be delivered. Notification was saved.' } : {}),
+    ...(delivered === 0 ? { error: 'ส่งการแจ้งเตือนไปยังอุปกรณ์ไม่ได้ แต่บันทึกไว้แล้ว' } : {}),
   };
 
   return jsonResponse(req, result);

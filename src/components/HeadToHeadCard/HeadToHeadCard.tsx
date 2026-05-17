@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { formatCurrency } from '../../lib/format';
 import type { ThemeSwatch } from '../../lib/theme';
 import { PlayerProgressRow } from '../PlayerProgressRow/PlayerProgressRow';
@@ -16,6 +17,8 @@ interface PlayerInput {
 interface HeadToHeadCardProps {
   left: PlayerInput;
   right: PlayerInput;
+  /** Slot rendered on the partner's row (the row where `isYou` is false). */
+  partnerSlot?: ReactNode;
 }
 
 /**
@@ -25,7 +28,7 @@ interface HeadToHeadCardProps {
  * player no longer carries a "Behind by ฿X" subtitle — the gap is
  * read once from the leader's row to avoid duplicate state.
  */
-export function HeadToHeadCard({ left, right }: HeadToHeadCardProps) {
+export function HeadToHeadCard({ left, right, partnerSlot }: HeadToHeadCardProps) {
   const { copy } = useI18n();
   const d = copy.dashboard;
   const tied = left.saved === right.saved;
@@ -43,11 +46,13 @@ export function HeadToHeadCard({ left, right }: HeadToHeadCardProps) {
           {...rows[0]}
           isLeader={!tied}
           gapLabel={tied ? d.tied : d.leadingBy(formatCurrency(gap))}
+          trailing={!rows[0].isYou ? partnerSlot : undefined}
         />
         <div className="h-px bg-well" />
         <PlayerProgressRow
           {...rows[1]}
           gapLabel={undefined}
+          trailing={!rows[1].isYou ? partnerSlot : undefined}
         />
       </div>
     </section>

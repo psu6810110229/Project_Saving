@@ -14,6 +14,17 @@
   html, body, #root {
     height: 100%;
   }
+
+  /* Hide scrollbar globally while keeping scroll enabled */
+  *,
+  *::before,
+  *::after {
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* IE / old Edge */
+  }
+  *::-webkit-scrollbar {
+    display: none;                  /* Chrome, Safari, newer Edge */
+  }
   html {
     /* Slightly larger base for mobile-first comfort; everything below uses rem */
     font-size: 100%;

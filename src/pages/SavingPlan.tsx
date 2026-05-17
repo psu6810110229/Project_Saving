@@ -456,6 +456,19 @@ export function SavingPlan() {
       dayCountNum = undefined;
     }
 
+    // Changes always apply from today: send undefined so the RPC uses
+    // its own Asia/Bangkok v_today, eliminating any client-side date
+    // drift. Creates may legitimately future-start an increasing_daily
+    // plan via the date-range picker, so the create path forwards the
+    // explicit planStartDate.
+    const isFutureStartCreate =
+      !isChange && ruleType === 'increasing_daily' && planStartDate > effectiveFromDate;
+    const effectiveFromDateForRpc = isChange
+      ? undefined
+      : isFutureStartCreate
+        ? planStartDate
+        : effectiveFromDate;
+
     const input: CreatePlanInput = {
       ruleType: submitRuleType,
       targetAmount: targetNum,
@@ -464,7 +477,7 @@ export function SavingPlan() {
       incrementAmount: incNum,
       capAmount: capNum,
       dayCount: dayCountNum,
-      effectiveFromDate: ruleType === 'increasing_daily' ? (planStartDate || effectiveFromDate) : effectiveFromDate,
+      effectiveFromDate: effectiveFromDateForRpc,
       endDate: endDateOut,
     };
 

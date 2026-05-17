@@ -301,25 +301,32 @@ export function Dashboard() {
 
   // Saving Plan status — computed once for the primary insight card.
   const todayKey = todayBangkokKey();
-  // HOTFIX-004: fall back to the earliest future revision so future-
-  // start plans still appear in the SavingPlanCard instead of the
-  // "no plan yet" empty state.
-  const activeOrUpcoming = savingPlan
-    ? (activeRevisionAt(savingPlan.revisions, todayKey)
-       ?? nextUpcomingRevision(savingPlan.revisions, todayKey))
+  // HOTFIX-007: use the same upcoming-first priority as the SavingPlan
+  // edit page so the dashboard summary card shows the user's saved
+  // upcoming revision (e.g. a future-start plan) instead of the
+  // currently active one. Today's active revision is only needed for
+  // accrual / history calculations which `moneyStatusFor` resolves
+  // internally via `activeRevisionAt`.
+  const displayRevision = savingPlan
+    ? (nextUpcomingRevision(savingPlan.revisions, todayKey)
+       ?? activeRevisionAt(savingPlan.revisions, todayKey))
     : null;
-  const activeRule = activeOrUpcoming?.rule_type ?? null;
+  // Today's active revision is kept for habit cadence checks (weekly /
+  // monthly rules widen the "active" window). When no revision is
+  // active yet the display revision provides a safe fallback.
+  const accrualRevision = savingPlan
+    ? (activeRevisionAt(savingPlan.revisions, todayKey) ?? displayRevision)
+    : null;
   const planPauses = savingPlan?.pauses ?? [];
   const isPausedToday = savingPlan ? isPausedOnDate(planPauses, todayKey) : false;
   const openPause = planPauses.find(p => p.resumed_from === null) ?? null;
   const pausedSince = openPause?.paused_from ?? null;
-  const activePlanRevision = activeOrUpcoming;
-  const planSummary = activePlanRevision ? buildPlanSummary(activePlanRevision, d) : null;
+  const planSummary = displayRevision ? buildPlanSummary(displayRevision, d) : null;
   const moneyStatus = savingPlan
     ? moneyStatusFor(savingPlan.revisions, planDeposits.total, todayKey, planPauses)
     : null;
   const habitStatus = habitStatusFromDeposits(
-    activeRule,
+    accrualRevision?.rule_type ?? null,
     planDeposits.deposit_day_keys,
     todayKey,
     isPausedToday,
@@ -477,7 +484,7 @@ export function Dashboard() {
           </div>
         )}
         <SavingPlanCard
-          ruleType={activeRule}
+          ruleType={displayRevision?.rule_type ?? null}
           money={moneyStatus}
           habit={habitStatus}
           onConfigure={() => navigate('/saving-plan')}

@@ -464,17 +464,21 @@ export function SavingPlan() {
       dayCountNum = undefined;
     }
 
-    // Changes always apply from today: send undefined so the RPC uses
-    // its own Asia/Bangkok v_today, eliminating any client-side date
-    // drift. Creates may legitimately future-start ANY plan type, so
-    // the create path forwards the explicit planStartDate when it is
-    // in the future (HOTFIX-003).
-    const isFutureStartCreate =
-      !isChange && planStartDate > effectiveFromDate;
-    const effectiveFromDateForRpc = isChange
-      ? undefined
-      : isFutureStartCreate
-        ? planStartDate
+    // HOTFIX-005: both creates AND changes must forward the user's
+    // selected planStartDate when it is in the future. Previously,
+    // the change path always sent `undefined`, causing the RPC to
+    // fall back to `v_today`. This made a future-start plan (e.g.
+    // June 1 to June 30 = 30 days) revert to today-start after any
+    // change (e.g. May 17 to June 30 = 45 days).
+    //
+    // For plans that have already started (planStartDate <= today),
+    // changes still apply from today (effectiveFromDate / undefined)
+    // so that mid-plan adjustments don't backdate the new revision.
+    const isFutureStart = planStartDate > effectiveFromDate;
+    const effectiveFromDateForRpc = isFutureStart
+      ? planStartDate
+      : isChange
+        ? undefined
         : effectiveFromDate;
 
     const input: CreatePlanInput = {

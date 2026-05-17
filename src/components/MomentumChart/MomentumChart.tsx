@@ -168,25 +168,25 @@ export function MomentumChart({
   const gridFractions = [0.25, 0.5, 0.75, 1];
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-[#c8d2e1]/75 bg-surface px-6 pt-6 pb-5 text-ink shadow-[0_18px_50px_rgba(60,80,120,0.14)]">
+    <section className="overflow-hidden rounded-[2rem] bg-surface px-6 pt-6 pb-5 text-ink shadow-soft">
       {/* Header + legend */}
-      <div className="mb-3 flex items-start justify-between gap-4">
+      <div className="mb-2 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <span className="mb-2 flex items-center gap-2 font-mono text-[14px] font-bold uppercase tracking-[0.14em] text-ink-muted">
             <IconTrendingUp size={24} className="text-brand-500" />
             {d.dailyDepositTrend}
           </span>
           <div className="flex items-baseline gap-4">
-            <span className="font-mono text-[28px] font-bold leading-none text-ink">
+            <span className="font-mono text-[24px] font-bold leading-none text-ink">
               {formatCurrency(headerTotal)}
             </span>
-            <span className="font-mono text-[13px] text-ink-muted/80">
+            <span className="font-mono text-[12px] text-ink-muted/80">
               {d.last7Days}
             </span>
           </div>
         </div>
 
-        <div className="mr-4 mt-1 flex shrink-0 flex-col gap-4">
+        <div className="mr-4 mt-0 flex shrink-0 flex-col gap-4">
           <LegendCell
             color={COLOR_YOU}
             glow="rgba(242,107,26,0.55)"
@@ -208,7 +208,7 @@ export function MomentumChart({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="mt-0 h-[220px] w-full"
+        className="mt-0 h-[200px] w-full"
         role="img"
         aria-label={d.chartAriaLabel}
       >
@@ -224,7 +224,7 @@ export function MomentumChart({
             y2={baselineY}
           >
             <stop offset="0%" stopColor={COLOR_YOU} stopOpacity={1} />
-            <stop offset="100%" stopColor={COLOR_YOU} stopOpacity={0.7} />
+            <stop offset="100%" stopColor={COLOR_YOU} stopOpacity={0.8} />
           </linearGradient>
           <linearGradient
             id="momPartnerFill"
@@ -235,7 +235,7 @@ export function MomentumChart({
             y2={baselineY}
           >
             <stop offset="0%" stopColor={COLOR_PARTNER} stopOpacity={1} />
-            <stop offset="100%" stopColor={COLOR_PARTNER} stopOpacity={0.7} />
+            <stop offset="100%" stopColor={COLOR_PARTNER} stopOpacity={0.8} />
           </linearGradient>
         </defs>
 
@@ -542,7 +542,7 @@ function LegendCell({ color, glow, name, total }: LegendCellProps) {
         />
         <span className="truncate">{name}</span>
       </div>
-      <div className="font-mono text-[15px] font-bold leading-tight text-ink">
+      <div className="font-mono text-[14px] font-bold leading-tight text-ink">
         {formatCurrency(total)}
       </div>
     </div>

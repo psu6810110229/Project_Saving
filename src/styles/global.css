@@ -13,6 +13,12 @@
 @layer base {
   html, body, #root {
     height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  html {
+    @apply bg-bg;
   }
 
   /* Hide scrollbar globally while keeping scroll enabled */
@@ -107,18 +113,40 @@
 
   .liquid-glass-warm {
     position: relative;
-    background: rgba(253, 242, 233, 0.45);
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid rgba(250, 217, 189, 0.4);
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(28px) saturate(170%);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    border: 1px solid rgba(255, 255, 255, 0.45);
     border-radius: 20px;
     box-shadow:
-      0 8px 32px rgba(42, 26, 14, 0.06),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6),
-      inset 0 -1px 0 rgba(142, 63, 13, 0.04);
+      0 8px 32px rgba(42, 26, 14, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
     transition:
       transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
       box-shadow 0.28s ease;
+  }
+
+  /* Warm mesh background for the Dashboard. Three large radial blobs in
+     brand peach/orange/gold over the cream canvas give the liquid-glass
+     cards enough color variation behind them to actually refract. Mounted
+     as a fixed layer in Dashboard.tsx so cards pick up different hues as
+     the user scrolls. Faint noise overlay kills banding from the blur. */
+  .dashboard-mesh-bg {
+    background-color: #FAEBDC;
+    background-image:
+      radial-gradient(1500px 1080px at 8% 6%, rgba(244, 185, 138, 0.32), transparent 70%),
+      radial-gradient(1250px 980px at 96% 12%, rgba(242, 107, 26, 0.16), transparent 68%),
+      radial-gradient(1650px 1250px at 50% 108%, rgba(201, 155, 62, 0.18), transparent 70%),
+      radial-gradient(980px 840px at 12% 92%, rgba(250, 217, 189, 0.26), transparent 68%);
+  }
+  .dashboard-mesh-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
   }
 
   .liquid-glass-dark {

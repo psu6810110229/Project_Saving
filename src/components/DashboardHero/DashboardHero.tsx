@@ -71,6 +71,7 @@ export function DashboardHero({
         labels={momentumLabels}
         yourName={yourName}
         partnerName={partnerName}
+        todayIndex={6}
       />
       <MicroGoalCard {...microGoal} />
     </section>

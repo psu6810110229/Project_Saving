@@ -1,4 +1,5 @@
-﻿import { palette } from '../../lib/theme';
+﻿import type { CSSProperties } from 'react';
+import { palette } from '../../lib/theme';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 
 /**
@@ -32,6 +33,20 @@ function pathFor(series: number[], max: number) {
     .join(' ');
 }
 
+function pathLength(series: number[], max: number) {
+  if (series.length < 2) return 50;
+  const step = (W - PAD * 2) / Math.max(1, series.length - 1);
+  let total = 0;
+  let prevY = PAD + (H - PAD * 2) * (1 - series[0] / Math.max(1, max));
+  for (let i = 1; i < series.length; i++) {
+    const y = PAD + (H - PAD * 2) * (1 - series[i] / Math.max(1, max));
+    const dy = y - prevY;
+    total += Math.sqrt(step * step + dy * dy);
+    prevY = y;
+  }
+  return Math.max(50, Math.ceil(total) + 4);
+}
+
 export function ComparisonTrendChart({
   mineSeries,
   theirSeries,
@@ -44,9 +59,31 @@ export function ComparisonTrendChart({
   const minePathClosed = minePath
     ? `${minePath} L ${(W - PAD).toFixed(1)} ${(H - PAD).toFixed(1)} L ${PAD} ${(H - PAD).toFixed(1)} Z`
     : '';
+  const mineLength = pathLength(mineSeries, max);
+  const mineDrawStyle: CSSProperties = {
+    strokeDasharray: mineLength,
+    strokeDashoffset: mineLength,
+    ['--path-length' as never]: mineLength,
+    animation: 'line-draw 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+    animationDelay: '0.1s',
+  };
+  // The opponent's line is intrinsically dashed; fading it in keeps the
+  // dash pattern intact while still feeling animated.
+  const theirFadeStyle: CSSProperties = {
+    opacity: 0,
+    animation: 'line-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+    animationDelay: '0.9s',
+  };
+  // Area fill fades in after the primary line finishes drawing so the
+  // translucent wash doesn't obscure the draw-on motion.
+  const areaFadeStyle: CSSProperties = {
+    opacity: 0,
+    animation: 'line-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+    animationDelay: '0.9s',
+  };
 
   return (
-    <section className="rounded-xl bg-surface shadow-soft p-5">
+    <section className="liquid-glass-warm p-5">
       <div className="flex items-center justify-between">
         <SectionLabel tone="muted">Trend vs {theirLabel}</SectionLabel>
         <div className="flex items-center gap-3 font-mono text-[11px]">
@@ -65,9 +102,9 @@ export function ComparisonTrendChart({
         role="img"
         aria-label={`${mineLabel} vs ${theirLabel} cumulative savings`}
       >
-        <path d={minePathClosed} fill={palette.brand500} opacity={0.18} />
-        <path d={minePath} fill="none" stroke={palette.brand500} strokeWidth={2} strokeLinecap="round" />
-        <path d={theirPath} fill="none" stroke={palette.inkMuted} strokeWidth={1.5} strokeDasharray="4 3" strokeLinecap="round" />
+        <path d={minePathClosed} fill={palette.brand500} fillOpacity={0.18} style={areaFadeStyle} />
+        <path d={minePath} fill="none" stroke={palette.brand500} strokeWidth={2} strokeLinecap="round" style={mineDrawStyle} />
+        <path d={theirPath} fill="none" stroke={palette.inkMuted} strokeWidth={1.5} strokeDasharray="4 3" strokeLinecap="round" style={theirFadeStyle} />
       </svg>
     </section>
   );

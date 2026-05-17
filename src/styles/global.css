@@ -82,6 +82,59 @@
   .reveal-section {
     animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
+
+  /* ── iOS 26 Liquid Glass surfaces ──────────────────────────────
+     Translucent material cards with backdrop-blur, subtle edge
+     highlights, and depth shadows. Three tints: neutral (white),
+     warm (cream/terracotta), and dark (cocoa). All set
+     `position: relative` so child pseudo-elements (e.g. ambient
+     highlight in 26.8) can overlay without extra wrappers. */
+
+  .liquid-glass {
+    position: relative;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 20px;
+    box-shadow:
+      0 8px 32px rgba(42, 26, 14, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    transition:
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.28s ease;
+  }
+
+  .liquid-glass-warm {
+    position: relative;
+    background: rgba(253, 242, 233, 0.45);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(250, 217, 189, 0.4);
+    border-radius: 20px;
+    box-shadow:
+      0 8px 32px rgba(42, 26, 14, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      inset 0 -1px 0 rgba(142, 63, 13, 0.04);
+    transition:
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.28s ease;
+  }
+
+  .liquid-glass-dark {
+    position: relative;
+    background: rgba(42, 26, 14, 0.35);
+    backdrop-filter: blur(28px) saturate(170%);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transition:
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.28s ease;
+  }
 }
 
 /* Global reduced-motion guard. Disables Tailwind keyframe animations,

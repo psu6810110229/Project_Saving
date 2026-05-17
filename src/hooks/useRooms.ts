@@ -234,6 +234,28 @@ export function useRooms() {
     return { roomId };
   }
 
+  /**
+   * Returns rooms the caller is a member of that are currently
+   * archived. Kept separate from `fetchRooms` so the dashboard's
+   * active-rooms list stays unaffected; the Archived Projects page
+   * owns this state locally.
+   */
+  async function fetchArchivedRooms(): Promise<Room[]> {
+    if (!user) return [];
+    const { data, error: err } = await supabase
+      .from('room_members')
+      .select('rooms(*)')
+      .eq('user_id', user.id)
+      .order('joined_at', { ascending: true });
+    if (err) return [];
+    return (data ?? [])
+      .map((row: { rooms: Room | Room[] | null }) => {
+        const r = row.rooms;
+        return Array.isArray(r) ? r[0] : r;
+      })
+      .filter((room): room is Room => room !== null && Boolean(room.archived_at));
+  }
+
   async function restoreRoom(roomId: string): Promise<ActionResult> {
     if (!user) return { error: 'Not authenticated' };
     const { error: restoreError } = await supabase
@@ -264,5 +286,5 @@ export function useRooms() {
     fetchRooms();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, fetchActiveRoomForCreator };
+  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

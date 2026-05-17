@@ -201,6 +201,7 @@ export function Profile() {
           },
           { id: 'notifications', icon: <IconBell size={18} />, label: copy.profile.notificationSettingsLabel, description: copy.profile.notificationSettingsDescription, onClick: () => navigate('/notifications/settings') },
           { id: 'manage-project', icon: <IconCalendar size={18} />, label: copy.profile.manageProjectLabel, description: copy.profile.manageProjectDescription(activeRoom?.name ?? copy.profile.noActiveProject), onClick: () => navigate('/manage-project') },
+          { id: 'archived-projects', icon: <IconBriefcase size={18} />, label: copy.profile.archivedProjectsLabel, description: copy.profile.archivedProjectsDescription, onClick: () => navigate('/archived-projects') },
           ...(!activeRoom ? [{ id: 'join', icon: <IconBell size={18} />, label: copy.profile.joinProjectLabel, description: copy.profile.joinProjectDescription, onClick: () => openModal('join-project') }] : []),
           ...(canLeaveFromProfile ? [{
             id: 'leave-project',

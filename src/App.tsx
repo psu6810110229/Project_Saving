@@ -5,6 +5,7 @@ import { RoomProvider } from './components/RoomContext/RoomContext';
 import { I18nProvider } from './i18n/I18nProvider';
 import { AddMoney } from './pages/AddMoney';
 import { AppLayout } from './pages/AppLayout';
+import { ArchivedProjects } from './pages/ArchivedProjects';
 import { AtomsPreview } from './pages/AtomsPreview';
 import { AuthCallback } from './pages/AuthCallback';
 import { CheckBalance } from './pages/CheckBalance';
@@ -45,6 +46,7 @@ function App() {
               <Route path="/saving-plan" element={<SavingPlan />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/manage-project" element={<ManageProject />} />
+              <Route path="/archived-projects" element={<ArchivedProjects />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
             </Route>

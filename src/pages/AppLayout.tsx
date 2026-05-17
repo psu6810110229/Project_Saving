@@ -57,7 +57,9 @@ export function AppLayout() {
       {loading && <LoadingState variant="card" label={al.loadingTitle} title={al.loadingTitle} body={al.loadingBody} />}
       {!loading && error && <StatusCard title={al.errorTitle} body={error} />}
       {!loading && !error && !activeRoom && !roomlessAllowed && (
-        <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />
+        <PageTransition transitionKey="project-setup">
+          <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />
+        </PageTransition>
       )}
       {!loading && !error && !activeRoom && roomlessAllowed && (
         <PageTransition transitionKey={location.pathname}>

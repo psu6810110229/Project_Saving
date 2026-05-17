@@ -25,7 +25,7 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVa
   const pctRounded = Math.round(pct);
 
   const card = (
-    <section className="rounded-xl liquid-glass-warm ambient-glass p-5">
+    <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
       <div className="flex items-center justify-between gap-2">
         <SectionLabel tone="muted">{copy.dashboard.recordedVault}</SectionLabel>
         <div className="flex items-center gap-2">

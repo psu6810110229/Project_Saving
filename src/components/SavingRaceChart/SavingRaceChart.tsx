@@ -98,7 +98,7 @@ export function SavingRaceChart({
   const partnerTotal = partnerSeries[partnerSeries.length - 1] ?? 0;
 
   return (
-    <section className="liquid-glass-warm p-5">
+    <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div>
           <SectionLabel tone="muted">{d.depositRace}</SectionLabel>

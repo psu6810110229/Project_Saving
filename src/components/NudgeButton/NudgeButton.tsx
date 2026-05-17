@@ -73,7 +73,7 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
       case 'throttled':
         return n.throttledGeneric;
       case 'saved_no_push':
-        return n.savedNoPush(partner);
+        return response.error ? `${n.savedNoPush(partner)} (${response.error})` : n.savedNoPush(partner);
       default:
         // Unknown status: prefer the success copy when at least one push
         // was accepted, so a missing `status` field never surfaces the

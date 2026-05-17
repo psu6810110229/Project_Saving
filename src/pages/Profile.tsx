@@ -31,7 +31,7 @@ import { TextInput } from '../components/TextInput/TextInput';
 import { ThemeSwatchPicker } from '../components/ThemeSwatchPicker/ThemeSwatchPicker';
 import { VersionBadge } from '../components/VersionBadge/VersionBadge';
 import { useAuth } from '../hooks/useAuth';
-import { useSharedData } from '../hooks/useSharedData';
+import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useI18n } from '../i18n/useI18n';
@@ -49,8 +49,7 @@ export function Profile() {
   const { user, signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const { createRoom, joinRoomByCode, leaveRoom } = useRooms();
-  const data = useSharedData();
-  const { profile, loading, error, themeColor, updateProfile, uploadAvatar, updateLanguage } = data.profile;
+  const { profile, loading, error, themeColor, updateProfile, uploadAvatar, updateLanguage } = useProfile();
   const { copy, language, setLanguage } = useI18n();
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);

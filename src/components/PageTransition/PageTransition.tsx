@@ -85,7 +85,7 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
           exit="exit"
           transition={reduceMotion ? REDUCED_MOTION_TRANSITION : PAGE_TRANSITION}
           data-page-scroll
-          className="relative w-full min-w-full h-full overflow-y-auto bg-bg will-change-[transform,opacity]"
+          className="relative w-full min-w-full h-full overflow-y-auto overscroll-contain bg-bg will-change-[transform,opacity]"
         >
           {children}
         </motion.div>

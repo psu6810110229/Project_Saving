@@ -11,12 +11,16 @@
 @tailwind utilities;
 
 @layer base {
-  html, body, #root {
+
+  html,
+  body,
+  #root {
     height: 100%;
     width: 100%;
     margin: 0;
     padding: 0;
   }
+
   html {
     @apply bg-bg;
   }
@@ -25,31 +29,46 @@
   *,
   *::before,
   *::after {
-    scrollbar-width: none;          /* Firefox */
-    -ms-overflow-style: none;       /* IE / old Edge */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE / old Edge */
   }
+
   *::-webkit-scrollbar {
-    display: none;                  /* Chrome, Safari, newer Edge */
+    display: none;
+    /* Chrome, Safari, newer Edge */
   }
+
   html {
     /* Slightly larger base for mobile-first comfort; everything below uses rem */
     font-size: 100%;
   }
+
   body {
     @apply bg-bg text-ink font-sans antialiased;
     /* Subtle warm vertical wash so cream canvas doesn't read flat */
     background-image:
-      radial-gradient(1200px 600px at 50% -10%, rgba(242,107,26,0.05), transparent 60%),
-      radial-gradient(800px 400px at 100% 100%, rgba(142,63,13,0.04), transparent 60%);
+      radial-gradient(1200px 600px at 50% -10%, rgba(242, 107, 26, 0.05), transparent 60%),
+      radial-gradient(800px 400px at 100% 100%, rgba(142, 63, 13, 0.04), transparent 60%);
     background-attachment: fixed;
   }
-  h1, h2, h3, h4 {
+
+  h1,
+  h2,
+  h3,
+  h4 {
     @apply font-mono font-bold text-ink tracking-tight;
   }
+
   /* The brand logotype and CTA labels use the typewriter face from the mockups */
-  button, input, select, textarea {
+  button,
+  input,
+  select,
+  textarea {
     @apply font-mono;
   }
+
   /* Suppress mobile long-press copy/share menu on UI chrome. Long-press
      would otherwise pop the iOS / Android selection bubble over labels
      and stat values, which looks broken in a touch-first PWA. Inputs,
@@ -60,7 +79,12 @@
     user-select: none;
     -webkit-touch-callout: none;
   }
-  input, textarea, [contenteditable='true'], .copy-allowed, .copy-allowed * {
+
+  input,
+  textarea,
+  [contenteditable='true'],
+  .copy-allowed,
+  .copy-allowed * {
     -webkit-user-select: text;
     user-select: text;
     -webkit-touch-callout: default;
@@ -68,21 +92,26 @@
 }
 
 @layer utilities {
+
   /* Neumorphic surface helpers — composed from tokens, not bespoke colors */
   .surface-raised {
     @apply bg-surface shadow-neuRaised;
   }
+
   .surface-inset {
     @apply bg-well shadow-neuPressed;
   }
+
   /* Halo glow used under the orange "Confirm Deposit" CTA in the mockups */
   .glow-orange {
     @apply shadow-haloOrange;
   }
+
   /* Hairline divider tinted to the warm palette */
   .divider-warm {
     @apply border-t border-brand-100/60;
   }
+
   /* Subtle staggered reveal for composed pages (Dashboard).
      Pair with `style={{ animationDelay: '60ms' }}` etc. for sequence. */
   .reveal-section {
@@ -99,8 +128,8 @@
   .liquid-glass {
     position: relative;
     background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(10px) saturate(180%);
+    -webkit-backdrop-filter: blur(10px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.35);
     border-radius: 20px;
     box-shadow:
@@ -114,8 +143,8 @@
   .liquid-glass-warm {
     position: relative;
     background: rgba(255, 255, 255, 0.45);
-    backdrop-filter: blur(28px) saturate(170%);
-    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    backdrop-filter: blur(8px) saturate(170%);
+    -webkit-backdrop-filter: blur(8px) saturate(170%);
     border: 1px solid rgba(255, 255, 255, 0.45);
     border-radius: 20px;
     box-shadow:
@@ -132,13 +161,16 @@
      as a fixed layer in Dashboard.tsx so cards pick up different hues as
      the user scrolls. Faint noise overlay kills banding from the blur. */
   .dashboard-mesh-bg {
-    background-color: #FAEBDC;
+    background-color: #F6DEC8;
     background-image:
-      radial-gradient(1500px 1080px at 8% 6%, rgba(244, 185, 138, 0.32), transparent 70%),
-      radial-gradient(1250px 980px at 96% 12%, rgba(242, 107, 26, 0.16), transparent 68%),
-      radial-gradient(1650px 1250px at 50% 108%, rgba(201, 155, 62, 0.18), transparent 70%),
-      radial-gradient(980px 840px at 12% 92%, rgba(250, 217, 189, 0.26), transparent 68%);
+      radial-gradient(1150px 850px at 12% 0%, rgba(255, 165, 92, 0.55), transparent 62%),
+      radial-gradient(900px 720px at 92% 18%, rgba(226, 91, 55, 0.32), transparent 58%),
+      radial-gradient(1300px 1000px at 64% 86%, rgba(196, 132, 62, 0.42), transparent 68%),
+      radial-gradient(760px 640px at 0% 58%, rgba(255, 219, 176, 0.58), transparent 62%),
+      radial-gradient(720px 580px at 96% 96%, rgba(132, 108, 164, 0.26), transparent 58%),
+      radial-gradient(560px 500px at 42% 40%, rgba(255, 244, 224, 0.50), transparent 58%);
   }
+
   .dashboard-mesh-bg::after {
     content: '';
     position: absolute;
@@ -179,14 +211,12 @@
     inset: 0;
     border-radius: inherit;
     background:
-      linear-gradient(
-        105deg,
+      linear-gradient(105deg,
         transparent 0%,
         rgba(255, 255, 255, 0.08) 30%,
         rgba(255, 255, 255, 0.15) 50%,
         rgba(255, 255, 255, 0.08) 70%,
-        transparent 100%
-      );
+        transparent 100%);
     background-size: 300% 100%;
     background-position: -200% 0;
     animation: ambient-highlight 8s ease-in-out infinite;
@@ -195,28 +225,47 @@
 }
 
 @keyframes ambient-highlight {
-  0%   { background-position: -200% 0; }
-  50%  { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  50% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* SVG line draw-on reveal. Pair with inline
    `stroke-dasharray: <len>; stroke-dashoffset: <len>` on the path so
    the animation reveals it from start to end. */
 @keyframes line-draw {
-  from { stroke-dashoffset: var(--path-length, 500); }
-  to   { stroke-dashoffset: 0; }
+  from {
+    stroke-dashoffset: var(--path-length, 500);
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 @keyframes line-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 /* Global reduced-motion guard. Disables Tailwind keyframe animations,
    `animate-*` utilities, and any CSS transition for users who request
    reduced motion at the OS level. */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

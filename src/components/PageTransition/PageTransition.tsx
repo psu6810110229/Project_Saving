@@ -18,6 +18,7 @@ const variants = {
     scale: 0.995,
     boxShadow: EDGE_SHADOW,
     zIndex: 2,
+    pointerEvents: 'auto' as const,
   }),
   center: {
     x: 0,
@@ -25,19 +26,21 @@ const variants = {
     scale: 1,
     boxShadow: '0 0 0 rgba(42, 26, 14, 0)',
     zIndex: 2,
+    pointerEvents: 'auto' as const,
   },
   exit: (dir: number) => ({
     x: dir > 0 ? '-14%' : '14%',
     opacity: 0.82,
     scale: 0.99,
     zIndex: 1,
+    pointerEvents: 'none' as const,
   }),
 };
 
 const reducedVariants = {
-  enter: { opacity: 0, zIndex: 2 },
-  center: { opacity: 1, zIndex: 2 },
-  exit: { opacity: 0, zIndex: 1 },
+  enter: { opacity: 0, zIndex: 2, pointerEvents: 'auto' as const },
+  center: { opacity: 1, zIndex: 2, pointerEvents: 'auto' as const },
+  exit: { opacity: 0, zIndex: 1, pointerEvents: 'none' as const },
 };
 
 function currentHistoryIdx(): number {

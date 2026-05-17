@@ -31,6 +31,7 @@ export const SPRING = {
   sheet: { type: 'spring', damping: 30, stiffness: 300 },
   content: { type: 'spring', damping: 26, stiffness: 260 },
   outcome: { type: 'spring', damping: 26, stiffness: 280 },
+  press: { type: 'spring', damping: 20, stiffness: 400, mass: 0.8 },
 } as const;
 
 export const MICRO_BOUNCE_TRANSITION = {

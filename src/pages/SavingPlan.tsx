@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { CalendarPicker } from '../components/CalendarPicker/CalendarPicker';
@@ -162,14 +162,14 @@ export function SavingPlan() {
       plan_id: 'preview',
       room_id: 'preview',
       user_id: 'preview',
-      effective_from_date: effectiveFromDate,
+      effective_from_date: planStartDate || effectiveFromDate,
       rule_type: ruleType,
       amount: amountNum,
       start_amount: null,
       increment_amount: null,
       cap_amount: null,
       target_amount: targetNum,
-      end_date: endDate && endDate >= effectiveFromDate ? endDate : null,
+      end_date: endDate && endDate >= (planStartDate || effectiveFromDate) ? endDate : null,
       day_count: null,
       created_at: new Date().toISOString(),
     }];
@@ -179,7 +179,10 @@ export function SavingPlan() {
     if (!previewRevisions) return null;
     const rev = previewRevisions[0];
     const targetNum = Number(rev.target_amount);
-    const beforeStart = addDays(effectiveFromDate, -1);
+    // Use the revision's own start date so projections honour a future
+    // start date picked by the user (HOTFIX-003).
+    const revStart = rev.effective_from_date;
+    const beforeStart = addDays(revStart, -1);
 
     // Increasing daily (capped)
     if (rev.rule_type === 'increasing_daily_capped') {
@@ -189,7 +192,7 @@ export function SavingPlan() {
         if (!finish) {
           return { mode: 'target' as const, unreachable: true as const, capAmount: capNum };
         }
-        const days = daysInclusive(effectiveFromDate, finish);
+        const days = daysInclusive(revStart, finish);
         const total = plannedCumulativeThroughDate(previewRevisions, finish, Math.max(4000, days + 10));
         return {
           mode: 'target' as const,
@@ -202,7 +205,7 @@ export function SavingPlan() {
       }
       if (stopMode === 'days') {
         if (!rev.day_count) return null;
-        const endKey = addDays(effectiveFromDate, rev.day_count - 1);
+        const endKey = addDays(revStart, rev.day_count - 1);
         const total = plannedCumulativeThroughDate(previewRevisions, endKey, Math.max(4000, rev.day_count + 10));
         return {
           mode: 'days' as const,
@@ -216,7 +219,7 @@ export function SavingPlan() {
       }
       if (!rev.end_date) return null;
       const total = plannedCumulativeThroughDate(previewRevisions, rev.end_date, 4000);
-      const days = daysInclusive(effectiveFromDate, rev.end_date);
+      const days = daysInclusive(revStart, rev.end_date);
       return {
         mode: 'date' as const,
         finishDateKey: rev.end_date,
@@ -244,7 +247,7 @@ export function SavingPlan() {
       };
     }
     if (rev.end_date) {
-      const days = daysInclusive(effectiveFromDate, rev.end_date);
+      const days = daysInclusive(revStart, rev.end_date);
       const total = plannedCumulativeThroughDate(previewRevisions, rev.end_date, Math.max(4000, days + 10));
       return {
         mode: 'fixed' as const,
@@ -272,7 +275,7 @@ export function SavingPlan() {
         target: targetNum,
       };
     }
-    const days = daysInclusive(effectiveFromDate, finish);
+    const days = daysInclusive(revStart, finish);
     const total = plannedCumulativeThroughDate(previewRevisions, finish, Math.max(4000, days + 10));
     return {
       mode: 'fixed' as const,
@@ -286,7 +289,7 @@ export function SavingPlan() {
       target: targetNum,
       reachesTarget: true,
     };
-  }, [previewRevisions, stopMode, effectiveFromDate]);
+  }, [previewRevisions, stopMode]);
 
   // Per-date amount function passed to CalendarPicker cells.
   const getAmountForDate = useMemo<((dateKey: string) => number | undefined) | undefined>(() => {
@@ -458,11 +461,11 @@ export function SavingPlan() {
 
     // Changes always apply from today: send undefined so the RPC uses
     // its own Asia/Bangkok v_today, eliminating any client-side date
-    // drift. Creates may legitimately future-start an increasing_daily
-    // plan via the date-range picker, so the create path forwards the
-    // explicit planStartDate.
+    // drift. Creates may legitimately future-start ANY plan type, so
+    // the create path forwards the explicit planStartDate when it is
+    // in the future (HOTFIX-003).
     const isFutureStartCreate =
-      !isChange && ruleType === 'increasing_daily' && planStartDate > effectiveFromDate;
+      !isChange && planStartDate > effectiveFromDate;
     const effectiveFromDateForRpc = isChange
       ? undefined
       : isFutureStartCreate

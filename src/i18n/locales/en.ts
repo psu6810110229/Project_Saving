@@ -313,6 +313,11 @@ export const en = {
         title: 'Smoother page motion',
         body: 'Page changes and loading states now feel cleaner and softer.',
       },
+      {
+        id: 'plan-change-fix',
+        title: 'Fixed plan change',
+        body: 'Changing your saving plan now works correctly.',
+      },
     ],
   },
   bucket: {

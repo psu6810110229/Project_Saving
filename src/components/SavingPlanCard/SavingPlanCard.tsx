@@ -127,7 +127,7 @@ export function SavingPlanCard({
             </div>
             <button
               type="button"
-              onClick={onConfigure}
+              onClick={e => { e.stopPropagation(); onConfigure(); }}
               className="shrink-0 rounded-pill bg-brand-500 px-4 py-2 font-mono text-xs font-bold text-ink-inverse shadow-haloOrange transition-transform"
             >
               {d.setUpPlan}
@@ -184,7 +184,7 @@ export function SavingPlanCard({
         </p>
         <button
           type="button"
-          onClick={onConfigure}
+          onClick={e => { e.stopPropagation(); onConfigure(); }}
           aria-label={d.changePlan}
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-transform"
         >

@@ -306,12 +306,27 @@ export const en = {
     viewAllChanges: (count: number) => `View all changes (${count} more)`,
     showLess: 'Show less',
     heading: 'GO-OUT v0.9.7',
-    intro: 'Navigation now feels smoother and more app-like.',
+    intro: 'We’ve polished navigation, saving plans, and notifications for a smoother experience.',
     notes: [
       {
         id: 'apple-style-motion',
-        title: 'Smoother page motion',
-        body: 'Page changes and loading states now feel cleaner and softer.',
+        title: 'Smoother page transitions',
+        body: 'Navigating between screens and loading pages now feel cleaner, softer, and more app-like.',
+      },
+      {
+        id: 'plan-flexibility-fix',
+        title: 'Seamless saving plan edits',
+        body: 'Fixed saving plan updates and future start-dates, allowing you to change your plans instantly without date-related errors.',
+      },
+      {
+        id: 'roomless-navigation',
+        title: 'Access settings offline',
+        body: 'You can now browse settings, edit your profile, or view archived projects even if you do not have an active project.',
+      },
+      {
+        id: 'reminder-nudge-reliability',
+        title: 'Reliable reminders & nudges',
+        body: 'Receive timely daily deposit reminders and partner nudges across all plan types, with cleaner menus and toggles.',
       },
     ],
   },

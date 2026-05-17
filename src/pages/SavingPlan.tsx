@@ -54,11 +54,14 @@ export function SavingPlan() {
     { id: 'date',   label: sp.stopOptionDate },
   ];
 
-  // HOTFIX-004: fall back to the earliest future revision when no
-  // revision is active today (future-start plans).
+  // HOTFIX-004 + HOTFIX-006: prefer the earliest upcoming revision
+  // (the user's scheduled plan change) so that after saving a
+  // future-start plan change the form shows the new parameters, not
+  // today's active revision.  The active revision remains untouched
+  // in savingPlan.ts for today's accrual calculations.
   const latestRevision = plan
-    ? (activeRevisionAt(plan.revisions, todayBangkokKey())
-       ?? nextUpcomingRevision(plan.revisions, todayBangkokKey()))
+    ? (nextUpcomingRevision(plan.revisions, todayBangkokKey())
+       ?? activeRevisionAt(plan.revisions, todayBangkokKey()))
     : null;
   const isChange = Boolean(plan);
   const openPause = plan?.pauses.find(p => p.resumed_from === null) ?? null;

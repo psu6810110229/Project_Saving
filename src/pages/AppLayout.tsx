@@ -25,6 +25,14 @@ import type { ProjectCategory } from '../types';
 
 type SetupMode = 'create' | 'join';
 
+const ROOMLESS_ROUTES = ['/archived-projects', '/profile'];
+
+function isRoomlessRoute(pathname: string): boolean {
+  return ROOMLESS_ROUTES.some(
+    prefix => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,6 +42,7 @@ export function AppLayout() {
   const al = copy.appLayout;
   const activeTab = tabFromPath(location.pathname);
   const outlet = useOutlet();
+  const roomlessAllowed = isRoomlessRoute(location.pathname);
 
   return (
     <AppShell
@@ -47,7 +56,14 @@ export function AppLayout() {
       <ProfileLanguageSync />
       {loading && <LoadingState variant="card" label={al.loadingTitle} title={al.loadingTitle} body={al.loadingBody} />}
       {!loading && error && <StatusCard title={al.errorTitle} body={error} />}
-      {!loading && !error && !activeRoom && <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />}
+      {!loading && !error && !activeRoom && !roomlessAllowed && (
+        <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />
+      )}
+      {!loading && !error && !activeRoom && roomlessAllowed && (
+        <PageTransition transitionKey={location.pathname}>
+          {outlet}
+        </PageTransition>
+      )}
       {!loading && !error && activeRoom && (
         <DataProvider roomId={activeRoom.id}>
           <PageTransition transitionKey={location.pathname}>

@@ -8,6 +8,7 @@ import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { SlipAttachField } from '../SlipAttachField/SlipAttachField';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
+import { SHOW_ATTACHED_SLIP } from '../../lib/flags';
 
 interface AddMoneyFormProps {
   bucketIcon: ReactNode;
@@ -83,7 +84,7 @@ export function AddMoneyForm({
         <p className="-mt-2 font-mono text-xs text-ink-muted">{smartDefaultHint}</p>
       )}
       <ProjectedProgressCard bucketName={bucketName} saved={saved} target={target} pendingDeposit={amount} />
-      <SlipAttachField file={slip} onChange={onSlipChange} />
+      {SHOW_ATTACHED_SLIP && <SlipAttachField file={slip} onChange={onSlipChange} />}
       <Button variant="action" fullWidth type="submit">{copy.addMoney.confirmDepositButton}</Button>
     </form>
   );

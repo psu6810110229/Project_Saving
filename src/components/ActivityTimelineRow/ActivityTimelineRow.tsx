@@ -2,6 +2,7 @@ import { Avatar } from '../Avatar/Avatar';
 import { Chip } from '../Chip/Chip';
 import { IconSlip } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
+import { SHOW_ATTACHED_SLIP } from '../../lib/flags';
 import { useI18n } from '../../i18n/useI18n';
 
 /**
@@ -47,7 +48,7 @@ export function ActivityTimelineRow({
         <div className="mt-0.5 font-mono text-xs text-ink-muted truncate">
           {d.depositedInto} <span className="text-brand-800">{bucketName}</span>
         </div>
-        {hasSlip && (
+        {SHOW_ATTACHED_SLIP && hasSlip && (
           <div className="mt-1.5">
             <button type="button" onClick={onViewSlip} disabled={!onViewSlip}>
               <Chip tone="peach" icon={<IconSlip size={12} />}>{d.slipAttached}</Chip>

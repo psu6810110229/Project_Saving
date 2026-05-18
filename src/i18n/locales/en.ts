@@ -230,7 +230,7 @@ export const en = {
   addMoney: {
     pageEyebrow: 'Add Money',
     pageTitle: 'Deposit to a bucket',
-    pageSubtitle: 'Manual entry and slip attachment',
+    pageSubtitle: 'Manual deposit entry',
     loadingAriaLabel: 'Loading deposit flow',
     createFirstTitle: 'Create your first bucket',
     createFirstBody: 'Deposits need a destination before they can be saved.',

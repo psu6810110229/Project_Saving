@@ -2,6 +2,7 @@
 import { ActivityTimelineRow } from '../ActivityTimelineRow/ActivityTimelineRow';
 import { Modal } from '../Modal/Modal';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { SHOW_ATTACHED_SLIP } from '../../lib/flags';
 
 interface ActivityFeedItem {
   id: string;
@@ -44,7 +45,7 @@ export function ActivityFeed({ label = 'Activity Feed', items, onViewMore, previ
           <ActivityTimelineRow
             key={item.id}
             {...item}
-            onViewSlip={item.slipUrl ? () => setSlipUrl(item.slipUrl ?? null) : undefined}
+            onViewSlip={SHOW_ATTACHED_SLIP && item.slipUrl ? () => setSlipUrl(item.slipUrl ?? null) : undefined}
           />
         ))}
         {onViewMore && hiddenCount > 0 && (
@@ -57,15 +58,17 @@ export function ActivityFeed({ label = 'Activity Feed', items, onViewMore, previ
           </button>
         )}
       </div>
-      <Modal open={Boolean(slipUrl)} title="Transfer Slip" onClose={() => setSlipUrl(null)}>
-        {displayUrl ? (
-          <img src={displayUrl} alt="Transfer slip" className="max-h-[70dvh] w-full rounded-lg object-contain" />
-        ) : (
-          <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-sm text-brand-800">
-            Slip reference saved: {slipUrl?.replace('attached:', '')}
-          </p>
-        )}
-      </Modal>
+      {SHOW_ATTACHED_SLIP && (
+        <Modal open={Boolean(slipUrl)} title="Transfer Slip" onClose={() => setSlipUrl(null)}>
+          {displayUrl ? (
+            <img src={displayUrl} alt="Transfer slip" className="max-h-[70dvh] w-full rounded-lg object-contain" />
+          ) : (
+            <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-sm text-brand-800">
+              Slip reference saved: {slipUrl?.replace('attached:', '')}
+            </p>
+          )}
+        </Modal>
+      )}
     </section>
   );
 }

@@ -218,7 +218,7 @@ export const th: Messages = {
   addMoney: {
     pageEyebrow: 'หยอดเงิน',
     pageTitle: 'หยอดเงินเข้าเป้าหมายย่อย',
-    pageSubtitle: 'บันทึกด้วยตัวเอง แนบสลิปได้',
+    pageSubtitle: 'บันทึกยอดฝากด้วยตัวเอง',
     loadingAriaLabel: 'กำลังโหลดหน้าหยอดเงิน',
     createFirstTitle: 'สร้างเป้าหมายย่อยก่อนเลย',
     createFirstBody: 'ต้องมีเป้าหมายย่อยก่อนถึงจะบันทึกยอดได้',

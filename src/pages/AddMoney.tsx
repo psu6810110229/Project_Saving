@@ -27,6 +27,7 @@ import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved } from '../lib/buckets';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
+import { SHOW_ATTACHED_SLIP } from '../lib/flags';
 import { haptic } from '../lib/haptics';
 import type { BucketCategory } from '../types';
 
@@ -121,7 +122,7 @@ export function AddMoney() {
       setReviewing(false);
       return;
     }
-    const slipMarker = slip ? `attached:${slip.name}` : null;
+    const slipMarker = SHOW_ATTACHED_SLIP && slip ? `attached:${slip.name}` : null;
     const prevBucketSaved = bucketSaved(selectedBucket.id, logs);
     const result = await insert(amount, selectedBucket.id, undefined, slipMarker);
     if (result.error) setMessage(result.error);
@@ -192,7 +193,7 @@ export function AddMoney() {
         <ConfirmDepositPanel
           bannerIcon={<IconRocket size={22} />}
           bannerTitle={copy.addMoney.confirmBannerTitle(formatMoney(amount), selectedBucket.name)}
-          bannerBody={slip ? copy.addMoney.confirmBannerBodySlip : copy.addMoney.confirmBannerBodyNoSlip}
+          bannerBody={SHOW_ATTACHED_SLIP ? (slip ? copy.addMoney.confirmBannerBodySlip : copy.addMoney.confirmBannerBodyNoSlip) : undefined}
           mineLabel={profile?.display_name ?? copy.dashboard.youLabel}
           theirLabel={partner?.displayName ?? copy.addMoney.partnerLabel}
           mineSeries={cumulativeAmountSeries(logs, user?.id, amount)}

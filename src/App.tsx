@@ -19,42 +19,52 @@ import { NotificationSettings } from './pages/NotificationSettings';
 import { OrganismsPreview } from './pages/OrganismsPreview';
 import { Profile } from './pages/Profile';
 import { NotFound } from './pages/NotFound';
+import { ScreensPreview } from './pages/ScreensPreview';
 
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <I18nProvider>
-        <RoomProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/atoms" element={<AtomsPreview />} />
-            <Route path="/molecules" element={<MoleculesPreview />} />
-            <Route path="/organisms" element={<OrganismsPreview />} />
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/add" element={<AddMoney />} />
-              <Route path="/check-balance" element={<CheckBalance />} />
-              <Route path="/saving-plan" element={<SavingPlan />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/manage-project" element={<ManageProject />} />
-              <Route path="/archived-projects" element={<ArchivedProjects />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/notifications/settings" element={<NotificationSettings />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </RoomProvider>
-        </I18nProvider>
-      </AuthProvider>
+      <Routes>
+        {/* Public screen preview — no auth or Supabase required */}
+        <Route path="/screens" element={<ScreensPreview />} />
+        <Route
+          path="*"
+          element={
+            <AuthProvider>
+              <I18nProvider>
+                <RoomProvider>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/auth/callback" element={<AuthCallback />} />
+                    <Route path="/atoms" element={<AtomsPreview />} />
+                    <Route path="/molecules" element={<MoleculesPreview />} />
+                    <Route path="/organisms" element={<OrganismsPreview />} />
+                    <Route
+                      element={
+                        <ProtectedRoute>
+                          <AppLayout />
+                        </ProtectedRoute>
+                      }
+                    >
+                      <Route index element={<Navigate to="/dashboard" replace />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/add" element={<AddMoney />} />
+                      <Route path="/check-balance" element={<CheckBalance />} />
+                      <Route path="/saving-plan" element={<SavingPlan />} />
+                      <Route path="/profile" element={<Profile />} />
+                      <Route path="/manage-project" element={<ManageProject />} />
+                      <Route path="/archived-projects" element={<ArchivedProjects />} />
+                      <Route path="/notifications" element={<Notifications />} />
+                      <Route path="/notifications/settings" element={<NotificationSettings />} />
+                    </Route>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </RoomProvider>
+              </I18nProvider>
+            </AuthProvider>
+          }
+        />
+      </Routes>
     </BrowserRouter>
   );
 }

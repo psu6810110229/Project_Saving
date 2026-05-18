@@ -246,6 +246,24 @@ export const th: Messages = {
     slipTapToAttach: 'แตะเพื่อแนบสลิปโอนเงิน',
     partnerLabel: 'คู่คุณ',
   },
+  milestoneCelebration: {
+    title: (threshold: 25 | 50 | 75 | 90) => {
+      if (threshold === 25) return 'เก็บได้หนึ่งในสี่แล้ว';
+      if (threshold === 50) return 'มาถึงครึ่งทางแล้ว';
+      if (threshold === 75) return 'เก็บได้สามในสี่แล้ว';
+      return 'ใกล้ถึงเป้าหมายแล้ว';
+    },
+    body: (threshold: 25 | 50 | 75 | 90) =>
+      `ยอดรวมในโปรเจกต์เพิ่งข้าม ${threshold} เปอร์เซ็นต์ของเป้าหมาย`,
+    cta: 'เข้าใจแล้ว',
+  },
+  streakFreeze: {
+    remaining: (n: number): string =>
+      `เหลือสิทธิ์ข้ามวันเดือนนี้: ${n}`,
+    coveredYesterday: 'เมื่อวานนี้',
+    coveredHint: (dateLabel: string): string =>
+      `เราข้ามวัน${dateLabel}ให้แล้ว`,
+  },
   projectSetup: {
     title: 'เริ่มโปรเจกต์เก็บเงิน',
     subtitle: 'สร้างเป้าหมายทริปญี่ปุ่น หรือเข้าร่วมด้วยรหัสของคู่คุณ',

@@ -306,3 +306,40 @@ export interface NotificationPreferencesUpdate {
   product_updates_enabled?: boolean;
   prompt_dismissed_until?: string | null;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Milestone celebrations (SPRINT1-002, migration 0050).
+ * ──────────────────────────────────────────────────────────────────── */
+
+/** Room-progress crossings that surface a one-shot celebration modal. */
+export type MilestoneThreshold = 25 | 50 | 75 | 90;
+
+export interface MilestoneAcknowledgement {
+  id: string;
+  room_id: string;
+  user_id: string;
+  threshold: MilestoneThreshold;
+  acknowledged_at: string;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Streak freeze (SPRINT1-003, migration 0051).
+ * ──────────────────────────────────────────────────────────────────── */
+
+/** Per-user monthly cap on automatically-spent streak freezes. */
+export interface StreakFreezeBudget {
+  user_id: string;
+  monthly_budget: number;
+  updated_at: string;
+}
+
+/** Append-only audit row each time a freeze is spent. */
+export interface StreakFreezeUsage {
+  id: string;
+  user_id: string;
+  /** Bangkok-local calendar date that was skipped, ISO `YYYY-MM-DD`. */
+  frozen_date: string;
+  /** `YYYY-MM`, Bangkok-local, used for the monthly-budget query. */
+  month_key: string;
+  created_at: string;
+}

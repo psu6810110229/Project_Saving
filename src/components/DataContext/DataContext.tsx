@@ -9,6 +9,7 @@ import { usePartnerSavingPlan } from '../../hooks/usePartnerSavingPlan';
 import { useProfile } from '../../hooks/useProfile';
 import { useReconcile } from '../../hooks/useReconcile';
 import { useSavingPlan } from '../../hooks/useSavingPlan';
+import { useStreakFreeze } from '../../hooks/useStreakFreeze';
 import { DataContext, type DataContextValue } from './DataContextValue';
 
 // Hoists every page-shared data hook to one mount so tab navigation
@@ -18,7 +19,8 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const profile = useProfile();
   const buckets = useBuckets(roomId);
   const logs = useLogs(100, roomId);
-  const leaderboard = useLeaderboard(logs.logs, user?.id, roomId);
+  const streakFreeze = useStreakFreeze(user?.id);
+  const leaderboard = useLeaderboard(logs.logs, user?.id, roomId, streakFreeze.frozenDates);
   const goal = useGoal(roomId);
   const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
   const partnerBuckets = usePartnerBuckets(roomId, partnerEntry?.userId ?? null);
@@ -27,8 +29,8 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const reconcile = useReconcile(roomId);
 
   const value = useMemo<DataContextValue>(
-    () => ({ profile, buckets, logs, leaderboard, goal, partnerBuckets, savingPlan, partnerSavingPlan, reconcile }),
-    [profile, buckets, logs, leaderboard, goal, partnerBuckets, savingPlan, partnerSavingPlan, reconcile],
+    () => ({ profile, buckets, logs, leaderboard, goal, partnerBuckets, savingPlan, partnerSavingPlan, reconcile, streakFreeze }),
+    [profile, buckets, logs, leaderboard, goal, partnerBuckets, savingPlan, partnerSavingPlan, reconcile, streakFreeze],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

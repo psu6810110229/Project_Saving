@@ -24,14 +24,14 @@ export function BottomNav({ activeTab, onChange }: BottomNavProps) {
   return (
     <nav
       ref={navRef}
-      className="shrink-0 px-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-0 bg-transparent"
+      className="shrink-0 bg-surface border-t border-ink/10 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1"
     >
       <div
         ref={pillRef}
-        className="relative mx-auto max-w-md rounded-full px-2 py-1.5 flex items-center bg-white/30 backdrop-blur-2xl backdrop-saturate-150 ring-1 ring-white/40 shadow-[0_4px_24px_-6px_rgba(60,40,20,0.12)]"
+        className="relative mx-auto max-w-xs px-2 flex items-center"
       >
         {/* Tabs */}
-        <div className="relative z-10 flex items-center w-full">
+        <div className="relative flex items-center w-full">
           {TAB_ICONS.map(tab => (
             <BottomTabItem
               key={tab.id}

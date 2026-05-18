@@ -14,22 +14,22 @@ export function BottomTabItem({ label, icon, active = false, onClick }: BottomTa
     <motion.button
       type="button"
       onClick={onClick}
-      whileTap={{ scale: 0.88 }}
+      whileTap={{ scale: 0.86 }}
       transition={SPRING.press}
       className="flex flex-col items-center gap-1 flex-1 py-1 outline-none"
       aria-current={active ? 'page' : undefined}
     >
-      <span className="relative inline-flex items-center justify-center w-11 h-11">
+      <span className="relative inline-flex items-center justify-center w-7 h-7">
         {active && (
           <motion.span
             layoutId="bottom-tab-indicator"
-            className="absolute inset-0 rounded-full bg-brand-800 shadow-[0_4px_12px_-2px_rgba(142,63,13,0.45),inset_0_1px_0_0_rgba(255,255,255,0.25)]"
+            className="absolute inset-0 rounded-full bg-brand-600 shadow-[0_4px_12px_-2px_rgba(142,63,13,0.45),inset_0_1px_0_0_rgba(255,255,255,0.25)]"
             transition={SPRING.tab}
           />
         )}
         <motion.span
           animate={{
-            scale: active ? 1.08 : 1,
+            scale: active ? 1.2 : 0.7,
             color: active ? '#FFF8F0' : '#7A6A5E',
           }}
           transition={SPRING.tab}
@@ -45,7 +45,7 @@ export function BottomTabItem({ label, icon, active = false, onClick }: BottomTa
           y: active ? 0 : 1,
         }}
         transition={SPRING.tab}
-        className="text-[11px] tracking-wider font-mono font-semibold uppercase"
+        className="text-[10px] tracking-wider font-mono font-bold uppercase"
       >
         {label}
       </motion.span>

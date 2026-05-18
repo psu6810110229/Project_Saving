@@ -258,6 +258,17 @@ export const en = {
     slipTapToAttach: 'Tap to attach a transfer slip',
     partnerLabel: 'Partner',
   },
+  milestoneCelebration: {
+    title: (threshold: 25 | 50 | 75 | 90): string => {
+      if (threshold === 25) return 'First quarter saved';
+      if (threshold === 50) return 'Halfway to the goal';
+      if (threshold === 75) return 'Three quarters of the way';
+      return 'Almost there';
+    },
+    body: (threshold: 25 | 50 | 75 | 90): string =>
+      `Your shared vault just crossed ${threshold} percent of the project target.`,
+    cta: 'Got it',
+  },
   projectSetup: {
     title: 'Start a savings project',
     subtitle: "Create the Japan trip vault or join with Art's code.",

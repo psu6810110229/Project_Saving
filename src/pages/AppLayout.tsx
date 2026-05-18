@@ -7,6 +7,7 @@ import { CreateProjectForm } from '../components/CreateProjectForm/CreateProject
 import { DataProvider } from '../components/DataContext/DataContext';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { LoadingState } from '../components/LoadingState/LoadingState';
+import { MilestoneCelebrationModal } from '../components/MilestoneCelebrationModal/MilestoneCelebrationModal';
 import { PageTransition } from '../components/PageTransition/PageTransition';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
@@ -16,9 +17,12 @@ import {
   IconPlane,
   IconSmartphone,
 } from '../components/Icon/Icon';
+import { useAuth } from '../hooks/useAuth';
+import { useMilestoneCrossings } from '../hooks/useMilestoneCrossings';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useProfile } from '../hooks/useProfile';
+import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { LANGUAGE_STORAGE_KEY, isLanguage } from '../i18n/languages';
 import type { ProjectCategory } from '../types';
@@ -71,9 +75,46 @@ export function AppLayout() {
           <PageTransition transitionKey={location.pathname}>
             {outlet}
           </PageTransition>
+          <MilestoneCelebration roomId={activeRoom.id} />
         </DataProvider>
       )}
     </AppShell>
+  );
+}
+
+/**
+ * Watches the shared room totals (sum of every member's recorded
+ * deposits vs sum of every member's target — matching the percent
+ * shown in TotalVaultCard) and surfaces the one-shot
+ * MilestoneCelebrationModal when a 25 / 50 / 75 / 90 threshold has
+ * been crossed but not yet acknowledged for the current user.
+ *
+ * Lives inside DataProvider so it only mounts on room-bound routes
+ * and gets realtime updates for free from useLeaderboard /
+ * useMilestoneCrossings.
+ */
+function MilestoneCelebration({ roomId }: { roomId: string }) {
+  const { user } = useAuth();
+  const { leaderboard, goal } = useSharedData();
+  const totalSaved = leaderboard.entries.reduce((sum, entry) => sum + entry.saved, 0);
+  const totalTarget =
+    leaderboard.entries.reduce((sum, entry) => sum + (entry.target ?? 0), 0)
+    || (goal.goal?.target_amount ?? 0);
+  const { pendingThreshold, acknowledge } = useMilestoneCrossings({
+    roomId,
+    userId: user?.id,
+    totalSaved,
+    target: totalTarget,
+  });
+  function handleAcknowledge() {
+    void acknowledge();
+  }
+  return (
+    <MilestoneCelebrationModal
+      open={pendingThreshold !== null}
+      threshold={pendingThreshold}
+      onAcknowledge={handleAcknowledge}
+    />
   );
 }
 

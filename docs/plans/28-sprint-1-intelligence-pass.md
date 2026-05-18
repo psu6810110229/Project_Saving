@@ -222,7 +222,7 @@ None.
 
 ## SPRINT1-002: Milestone Celebrations at 25 / 50 / 75 / 90 %
 
-- **Status**: not started
+- **Status**: shipped
 - **Priority**: P1
 - **Risk**: medium (small new table + cross-user dedupe)
 
@@ -398,10 +398,56 @@ ordering complexity that `notify-partner-deposit` had to solve.
   threshold currently above their saved total.
 
 ### Verification notes
-- *(empty)*
+- Migration `0050_milestone_acknowledgements.sql` adds the
+  `milestone_acknowledgements` table (id / room_id / user_id /
+  threshold / acknowledged_at), a unique constraint on
+  `(room_id, user_id, threshold)`, the `(room_id, user_id)`
+  read index, RLS policies that reuse `public.is_room_member`,
+  and the `public.acknowledge_milestone(p_room_id, p_threshold)`
+  security-definer RPC with `on conflict do nothing`. No
+  client update / delete policies are defined.
+- `src/hooks/useMilestoneCrossings.ts` loads the
+  `(room_id, user_id)` slice of acknowledgements on mount, keeps
+  it in sync via a realtime `INSERT` subscription scoped to the
+  current `user_id`, and exposes `pendingThreshold` (the
+  highest crossed-but-unacknowledged threshold) plus an
+  `acknowledge()` action that silently catches up any lower
+  crossed threshold so a fresh join past 50 % does not surface
+  a stale 25 % modal later.
+- `src/components/MilestoneCelebrationModal/MilestoneCelebrationModal.tsx`
+  composes the existing `OutcomeModal` (`outcome="success"`)
+  with the existing `IconPiggyBank` inside `IconBubble`
+  (`tone="solid"` + `shadow-haloOrange`) and a single `Button`
+  CTA. The icon bubble uses a framer-motion scale-in driven by
+  `SPRING.outcome` and collapses to a flat fade when
+  `useReducedMotion()` is true.
+- Mounted via a small `MilestoneCelebration` container in
+  `src/pages/AppLayout.tsx` inside `<DataProvider>`. Room
+  totals are read from `useSharedData()` — `totalSaved` sums
+  `leaderboard.entries[i].saved`, `totalTarget` sums their
+  targets and falls back to `goal.target_amount` — so the
+  threshold check matches what `TotalVaultCard` already
+  displays on the dashboard.
+- Locale copy lives under `milestoneCelebration.{title, body,
+  cta}` in `src/i18n/locales/en.ts` and `th.ts`. Plain
+  sentence form, no emoji. Return types are explicitly widened
+  to `string` so the Thai variant satisfies `Messages`.
+- New shared types `MilestoneThreshold` (`25 | 50 | 75 | 90`)
+  and `MilestoneAcknowledgement` were added to
+  `src/types/index.ts`. No `any` introduced.
+- `npm run build` passes locally. `npm run lint` passes for
+  every file touched by this slice; one pre-existing error
+  in `supabase/functions/send-nudge/index.ts` is recorded in
+  *Follow-up findings* below.
 
 ### Follow-up findings
-- *(empty)*
+- `supabase/functions/send-nudge/index.ts:180` has an unused
+  `_error` binding that fails `npm run lint`. Predates this
+  slice (introduced in `53e3a89`, the `feat(nudge): move
+  button to head-to-head card and randomize Thai push body`
+  commit). Left untouched per the "no adjacent fixes" sprint
+  rule — should be cleaned up in a dedicated fix or alongside
+  the next nudge change.
 
 ---
 

@@ -23,6 +23,7 @@ interface AddMoneyFormProps {
   onSlipChange: (file: File | null) => void;
   onSubmit: () => void;
   onEditQuickAmounts?: () => void;
+  smartDefaultHint?: string | null;
 }
 
 export function AddMoneyForm({
@@ -39,6 +40,7 @@ export function AddMoneyForm({
   onSlipChange,
   onSubmit,
   onEditQuickAmounts,
+  smartDefaultHint,
 }: AddMoneyFormProps) {
   const { copy } = useI18n();
   const amount = Number(amountValue) || selectedQuickAmount || 0;
@@ -77,6 +79,9 @@ export function AddMoneyForm({
           onChange={(event: ChangeEvent<HTMLInputElement>) => onAmountChange(event.target.value)}
         />
       </FormField>
+      {smartDefaultHint && (
+        <p className="-mt-2 font-mono text-xs text-ink-muted">{smartDefaultHint}</p>
+      )}
       <ProjectedProgressCard bucketName={bucketName} saved={saved} target={target} pendingDeposit={amount} />
       <SlipAttachField file={slip} onChange={onSlipChange} />
       <Button variant="action" fullWidth type="submit">{copy.addMoney.confirmDepositButton}</Button>

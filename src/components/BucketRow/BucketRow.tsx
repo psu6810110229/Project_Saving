@@ -43,7 +43,7 @@ export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps
         </p>
       </div>
 
-      <div className="mt-auto w-full pt-3">
+      <div className="mt-auto w-full pb-1 pt-3">
         <ProgressBar key={saved} value={pct} tone="primary" size="sm" animate className="bg-brand-50" />
       </div>
     </Pressable>

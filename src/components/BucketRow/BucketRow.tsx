@@ -28,22 +28,22 @@ export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps
   return (
     <Pressable
       onClick={onClick}
-      className="relative flex min-h-[13.5rem] w-full flex-col items-center rounded-2xl bg-surface px-4 pb-4 pt-8 text-center shadow-soft"
+      className="relative flex aspect-square w-full flex-col items-center rounded-2xl bg-surface px-4 pb-4 pt-7 text-center shadow-soft"
     >
       <span className="absolute right-4 top-4 font-mono text-sm font-bold text-brand-500">
         {Math.round(pct)}%
       </span>
 
-      <IconBubble tone="peach" size="lg" className="text-brand-500">{icon}</IconBubble>
+      <IconBubble tone="peach" size="md" className="text-brand-500">{icon}</IconBubble>
 
-      <div className="mt-4 w-full">
-        <p className="truncate font-mono text-base font-bold leading-tight text-ink">{name}</p>
-        <p className="mt-2 font-mono text-sm leading-tight text-ink-muted">
+      <div className="mt-3 w-full">
+        <p className="truncate font-mono text-sm font-bold leading-tight text-ink">{name}</p>
+        <p className="mt-1.5 font-mono text-xs leading-tight text-ink-muted">
           {formatCurrency(saved)} / {formatCurrency(target)}
         </p>
       </div>
 
-      <div className="mt-auto w-full pt-4">
+      <div className="mt-auto w-full pt-3">
         <ProgressBar key={saved} value={pct} tone="primary" size="sm" animate className="bg-brand-50" />
       </div>
     </Pressable>

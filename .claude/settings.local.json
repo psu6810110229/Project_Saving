@@ -22,7 +22,9 @@
       "Bash(git pull *)",
       "Bash(git merge *)",
       "Bash(supabase functions *)",
-      "PowerShell(Get-ChildItem *)"
+      "PowerShell(Get-ChildItem *)",
+      "Bash(git fetch *)",
+      "Bash(npx supabase *)"
     ]
   }
 }

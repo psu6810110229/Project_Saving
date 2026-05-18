@@ -56,7 +56,6 @@ import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import { SPRING } from '../lib/motion';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
   activeRevisionAt,
@@ -70,7 +69,7 @@ import {
 import type { SavingPlanRevision } from '../types';
 import type { BalanceActivityEntry, Bucket, BucketCategory } from '../types';
 
-/** Framer Motion spring stagger variants for the Dashboard cascade. */
+/** Framer Motion stagger variants for the Dashboard cascade. */
 const containerVariants = {
   hidden: {},
   visible: {
@@ -79,12 +78,10 @@ const containerVariants = {
 };
 
 const sectionVariants = {
-  hidden: { opacity: 0, y: 16, scale: 0.995 },
+  hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: SPRING.content,
+    transition: { duration: 0.18 },
   },
 };
 

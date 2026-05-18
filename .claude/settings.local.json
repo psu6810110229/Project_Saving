@@ -24,7 +24,8 @@
       "Bash(supabase functions *)",
       "PowerShell(Get-ChildItem *)",
       "Bash(git fetch *)",
-      "Bash(npx supabase *)"
+      "Bash(npx supabase *)",
+      "Bash(git switch *)"
     ]
   }
 }

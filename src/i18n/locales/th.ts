@@ -233,6 +233,7 @@ export const th: Messages = {
     outcomeDone: 'เสร็จแล้ว',
     depositAmountLabel: 'จำนวนเงินที่ตั้งไว้แล้ว',
     customAmountLabel: 'จำนวนเงินที่ระบุเอง',
+    smartDefaultHint: 'อิงจากยอดที่คุณบันทึกล่าสุด',
     projectedProgress: (bucketName: string) => `ความคืบหน้าของ ${bucketName}`,
     savedLabel: (amount: string) => `บันทึกแล้ว ${amount}`,
     projectedLabel: (amount: string, percent: number) => `เพิ่ม ${amount} ซึ่งจะทำให้คุณคืบหน้ากว่า ${percent}%`,

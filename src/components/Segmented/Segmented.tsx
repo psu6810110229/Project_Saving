@@ -36,9 +36,9 @@ export function Segmented<T extends string>({ options, value, onChange, ariaLabe
             aria-selected={active}
             onClick={() => onChange(option.value)}
             className={
-              'rounded-pill px-3 py-1 font-mono text-xs font-medium transition-colors ' +
+              'rounded-pill px-4 py-2 font-mono text-xs font-bold transition-all ' +
               (active
-                ? 'bg-surface text-ink shadow-soft'
+                ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
                 : 'text-ink-muted hover:text-ink')
             }
           >

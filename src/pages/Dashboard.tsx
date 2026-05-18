@@ -588,28 +588,19 @@ export function Dashboard() {
           </div>
         )}
         {showingPartner ? (
-          <section className="flex flex-col gap-3">
-            <div>
-              <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-800">
-                {d.smartBuckets}
-              </p>
-              <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{d.yourBuckets(partnerName)}</h2>
-              <p className="mt-1 font-mono text-sm text-ink-muted">
-                {d.bucketCount(partnerBucketItems.length)} — {d.bucketReadOnly}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {partnerBucketItems.map(bucket => (
-                <BucketRow
-                  key={bucket.id}
-                  icon={bucket.icon}
-                  name={bucket.name}
-                  saved={bucket.saved}
-                  target={bucket.target}
-                />
-              ))}
-            </div>
-          </section>
+          <BucketGrid
+            title={d.yourBuckets(partnerName)}
+            subtitle={`${d.bucketCount(partnerBucketItems.length)} — ${d.bucketReadOnly}`}
+            buckets={partnerBucketItems}
+            renderBucket={bucket => (
+              <BucketRow
+                icon={bucket.icon}
+                name={bucket.name}
+                saved={bucket.saved}
+                target={bucket.target}
+              />
+            )}
+          />
         ) : (
           <BucketGrid
             title={d.tripBuckets}

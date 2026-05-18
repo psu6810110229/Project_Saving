@@ -39,16 +39,15 @@ export function HeadToHeadCard({ left, right, partnerSlot }: HeadToHeadCardProps
   });
 
   return (
-    <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
-      <h2 className="font-mono text-xl font-bold tracking-tight text-ink">{d.progressRace}</h2>
-      <div className="mt-5 flex flex-col gap-5">
+    <section className="space-y-3">
+      <h2 className="font-mono text-base font-bold text-ink">{d.progressRace}</h2>
+      <div className="flex flex-col gap-3">
         <PlayerProgressRow
           {...rows[0]}
           isLeader={!tied}
           gapLabel={tied ? d.tied : d.leadingBy(formatCurrency(gap))}
           trailing={!rows[0].isYou ? partnerSlot : undefined}
         />
-        <div className="h-px bg-well" />
         <PlayerProgressRow
           {...rows[1]}
           gapLabel={undefined}

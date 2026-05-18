@@ -101,6 +101,7 @@ export const en = {
     vaultTarget: 'Target',
     // Header
     projectLabel: 'Project',
+    membersInRoom: (count: number) => `${count} member${count === 1 ? '' : 's'} in this room`,
     // Error state
     errorTitle: 'Dashboard needs a refresh',
     // Progress Race

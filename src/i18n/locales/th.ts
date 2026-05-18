@@ -101,6 +101,7 @@ export const th: Messages = {
     vaultSaved: 'เก็บไปแล้ว',
     vaultTarget: 'เป้าหมาย',
     projectLabel: '',
+    membersInRoom: (count: number) => `${count} คนในห้องนี้`,
     errorTitle: 'หน้าหลักต้องรีเฟรช',
     progressRace: 'ความคืบหน้าของทุกคน',
     tied: 'เท่ากันพอดี',

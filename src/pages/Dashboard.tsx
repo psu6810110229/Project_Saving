@@ -36,6 +36,7 @@ import {
   IconRocket,
   IconSmartphone,
   IconTicket,
+  IconUser,
   IconVault,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
@@ -483,23 +484,26 @@ export function Dashboard() {
     <motion.div className="flex flex-col gap-6" variants={containerVariants} initial="hidden" animate="visible">
       {/* Project header. Compact, no heavy card. */}
       <motion.header
-        className="flex flex-col gap-2"
+        className="flex items-start justify-between gap-3"
         variants={sectionVariants}
       >
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-            {d.projectLabel}
-          </p>
-          <div className="flex shrink-0 items-center gap-2">
-            <BellIconButton
-              unreadCount={unreadNotifications}
-              onClick={() => navigate('/notifications')}
-            />
+        <div className="min-w-0 flex-1">
+          <h1 className="max-w-full break-words font-mono text-2xl font-bold leading-tight text-ink line-clamp-2">
+            {activeRoom?.name ?? 'Japan 2027'}
+          </h1>
+          <div className="mt-1 flex items-center gap-1.5 text-ink-muted">
+            <IconUser size={14} />
+            <span className="font-mono text-xs">
+              {d.membersInRoom(leaderboard.entries.length)}
+            </span>
           </div>
         </div>
-        <h1 className="max-w-full break-words font-mono text-2xl font-bold leading-tight text-ink line-clamp-2">
-          {activeRoom?.name ?? 'Japan 2027'}
-        </h1>
+        <div className="flex shrink-0 items-center gap-2">
+          <BellIconButton
+            unreadCount={unreadNotifications}
+            onClick={() => navigate('/notifications')}
+          />
+        </div>
       </motion.header>
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}

@@ -98,6 +98,8 @@ export const th: Messages = {
   },
   dashboard: {
     recordedVault: 'ยอดเงินรวมของทุกคน',
+    vaultSaved: 'เก็บไปแล้ว',
+    vaultTarget: 'เป้าหมาย',
     projectLabel: '',
     errorTitle: 'หน้าหลักต้องรีเฟรช',
     progressRace: 'ความคืบหน้าของทุกคน',

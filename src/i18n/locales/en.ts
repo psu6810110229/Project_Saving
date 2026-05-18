@@ -97,6 +97,8 @@ export const en = {
   dashboard: {
     // Recorded Vault
     recordedVault: 'Recorded Vault',
+    vaultSaved: 'Saved',
+    vaultTarget: 'Target',
     // Header
     projectLabel: 'Project',
     // Error state

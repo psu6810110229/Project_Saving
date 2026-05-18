@@ -361,6 +361,23 @@ export function Dashboard() {
     streakFrozenDates,
   );
 
+  // Saving Plan card meta — prefer the active plan revision's end date,
+  // otherwise fall back to the room/goal end date. Some plans run in
+  // target-reach mode (no revision end_date), so the room date is the
+  // usual source.
+  const planEndDateKey = displayRevision?.end_date ?? activeRoom?.end_date ?? null;
+  const planDaysRemaining = planEndDateKey
+    ? Math.max(
+        0,
+        Math.round(
+          (Date.parse(planEndDateKey + 'T00:00:00Z') - Date.parse(todayKey + 'T00:00:00Z')) / 86_400_000,
+        ),
+      )
+    : null;
+  const planProgressPct = moneyStatus && moneyStatus.targetAmount > 0
+    ? (moneyStatus.recordedDeposits / moneyStatus.targetAmount) * 100
+    : 0;
+
   // Pack the Verified Balance slot for the Saving Plan island so
   // both ideas read as one financial picture; the underlying
   // BalanceCheckStatus card is only used as a fallback empty state.
@@ -536,6 +553,8 @@ export function Dashboard() {
           freezesRemainingThisMonth={freezesRemainingThisMonth}
           lastFreezeDateKey={lastStreakFreezeDate}
           todayDateKey={todayKey}
+          daysRemaining={planDaysRemaining}
+          progressPct={planProgressPct}
         />
       </motion.div>
 

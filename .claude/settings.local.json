@@ -20,7 +20,9 @@
       "Bash(git reset *)",
       "Bash(git cherry-pick *)",
       "Bash(git pull *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "Bash(supabase functions *)",
+      "PowerShell(Get-ChildItem *)"
     ]
   }
 }

@@ -23,6 +23,7 @@ import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { useAuth } from '../hooks/useAuth';
 import { useSharedData } from '../hooks/useSharedData';
+import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved } from '../lib/buckets';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
@@ -59,6 +60,8 @@ export function AddMoney() {
   const [bucketTarget, setBucketTarget] = useState('30000');
   const [editingQuickAmounts, setEditingQuickAmounts] = useState(false);
   const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>([]);
+  const [appliedBucketId, setAppliedBucketId] = useState<string | null>(null);
+  const [smartDefaultActive, setSmartDefaultActive] = useState(false);
 
   const bucketOptions = BUCKET_OPTION_ICONS.map(({ id, icon }) => ({
     id, icon, label: copy.bucket.categoryLabels[id],
@@ -67,6 +70,7 @@ export function AddMoney() {
   const selectedBucket = buckets.find(bucket => bucket.id === selectedBucketId) ?? buckets[0];
   const amount = useMemo(() => Number(amountValue) || selectedQuickAmount || 0, [amountValue, selectedQuickAmount]);
   const partner = leaderboard.entries.find(entry => !entry.isYou);
+  const smartDefault = useSmartDefaultAmount(user?.id, selectedBucket?.id ?? null, logs);
 
   if (bucketsLoading || logsLoading) return <AddMoneySkeleton />;
   if (logsError) return <StatusCard title={copy.addMoney.loadError} body={logsError} sectionLabel={copy.addMoney.sectionLabel} />;
@@ -132,6 +136,7 @@ export function AddMoney() {
       setSelectedQuickAmount(500);
       setSlip(null);
       setMessage(null);
+      setAppliedBucketId(null);
     }
   }
 
@@ -156,6 +161,22 @@ export function AddMoney() {
         />
       </div>
     );
+  }
+
+  if (appliedBucketId !== selectedBucket.id) {
+    setAppliedBucketId(selectedBucket.id);
+    if (smartDefault.value != null) {
+      if (quickAmounts.includes(smartDefault.value)) {
+        setSelectedQuickAmount(smartDefault.value);
+        setAmountValue('');
+      } else {
+        setSelectedQuickAmount(null);
+        setAmountValue(String(smartDefault.value));
+      }
+      setSmartDefaultActive(true);
+    } else {
+      setSmartDefaultActive(false);
+    }
   }
 
   return (
@@ -190,16 +211,19 @@ export function AddMoney() {
           amountValue={amountValue}
           slip={slip}
           onQuickAmountSelect={next => {
+            if (next !== selectedQuickAmount) setSmartDefaultActive(false);
             setSelectedQuickAmount(next);
             setAmountValue('');
           }}
           onAmountChange={value => {
+            setSmartDefaultActive(false);
             setAmountValue(value.replace(/[^0-9]/g, ''));
             setSelectedQuickAmount(null);
           }}
           onSlipChange={setSlip}
           onSubmit={() => setReviewing(true)}
           onEditQuickAmounts={openQuickAmountsEditor}
+          smartDefaultHint={smartDefaultActive ? copy.addMoney.smartDefaultHint : null}
         />
       )}
       <Modal

@@ -245,6 +245,7 @@ export const en = {
     outcomeDone: 'Done',
     depositAmountLabel: 'Deposit Amount',
     customAmountLabel: 'Custom Amount',
+    smartDefaultHint: 'Based on your recent saves',
     projectedProgress: (bucketName: string) => `Projected Progress · ${bucketName}`,
     savedLabel: (amount: string) => `${amount} saved`,
     projectedLabel: (amount: string, percent: number) => `+${amount} projected → ${percent}%`,

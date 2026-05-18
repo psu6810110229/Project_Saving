@@ -11,9 +11,9 @@ interface BottomNavProps {
 }
 
 const TAB_ICONS: { id: BottomNavTab; icon: ReactNode }[] = [
-  { id: 'dashboard', icon: <IconGrid size={22} /> },
-  { id: 'add', icon: <IconPlus size={24} /> },
-  { id: 'profile', icon: <IconUser size={22} /> },
+  { id: 'dashboard', icon: <IconGrid size={20} /> },
+  { id: 'add', icon: <IconPlus size={20} /> },
+  { id: 'profile', icon: <IconUser size={20} /> },
 ];
 
 export function BottomNav({ activeTab, onChange }: BottomNavProps) {
@@ -24,11 +24,11 @@ export function BottomNav({ activeTab, onChange }: BottomNavProps) {
   return (
     <nav
       ref={navRef}
-      className="shrink-0 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-2 bg-transparent"
+      className="shrink-0 px-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-0 bg-transparent"
     >
       <div
         ref={pillRef}
-        className="relative mx-auto max-w-md rounded-full px-2 py-2 flex items-center bg-white/30 backdrop-blur-2xl backdrop-saturate-150 ring-1 ring-white/40 shadow-[0_4px_24px_-6px_rgba(60,40,20,0.12)]"
+        className="relative mx-auto max-w-md rounded-full px-2 py-1.5 flex items-center bg-white/30 backdrop-blur-2xl backdrop-saturate-150 ring-1 ring-white/40 shadow-[0_4px_24px_-6px_rgba(60,40,20,0.12)]"
       >
         {/* Tabs */}
         <div className="relative z-10 flex items-center w-full">

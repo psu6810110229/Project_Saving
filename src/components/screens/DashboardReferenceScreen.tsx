@@ -162,10 +162,9 @@ export function DashboardReferenceScreen() {
               </div>
               <div className="w-[60px] h-[60px] rounded-full overflow-hidden border-[2.5px] border-brand-500">
                 <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/dashboard-reference-ZVCkEMzquwIu77xGaDUq9OfwjCtM87.png"
+                  src="/avatar-teermo.jpg"
                   alt="พี่เทีร์โม"
-                  className="w-full h-full object-cover object-[center_20%]"
-                  style={{ objectPosition: '20% 5%' }}
+                  className="w-full h-full object-cover object-center"
                 />
               </div>
             </div>
@@ -202,10 +201,9 @@ export function DashboardReferenceScreen() {
             <div className="relative shrink-0">
               <div className="w-[60px] h-[60px] rounded-full overflow-hidden border-[2.5px] border-brand-400">
                 <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/dashboard-reference-ZVCkEMzquwIu77xGaDUq9OfwjCtM87.png"
+                  src="/avatar-you.jpg"
                   alt="คุณ - FRANVMe"
-                  className="w-full h-full object-cover"
-                  style={{ objectPosition: '70% 30%' }}
+                  className="w-full h-full object-cover object-center"
                 />
               </div>
             </div>

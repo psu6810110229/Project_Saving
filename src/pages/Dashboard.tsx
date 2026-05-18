@@ -123,6 +123,11 @@ export function Dashboard() {
     loading: reconcileLoading,
   } = data.reconcile;
   const { plan: savingPlan, deposits: planDeposits } = data.savingPlan;
+  const {
+    frozenDates: streakFrozenDates,
+    freezesRemainingThisMonth,
+    lastFreezeDate: lastStreakFreezeDate,
+  } = data.streakFreeze;
   const { count: unreadNotifications } = useUnreadNotificationsCount();
   const { copy, language, formatMoney } = useI18n();
   const d = copy.dashboard;
@@ -356,6 +361,7 @@ export function Dashboard() {
     planDeposits.deposit_day_keys,
     todayKey,
     isPausedToday,
+    streakFrozenDates,
   );
 
   // Pack the Verified Balance slot for the Saving Plan island so
@@ -530,6 +536,9 @@ export function Dashboard() {
           isPaused={isPausedToday}
           pausedSince={pausedSince}
           planSummary={planSummary}
+          freezesRemainingThisMonth={freezesRemainingThisMonth}
+          lastFreezeDateKey={lastStreakFreezeDate}
+          todayDateKey={todayKey}
         />
       </motion.div>
 

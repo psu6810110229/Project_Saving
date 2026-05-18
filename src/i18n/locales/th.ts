@@ -257,6 +257,13 @@ export const th: Messages = {
       `ยอดรวมในโปรเจกต์เพิ่งข้าม ${threshold} เปอร์เซ็นต์ของเป้าหมาย`,
     cta: 'เข้าใจแล้ว',
   },
+  streakFreeze: {
+    remaining: (n: number): string =>
+      `เหลือสิทธิ์ข้ามวันเดือนนี้: ${n}`,
+    coveredYesterday: 'เมื่อวานนี้',
+    coveredHint: (dateLabel: string): string =>
+      `เราข้ามวัน${dateLabel}ให้แล้ว`,
+  },
   projectSetup: {
     title: 'เริ่มโปรเจกต์เก็บเงิน',
     subtitle: 'สร้างเป้าหมายทริปญี่ปุ่น หรือเข้าร่วมด้วยรหัสของคู่คุณ',

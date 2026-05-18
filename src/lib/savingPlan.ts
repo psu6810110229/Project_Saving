@@ -549,16 +549,23 @@ export interface HabitStatus {
   streak: number;
 }
 
-function streakFromDayKeys(depositDayKeys: string[], todayKey: string): number {
+function streakFromDayKeys(
+  depositDayKeys: string[],
+  todayKey: string,
+  frozenDates: ReadonlySet<string> = new Set(),
+): number {
   const days = new Set(depositDayKeys.filter(k => k <= todayKey));
   if (days.size === 0) return 0;
+  // The leading edge of the streak still has to be a raw save — a
+  // freeze can only fill an interior gap (matches calcStreakWithFreezes
+  // in src/lib/streak.ts).
   let cursor = todayKey;
   if (!days.has(cursor)) {
     cursor = addDays(cursor, -1);
     if (!days.has(cursor)) return 0;
   }
   let count = 0;
-  while (days.has(cursor)) {
+  while (days.has(cursor) || frozenDates.has(cursor)) {
     count++;
     cursor = addDays(cursor, -1);
   }
@@ -578,6 +585,7 @@ export function habitStatusFromDeposits(
   depositDayKeys: string[],
   todayKey: string,
   isPaused = false,
+  frozenDates: ReadonlySet<string> = new Set(),
 ): HabitStatus {
   if (depositDayKeys.length === 0) {
     return {
@@ -592,7 +600,7 @@ export function habitStatusFromDeposits(
   const lastKey = sorted[sorted.length - 1];
   const since = Math.max(0, daysBetween(lastKey, todayKey));
   const hasToday = lastKey === todayKey;
-  const streak = streakFromDayKeys(depositDayKeys, todayKey);
+  const streak = streakFromDayKeys(depositDayKeys, todayKey, frozenDates);
 
   let state: HabitState;
   if (isPaused) {

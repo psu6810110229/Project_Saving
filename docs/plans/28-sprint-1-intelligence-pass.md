@@ -453,7 +453,7 @@ ordering complexity that `notify-partner-deposit` had to solve.
 
 ## SPRINT1-003: Streak Freeze (grace days)
 
-- **Status**: not started
+- **Status**: shipped
 - **Priority**: P2
 - **Risk**: high (changes computed-state semantics for streaks)
 
@@ -663,7 +663,85 @@ who haven't opened the app — explicitly out of scope.)
   (the raw function stays exported only for any tests).
 
 ### Verification notes
-- *(empty)*
+- Migration `0051_streak_freeze.sql` adds two tables. The per-user
+  `streak_freeze_budgets` row holds the monthly cap (default 2) with
+  self-select / self-update RLS; the lazy insert happens server-side
+  inside the RPC, so there is no client insert policy.
+  `streak_freeze_usages` is the append-only audit ledger keyed by
+  `(user_id, frozen_date)`, indexed on `(user_id, month_key)` for the
+  per-month count, with a select policy that allows the row owner OR
+  anyone who shares a room with the owner (mirrors `is_room_member`
+  from `0012`). No client insert / update / delete on the usages
+  table — writes flow through the security-definer
+  `public.consume_streak_freezes_if_needed(p_evaluation_date date)`
+  RPC, which walks the caller's recent positive `savings_logs` in
+  Bangkok-local dates and inserts a freeze for any gap day whose
+  older flank is a raw save day, within the same Bangkok month, and
+  within the remaining monthly budget. Already-frozen days continue
+  the chain but are intentionally NOT allowed as the older flank of
+  a new freeze, which enforces the "two consecutive missed days never
+  auto-freeze" acceptance criterion. The RPC is idempotent via
+  `on conflict do nothing` on the unique constraint and returns the
+  newly-inserted dates plus the remaining budget.
+- The dashboard streak rendered in `SavingPlanCard` is sourced from
+  `habit.streak`, which the `Dashboard` page derives via
+  `habitStatusFromDeposits` — NOT the leaderboard streak. The plan
+  doc originally only mentioned `calcStreak`; this discovery is why
+  `src/lib/savingPlan.ts:streakFromDayKeys` and
+  `habitStatusFromDeposits` both grew an optional
+  `frozenDates: ReadonlySet<string>` parameter alongside the new
+  `calcStreakWithFreezes` helper in `src/lib/streak.ts`. Both helpers
+  share the same shape: the leading edge of the chain must still be
+  a raw save, but interior gap days that the RPC has recorded as
+  frozen continue the chain.
+- New hook `src/hooks/useStreakFreeze.ts` calls the RPC once on mount
+  / `userId` change with the Bangkok-local date, loads ~90 days of
+  freeze rows, and subscribes to realtime `INSERT` events on
+  `savings_logs` and `streak_freeze_usages` (both filtered on the
+  current `user_id`) so a deposit that newly fills the
+  "between two save days" gap consumes a freeze immediately and the
+  refreshed `frozenDates` set propagates without a refetch. The
+  hook exposes `frozenDates`, `freezesUsedThisMonth`,
+  `freezesRemainingThisMonth` (null until the budget is resolved
+  server-side), and `lastFreezeDate`.
+- `useStreakFreeze` is hoisted into `DataContext` alongside the rest
+  of the room-shared hooks, and its `frozenDates` set is plumbed
+  into `useLeaderboard` so the current user's leaderboard streak
+  uses `calcStreakWithFreezes`. Partner streaks stay on the raw
+  `calcStreak` per the chosen scope ("self only, partner raw") —
+  this matches the Sprint 1 out-of-scope item on partner-visible
+  freeze surfaces. Result: the Dashboard's `habit.streak` and the
+  Leaderboard's `entry.streak` for the same user always agree
+  because both consume the same `frozenDates` set.
+- `useStreak.ts` was updated to accept the same `frozenDates` arg
+  and use `calcStreakWithFreezes`. It has no in-app consumer today,
+  but keeping it consistent with the leaderboard / dashboard avoids
+  a future drift if it is wired into a future surface.
+- UI lives inside `SavingPlanCard` per the "no new StreakCard
+  component" decision (the file did not exist; the dashboard streak
+  has always been rendered inside the saving-plan card). Two small
+  `text-ink-muted` lines appear underneath the existing streak block
+  whenever `habit.streak > 0`: a budget reading
+  ("Freezes left this month: N") and, only when the most recent
+  freeze was within the last six Bangkok-local days AND the user
+  hasn't yet saved today, a one-time "We covered yesterday for you"
+  hint (or "We covered <short date> for you" for an older freeze).
+  Both lines disappear once the user logs today, and the budget
+  line stays hidden while the plan is paused. No new component, no
+  new modal, no new icon, no animation — purely text using existing
+  `text-ink-muted` and `text-xs` tokens.
+- Locale copy lives under `streakFreeze.{remaining(n),
+  coveredYesterday, coveredHint(dateLabel)}` in
+  `src/i18n/locales/en.ts` and `th.ts`. Plain sentence form, no
+  emoji.
+- New shared types `StreakFreezeBudget` and `StreakFreezeUsage` were
+  added to `src/types/index.ts`. No `any` was introduced anywhere
+  in the slice.
+- `npm run build` passes locally. `npm run lint` passes for every
+  file touched by this slice; the one remaining lint error is the
+  pre-existing `_error` in `supabase/functions/send-nudge/index.ts`
+  recorded under SPRINT1-002's follow-up findings and left untouched
+  per the "no adjacent fixes" sprint rule.
 
 ### Follow-up findings
 - *(empty)*

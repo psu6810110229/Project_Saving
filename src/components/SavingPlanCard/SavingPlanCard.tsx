@@ -31,6 +31,13 @@ interface SavingPlanCardProps {
   isPaused?: boolean;
   pausedSince?: string | null;
   planSummary?: string | null;
+  /** SPRINT1-003: remaining streak freezes in the current Bangkok month.
+   *  Null while the budget row is still resolving server-side. */
+  freezesRemainingThisMonth?: number | null;
+  /** Most recent auto-freeze date as `YYYY-MM-DD`, Bangkok-local. */
+  lastFreezeDateKey?: string | null;
+  /** Today's Bangkok-local date key, for the freeze hint window. */
+  todayDateKey?: string | null;
 }
 
 function fireForStreak(streak: number): string {
@@ -38,6 +45,13 @@ function fireForStreak(streak: number): string {
   if (streak >= 6) return '🔥🔥';
   if (streak >= 2) return '🔥';
   return '';
+}
+
+// Bangkok-local `YYYY-MM-DD` arithmetic. Both inputs are interpreted as
+// midnight UTC so DST in the runtime zone cannot drift the day count.
+function daysBetweenIsoKeys(from: string, to: string): number {
+  const ms = Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z');
+  return Math.round(ms / 86_400_000);
 }
 
 export function SavingPlanCard({
@@ -49,6 +63,9 @@ export function SavingPlanCard({
   isPaused = false,
   pausedSince = null,
   planSummary = null,
+  freezesRemainingThisMonth = null,
+  lastFreezeDateKey = null,
+  todayDateKey = null,
 }: SavingPlanCardProps) {
   const { copy, formatShortDateKey } = useI18n();
   const d = copy.dashboard;
@@ -166,6 +183,24 @@ export function SavingPlanCard({
 
   const streakFire = fireForStreak(habit.streak);
 
+  // SPRINT1-003: derive the freeze hint state from the dates the
+  // parent plumbed down. The "We covered ..." hint only shows for a
+  // few days after a freeze and disappears as soon as the user saves
+  // today (so the streak number on its own then tells the story).
+  const sf = copy.streakFreeze;
+  const freezeBudgetLine = !isPaused && habit.streak > 0 && freezesRemainingThisMonth !== null
+    ? sf.remaining(freezesRemainingThisMonth)
+    : null;
+  const freezeHintLine = (() => {
+    if (isPaused) return null;
+    if (!lastFreezeDateKey || !todayDateKey) return null;
+    if (habit.hasDepositedToday) return null;
+    const days = daysBetweenIsoKeys(lastFreezeDateKey, todayDateKey);
+    if (days <= 0 || days > 6) return null;
+    const dateLabel = days === 1 ? sf.coveredYesterday : formatShortDateKey(lastFreezeDateKey);
+    return sf.coveredHint(dateLabel);
+  })();
+
   const vbActualNumber = Number(vbActualValue);
   const vbDiff = vbActualValue.trim() !== '' && Number.isFinite(vbActualNumber)
     ? Math.round((vbActualNumber - (verifiedBalance?.amount ?? 0)) * 100) / 100
@@ -243,6 +278,16 @@ export function SavingPlanCard({
                     <span aria-hidden className="ml-1.5 align-middle">{streakFire}</span>
                   )}
                 </p>
+                {freezeBudgetLine && (
+                  <p className="mt-1 font-mono text-xs text-ink-muted">
+                    {freezeBudgetLine}
+                  </p>
+                )}
+                {freezeHintLine && (
+                  <p className="mt-1 font-mono text-xs text-ink-muted">
+                    {freezeHintLine}
+                  </p>
+                )}
               </div>
             )}
           </div>

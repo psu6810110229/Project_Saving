@@ -19,6 +19,9 @@ import { NotificationSettings } from './pages/NotificationSettings';
 import { OrganismsPreview } from './pages/OrganismsPreview';
 import { Profile } from './pages/Profile';
 import { NotFound } from './pages/NotFound';
+import { DashboardReferenceScreen } from './pages/DashboardReferenceScreen';
+import { DashboardBucketsScreen } from './pages/DashboardBucketsScreen';
+import { AddMoneyReferenceScreen } from './pages/AddMoneyReferenceScreen';
 
 function App() {
   return (
@@ -32,6 +35,9 @@ function App() {
             <Route path="/atoms" element={<AtomsPreview />} />
             <Route path="/molecules" element={<MoleculesPreview />} />
             <Route path="/organisms" element={<OrganismsPreview />} />
+            <Route path="/reference/dashboard" element={<DashboardReferenceScreen />} />
+            <Route path="/reference/buckets" element={<DashboardBucketsScreen />} />
+            <Route path="/reference/add-money" element={<AddMoneyReferenceScreen />} />
             <Route
               element={
                 <ProtectedRoute>

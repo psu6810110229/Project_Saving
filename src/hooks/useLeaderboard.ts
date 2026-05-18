@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { calcStreak, localDateKey, APP_TZ } from '../lib/streak';
+import { calcStreak, calcStreakWithFreezes, localDateKey, APP_TZ } from '../lib/streak';
 import type { ProfileTheme, SavingsLog } from '../types';
+
+const EMPTY_FROZEN_DATES: ReadonlySet<string> = new Set<string>();
 
 export interface LeaderboardEntry {
   rank: number;
@@ -30,6 +32,10 @@ export function useLeaderboard(
   logs: SavingsLog[],
   myUserId: string | undefined,
   roomId: string | null = null,
+  // SPRINT1-003: per the "self only, partner raw" decision, freeze
+  // data is plumbed in only for the current user. Partner streaks
+  // continue to use the raw chain via `calcStreak`.
+  currentUserFrozenDates: ReadonlySet<string> = EMPTY_FROZEN_DATES,
 ): LeaderboardState {
   const [profiles, setProfiles] = useState<RawProfile[]>([]);
   const [goals, setGoals] = useState<RawGoal[]>([]);
@@ -135,9 +141,12 @@ export function useLeaderboard(
       const rawPercent = target && target > 0 ? (saved / target) * 100 : 0;
       const percent = target && target > 0 ? Math.min(100, Math.round(rawPercent)) : 0;
       const hasGoal = target !== null && target > 0;
-      const streak = calcStreak(userLogs, today);
+      const isYou = p.id === myUserId;
+      const streak = isYou
+        ? calcStreakWithFreezes(userLogs, today, currentUserFrozenDates)
+        : calcStreak(userLogs, today);
       const hasLoggedToday = userLogs.some(l => localDateKey(l.created_at) === today);
-      return { userId: p.id, displayName: p.display_name, avatarUrl: p.avatar_url, themeColor: p.theme_color, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou: p.id === myUserId };
+      return { userId: p.id, displayName: p.display_name, avatarUrl: p.avatar_url, themeColor: p.theme_color, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou };
     });
 
     const sorted = [...raw].sort((a, b) => {
@@ -161,5 +170,5 @@ export function useLeaderboard(
     }));
 
     return { entries, loading: false };
-  }, [profiles, goals, logs, loading, today, myUserId]);
+  }, [profiles, goals, logs, loading, today, myUserId, currentUserFrozenDates]);
 }

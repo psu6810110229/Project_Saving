@@ -8,6 +8,7 @@ import type { usePartnerSavingPlan } from '../../hooks/usePartnerSavingPlan';
 import type { useProfile } from '../../hooks/useProfile';
 import type { useReconcile } from '../../hooks/useReconcile';
 import type { useSavingPlan } from '../../hooks/useSavingPlan';
+import type { useStreakFreeze } from '../../hooks/useStreakFreeze';
 
 export interface DataContextValue {
   profile: ReturnType<typeof useProfile>;
@@ -19,6 +20,7 @@ export interface DataContextValue {
   savingPlan: ReturnType<typeof useSavingPlan>;
   partnerSavingPlan: ReturnType<typeof usePartnerSavingPlan>;
   reconcile: ReturnType<typeof useReconcile>;
+  streakFreeze: ReturnType<typeof useStreakFreeze>;
 }
 
 export const DataContext = createContext<DataContextValue | null>(null);

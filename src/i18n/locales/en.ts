@@ -269,6 +269,13 @@ export const en = {
       `Your shared vault just crossed ${threshold} percent of the project target.`,
     cta: 'Got it',
   },
+  streakFreeze: {
+    remaining: (n: number): string =>
+      `Freezes left this month: ${n}`,
+    coveredYesterday: 'yesterday',
+    coveredHint: (dateLabel: string): string =>
+      `We covered ${dateLabel} for you.`,
+  },
   projectSetup: {
     title: 'Start a savings project',
     subtitle: "Create the Japan trip vault or join with Art's code.",

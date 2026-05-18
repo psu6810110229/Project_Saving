@@ -390,6 +390,7 @@ export function plannedCumulativeThroughDate(
 // ── Money status ──────────────────────────────────────────────
 
 export type MoneyState = 'ahead' | 'behind' | 'on_track' | 'not_started';
+export type MoneyBehindSeverity = 'none' | 'slight' | 'reasonable' | 'tremendous';
 
 export interface MoneyStatus {
   state: MoneyState;
@@ -409,6 +410,25 @@ export interface MoneyStatus {
 }
 
 const MONEY_EPSILON = 0.005;
+
+/**
+ * Buckets behind-plan money by share of the plan target:
+ * slight < 10%, reasonable < 25%, tremendous >= 25%.
+ */
+export function severityFromBehindAmount(
+  behindAmount: number,
+  targetAmount: number,
+): MoneyBehindSeverity {
+  if (behindAmount <= MONEY_EPSILON) return 'none';
+  if (!Number.isFinite(targetAmount) || targetAmount <= MONEY_EPSILON) {
+    return 'tremendous';
+  }
+
+  const ratio = behindAmount / targetAmount;
+  if (ratio < 0.1) return 'slight';
+  if (ratio < 0.25) return 'reasonable';
+  return 'tremendous';
+}
 
 export function moneyStatusFor(
   revisions: SavingPlanRevision[],

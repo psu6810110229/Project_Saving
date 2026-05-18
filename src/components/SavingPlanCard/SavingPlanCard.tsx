@@ -7,8 +7,10 @@ import { Button } from '../Button/Button';
 import { formatCurrency } from '../../lib/format';
 import { formatSignedCurrency, RECONCILE_REASONS } from '../../lib/reconcile';
 import {
+  severityFromBehindAmount,
   type HabitStatus,
   type MoneyStatus,
+  type MoneyBehindSeverity,
 } from '../../lib/savingPlan';
 import { useI18n } from '../../i18n/useI18n';
 import type { BalanceAdjustmentReason, SavingPlanRuleType } from '../../types';
@@ -53,6 +55,13 @@ function daysBetweenIsoKeys(from: string, to: string): number {
   const ms = Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z');
   return Math.round(ms / 86_400_000);
 }
+
+const behindSeverityColor: Record<MoneyBehindSeverity, string> = {
+  none: 'text-accent-leaf',
+  slight: 'text-accent-gold',
+  reasonable: 'text-brand-700',
+  tremendous: 'text-danger',
+};
 
 export function SavingPlanCard({
   ruleType,
@@ -155,13 +164,17 @@ export function SavingPlanCard({
     );
   }
 
+  const behindSeverity = money.state === 'behind'
+    ? severityFromBehindAmount(-money.delta, money.targetAmount)
+    : 'none';
+
   const moneyHeadlineColor = isPaused
     ? 'text-ink-muted'
-    : money.state === 'ahead'
-      ? 'text-brand-800'
+    : money.state === 'not_started'
+      ? 'text-ink'
       : money.state === 'behind'
-        ? 'text-danger'
-        : 'text-ink';
+        ? behindSeverityColor[behindSeverity]
+        : 'text-accent-leaf';
 
   const moneyHeadline = isPaused
     ? d.planPaused
@@ -214,7 +227,7 @@ export function SavingPlanCard({
       </p>
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className={`font-mono text-2xl font-bold ${moneyHeadlineColor}`}>
+        <p className={`font-mono text-2xl font-extrabold ${moneyHeadlineColor}`}>
           {moneyHeadline}
         </p>
         <button

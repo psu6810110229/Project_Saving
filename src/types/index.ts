@@ -306,3 +306,18 @@ export interface NotificationPreferencesUpdate {
   product_updates_enabled?: boolean;
   prompt_dismissed_until?: string | null;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Milestone celebrations (SPRINT1-002, migration 0050).
+ * ──────────────────────────────────────────────────────────────────── */
+
+/** Room-progress crossings that surface a one-shot celebration modal. */
+export type MilestoneThreshold = 25 | 50 | 75 | 90;
+
+export interface MilestoneAcknowledgement {
+  id: string;
+  room_id: string;
+  user_id: string;
+  threshold: MilestoneThreshold;
+  acknowledged_at: string;
+}

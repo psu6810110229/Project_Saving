@@ -105,6 +105,15 @@ export function notificationDisplayCopy(
         item,
         n.events.roomLeft(actorName(payload, fallbackPartner), payloadString(payload, 'room_name')),
       );
+    case 'room_renamed':
+      return withStoredFallback(
+        item,
+        n.events.roomRenamed(
+          actorName(payload, fallbackPartner),
+          payloadString(payload, 'old_name'),
+          payloadString(payload, 'new_name'),
+        ),
+      );
     case 'bucket_goal_reached':
       return withStoredFallback(item, n.events.bucketGoalReached(payloadString(payload, 'bucket_name')));
     case 'overtaking':

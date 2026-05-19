@@ -268,6 +268,24 @@ export function useRooms() {
     return { roomId };
   }
 
+  async function renameRoom(roomId: string, name: string): Promise<ActionResult> {
+    if (!userId) return { error: 'Not authenticated' };
+    const trimmed = name.trim();
+    if (trimmed === '') return { error: 'name required' };
+    if (trimmed.length > 60) return { error: 'name too long' };
+    if (/[\p{Cc}]/u.test(name)) return { error: 'name contains control characters' };
+
+    const { data, error: rpcError } = await supabase
+      .rpc('rename_room', { p_room_id: roomId, p_name: trimmed });
+    if (rpcError) return { error: rpcError.message };
+
+    const accepted = typeof data === 'string' && data.trim() ? data : trimmed;
+    setRooms(prev => prev.map(room => (
+      room.id === roomId ? { ...room, name: accepted } : room
+    )));
+    return { roomId };
+  }
+
   async function updateRoom(roomId: string, values: UpdateRoomValues): Promise<ActionResult> {
     if (!userId) return { error: 'Not authenticated' };
 
@@ -288,5 +306,5 @@ export function useRooms() {
     fetchRooms({ showLoading: currentRooms.length === 0 });
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, fetchActiveRoomForCreator, fetchArchivedRooms };
+  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, renameRoom, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

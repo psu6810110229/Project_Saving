@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import { createContext, type Dispatch, type SetStateAction } from 'react';
 import type { Room } from '../../types';
 
 export interface RoomContextValue {
@@ -6,7 +6,7 @@ export interface RoomContextValue {
   activeRoom: Room | null;
   setActiveRoomId: (id: string | null) => void;
   rooms: Room[];
-  setRooms: (rooms: Room[]) => void;
+  setRooms: Dispatch<SetStateAction<Room[]>>;
 }
 
 export const RoomContext = createContext<RoomContextValue>({

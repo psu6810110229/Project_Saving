@@ -16,6 +16,7 @@ import {
   IconTicket,
   IconTrash,
   IconUserPlus,
+  IconEdit,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
 import { PageHeader } from '../components/PageHeader/PageHeader';
@@ -31,7 +32,9 @@ import { sumTargets } from '../lib/buckets';
 import { haptic } from '../lib/haptics';
 import type { Bucket, BucketCategory } from '../types';
 
-type ManageModal = 'invite-code' | 'quick-amounts' | 'buckets' | null;
+type ManageModal = 'invite-code' | 'quick-amounts' | 'buckets' | 'rename-room' | null;
+
+const ROOM_NAME_MAX = 60;
 
 const BUCKET_OPTION_ICONS: { id: BucketCategory; icon: ReactNode }[] = [
   { id: 'flight', icon: <IconPlane size={22} /> },
@@ -50,7 +53,7 @@ export function ManageProject() {
   const { activeRoom, activeRoomId } = useRoom();
   const data = useSharedData();
   const { goal } = data.goal;
-  const { archiveRoom, leaveRoom } = useRooms();
+  const { archiveRoom, leaveRoom, renameRoom } = useRooms();
   const { quickAmounts, updateQuickAmounts } = data.profile;
   const { buckets, saveBuckets } = data.buckets;
   const { logs } = data.logs;
@@ -62,6 +65,9 @@ export function ManageProject() {
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
+  const [renameDraft, setRenameDraft] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
 
   const bucketOptions = BUCKET_OPTION_ICONS.map(({ id, icon }) => ({
     id, icon, label: copy.bucket.categoryLabels[id],
@@ -82,6 +88,11 @@ export function ManageProject() {
 
   function openModal(next: ManageModal) {
     if (next === 'quick-amounts') setQuickAmountDrafts(quickAmounts.map(String));
+    if (next === 'rename-room') {
+      if (!isCreator) return;
+      setRenameDraft(activeRoom?.name ?? '');
+      setRenameError(null);
+    }
     setActiveModal(next);
     setMessage(null);
   }
@@ -89,6 +100,39 @@ export function ManageProject() {
   function closeModal() {
     setActiveModal(null);
     setMessage(null);
+    setRenameError(null);
+  }
+
+  function mapRenameError(raw: string): string {
+    const m = raw.toLowerCase();
+    if (m.includes('name required')) return copy.manageProject.renameErrorEmpty;
+    if (m.includes('name too long')) return copy.manageProject.renameErrorTooLong;
+    if (m.includes('control character')) return copy.manageProject.renameErrorControlChars;
+    if (m.includes('only the creator')) return copy.manageProject.renameErrorNotCreator;
+    if (m.includes('archived')) return copy.manageProject.renameErrorArchived;
+    return copy.manageProject.renameErrorGeneric;
+  }
+
+  async function handleRenameSave() {
+    if (!activeRoomId || !activeRoom) return;
+    const trimmed = renameDraft.trim();
+    const currentTrimmed = (activeRoom.name ?? '').trim();
+    if (trimmed === '') { setRenameError(copy.manageProject.renameErrorEmpty); return; }
+    if (trimmed.length > ROOM_NAME_MAX) { setRenameError(copy.manageProject.renameErrorTooLong); return; }
+    if (/[\p{Cc}]/u.test(renameDraft)) { setRenameError(copy.manageProject.renameErrorControlChars); return; }
+    if (trimmed === currentTrimmed) { setRenameError(copy.manageProject.renameErrorUnchanged); return; }
+
+    setRenaming(true);
+    const result = await renameRoom(activeRoomId, trimmed);
+    setRenaming(false);
+    if (result.error) {
+      setRenameError(mapRenameError(result.error));
+      return;
+    }
+    haptic('success');
+    setActiveModal(null);
+    setRenameError(null);
+    setMessage(copy.manageProject.renameSuccess);
   }
 
   async function handleQuickAmountsSave() {
@@ -183,6 +227,16 @@ export function ManageProject() {
 
   const projectBasicsItems = [
     {
+      id: 'project-name',
+      icon: <IconEdit size={18} />,
+      label: copy.manageProject.projectNameLabel,
+      description: isCreator ? activeRoom.name : copy.manageProject.renameNonCreatorHint,
+      meta: isCreator ? (
+        <span className="copy-allowed max-w-[10rem] truncate font-mono text-xs text-ink">{activeRoom.name}</span>
+      ) : undefined,
+      onClick: isCreator ? () => openModal('rename-room') : undefined,
+    },
+    {
       id: 'invite',
       icon: <IconQrCode size={18} />,
       label: copy.manageProject.inviteCodeLabel,
@@ -239,6 +293,49 @@ export function ManageProject() {
       <SettingsList label={copy.manageProject.sectionProjectBasics} items={projectBasicsItems} />
       <SettingsList label={copy.manageProject.sectionSavingControls} items={savingControlItems} />
       <SettingsList label={copy.manageProject.sectionRoomActions} items={roomActionItems} archiveItem={archiveItem} />
+      <Modal open={activeModal === 'rename-room'} title={copy.manageProject.renameTitle} onClose={closeModal}>
+        {(() => {
+          const trimmed = renameDraft.trim();
+          const currentTrimmed = (activeRoom.name ?? '').trim();
+          const hasControl = /[\p{Cc}]/u.test(renameDraft);
+          const disabled =
+            renaming ||
+            trimmed === '' ||
+            trimmed.length > ROOM_NAME_MAX ||
+            hasControl ||
+            trimmed === currentTrimmed;
+          return (
+            <div className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="font-mono text-xs text-ink-muted">{copy.manageProject.renameInputLabel}</span>
+                <input
+                  type="text"
+                  value={renameDraft}
+                  maxLength={ROOM_NAME_MAX}
+                  placeholder={copy.manageProject.renamePlaceholder}
+                  onChange={e => { setRenameDraft(e.target.value); setRenameError(null); }}
+                  className="rounded-lg bg-well px-3 py-2 font-mono text-sm text-ink shadow-neuPressed outline-none focus:ring-2 focus:ring-brand-500"
+                  autoFocus
+                />
+                <span className="self-end font-mono text-[11px] text-ink-dim">
+                  {copy.manageProject.renameCharCounter(trimmed.length, ROOM_NAME_MAX)}
+                </span>
+              </label>
+              {renameError && (
+                <p className="rounded-lg bg-danger-soft px-3 py-2 font-mono text-xs text-danger">{renameError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button variant="ghost" fullWidth onClick={closeModal}>
+                  {copy.manageProject.renameCancel}
+                </Button>
+                <Button variant="action" fullWidth disabled={disabled} onClick={handleRenameSave}>
+                  {copy.manageProject.renameSave}
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
       <Modal open={activeModal === 'invite-code'} title={copy.manageProject.inviteCodeModalTitle} onClose={closeModal}>
         <div className="flex flex-col gap-3 text-center">
           <span className="copy-allowed font-mono text-3xl font-bold tracking-[0.4em] text-brand-700">{activeRoom.invite_code}</span>

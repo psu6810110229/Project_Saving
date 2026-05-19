@@ -252,6 +252,7 @@ export type NotificationEventKey =
   | 'bucket_goal_reached'
   | 'room_joined'
   | 'room_left'
+  | 'room_renamed'
   | 'overtaking'
   | 'streak_milestone'
   | 'product_update';

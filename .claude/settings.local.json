@@ -25,7 +25,12 @@
       "PowerShell(Get-ChildItem *)",
       "Bash(git fetch *)",
       "Bash(npx supabase *)",
-      "Bash(git switch *)"
+      "Bash(git switch *)",
+      "Bash(Select-String -Pattern \"v0|redesign|reference\")",
+      "Bash(Select-Object -First 30)",
+      "Bash(Select-Object -First 20)",
+      "Bash(git show *)",
+      "Read(//tmp/**)"
     ]
   }
 }

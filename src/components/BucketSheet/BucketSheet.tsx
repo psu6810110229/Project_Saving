@@ -4,6 +4,8 @@ import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { BucketHeader } from '../BucketHeader/BucketHeader';
 import { Button } from '../Button/Button';
+import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
+import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { FormField } from '../FormField/FormField';
 import { IconPiggyBank, IconTrash } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
@@ -32,6 +34,12 @@ interface BucketSheetProps {
   quickAmounts: number[];
   onConfirm: (amount: number) => Promise<{ error?: string }>;
   onDelete?: () => void;
+  trendPreview?: {
+    mineLabel: string;
+    theirLabel: string;
+    mineSeries: (pending: number) => number[];
+    theirSeries: number[];
+  };
 }
 
 export function BucketSheet({
@@ -44,14 +52,17 @@ export function BucketSheet({
   quickAmounts,
   onConfirm,
   onDelete,
+  trendPreview,
 }: BucketSheetProps) {
-  const { copy } = useI18n();
+  const { copy, formatMoney } = useI18n();
   const defaultPill = quickAmounts[1] ?? quickAmounts[0] ?? 100;
   const [selectedPill, setSelectedPill] = useState<number | null>(defaultPill);
   const [customValue, setCustomValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmingAmount, setConfirmingAmount] = useState<number | null>(null);
   const [showRing, setShowRing] = useState(false);
   const innerControls = useAnimation();
+  const bucketAlreadyComplete = target > 0 && saved >= target;
 
   useBodyScrollLock(open);
 
@@ -75,17 +86,25 @@ export function BucketSheet({
     setTimeout(() => {
       setCustomValue('');
       setSelectedPill(defaultPill);
+      setConfirmingAmount(null);
       setShowRing(false);
       innerControls.set({ y: 0 });
     }, 350);
   }
 
-  async function handleConfirm() {
+  function requestConfirm() {
     if (resolvedAmount <= 0) return;
+    setConfirmingAmount(resolvedAmount);
+  }
+
+  async function handleConfirm() {
+    const amount = confirmingAmount ?? resolvedAmount;
+    if (amount <= 0) return;
     setSaving(true);
-    const result = await onConfirm(resolvedAmount);
+    const result = await onConfirm(amount);
     setSaving(false);
     if (!result.error) {
+      setConfirmingAmount(null);
       // Success ring pulse, then micro-bounce close
       setShowRing(true);
       await new Promise((r) => setTimeout(r, 480));
@@ -183,6 +202,17 @@ export function BucketSheet({
                     />
                   </motion.div>
 
+                  {trendPreview && (
+                    <motion.div variants={itemVariants}>
+                      <ComparisonTrendChart
+                        mineLabel={trendPreview.mineLabel}
+                        theirLabel={trendPreview.theirLabel}
+                        mineSeries={trendPreview.mineSeries(resolvedAmount)}
+                        theirSeries={trendPreview.theirSeries}
+                      />
+                    </motion.div>
+                  )}
+
                   {/* Actions */}
                   <motion.div variants={itemVariants} className="grid grid-cols-2 gap-2">
                     <Button variant="ghost" size="md" onClick={handleClose}>
@@ -192,7 +222,7 @@ export function BucketSheet({
                       variant="action"
                       size="md"
                       disabled={saving || resolvedAmount <= 0}
-                      onClick={handleConfirm}
+                      onClick={requestConfirm}
                     >
                       {saving ? copy.savingPlan.savingButton : copy.common.confirm}
                     </Button>
@@ -215,6 +245,30 @@ export function BucketSheet({
               </div>
             </motion.div>
           </motion.div>
+          <ConfirmModal
+            open={confirmingAmount !== null}
+            title={
+              bucketAlreadyComplete
+                ? copy.addMoney.completeBucketConfirmTitle(name)
+                : copy.addMoney.confirmBannerTitle(formatMoney(confirmingAmount ?? resolvedAmount), name)
+            }
+            body={
+              bucketAlreadyComplete
+                ? copy.addMoney.completeBucketConfirmBody(name)
+                : copy.addMoney.confirmBannerBodyNoSlip
+            }
+            confirmLabel={
+              saving
+                ? copy.savingPlan.savingButton
+                : bucketAlreadyComplete
+                  ? copy.addMoney.completeBucketConfirmLabel
+                  : copy.addMoney.confirmDepositButton
+            }
+            onCancel={() => {
+              if (!saving) setConfirmingAmount(null);
+            }}
+            onConfirm={handleConfirm}
+          />
         </>
       )}
     </AnimatePresence>,

@@ -222,6 +222,48 @@
     animation: ambient-highlight 8s ease-in-out infinite;
     pointer-events: none;
   }
+
+  .vault-card-frame {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .vault-card-frame::after {
+    content: '';
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    bottom: -20px;
+    z-index: -1;
+    height: 46px;
+    border-radius: 999px;
+    background: rgba(88, 50, 44, 0.28);
+    filter: blur(22px);
+    pointer-events: none;
+  }
+
+  .vault-credit-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      linear-gradient(105deg, rgba(42, 24, 34, 0.05) 0%, rgba(68, 36, 45, 0.1) 42%, rgba(42, 22, 34, 0.3) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(86, 30, 34, 0.1)),
+      url('/vault-card-japan-clean.jpg');
+    background-position: center;
+    background-size: cover;
+    border: 0;
+    box-shadow: none;
+    outline: 0;
+  }
+
+  .vault-credit-card::before {
+    content: none;
+  }
+
+  .vault-credit-card::after {
+    content: none;
+  }
 }
 
 @keyframes ambient-highlight {

@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { AddMoneyForm } from '../components/AddMoneyForm/AddMoneyForm';
 import { Button } from '../components/Button/Button';
-import { ConfirmDepositPanel } from '../components/ConfirmDepositPanel/ConfirmDepositPanel';
+import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { Modal } from '../components/Modal/Modal';
 import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
@@ -14,7 +14,6 @@ import {
   IconFork,
   IconHome,
   IconPlane,
-  IconRocket,
   IconSmartphone,
   IconTicket,
 } from '../components/Icon/Icon';
@@ -52,10 +51,12 @@ export function AddMoney() {
   const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(500);
   const [amountValue, setAmountValue] = useState('');
   const [slip, setSlip] = useState<File | null>(null);
-  const [reviewing, setReviewing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirmingDeposit, setConfirmingDeposit] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [created, setCreated] = useState(false);
   const [lastDepositAmount, setLastDepositAmount] = useState(0);
+  const [lastDepositReachedBucket, setLastDepositReachedBucket] = useState(false);
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
@@ -69,6 +70,10 @@ export function AddMoney() {
   }));
 
   const selectedBucket = buckets.find(bucket => bucket.id === selectedBucketId) ?? buckets[0];
+  const selectedBucketSaved = selectedBucket ? bucketSaved(selectedBucket.id, logs) : 0;
+  const selectedBucketAlreadyComplete = selectedBucket
+    ? selectedBucket.target_amount > 0 && selectedBucketSaved >= selectedBucket.target_amount
+    : false;
   const amount = useMemo(() => Number(amountValue) || selectedQuickAmount || 0, [amountValue, selectedQuickAmount]);
   const partner = leaderboard.entries.find(entry => !entry.isYou);
   const smartDefault = useSmartDefaultAmount(user?.id, selectedBucket?.id ?? null, logs);
@@ -116,23 +121,35 @@ export function AddMoney() {
     }
   }
 
+  function requestConfirmDeposit() {
+    if (!selectedBucket || amount <= 0) {
+      setMessage(copy.addMoney.validationNoBucket);
+      return;
+    }
+    setMessage(null);
+    setConfirmingDeposit(true);
+  }
+
   async function handleConfirmDeposit() {
     if (!selectedBucket || amount <= 0) {
       setMessage(copy.addMoney.validationNoBucket);
-      setReviewing(false);
+      setConfirmingDeposit(false);
       return;
     }
+    setSaving(true);
     const slipMarker = SHOW_ATTACHED_SLIP && slip ? `attached:${slip.name}` : null;
     const prevBucketSaved = bucketSaved(selectedBucket.id, logs);
     const result = await insert(amount, selectedBucket.id, undefined, slipMarker);
+    setSaving(false);
+    setConfirmingDeposit(false);
     if (result.error) setMessage(result.error);
     else {
       const reachedBucket = prevBucketSaved < selectedBucket.target_amount
         && prevBucketSaved + amount >= selectedBucket.target_amount;
       haptic(reachedBucket ? 'milestone' : 'success');
       setLastDepositAmount(amount);
+      setLastDepositReachedBucket(reachedBucket);
       setCreated(true);
-      setReviewing(false);
       setAmountValue('');
       setSelectedQuickAmount(500);
       setSlip(null);
@@ -185,48 +202,38 @@ export function AddMoney() {
       <PageHeader
         eyebrow={copy.addMoney.pageEyebrow}
         title={copy.addMoney.pageTitle}
-        subtitle={copy.addMoney.pageSubtitle}
       />
       <BucketPicker buckets={buckets} selectedId={selectedBucket.id} onSelect={setSelectedBucketId} />
       {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
-      {reviewing ? (
-        <ConfirmDepositPanel
-          bannerIcon={<IconRocket size={22} />}
-          bannerTitle={copy.addMoney.confirmBannerTitle(formatMoney(amount), selectedBucket.name)}
-          bannerBody={SHOW_ATTACHED_SLIP ? (slip ? copy.addMoney.confirmBannerBodySlip : copy.addMoney.confirmBannerBodyNoSlip) : undefined}
-          mineLabel={profile?.display_name ?? copy.dashboard.youLabel}
-          theirLabel={partner?.displayName ?? copy.addMoney.partnerLabel}
-          mineSeries={cumulativeAmountSeries(logs, user?.id, amount)}
-          theirSeries={cumulativeAmountSeries(logs, partner?.userId)}
-          onPrimary={handleConfirmDeposit}
-          onSecondary={() => setReviewing(false)}
-        />
-      ) : (
-        <AddMoneyForm
-          bucketIcon={bucketIcon(selectedBucket.category)}
-          bucketName={selectedBucket.name}
-          saved={bucketSaved(selectedBucket.id, logs)}
-          target={selectedBucket.target_amount}
-          quickAmounts={quickAmounts}
-          selectedQuickAmount={selectedQuickAmount}
-          amountValue={amountValue}
-          slip={slip}
-          onQuickAmountSelect={next => {
-            if (next !== selectedQuickAmount) setSmartDefaultActive(false);
-            setSelectedQuickAmount(next);
-            setAmountValue('');
-          }}
-          onAmountChange={value => {
-            setSmartDefaultActive(false);
-            setAmountValue(value.replace(/[^0-9]/g, ''));
-            setSelectedQuickAmount(null);
-          }}
-          onSlipChange={setSlip}
-          onSubmit={() => setReviewing(true)}
-          onEditQuickAmounts={openQuickAmountsEditor}
-          smartDefaultHint={smartDefaultActive ? copy.addMoney.smartDefaultHint : null}
-        />
-      )}
+      <AddMoneyForm
+        bucketIcon={bucketIcon(selectedBucket.category)}
+        bucketName={selectedBucket.name}
+        saved={selectedBucketSaved}
+        target={selectedBucket.target_amount}
+        quickAmounts={quickAmounts}
+        selectedQuickAmount={selectedQuickAmount}
+        amountValue={amountValue}
+        slip={slip}
+        onQuickAmountSelect={next => {
+          if (next !== selectedQuickAmount) setSmartDefaultActive(false);
+          setSelectedQuickAmount(next);
+          setAmountValue('');
+        }}
+        onAmountChange={value => {
+          setSmartDefaultActive(false);
+          setAmountValue(value.replace(/[^0-9]/g, ''));
+          setSelectedQuickAmount(null);
+        }}
+        onSlipChange={setSlip}
+        onSubmit={requestConfirmDeposit}
+        onEditQuickAmounts={openQuickAmountsEditor}
+        smartDefaultHint={smartDefaultActive ? copy.addMoney.smartDefaultHint : null}
+        mineLabel={profile?.display_name ?? copy.dashboard.youLabel}
+        theirLabel={partner?.displayName ?? copy.addMoney.partnerLabel}
+        mineSeries={cumulativeAmountSeries(logs, user?.id, amount)}
+        theirSeries={cumulativeAmountSeries(logs, partner?.userId)}
+        submitting={saving}
+      />
       <Modal
         open={editingQuickAmounts}
         title={copy.manageProject.quickAmountsModalTitle}
@@ -238,14 +245,53 @@ export function AddMoney() {
           onSave={handleQuickAmountsSave}
         />
       </Modal>
+      <ConfirmModal
+        open={confirmingDeposit}
+        title={
+          selectedBucketAlreadyComplete
+            ? copy.addMoney.completeBucketConfirmTitle(selectedBucket.name)
+            : copy.addMoney.confirmBannerTitle(formatMoney(amount), selectedBucket.name)
+        }
+        body={
+          selectedBucketAlreadyComplete
+            ? copy.addMoney.completeBucketConfirmBody(selectedBucket.name)
+            : SHOW_ATTACHED_SLIP && slip
+              ? copy.addMoney.confirmBannerBodySlip
+              : copy.addMoney.confirmBannerBodyNoSlip
+        }
+        confirmLabel={
+          saving
+            ? copy.savingPlan.savingButton
+            : selectedBucketAlreadyComplete
+              ? copy.addMoney.completeBucketConfirmLabel
+              : copy.addMoney.confirmDepositButton
+        }
+        onCancel={() => {
+          if (!saving) setConfirmingDeposit(false);
+        }}
+        onConfirm={handleConfirmDeposit}
+      />
       <OutcomeModal
         open={created}
         outcome="success"
         icon={<IconCheck size={28} />}
-        title={copy.addMoney.outcomeTitle}
-        body={copy.addMoney.outcomeBody(selectedBucket.name, formatMoney(lastDepositAmount))}
+        title={lastDepositReachedBucket ? copy.addMoney.bucketReachedTitle : copy.addMoney.outcomeTitle}
+        body={
+          lastDepositReachedBucket
+            ? copy.addMoney.bucketReachedBody(selectedBucket.name, formatMoney(selectedBucket.target_amount))
+            : copy.addMoney.outcomeBody(selectedBucket.name, formatMoney(lastDepositAmount))
+        }
       >
-        <Button variant="action" fullWidth onClick={() => setCreated(false)}>{copy.addMoney.outcomeDone}</Button>
+        <Button
+          variant="action"
+          fullWidth
+          onClick={() => {
+            setCreated(false);
+            setLastDepositReachedBucket(false);
+          }}
+        >
+          {copy.addMoney.outcomeDone}
+        </Button>
       </OutcomeModal>
     </div>
   );

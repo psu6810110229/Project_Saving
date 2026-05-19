@@ -1,6 +1,7 @@
 import type { ChangeEvent, FormEvent, ReactNode } from 'react';
 import { BucketHeader } from '../BucketHeader/BucketHeader';
 import { Button } from '../Button/Button';
+import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { FormField } from '../FormField/FormField';
 import { IconEdit, IconPiggyBank } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
@@ -22,9 +23,14 @@ interface AddMoneyFormProps {
   onQuickAmountSelect: (amount: number) => void;
   onAmountChange: (value: string) => void;
   onSlipChange: (file: File | null) => void;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
   onEditQuickAmounts?: () => void;
   smartDefaultHint?: string | null;
+  mineLabel?: string;
+  theirLabel?: string;
+  mineSeries?: number[];
+  theirSeries?: number[];
+  submitting?: boolean;
 }
 
 export function AddMoneyForm({
@@ -42,9 +48,15 @@ export function AddMoneyForm({
   onSubmit,
   onEditQuickAmounts,
   smartDefaultHint,
+  mineLabel,
+  theirLabel,
+  mineSeries,
+  theirSeries,
+  submitting = false,
 }: AddMoneyFormProps) {
   const { copy } = useI18n();
   const amount = Number(amountValue) || selectedQuickAmount || 0;
+  const showTrendPreview = mineLabel && theirLabel && mineSeries && theirSeries;
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
@@ -54,22 +66,26 @@ export function AddMoneyForm({
     <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <BucketHeader icon={bucketIcon} name={bucketName} saved={saved} target={target} />
       <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-mono text-lg font-bold leading-tight text-ink">
+            {copy.addMoney.depositAmountLabel}
+          </h2>
+          {onEditQuickAmounts && (
+            <button
+              type="button"
+              onClick={onEditQuickAmounts}
+              className="inline-flex items-center gap-1 font-mono text-xs font-bold text-ink-muted hover:text-ink"
+            >
+              <IconEdit size={14} />
+              {copy.addMoney.editQuickAmountsLabel}
+            </button>
+          )}
+        </div>
         <QuickAddRow
-          label={copy.addMoney.depositAmountLabel}
           amounts={quickAmounts}
           selected={selectedQuickAmount}
           onSelect={onQuickAmountSelect}
         />
-        {onEditQuickAmounts && (
-          <button
-            type="button"
-            onClick={onEditQuickAmounts}
-            className="self-end inline-flex items-center gap-1 font-mono text-xs font-bold text-ink-muted hover:text-ink"
-          >
-            <IconEdit size={14} />
-            {copy.addMoney.editQuickAmountsLabel}
-          </button>
-        )}
       </div>
       <FormField label={copy.addMoney.customAmountLabel}>
         <TextInput
@@ -84,8 +100,18 @@ export function AddMoneyForm({
         <p className="-mt-2 font-mono text-xs text-ink-muted">{smartDefaultHint}</p>
       )}
       <ProjectedProgressCard bucketName={bucketName} saved={saved} target={target} pendingDeposit={amount} />
+      {showTrendPreview && (
+        <ComparisonTrendChart
+          mineLabel={mineLabel}
+          theirLabel={theirLabel}
+          mineSeries={mineSeries}
+          theirSeries={theirSeries}
+        />
+      )}
       {SHOW_ATTACHED_SLIP && <SlipAttachField file={slip} onChange={onSlipChange} />}
-      <Button variant="action" fullWidth type="submit">{copy.addMoney.confirmDepositButton}</Button>
+      <Button variant="action" fullWidth type="submit" disabled={submitting || amount <= 0}>
+        {submitting ? copy.savingPlan.savingButton : copy.addMoney.confirmDepositButton}
+      </Button>
     </form>
   );
 }

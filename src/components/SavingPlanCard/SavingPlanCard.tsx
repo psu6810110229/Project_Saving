@@ -1,7 +1,14 @@
 import { useRef, useState } from 'react';
 import Pressable from '../Pressable/Pressable';
 import { IconBubble } from '../IconBubble/IconBubble';
-import { IconChevronDown, IconEdit, IconTrendingUp, IconVault } from '../Icon/Icon';
+import {
+  IconCalendar,
+  IconChevronDown,
+  IconEdit,
+  IconPiggyBank,
+  IconTrendingUp,
+  IconVault,
+} from '../Icon/Icon';
 import { TextInput } from '../TextInput/TextInput';
 import { Button } from '../Button/Button';
 import { formatCurrency } from '../../lib/format';
@@ -33,13 +40,14 @@ interface SavingPlanCardProps {
   isPaused?: boolean;
   pausedSince?: string | null;
   planSummary?: string | null;
-  /** SPRINT1-003: remaining streak freezes in the current Bangkok month.
-   *  Null while the budget row is still resolving server-side. */
-  freezesRemainingThisMonth?: number | null;
   /** Most recent auto-freeze date as `YYYY-MM-DD`, Bangkok-local. */
   lastFreezeDateKey?: string | null;
   /** Today's Bangkok-local date key, for the freeze hint window. */
   todayDateKey?: string | null;
+  /** Days remaining until the plan revision (or project) end date. Null when no end is set. */
+  daysRemaining?: number | null;
+  /** Recorded-vs-target progress, 0–100. Computed from money status by the caller. */
+  progressPct?: number;
 }
 
 function fireForStreak(streak: number): string {
@@ -72,9 +80,10 @@ export function SavingPlanCard({
   isPaused = false,
   pausedSince = null,
   planSummary = null,
-  freezesRemainingThisMonth = null,
   lastFreezeDateKey = null,
   todayDateKey = null,
+  daysRemaining = null,
+  progressPct = 0,
 }: SavingPlanCardProps) {
   const { copy, formatShortDateKey } = useI18n();
   const d = copy.dashboard;
@@ -146,18 +155,19 @@ export function SavingPlanCard({
               <IconTrendingUp size={20} />
             </IconBubble>
             <div className="min-w-0 flex-1">
-              <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+              <h2 className="font-mono text-lg font-bold leading-tight text-ink">
                 {d.savingPlanLabel}
-              </p>
+              </h2>
               <p className="mt-1 truncate font-mono text-base font-bold text-ink">{d.noPlanYet}</p>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="action"
+              size="sm"
               onClick={e => { e.stopPropagation(); onConfigure(); }}
-              className="shrink-0 rounded-pill bg-brand-500 px-4 py-2 font-mono text-xs font-bold text-ink-inverse shadow-haloOrange transition-transform"
+              className="shrink-0"
             >
               {d.setUpPlan}
-            </button>
+            </Button>
           </div>
         </section>
       </Pressable>
@@ -201,9 +211,6 @@ export function SavingPlanCard({
   // few days after a freeze and disappears as soon as the user saves
   // today (so the streak number on its own then tells the story).
   const sf = copy.streakFreeze;
-  const freezeBudgetLine = !isPaused && habit.streak > 0 && freezesRemainingThisMonth !== null
-    ? sf.remaining(freezesRemainingThisMonth)
-    : null;
   const freezeHintLine = (() => {
     if (isPaused) return null;
     if (!lastFreezeDateKey || !todayDateKey) return null;
@@ -219,93 +226,111 @@ export function SavingPlanCard({
     ? Math.round((vbActualNumber - (verifiedBalance?.amount ?? 0)) * 100) / 100
     : null;
 
+  const progressPctRounded = Math.max(0, Math.min(100, Math.round(progressPct)));
+
   return (
     <Pressable onClick={onConfigure}>
     <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
-      <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-        {d.savingPlanLabel}
-      </p>
-
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <p className={`font-mono text-2xl font-extrabold ${moneyHeadlineColor}`}>
-          {moneyHeadline}
-        </p>
+      {/* Header — eyebrow + status title + halo edit FAB */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-mono text-lg font-bold leading-tight text-ink">
+            {d.savingPlanLabel}
+          </h2>
+          <p className={`mt-1 font-mono text-base font-bold ${moneyHeadlineColor}`}>
+            {moneyHeadline}
+          </p>
+        </div>
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onConfigure(); }}
           aria-label={d.changePlan}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-transform"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-transform"
         >
           <IconEdit size={18} />
         </button>
       </div>
       {isPaused ? (
-        <div className="mt-1">
-          {pausedSince && (
-            <p className="font-mono text-base font-bold text-ink-muted">
-              {d.planSince} <span className="text-ink">{formatShortDateKey(pausedSince)}</span>
-              {planSummary && (
-                <span className="ml-2 font-normal text-ink-muted">· {planSummary}</span>
-              )}
-            </p>
-          )}
-        </div>
+        pausedSince && (
+          <p className="mt-1 font-mono text-sm font-bold text-ink-muted">
+            {d.planSince} <span className="text-ink">{formatShortDateKey(pausedSince)}</span>
+            {planSummary && (
+              <span className="ml-2 font-normal text-ink-muted">· {planSummary}</span>
+            )}
+          </p>
+        )
       ) : (
         money.state === 'ahead' && money.coveredUntilDate && (
-          <p className="mt-1 font-mono text-base font-bold text-ink-muted">
+          <p className="mt-1 font-mono text-sm font-bold text-ink-muted">
             {d.coveredUntil} <span className="text-ink">{formatShortDateKey(money.coveredUntilDate)}</span>
           </p>
         )
       )}
 
-      <div className="mt-5 grid grid-cols-2 divide-x divide-well">
-        <div className="pr-4">
-          <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-            {d.moneyLabel}
-          </p>
-          <div className="mt-3">
-            <p className="font-mono text-sm text-ink-muted">{d.todaysPlan}</p>
-            <p className="mt-0.5 font-mono text-base font-bold text-ink">
+      {/* 3-col meta row — today's plan / days left / progress */}
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500">
+            <IconPiggyBank size={16} />
+          </span>
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] leading-tight text-ink-muted">{d.todaysPlan}</p>
+            <p className="font-mono text-sm font-bold text-ink truncate">
               {formatCurrency(Math.round(money.expectedToday))}
             </p>
           </div>
         </div>
-
-        <div className="pl-4">
-          <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
-            {d.habitLabel}
-          </p>
-          <div className="mt-3 flex flex-col gap-3">
-            <div>
-              <p className="font-mono text-sm text-ink-muted">{d.lastDeposit}</p>
-              <p className="mt-0.5 font-mono text-base font-bold text-ink">
-                {habitHeadline}
-              </p>
-            </div>
-            {habit.streak > 0 && (
-              <div>
-                <p className="font-mono text-sm text-ink-muted">{d.streakLabel}</p>
-                <p className="mt-0.5 font-mono text-base font-bold text-ink">
-                  {d.streakDays(habit.streak)}
-                  {streakFire && (
-                    <span aria-hidden className="ml-1.5 align-middle">{streakFire}</span>
-                  )}
-                </p>
-                {freezeBudgetLine && (
-                  <p className="mt-1 font-mono text-xs text-ink-muted">
-                    {freezeBudgetLine}
-                  </p>
-                )}
-                {freezeHintLine && (
-                  <p className="mt-1 font-mono text-xs text-ink-muted">
-                    {freezeHintLine}
-                  </p>
-                )}
-              </div>
-            )}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500">
+            <IconCalendar size={16} />
+          </span>
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] leading-tight text-ink-muted">{d.daysLeftLabel}</p>
+            <p className="font-mono text-sm font-bold text-ink truncate">
+              {daysRemaining === null || daysRemaining < 0
+                ? d.noEndDate
+                : d.daysLeftValue(daysRemaining)}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500">
+            <IconTrendingUp size={16} />
+          </span>
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] leading-tight text-ink-muted">{d.progressLabel}</p>
+            <p className="font-mono text-sm font-bold text-ink truncate">
+              {progressPctRounded}%
+            </p>
           </div>
         </div>
       </div>
+
+      {/* Compact habit/streak/freeze secondary line */}
+      {!isPaused && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-ink-muted">
+          <span>
+            {d.lastDeposit}: <span className="font-bold text-ink">{habitHeadline}</span>
+          </span>
+          {habit.streak > 0 && (
+            <>
+              <span aria-hidden>·</span>
+              <span>
+                {d.streakLabel}:{' '}
+                <span className="font-bold text-ink">
+                  {d.streakDays(habit.streak)}
+                  {streakFire && (
+                    <span aria-hidden className="ml-1 align-middle">{streakFire}</span>
+                  )}
+                </span>
+              </span>
+            </>
+          )}
+        </div>
+      )}
+      {freezeHintLine && (
+        <p className="mt-0.5 font-mono text-xs text-ink-muted">{freezeHintLine}</p>
+      )}
 
       {/* Verified Balance — expandable inline form */}
       {verifiedBalance && (

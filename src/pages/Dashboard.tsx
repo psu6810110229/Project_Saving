@@ -36,9 +36,11 @@ import {
   IconRocket,
   IconSmartphone,
   IconTicket,
+  IconUser,
   IconVault,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
+import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
 import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
 import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilter';
 import { useAuth } from '../hooks/useAuth';
@@ -53,7 +55,7 @@ import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
-import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
+import { cumulativeAmountSeries, dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
@@ -122,7 +124,6 @@ export function Dashboard() {
   const { plan: savingPlan, deposits: planDeposits } = data.savingPlan;
   const {
     frozenDates: streakFrozenDates,
-    freezesRemainingThisMonth,
     lastFreezeDate: lastStreakFreezeDate,
   } = data.streakFreeze;
   const { count: unreadNotifications } = useUnreadNotificationsCount();
@@ -135,6 +136,7 @@ export function Dashboard() {
   const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [vbReminder, setVbReminder] = useState<{ open: boolean; days: number | null }>({ open: false, days: null });
   const vbReminderEvaluatedRef = useRef(false);
@@ -361,6 +363,23 @@ export function Dashboard() {
     streakFrozenDates,
   );
 
+  // Saving Plan card meta — prefer the active plan revision's end date,
+  // otherwise fall back to the room/goal end date. Some plans run in
+  // target-reach mode (no revision end_date), so the room date is the
+  // usual source.
+  const planEndDateKey = displayRevision?.end_date ?? activeRoom?.end_date ?? null;
+  const planDaysRemaining = planEndDateKey
+    ? Math.max(
+        0,
+        Math.round(
+          (Date.parse(planEndDateKey + 'T00:00:00Z') - Date.parse(todayKey + 'T00:00:00Z')) / 86_400_000,
+        ),
+      )
+    : null;
+  const planProgressPct = moneyStatus && moneyStatus.targetAmount > 0
+    ? (moneyStatus.recordedDeposits / moneyStatus.targetAmount) * 100
+    : 0;
+
   // Pack the Verified Balance slot for the Saving Plan island so
   // both ideas read as one financial picture; the underlying
   // BalanceCheckStatus card is only used as a fallback empty state.
@@ -466,23 +485,26 @@ export function Dashboard() {
     <motion.div className="flex flex-col gap-6" variants={containerVariants} initial="hidden" animate="visible">
       {/* Project header. Compact, no heavy card. */}
       <motion.header
-        className="flex flex-col gap-2"
+        className="flex items-start justify-between gap-3"
         variants={sectionVariants}
       >
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-            {d.projectLabel}
-          </p>
-          <div className="flex shrink-0 items-center gap-2">
-            <BellIconButton
-              unreadCount={unreadNotifications}
-              onClick={() => navigate('/notifications')}
-            />
+        <div className="min-w-0 flex-1">
+          <h1 className="max-w-full break-words font-mono text-2xl font-bold leading-tight text-ink line-clamp-2">
+            {activeRoom?.name ?? 'Japan 2027'}
+          </h1>
+          <div className="mt-1 flex items-center gap-1.5 text-ink-muted">
+            <IconUser size={14} />
+            <span className="font-mono text-xs">
+              {d.membersInRoom(leaderboard.entries.length)}
+            </span>
           </div>
         </div>
-        <h1 className="max-w-full break-words font-mono text-2xl font-bold leading-tight text-ink line-clamp-2">
-          {activeRoom?.name ?? 'Japan 2027'}
-        </h1>
+        <div className="flex shrink-0 items-center gap-2">
+          <BellIconButton
+            unreadCount={unreadNotifications}
+            onClick={() => navigate('/notifications')}
+          />
+        </div>
       </motion.header>
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}
@@ -533,9 +555,10 @@ export function Dashboard() {
           isPaused={isPausedToday}
           pausedSince={pausedSince}
           planSummary={planSummary}
-          freezesRemainingThisMonth={freezesRemainingThisMonth}
           lastFreezeDateKey={lastStreakFreezeDate}
           todayDateKey={todayKey}
+          daysRemaining={planDaysRemaining}
+          progressPct={planProgressPct}
         />
       </motion.div>
 
@@ -565,28 +588,19 @@ export function Dashboard() {
           </div>
         )}
         {showingPartner ? (
-          <section className="flex flex-col gap-3">
-            <div>
-              <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-800">
-                {d.smartBuckets}
-              </p>
-              <h2 className="mt-1 font-mono text-2xl font-bold text-ink truncate">{d.yourBuckets(partnerName)}</h2>
-              <p className="mt-1 font-mono text-sm text-ink-muted">
-                {d.bucketCount(partnerBucketItems.length)} — {d.bucketReadOnly}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {partnerBucketItems.map(bucket => (
-                <BucketRow
-                  key={bucket.id}
-                  icon={bucket.icon}
-                  name={bucket.name}
-                  saved={bucket.saved}
-                  target={bucket.target}
-                />
-              ))}
-            </div>
-          </section>
+          <BucketGrid
+            title={d.yourBuckets(partnerName)}
+            subtitle={`${d.bucketCount(partnerBucketItems.length)} — ${d.bucketReadOnly}`}
+            buckets={partnerBucketItems}
+            renderBucket={bucket => (
+              <BucketRow
+                icon={bucket.icon}
+                name={bucket.name}
+                saved={bucket.saved}
+                target={bucket.target}
+              />
+            )}
+          />
         ) : (
           <BucketGrid
             title={d.tripBuckets}
@@ -644,7 +658,7 @@ export function Dashboard() {
               chronological list, top 3 items only. */}
       <motion.section className="flex flex-col gap-3" variants={sectionVariants}>
         <div className="flex items-center justify-between gap-2">
-          <SectionLabel tone="brand">{d.activity}</SectionLabel>
+          <h2 className="font-mono text-lg font-bold leading-tight text-ink">{d.activity}</h2>
           {logs.length > 0 && (
             <button
               type="button"
@@ -797,6 +811,12 @@ export function Dashboard() {
             saved={selectedBucketItem?.saved ?? 0}
             target={selectedBucketItem?.target ?? 0}
             quickAmounts={quickAmounts}
+            trendPreview={{
+              mineLabel: profile?.display_name ?? d.youLabel,
+              theirLabel: partnerEntry?.displayName ?? copy.addMoney.partnerLabel,
+              mineSeries: pending => cumulativeAmountSeries(logs, user?.id, pending),
+              theirSeries: cumulativeAmountSeries(logs, partnerEntry?.userId),
+            }}
             onConfirm={async amount => {
               if (!expandedBucketId) return { error: copy.bucket.validationNameAndTarget };
               const prev = selectedBucketItem?.saved ?? 0;
@@ -804,12 +824,30 @@ export function Dashboard() {
               if (!result.error) {
                 const reached = prev < (selectedBucketItem?.target ?? 0) && prev + amount >= (selectedBucketItem?.target ?? 0);
                 haptic(reached ? 'milestone' : 'success');
+                if (reached && selectedBucketItem) {
+                  setBucketGoalOutcome({ name: selectedBucketItem.name, target: selectedBucketItem.target });
+                }
               }
               return result;
             }}
           />
         );
       })()}
+      <OutcomeModal
+        open={Boolean(bucketGoalOutcome)}
+        outcome="success"
+        icon={<IconCheck size={28} />}
+        title={copy.addMoney.bucketReachedTitle}
+        body={
+          bucketGoalOutcome
+            ? copy.addMoney.bucketReachedBody(bucketGoalOutcome.name, formatMoney(bucketGoalOutcome.target))
+            : undefined
+        }
+      >
+        <Button variant="action" fullWidth onClick={() => setBucketGoalOutcome(null)}>
+          {copy.addMoney.outcomeDone}
+        </Button>
+      </OutcomeModal>
     </motion.div>
     </>
   );

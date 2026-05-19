@@ -11,8 +11,8 @@ interface UseUnreadNotificationsCountResult {
 
 /**
  * Lightweight unread badge source for the Dashboard bell. Calls the
- * `unread_notification_count` RPC and refetches on tab focus so the
- * badge stays roughly fresh without a realtime subscription.
+ * `unread_notification_count` RPC without tying refreshes to app focus,
+ * so returning from another app never looks like a page reload.
  */
 export function useUnreadNotificationsCount(): UseUnreadNotificationsCountResult {
   const { user } = useAuth();
@@ -41,12 +41,6 @@ export function useUnreadNotificationsCount(): UseUnreadNotificationsCountResult
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     void fetchCount();
-  }, [fetchCount]);
-
-  useEffect(() => {
-    function onFocus() { void fetchCount(); }
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
   }, [fetchCount]);
 
   return { count, loading, error, refetch: fetchCount };

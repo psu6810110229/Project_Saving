@@ -69,7 +69,11 @@ export function PlayerProgressRow({
   const { copy } = useI18n();
   const pct = target > 0 ? (saved / target) * 100 : 0;
   return (
-    <div className={`flex items-center gap-4 rounded-lg px-2 py-2 ${isYou ? 'bg-brand-50' : ''}`}>
+    <div
+      className={`flex items-center gap-3 rounded-xl bg-surface p-4 shadow-soft ${
+        isYou ? 'border-2 border-brand-100' : ''
+      }`}
+    >
       <div className="relative shrink-0">
         {isLeader && <CrownBadge />}
         <Avatar
@@ -81,33 +85,33 @@ export function PlayerProgressRow({
         />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline justify-between gap-2">
+        <div className="flex items-center justify-between gap-2">
           <span className="font-mono text-base font-bold text-ink truncate">
             {isYou ? `${copy.dashboard.youLabel} - ${name}` : name}
           </span>
           {trailing && <div className="shrink-0">{trailing}</div>}
         </div>
-        <div className="mt-1 flex items-baseline justify-between gap-2 font-mono">
-          <div className="flex items-baseline gap-2 min-w-0">
-            <span className="text-lg font-bold text-ink">{formatCurrency(saved)}</span>
-            <span className="text-xs text-ink-muted shrink-0">/ {formatCurrency(target)}</span>
-          </div>
-          <span className={`text-sm font-bold tabular-nums shrink-0 ${pctColor(pct)}`}>
+        <div className="mt-1 flex items-baseline gap-2 font-mono">
+          <span className="text-lg font-bold text-brand-500">{formatCurrency(saved)}</span>
+          <span className="text-xs text-ink-muted shrink-0">/ {formatCurrency(target)}</span>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <span className={`font-mono text-xs font-bold tabular-nums shrink-0 ${pctColor(pct)}`}>
             {Math.round(pct)}%
           </span>
+          <div className="flex-1">
+            <ProgressBar
+              value={pct}
+              tone={themeColor ? 'theme' : 'primary'}
+              themeHex={themeColor ? themeSwatches[themeColor] : undefined}
+              size="md"
+              animate
+            />
+          </div>
         </div>
         {gapLabel && (
-          <p className="mt-1 font-mono text-xs text-ink-muted">{gapLabel}</p>
+          <p className="mt-2 font-mono text-xs text-ink-muted">{gapLabel}</p>
         )}
-        <div className="mt-2">
-          <ProgressBar
-            value={pct}
-            tone={themeColor ? 'theme' : 'primary'}
-            themeHex={themeColor ? themeSwatches[themeColor] : undefined}
-            size="md"
-            animate
-          />
-        </div>
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ export function PageHeader({ eyebrow, title, subtitle, showBack = false }: PageH
       )}
       <div className="min-w-0 flex-1">
         <SectionLabel tone="brand">{eyebrow}</SectionLabel>
-        <h1 className="mt-1 truncate font-mono text-3xl font-bold text-ink">{title}</h1>
+        <h1 className="mt-1 truncate font-mono text-2xl font-bold leading-tight text-ink">{title}</h1>
         {subtitle && <p className="mt-1 font-mono text-xs text-ink-muted">{subtitle}</p>}
       </div>
     </header>

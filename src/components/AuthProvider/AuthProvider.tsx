@@ -24,9 +24,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function applySession(s: Session | null) {
     setSession(s);
     const u = s?.user ?? null;
-    setUser(u);
+    setUser(prev => (prev?.id === u?.id ? prev : u));
     // Instant profile from JWT metadata — no extra DB call
-    setProfile(u ? profileFromUser(u) : null);
+    setProfile(prev => {
+      if (!u) return null;
+      const next = profileFromUser(u);
+      if (
+        prev?.id === next.id
+        && prev.display_name === next.display_name
+        && prev.avatar_url === next.avatar_url
+      ) {
+        return prev;
+      }
+      return next;
+    });
     setLoading(false);
   }
 

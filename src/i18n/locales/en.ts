@@ -97,8 +97,11 @@ export const en = {
   dashboard: {
     // Recorded Vault
     recordedVault: 'Recorded Vault',
+    vaultSaved: 'Saved',
+    vaultTarget: 'Target',
     // Header
     projectLabel: 'Project',
+    membersInRoom: (count: number) => `${count} member${count === 1 ? '' : 's'} in this room`,
     // Error state
     errorTitle: 'Dashboard needs a refresh',
     // Progress Race
@@ -147,6 +150,10 @@ export const en = {
     moneyLabel: 'Money',
     habitLabel: 'Habit',
     todaysPlan: "Today's plan",
+    daysLeftLabel: 'Days left',
+    daysLeftValue: (n: number) => `${n} day${n === 1 ? '' : 's'}`,
+    progressLabel: 'Progress',
+    noEndDate: '—',
     lastDeposit: 'Last deposit',
     streakLabel: 'Streak',
     streakDays: (n: number) => `${n} day${n === 1 ? '' : 's'}`,
@@ -240,8 +247,15 @@ export const en = {
     confirmBannerTitle: (amount: string, name: string) => `Confirm ${amount} for ${name}`,
     confirmBannerBodySlip: 'A transfer slip marker will be saved with this log.',
     confirmBannerBodyNoSlip: 'No slip attached for this deposit.',
+    completeBucketConfirmTitle: (name: string) => `${name} is already complete`,
+    completeBucketConfirmBody: (name: string) =>
+      `${name} has already reached 100 percent. Add more money to this bucket anyway?`,
+    completeBucketConfirmLabel: 'Add anyway',
     outcomeTitle: 'Deposit Confirmed',
     outcomeBody: (name: string, amount: string) => `${name} moved by ${amount}.`,
+    bucketReachedTitle: 'Bucket complete',
+    bucketReachedBody: (name: string, target: string) =>
+      `${name} reached its ${target} target. Nice work.`,
     outcomeDone: 'Done',
     depositAmountLabel: 'Deposit Amount',
     customAmountLabel: 'Custom Amount',
@@ -326,28 +340,28 @@ export const en = {
     versionLabel: (version: string) => `Version ${version}`,
     viewAllChanges: (count: number) => `View all changes (${count} more)`,
     showLess: 'Show less',
-    heading: 'GO-OUT v0.9.7',
-    intro: 'We’ve polished navigation, saving plans, and notifications for a smoother experience.',
+    heading: 'GO-OUT v0.9.8',
+    intro: 'This update focuses on a clearer Dashboard, smoother deposit flow, and a steadier app when you come back to it.',
     notes: [
       {
-        id: 'apple-style-motion',
-        title: 'Smoother page transitions',
-        body: 'Navigating between screens and loading pages now feel cleaner, softer, and more app-like.',
+        id: 'dashboard-redesign',
+        title: 'A clearer Dashboard',
+        body: 'The total vault, saving plan, head-to-head view, and daily chart now feel more consistent and easier to scan at a glance.',
       },
       {
-        id: 'plan-flexibility-fix',
-        title: 'Seamless saving plan edits',
-        body: 'Fixed saving plan updates and future start-dates, allowing you to change your plans instantly without date-related errors.',
+        id: 'bucket-deposit-flow',
+        title: 'Better buckets and deposits',
+        body: 'Bucket cards are easier to read, and completed buckets are handled more clearly when you record new savings.',
       },
       {
-        id: 'roomless-navigation',
-        title: 'Access settings offline',
-        body: 'You can now browse settings, edit your profile, or view archived projects even if you do not have an active project.',
+        id: 'add-money-polish',
+        title: 'Cleaner Add Money screen',
+        body: 'The deposit form and projected progress card were reorganized so you can see the effect of a deposit more quickly.',
       },
       {
-        id: 'reminder-nudge-reliability',
-        title: 'Reliable reminders & nudges',
-        body: 'Receive timely daily deposit reminders and partner nudges across all plan types, with cleaner menus and toggles.',
+        id: 'return-refresh-fix',
+        title: 'More reliable app return',
+        body: 'The app now refreshes more calmly when you switch away and come back, keeping data current without unnecessary reloads.',
       },
     ],
   },

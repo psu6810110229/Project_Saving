@@ -14,13 +14,14 @@ interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'child
   children: ReactNode;
 }
 
-export function Pill({ selected = false, className = '', children, ...rest }: PillProps) {
+export function Pill({ selected = false, className = '', children, type = 'button', ...rest }: PillProps) {
   const state = selected
     ? 'bg-brand-500 text-ink-inverse ring-4 ring-brand-50 shadow-haloOrange'
     : 'bg-brand-50 text-ink-muted hover:bg-brand-100';
 
   return (
     <button
+      type={type}
       {...rest}
       className={
         'inline-flex items-center justify-center rounded-pill ' +

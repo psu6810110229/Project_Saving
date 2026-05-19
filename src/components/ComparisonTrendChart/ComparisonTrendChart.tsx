@@ -1,6 +1,5 @@
 ﻿import type { CSSProperties } from 'react';
 import { palette } from '../../lib/theme';
-import { SectionLabel } from '../SectionLabel/SectionLabel';
 
 /**
  * Confirm Deposit two-line trend chart. Phan vs Art cumulative savings
@@ -85,7 +84,9 @@ export function ComparisonTrendChart({
   return (
     <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
       <div className="flex items-center justify-between">
-        <SectionLabel tone="muted">Trend vs {theirLabel}</SectionLabel>
+        <h3 className="min-w-0 truncate font-mono text-sm font-bold leading-tight text-ink">
+          Trend vs {theirLabel}
+        </h3>
         <div className="flex items-center gap-3 font-mono text-[11px]">
           <span className="inline-flex items-center gap-1.5 text-brand-800">
             <span className="w-2.5 h-2.5 rounded-full bg-brand-500" />{mineLabel}

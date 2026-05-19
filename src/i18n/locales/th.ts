@@ -140,6 +140,7 @@ export const th: Messages = {
     behindBy: (amount: string) => `ยังขาดจากแผน ${amount}`,
     onTrack: 'ตรงตามแผน',
     notStarted: 'ยังไม่เริ่ม',
+    planStartsOn: (date: string) => `เริ่ม ${date}`,
     moneyLabel: 'เงิน',
     habitLabel: 'วินัยการออม',
     todaysPlan: 'เป้าวันนี้',

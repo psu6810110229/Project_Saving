@@ -44,6 +44,8 @@ interface SavingPlanCardProps {
   lastFreezeDateKey?: string | null;
   /** Today's Bangkok-local date key, for the freeze hint window. */
   todayDateKey?: string | null;
+  /** Bangkok-local plan start date for future-start revisions. */
+  planStartDateKey?: string | null;
   /** Days remaining until the plan revision (or project) end date. Null when no end is set. */
   daysRemaining?: number | null;
   /** Recorded-vs-target progress, 0–100. Computed from money status by the caller. */
@@ -82,6 +84,7 @@ export function SavingPlanCard({
   planSummary = null,
   lastFreezeDateKey = null,
   todayDateKey = null,
+  planStartDateKey = null,
   daysRemaining = null,
   progressPct = 0,
 }: SavingPlanCardProps) {
@@ -194,7 +197,9 @@ export function SavingPlanCard({
         ? d.behindBy(formatCurrency(Math.round(-money.delta)))
         : money.state === 'on_track'
           ? d.onTrack
-          : d.notStarted;
+          : planStartDateKey && todayDateKey && planStartDateKey > todayDateKey
+            ? d.planStartsOn(formatShortDateKey(planStartDateKey))
+            : d.notStarted;
 
   const habitHeadline = habit.lastDepositDateKey === null
     ? d.noDepositsYet

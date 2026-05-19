@@ -147,6 +147,7 @@ export const en = {
     behindBy: (amount: string) => `Behind by ${amount}`,
     onTrack: 'On track',
     notStarted: 'Not started',
+    planStartsOn: (date: string) => `Starts ${date}`,
     moneyLabel: 'Money',
     habitLabel: 'Habit',
     todaysPlan: "Today's plan",

@@ -557,6 +557,7 @@ export function Dashboard() {
           planSummary={planSummary}
           lastFreezeDateKey={lastStreakFreezeDate}
           todayDateKey={todayKey}
+          planStartDateKey={displayRevision?.effective_from_date ?? null}
           daysRemaining={planDaysRemaining}
           progressPct={planProgressPct}
         />

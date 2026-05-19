@@ -5,8 +5,6 @@ import type { NotificationItem } from '../types';
 
 interface UseNotificationsOptions {
   limit?: number;
-  /** When true (the default) the hook refetches on tab focus. */
-  refetchOnFocus?: boolean;
 }
 
 interface UseNotificationsResult {
@@ -67,7 +65,7 @@ function normalize(row: RpcRow): NotificationItem {
  * `list_notifications` RPC. Marking-read is optimistic so the UI feels
  * snappy; failures revert local state and surface an error string.
  */
-export function useNotifications({ limit = 30, refetchOnFocus = true }: UseNotificationsOptions = {}): UseNotificationsResult {
+export function useNotifications({ limit = 30 }: UseNotificationsOptions = {}): UseNotificationsResult {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,13 +96,6 @@ export function useNotifications({ limit = 30, refetchOnFocus = true }: UseNotif
     setLoading(true);
     void fetchList();
   }, [fetchList]);
-
-  useEffect(() => {
-    if (!refetchOnFocus) return;
-    function onFocus() { void fetchList(); }
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [fetchList, refetchOnFocus]);
 
   const markRead = useCallback(async (id: string): Promise<{ error?: string }> => {
     const previous = notifications;

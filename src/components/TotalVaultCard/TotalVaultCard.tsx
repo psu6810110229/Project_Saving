@@ -19,12 +19,12 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVa
   const card = (
     <section className="rounded-2xl bg-brand-500 p-5 text-white shadow-haloOrange">
       <div className="flex items-center justify-between gap-2">
-        <span className="block font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-white">
+        <span className="block font-mono text-[14px] font-semibold uppercase tracking-[0.18em] text-white">
           {copy.dashboard.recordedVault}
         </span>
         <div className="flex items-center gap-2">
           <span
-            className="rounded-full bg-white/20 px-2.5 py-0.5 font-mono text-xs font-bold tabular-nums"
+            className="rounded-full bg-white/20 px-3 py-1.5 font-mono text-xs font-bold tabular-nums"
             aria-label={`${pctRounded}%`}
           >
             {pctRounded}%

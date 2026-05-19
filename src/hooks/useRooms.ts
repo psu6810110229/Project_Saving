@@ -41,13 +41,15 @@ const ROOM_FETCH_TIMEOUT_MS = 12_000;
 
 export function useRooms() {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const { rooms: currentRooms, setRooms, activeRoomId, setActiveRoomId } = useRoom();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function fetchRooms() {
-    if (!user) { setLoading(false); return; }
-    setLoading(true);
+  async function fetchRooms(options: { showLoading?: boolean } = {}) {
+    if (!userId) { setLoading(false); return; }
+    const showLoading = options.showLoading ?? currentRooms.length === 0;
+    if (showLoading) setLoading(true);
     setError(null);
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), ROOM_FETCH_TIMEOUT_MS);
@@ -55,7 +57,7 @@ export function useRooms() {
     const { data, error: err } = await supabase
       .from('room_members')
       .select('rooms(*)')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('joined_at', { ascending: true })
       .abortSignal(controller.signal);
 
@@ -90,7 +92,7 @@ export function useRooms() {
    * prompt the user to archive their current room first.
    */
   async function fetchActiveRoomForCreator(): Promise<ActiveRoomRow | null> {
-    if (!user) return null;
+    if (!userId) return null;
     const { data, error: rpcError } = await supabase
       .rpc('active_room_for_creator');
     if (rpcError) return null;
@@ -99,7 +101,7 @@ export function useRooms() {
   }
 
   async function createRoom(values: CreateRoomValues, options: { archiveExisting?: boolean } = {}): Promise<ActionResult> {
-    if (!user) return { error: 'Not authenticated' };
+    if (!userId) return { error: 'Not authenticated' };
 
     if (!options.archiveExisting) {
       const existing = await fetchActiveRoomForCreator();
@@ -115,7 +117,7 @@ export function useRooms() {
       name: values.name.trim(),
       invite_code: generateInviteCode(),
       end_date: values.end_date,
-      created_by: user.id,
+      created_by: userId,
       created_at: new Date().toISOString(),
       category: values.category,
       archived_at: null,
@@ -135,14 +137,14 @@ export function useRooms() {
 
     const { error: memberError } = await supabase
       .from('room_members')
-      .insert({ room_id: room.id, user_id: user.id });
+      .insert({ room_id: room.id, user_id: userId });
     if (memberError) return { error: memberError.message };
 
     const { error: goalError } = await supabase
       .from('goals')
       .upsert(
         {
-          user_id: user.id,
+          user_id: userId,
           room_id: room.id,
           target_amount: values.target_amount,
           start_date: startDate,
@@ -159,7 +161,7 @@ export function useRooms() {
   }
 
   async function joinRoomByCode(code: string): Promise<ActionResult> {
-    if (!user) return { error: 'Not authenticated' };
+    if (!userId) return { error: 'Not authenticated' };
     const cleaned = code.trim().toUpperCase();
     if (cleaned.length < 6) return { error: 'Enter the full invite code' };
 
@@ -193,7 +195,7 @@ export function useRooms() {
   }
 
   async function archiveRoom(roomId: string): Promise<ActionResult> {
-    if (!user) return { error: 'Not authenticated' };
+    if (!userId) return { error: 'Not authenticated' };
     // Use the security-definer RPC introduced in migration 0020 so the
     // creator check is enforced server-side (a member joiner cannot
     // archive a project they did not create).
@@ -216,7 +218,7 @@ export function useRooms() {
    * DB but become invisible to them via the existing `select` policies.
    */
   async function leaveRoom(roomId: string): Promise<ActionResult> {
-    if (!user) return { error: 'Not authenticated' };
+    if (!userId) return { error: 'Not authenticated' };
     // Notify BEFORE the membership row is deleted — otherwise the
     // server-side `_other_room_member()` lookup loses context. The
     // call resolves quietly on failure so the leave still proceeds.
@@ -225,7 +227,7 @@ export function useRooms() {
       .from('room_members')
       .delete()
       .eq('room_id', roomId)
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
     if (leaveError) return { error: leaveError.message };
 
     const nextRooms = currentRooms.filter(room => room.id !== roomId);
@@ -241,11 +243,11 @@ export function useRooms() {
    * owns this state locally.
    */
   async function fetchArchivedRooms(): Promise<Room[]> {
-    if (!user) return [];
+    if (!userId) return [];
     const { data, error: err } = await supabase
       .from('room_members')
       .select('rooms(*)')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('joined_at', { ascending: true });
     if (err) return [];
     return (data ?? [])
@@ -257,7 +259,7 @@ export function useRooms() {
   }
 
   async function restoreRoom(roomId: string): Promise<ActionResult> {
-    if (!user) return { error: 'Not authenticated' };
+    if (!userId) return { error: 'Not authenticated' };
     const { error: restoreError } = await supabase
       .rpc('restore_room', { p_room_id: roomId });
     if (restoreError) return { error: restoreError.message };
@@ -267,7 +269,7 @@ export function useRooms() {
   }
 
   async function updateRoom(roomId: string, values: UpdateRoomValues): Promise<ActionResult> {
-    if (!user) return { error: 'Not authenticated' };
+    if (!userId) return { error: 'Not authenticated' };
 
     const { error: updateError } = await supabase
       .from('rooms')
@@ -283,8 +285,8 @@ export function useRooms() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchRooms();
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchRooms({ showLoading: currentRooms.length === 0 });
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

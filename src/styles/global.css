@@ -223,48 +223,46 @@
     pointer-events: none;
   }
 
+  .vault-card-frame {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .vault-card-frame::after {
+    content: '';
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    bottom: -20px;
+    z-index: -1;
+    height: 46px;
+    border-radius: 999px;
+    background: rgba(88, 50, 44, 0.28);
+    filter: blur(22px);
+    pointer-events: none;
+  }
+
   .vault-credit-card {
     position: relative;
     isolation: isolate;
     overflow: hidden;
     background:
-      radial-gradient(92% 78% at 0% 0%, rgba(255, 222, 197, 0.34), transparent 42%),
-      radial-gradient(82% 90% at 96% 8%, rgba(255, 172, 124, 0.5), transparent 48%),
-      radial-gradient(88% 86% at 82% 106%, rgba(239, 116, 95, 0.42), transparent 58%),
-      radial-gradient(72% 70% at 4% 98%, rgba(255, 196, 133, 0.46), transparent 54%),
-      linear-gradient(135deg, #d66f3b 0%, #ed7f49 46%, #d8645d 100%);
-    box-shadow:
-      0 24px 46px -26px rgba(189, 83, 47, 0.58),
-      0 14px 30px -20px rgba(231, 111, 62, 0.54),
-      inset 0 1px 0 rgba(255, 255, 255, 0.44),
-      inset 0 -1px 0 rgba(128, 48, 30, 0.14);
+      linear-gradient(105deg, rgba(42, 24, 34, 0.05) 0%, rgba(68, 36, 45, 0.1) 42%, rgba(42, 22, 34, 0.3) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(86, 30, 34, 0.1)),
+      url('/vault-card-japan-clean.jpg');
+    background-position: center;
+    background-size: cover;
+    border: 0;
+    box-shadow: none;
+    outline: 0;
   }
 
   .vault-credit-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -2;
-    background:
-      linear-gradient(118deg, transparent 0 24%, rgba(255, 255, 255, 0.14) 26%, transparent 44%),
-      linear-gradient(158deg, transparent 0 62%, rgba(255, 255, 255, 0.12) 64%, transparent 78%),
-      repeating-linear-gradient(126deg, rgba(255, 255, 255, 0.11) 0 1px, transparent 1px 24px);
-    opacity: 0.44;
-    mix-blend-mode: screen;
+    content: none;
   }
 
   .vault-credit-card::after {
-    content: '';
-    position: absolute;
-    inset: 1px;
-    z-index: -1;
-    border-radius: inherit;
-    background:
-      radial-gradient(130px 100px at calc(100% - 30px) 26px, rgba(255, 255, 255, 0.22), transparent 70%),
-      radial-gradient(180px 140px at 28px calc(100% - 18px), rgba(255, 255, 255, 0.1), transparent 70%),
-      linear-gradient(180deg, rgba(95, 36, 23, 0.1), rgba(95, 36, 23, 0.04) 46%, rgba(95, 36, 23, 0.1));
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    pointer-events: none;
+    content: none;
   }
 }
 

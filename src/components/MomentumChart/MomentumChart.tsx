@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { palette } from '../../lib/theme';
-import { IconTrendingUp } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
@@ -138,10 +137,20 @@ export function MomentumChart({
   const groupGap = 2;
   const innerGap = hasPartner ? 1 : 0;
   const chartW = W - PAD_LEFT - PAD_RIGHT;
-  const groupW = (chartW - groupGap * (barCount - 3)) / barCount;
+  const groupW = (chartW - groupGap * Math.max(barCount - 1, 0)) / Math.max(barCount, 1);
   const barW = hasPartner ? (groupW - innerGap) / 2.8 : groupW;
   const chartH = H - PAD_TOP - PAD_BOTTOM;
   const baselineY = PAD_TOP + chartH;
+  const groupStride = groupW + groupGap;
+  const pairW = hasPartner ? barW * 2 + innerGap : barW;
+
+  const barLayoutAt = (index: number) => {
+    const groupX = PAD_LEFT + index * groupStride;
+    const pairX = groupX + (groupW - pairW) / 2;
+    const partnerBarX = hasPartner ? pairX : null;
+    const yourBarX = hasPartner ? pairX + barW + innerGap : pairX;
+    return { groupX, partnerBarX, yourBarX };
+  };
 
   const yourTotal = series.reduce((s, v) => s + v, 0);
   const partnerTotal = hasPartner ? partnerSeries!.reduce((s, v) => s + v, 0) : 0;
@@ -156,8 +165,7 @@ export function MomentumChart({
   // Overlay polyline coordinates — through the top-centre of every
   // "you" bar so the trend line traces the primary series.
   const linePoints = series.map((v, i) => {
-    const groupX = PAD_LEFT + i * (groupW + groupGap);
-    const yourBarX = hasPartner ? groupX + barW + innerGap : groupX;
+    const { yourBarX } = barLayoutAt(i);
     const yourX = yourBarX + barW / 2;
     const yourH = (v / max) * chartH;
     const yourY = baselineY - yourH;
@@ -172,8 +180,7 @@ export function MomentumChart({
       {/* Header + legend */}
       <div className="mb-2 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="mb-2 flex items-center gap-2 font-mono text-lg font-bold leading-tight text-ink">
-            <IconTrendingUp size={20} className="text-brand-500" />
+          <h2 className="mb-2 font-mono text-lg font-bold leading-tight text-ink">
             {d.dailyDepositTrend}
           </h2>
           <div className="flex items-baseline gap-4">
@@ -295,9 +302,7 @@ export function MomentumChart({
 
         {/* Bar groups */}
         {series.map((v, i) => {
-          const groupX = PAD_LEFT + i * (groupW + groupGap);
-          const partnerBarX = hasPartner ? groupX : null;
-          const yourBarX = hasPartner ? groupX + barW + innerGap : groupX;
+          const { groupX, partnerBarX, yourBarX } = barLayoutAt(i);
           const partnerVal = hasPartner ? partnerSeries![i] : 0;
           const yourH = (v / max) * chartH;
           const yourY = baselineY - yourH;
@@ -452,7 +457,7 @@ export function MomentumChart({
           const i = selectedIndex;
           const v = series[i];
           const partnerVal = hasPartner ? partnerSeries![i] : 0;
-          const groupX = PAD_LEFT + i * (groupW + groupGap);
+          const { groupX } = barLayoutAt(i);
           const anchorX = groupX + groupW / 2;
           const yourH = (v / max) * chartH;
           const yourY = baselineY - yourH;

@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 .vercel
+.playwright-mcp/
+supabase/.temp/
 
 # Separate local projects that live beside this repo's source files.
 /portfolio/

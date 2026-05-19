@@ -185,7 +185,6 @@ export function AddMoney() {
       <PageHeader
         eyebrow={copy.addMoney.pageEyebrow}
         title={copy.addMoney.pageTitle}
-        subtitle={copy.addMoney.pageSubtitle}
       />
       <BucketPicker buckets={buckets} selectedId={selectedBucket.id} onSelect={setSelectedBucketId} />
       {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}

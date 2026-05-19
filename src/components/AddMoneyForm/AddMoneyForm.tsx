@@ -5,6 +5,7 @@ import { FormField } from '../FormField/FormField';
 import { IconEdit, IconPiggyBank } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
+import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { SlipAttachField } from '../SlipAttachField/SlipAttachField';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
@@ -54,22 +55,24 @@ export function AddMoneyForm({
     <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <BucketHeader icon={bucketIcon} name={bucketName} saved={saved} target={target} />
       <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <SectionLabel tone="muted">{copy.addMoney.depositAmountLabel}</SectionLabel>
+          {onEditQuickAmounts && (
+            <button
+              type="button"
+              onClick={onEditQuickAmounts}
+              className="inline-flex items-center gap-1 font-mono text-xs font-bold text-ink-muted hover:text-ink"
+            >
+              <IconEdit size={14} />
+              {copy.addMoney.editQuickAmountsLabel}
+            </button>
+          )}
+        </div>
         <QuickAddRow
-          label={copy.addMoney.depositAmountLabel}
           amounts={quickAmounts}
           selected={selectedQuickAmount}
           onSelect={onQuickAmountSelect}
         />
-        {onEditQuickAmounts && (
-          <button
-            type="button"
-            onClick={onEditQuickAmounts}
-            className="self-end inline-flex items-center gap-1 font-mono text-xs font-bold text-ink-muted hover:text-ink"
-          >
-            <IconEdit size={14} />
-            {copy.addMoney.editQuickAmountsLabel}
-          </button>
-        )}
       </div>
       <FormField label={copy.addMoney.customAmountLabel}>
         <TextInput

@@ -379,3 +379,18 @@ variant matching `/reference/dashboard`, while keeping all existing props
 creator-vs-partner edit wiring intact. Smallest visible win, lowest blast
 radius, validates the shared-component-restyle strategy before touching
 larger components like `SavingPlanCard` or `MomentumChart`.
+
+---
+
+## Execution Stop Rule
+
+Implement exactly one step at a time.
+
+After each step:
+- run relevant checks
+- create one commit
+- stop immediately
+- report only changed files, checks, commit hash, and next recommended step
+
+Do not start the next step without explicit user approval.
+Do not edit `docs/ui-redesign-porting-plan.md` unless explicitly asked.

@@ -142,7 +142,7 @@ export const th: Messages = {
     notStarted: 'ยังไม่เริ่ม',
     moneyLabel: 'เงิน',
     habitLabel: 'วินัยการออม',
-    todaysPlan: 'เป้าหมายวันนี้',
+    todaysPlan: 'เป้าวันนี้',
     daysLeftLabel: 'เหลืออีก',
     daysLeftValue: (n: number) => `${n} วัน`,
     progressLabel: 'ความคืบหน้า',

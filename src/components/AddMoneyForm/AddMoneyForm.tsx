@@ -6,7 +6,6 @@ import { FormField } from '../FormField/FormField';
 import { IconEdit, IconPiggyBank } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
-import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { SlipAttachField } from '../SlipAttachField/SlipAttachField';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
@@ -68,7 +67,9 @@ export function AddMoneyForm({
       <BucketHeader icon={bucketIcon} name={bucketName} saved={saved} target={target} />
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <SectionLabel tone="muted">{copy.addMoney.depositAmountLabel}</SectionLabel>
+          <h2 className="font-mono text-lg font-bold leading-tight text-ink">
+            {copy.addMoney.depositAmountLabel}
+          </h2>
           {onEditQuickAmounts && (
             <button
               type="button"

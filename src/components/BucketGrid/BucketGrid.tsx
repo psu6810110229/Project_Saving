@@ -35,11 +35,11 @@ export function BucketGrid({
   const resolvedCta = ctaLabel ?? copy.dashboard.addBucket;
 
   return (
-    <section className="flex flex-col gap-5">
-      <div className="flex flex-col items-start gap-4">
+    <section className="flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-mono text-[2rem] font-bold leading-tight text-ink">{title}</h2>
-          {subtitle && <p className="mt-2 font-mono text-base leading-snug text-ink-muted">{subtitle}</p>}
+          <h2 className="font-mono text-lg font-bold leading-tight text-ink">{title}</h2>
+          {subtitle && <p className="mt-1 font-mono text-xs leading-snug text-ink-muted">{subtitle}</p>}
         </div>
         {onAddBucket && (
           <Button

@@ -124,7 +124,6 @@ export function Dashboard() {
   const { plan: savingPlan, deposits: planDeposits } = data.savingPlan;
   const {
     frozenDates: streakFrozenDates,
-    freezesRemainingThisMonth,
     lastFreezeDate: lastStreakFreezeDate,
   } = data.streakFreeze;
   const { count: unreadNotifications } = useUnreadNotificationsCount();
@@ -556,7 +555,6 @@ export function Dashboard() {
           isPaused={isPausedToday}
           pausedSince={pausedSince}
           planSummary={planSummary}
-          freezesRemainingThisMonth={freezesRemainingThisMonth}
           lastFreezeDateKey={lastStreakFreezeDate}
           todayDateKey={todayKey}
           daysRemaining={planDaysRemaining}
@@ -660,7 +658,7 @@ export function Dashboard() {
               chronological list, top 3 items only. */}
       <motion.section className="flex flex-col gap-3" variants={sectionVariants}>
         <div className="flex items-center justify-between gap-2">
-          <SectionLabel tone="brand">{d.activity}</SectionLabel>
+          <h2 className="font-mono text-lg font-bold leading-tight text-ink">{d.activity}</h2>
           {logs.length > 0 && (
             <button
               type="button"

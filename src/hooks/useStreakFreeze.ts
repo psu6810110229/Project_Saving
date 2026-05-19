@@ -22,9 +22,8 @@ import type { StreakFreezeUsage } from '../types';
  *      keep `frozenDates` in sync without a refetch.
  *
  * It exposes a `Set<string>` of Bangkok-local `YYYY-MM-DD` dates that
- * were auto-frozen for this user, plus the per-month bookkeeping the
- * UI needs to render the "Freezes left this month" line and the
- * one-time "We covered <day> for you" hint.
+ * were auto-frozen for this user, plus the per-month bookkeeping and
+ * latest freeze date for downstream streak/hint UI.
  *
  * No row is ever written to `savings_logs` by this hook.
  */

@@ -132,7 +132,7 @@ export function MomentumChart({
   );
   // Cap the y-axis at 1.25× the tallest bar so the chart hugs the data
   // and bars use more vertical space than a wide-rounded niceMax would.
-  const max = rawMax * 0.19;
+  const max = rawMax * 1.25;
 
   const barCount = series.length;
   const groupGap = 2;
@@ -172,12 +172,12 @@ export function MomentumChart({
       {/* Header + legend */}
       <div className="mb-2 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <span className="mb-2 flex items-center gap-2 font-mono text-[14px] font-bold uppercase tracking-[0.14em] text-ink-muted">
-            <IconTrendingUp size={24} className="text-brand-500" />
+          <h2 className="mb-2 flex items-center gap-2 font-mono text-lg font-bold leading-tight text-ink">
+            <IconTrendingUp size={20} className="text-brand-500" />
             {d.dailyDepositTrend}
-          </span>
+          </h2>
           <div className="flex items-baseline gap-4">
-            <span className="font-mono text-[24px] font-bold leading-none text-ink">
+            <span className="font-mono text-2xl font-bold leading-none text-ink">
               {formatCurrency(headerTotal)}
             </span>
             <span className="font-mono text-[12px] text-ink-muted/80">

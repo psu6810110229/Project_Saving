@@ -1,4 +1,3 @@
-import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { ProjectedProgressBar } from '../ProjectedProgressBar/ProjectedProgressBar';
 import { useI18n } from '../../i18n/useI18n';
 
@@ -23,7 +22,9 @@ export function ProjectedProgressCard({
   return (
     <section className="rounded-xl border border-brand-100 bg-surface p-5 shadow-soft">
       <div className="flex items-center justify-between gap-3">
-        <SectionLabel tone="muted">{copy.addMoney.projectedProgress(bucketName)}</SectionLabel>
+        <h3 className="min-w-0 truncate font-mono text-sm font-bold leading-tight text-ink">
+          {copy.addMoney.projectedProgress(bucketName)}
+        </h3>
         <span className="font-mono text-xs font-bold text-brand-500">{projectedPctRounded}%</span>
       </div>
       <div className="mt-3">

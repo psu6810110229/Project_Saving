@@ -40,9 +40,6 @@ interface SavingPlanCardProps {
   isPaused?: boolean;
   pausedSince?: string | null;
   planSummary?: string | null;
-  /** SPRINT1-003: remaining streak freezes in the current Bangkok month.
-   *  Null while the budget row is still resolving server-side. */
-  freezesRemainingThisMonth?: number | null;
   /** Most recent auto-freeze date as `YYYY-MM-DD`, Bangkok-local. */
   lastFreezeDateKey?: string | null;
   /** Today's Bangkok-local date key, for the freeze hint window. */
@@ -83,7 +80,6 @@ export function SavingPlanCard({
   isPaused = false,
   pausedSince = null,
   planSummary = null,
-  freezesRemainingThisMonth = null,
   lastFreezeDateKey = null,
   todayDateKey = null,
   daysRemaining = null,
@@ -159,9 +155,9 @@ export function SavingPlanCard({
               <IconTrendingUp size={20} />
             </IconBubble>
             <div className="min-w-0 flex-1">
-              <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+              <h2 className="font-mono text-lg font-bold leading-tight text-ink">
                 {d.savingPlanLabel}
-              </p>
+              </h2>
               <p className="mt-1 truncate font-mono text-base font-bold text-ink">{d.noPlanYet}</p>
             </div>
             <Button
@@ -215,9 +211,6 @@ export function SavingPlanCard({
   // few days after a freeze and disappears as soon as the user saves
   // today (so the streak number on its own then tells the story).
   const sf = copy.streakFreeze;
-  const freezeBudgetLine = !isPaused && habit.streak > 0 && freezesRemainingThisMonth !== null
-    ? sf.remaining(freezesRemainingThisMonth)
-    : null;
   const freezeHintLine = (() => {
     if (isPaused) return null;
     if (!lastFreezeDateKey || !todayDateKey) return null;
@@ -241,10 +234,10 @@ export function SavingPlanCard({
       {/* Header — eyebrow + status title + halo edit FAB */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-ink-muted">
+          <h2 className="font-mono text-lg font-bold leading-tight text-ink">
             {d.savingPlanLabel}
-          </p>
-          <p className={`mt-1 font-mono text-xl font-bold ${moneyHeadlineColor}`}>
+          </h2>
+          <p className={`mt-1 font-mono text-base font-bold ${moneyHeadlineColor}`}>
             {moneyHeadline}
           </p>
         </div>
@@ -334,9 +327,6 @@ export function SavingPlanCard({
             </>
           )}
         </div>
-      )}
-      {!isPaused && habit.streak > 0 && freezeBudgetLine && (
-        <p className="mt-1 font-mono text-xs text-ink-muted">{freezeBudgetLine}</p>
       )}
       {freezeHintLine && (
         <p className="mt-0.5 font-mono text-xs text-ink-muted">{freezeHintLine}</p>

@@ -23,7 +23,7 @@ export function BucketHeader({ icon, name, saved, target }: BucketHeaderProps) {
       <div className="flex items-center gap-4">
         <IconBubble tone="solid" size="xl">{icon}</IconBubble>
         <div className="flex-1 min-w-0">
-          <div className="font-mono text-lg font-bold text-ink truncate">{name}</div>
+          <h2 className="truncate font-mono text-lg font-bold leading-tight text-ink">{name}</h2>
           <div className="mt-1 font-mono text-sm text-ink-muted">
             {formatCurrency(saved)} <span className="text-ink-dim">/ {formatCurrency(target)}</span>
           </div>

@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { SettingsRow } from '../SettingsRow/SettingsRow';
 import { useI18n } from '../../i18n/useI18n';
 
@@ -28,7 +27,7 @@ export function SettingsList({ label, items, archiveItem }: SettingsListProps) {
   const resolvedLabel = label ?? copy.sharedControls.settings;
   return (
     <section>
-      <SectionLabel tone="brand">{resolvedLabel}</SectionLabel>
+      <h2 className="font-mono text-lg font-bold leading-tight text-ink">{resolvedLabel}</h2>
       <div className="mt-3 flex flex-col gap-2">
         {items.map(item => (
           <SettingsRow key={item.id} {...item} />

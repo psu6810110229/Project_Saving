@@ -40,7 +40,7 @@ export function HeadToHeadCard({ left, right, partnerSlot }: HeadToHeadCardProps
 
   return (
     <section className="space-y-3">
-      <h2 className="font-mono text-base font-bold text-ink">{d.progressRace}</h2>
+      <h2 className="font-mono text-lg font-bold leading-tight text-ink">{d.progressRace}</h2>
       <div className="flex flex-col gap-3">
         <PlayerProgressRow
           {...rows[0]}

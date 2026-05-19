@@ -247,8 +247,15 @@ export const en = {
     confirmBannerTitle: (amount: string, name: string) => `Confirm ${amount} for ${name}`,
     confirmBannerBodySlip: 'A transfer slip marker will be saved with this log.',
     confirmBannerBodyNoSlip: 'No slip attached for this deposit.',
+    completeBucketConfirmTitle: (name: string) => `${name} is already complete`,
+    completeBucketConfirmBody: (name: string) =>
+      `${name} has already reached 100 percent. Add more money to this bucket anyway?`,
+    completeBucketConfirmLabel: 'Add anyway',
     outcomeTitle: 'Deposit Confirmed',
     outcomeBody: (name: string, amount: string) => `${name} moved by ${amount}.`,
+    bucketReachedTitle: 'Bucket complete',
+    bucketReachedBody: (name: string, target: string) =>
+      `${name} reached its ${target} target. Nice work.`,
     outcomeDone: 'Done',
     depositAmountLabel: 'Deposit Amount',
     customAmountLabel: 'Custom Amount',

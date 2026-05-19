@@ -235,8 +235,15 @@ export const th: Messages = {
     confirmBannerTitle: (amount: string, name: string) => `บันทึก ${amount} เข้า ${name}`,
     confirmBannerBodySlip: 'สลิปจะถูกแนบไว้กับรายการนี้',
     confirmBannerBodyNoSlip: 'ไม่มีสลิปสำหรับการฝากครั้งนี้',
+    completeBucketConfirmTitle: (name: string) => `${name} ถึงเป้าแล้ว`,
+    completeBucketConfirmBody: (name: string) =>
+      `${name} ครบ 100% แล้ว จะเพิ่มเงินเข้าเป้าหมายนี้ต่อจริงไหม?`,
+    completeBucketConfirmLabel: 'เพิ่มต่อ',
     outcomeTitle: 'บันทึกแล้ว',
     outcomeBody: (name: string, amount: string) => `${name} เพิ่มขึ้น ${amount}`,
+    bucketReachedTitle: 'ครบเป้าแล้ว',
+    bucketReachedBody: (name: string, target: string) =>
+      `${name} ถึงเป้า ${target} แล้ว เก่งมาก`,
     outcomeDone: 'เสร็จแล้ว',
     depositAmountLabel: 'จำนวนเงินที่ตั้งไว้แล้ว',
     customAmountLabel: 'จำนวนเงินที่ระบุเอง',

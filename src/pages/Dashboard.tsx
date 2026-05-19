@@ -40,6 +40,7 @@ import {
   IconVault,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
+import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
 import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
 import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilter';
 import { useAuth } from '../hooks/useAuth';
@@ -54,7 +55,7 @@ import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
-import { dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
+import { cumulativeAmountSeries, dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
@@ -136,6 +137,7 @@ export function Dashboard() {
   const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [vbReminder, setVbReminder] = useState<{ open: boolean; days: number | null }>({ open: false, days: null });
   const vbReminderEvaluatedRef = useRef(false);
@@ -811,6 +813,12 @@ export function Dashboard() {
             saved={selectedBucketItem?.saved ?? 0}
             target={selectedBucketItem?.target ?? 0}
             quickAmounts={quickAmounts}
+            trendPreview={{
+              mineLabel: profile?.display_name ?? d.youLabel,
+              theirLabel: partnerEntry?.displayName ?? copy.addMoney.partnerLabel,
+              mineSeries: pending => cumulativeAmountSeries(logs, user?.id, pending),
+              theirSeries: cumulativeAmountSeries(logs, partnerEntry?.userId),
+            }}
             onConfirm={async amount => {
               if (!expandedBucketId) return { error: copy.bucket.validationNameAndTarget };
               const prev = selectedBucketItem?.saved ?? 0;
@@ -818,12 +826,30 @@ export function Dashboard() {
               if (!result.error) {
                 const reached = prev < (selectedBucketItem?.target ?? 0) && prev + amount >= (selectedBucketItem?.target ?? 0);
                 haptic(reached ? 'milestone' : 'success');
+                if (reached && selectedBucketItem) {
+                  setBucketGoalOutcome({ name: selectedBucketItem.name, target: selectedBucketItem.target });
+                }
               }
               return result;
             }}
           />
         );
       })()}
+      <OutcomeModal
+        open={Boolean(bucketGoalOutcome)}
+        outcome="success"
+        icon={<IconCheck size={28} />}
+        title={copy.addMoney.bucketReachedTitle}
+        body={
+          bucketGoalOutcome
+            ? copy.addMoney.bucketReachedBody(bucketGoalOutcome.name, formatMoney(bucketGoalOutcome.target))
+            : undefined
+        }
+      >
+        <Button variant="action" fullWidth onClick={() => setBucketGoalOutcome(null)}>
+          {copy.addMoney.outcomeDone}
+        </Button>
+      </OutcomeModal>
     </motion.div>
     </>
   );

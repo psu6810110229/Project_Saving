@@ -1,6 +1,7 @@
 import type { ChangeEvent, FormEvent, ReactNode } from 'react';
 import { BucketHeader } from '../BucketHeader/BucketHeader';
 import { Button } from '../Button/Button';
+import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { FormField } from '../FormField/FormField';
 import { IconEdit, IconPiggyBank } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
@@ -23,9 +24,14 @@ interface AddMoneyFormProps {
   onQuickAmountSelect: (amount: number) => void;
   onAmountChange: (value: string) => void;
   onSlipChange: (file: File | null) => void;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
   onEditQuickAmounts?: () => void;
   smartDefaultHint?: string | null;
+  mineLabel?: string;
+  theirLabel?: string;
+  mineSeries?: number[];
+  theirSeries?: number[];
+  submitting?: boolean;
 }
 
 export function AddMoneyForm({
@@ -43,9 +49,15 @@ export function AddMoneyForm({
   onSubmit,
   onEditQuickAmounts,
   smartDefaultHint,
+  mineLabel,
+  theirLabel,
+  mineSeries,
+  theirSeries,
+  submitting = false,
 }: AddMoneyFormProps) {
   const { copy } = useI18n();
   const amount = Number(amountValue) || selectedQuickAmount || 0;
+  const showTrendPreview = mineLabel && theirLabel && mineSeries && theirSeries;
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
@@ -87,8 +99,18 @@ export function AddMoneyForm({
         <p className="-mt-2 font-mono text-xs text-ink-muted">{smartDefaultHint}</p>
       )}
       <ProjectedProgressCard bucketName={bucketName} saved={saved} target={target} pendingDeposit={amount} />
+      {showTrendPreview && (
+        <ComparisonTrendChart
+          mineLabel={mineLabel}
+          theirLabel={theirLabel}
+          mineSeries={mineSeries}
+          theirSeries={theirSeries}
+        />
+      )}
       {SHOW_ATTACHED_SLIP && <SlipAttachField file={slip} onChange={onSlipChange} />}
-      <Button variant="action" fullWidth type="submit">{copy.addMoney.confirmDepositButton}</Button>
+      <Button variant="action" fullWidth type="submit" disabled={submitting || amount <= 0}>
+        {submitting ? copy.savingPlan.savingButton : copy.addMoney.confirmDepositButton}
+      </Button>
     </form>
   );
 }

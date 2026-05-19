@@ -164,13 +164,14 @@ export function SavingPlanCard({
               </p>
               <p className="mt-1 truncate font-mono text-base font-bold text-ink">{d.noPlanYet}</p>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="action"
+              size="sm"
               onClick={e => { e.stopPropagation(); onConfigure(); }}
-              className="shrink-0 rounded-pill bg-brand-500 px-4 py-2 font-mono text-xs font-bold text-ink-inverse shadow-haloOrange transition-transform"
+              className="shrink-0"
             >
               {d.setUpPlan}
-            </button>
+            </Button>
           </div>
         </section>
       </Pressable>

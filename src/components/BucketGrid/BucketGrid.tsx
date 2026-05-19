@@ -47,7 +47,6 @@ export function BucketGrid({
             size="sm"
             onClick={onAddBucket}
             leadingIcon={<IconPlus size={18} />}
-            className="px-4 py-2"
           >
             {resolvedCta}
           </Button>

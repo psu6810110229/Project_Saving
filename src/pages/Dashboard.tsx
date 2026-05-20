@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { LayoutGroup, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
@@ -1123,32 +1123,39 @@ interface DailyTrendModeControlProps {
  *  browser-default select/dropdown, no emoji. */
 function DailyTrendModeControl({ ariaLabel, options, value, onChange }: DailyTrendModeControlProps) {
   return (
-    <div
-      role="tablist"
-      aria-label={ariaLabel}
-      className="-mx-1 flex items-center gap-2 overflow-x-auto px-1"
-    >
-      {options.map(option => {
-        const active = option.value === value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(option.value)}
-            className={
-              'inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-3.5 py-1.5 font-mono text-xs font-bold transition-all '
-              + (active
-                ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
-                : 'bg-well text-ink-muted shadow-neuPressed')
-            }
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
+    <LayoutGroup id="trend-mode-pill">
+      <div
+        role="tablist"
+        aria-label={ariaLabel}
+        className="inline-flex w-fit items-center gap-1 self-start rounded-pill bg-well p-1 shadow-neuPressed"
+      >
+        {options.map(option => {
+          const active = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onChange(option.value)}
+              className={
+                'relative inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-3.5 py-1.5 font-mono text-xs font-bold transition-colors '
+                + (active ? 'text-ink-inverse' : 'text-ink-muted')
+              }
+            >
+              {active && (
+                <motion.span
+                  layoutId="trend-mode-active-pill"
+                  className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                />
+              )}
+              <span className="relative z-10">{option.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </LayoutGroup>
   );
 }
 

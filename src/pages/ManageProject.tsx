@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { Button } from '../components/Button/Button';
@@ -21,16 +21,149 @@ import {
 import { Modal } from '../components/Modal/Modal';
 import { PageHeader } from '../components/PageHeader/PageHeader';
 import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
+import { RoomMemberRow } from '../components/RoomMemberRow/RoomMemberRow';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { SettingsList } from '../components/SettingsList/SettingsList';
+import { Skeleton } from '../components/Skeleton/Skeleton';
 import { useAuth } from '../hooks/useAuth';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
+import { formatJoinedDate } from '../i18n/formatters';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { sumTargets } from '../lib/buckets';
 import { haptic } from '../lib/haptics';
+import { supabase } from '../lib/supabase';
+import { type ThemeSwatch } from '../lib/theme';
 import type { Bucket, BucketCategory } from '../types';
+
+/**
+ * Page-local hook (Task 34): reads the active room's member list
+ * via the security-definer RPC `room_members_for_room` (migration
+ * 0016). Lives inside this file rather than `src/hooks/` because the
+ * Members section is the only consumer; promoting it to `DataContext`
+ * is intentionally out of scope.
+ *
+ * Room-switch reset semantics (see plan §4.4):
+ * - `roomId` change resets `members` to `[]` synchronously *during
+ *   render* so the previous room's members can never flash on the
+ *   screen under the new room's title, even on a slow network.
+ * - In-flight RPC responses for a stale `roomId` are dropped via a
+ *   `cancelled` flag.
+ * - On error after a room switch (post-reset, `members.length === 0`),
+ *   we keep `members` as `[]` and surface the error string — never
+ *   bleed stale identities into a new room.
+ * - On a same-room refetch error (forward-looking; v1 fetches only
+ *   on `roomId` change), keep the prior `members` and surface the
+ *   error inline so the user is not stranded.
+ */
+
+interface RoomMember {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  themeColor: ThemeSwatch | null;
+  joinedAt: string | null;
+}
+
+interface UseRoomMembersResult {
+  members: RoomMember[];
+  loading: boolean;
+  error: string | null;
+}
+
+interface RawMemberRow {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  theme_color: string | null;
+  joined_at: string | null;
+}
+
+function toThemeSwatch(value: string | null | undefined): ThemeSwatch | null {
+  if (value === 'terracotta' || value === 'slate' || value === 'teal') return value;
+  return null;
+}
+
+function useRoomMembers(roomId: string | null): UseRoomMembersResult {
+  const [state, setState] = useState<UseRoomMembersResult>(() => ({
+    members: [],
+    loading: roomId !== null,
+    error: null,
+  }));
+  const [trackedRoomId, setTrackedRoomId] = useState<string | null>(roomId);
+
+  if (trackedRoomId !== roomId) {
+    setTrackedRoomId(roomId);
+    setState({
+      members: [],
+      loading: roomId !== null,
+      error: null,
+    });
+  }
+
+  useEffect(() => {
+    if (!roomId) return;
+    let cancelled = false;
+
+    async function fetchMembers() {
+      const { data, error } = await supabase.rpc('room_members_for_room', { p_room_id: roomId });
+      if (cancelled) return;
+
+      if (error) {
+        setState(prev => ({
+          members: prev.members,
+          loading: false,
+          error: error.message,
+        }));
+        return;
+      }
+
+      const rows = (data ?? []) as RawMemberRow[];
+      const members: RoomMember[] = rows
+        .filter(r => r && typeof r.user_id === 'string')
+        .map(r => ({
+          userId: r.user_id,
+          displayName: r.display_name && r.display_name.trim().length > 0
+            ? r.display_name
+            : '\u2014',
+          avatarUrl: r.avatar_url,
+          themeColor: toThemeSwatch(r.theme_color),
+          joinedAt: r.joined_at,
+        }))
+        .sort((a, b) => {
+          const ja = a.joinedAt ?? '';
+          const jb = b.joinedAt ?? '';
+          if (ja === jb) return 0;
+          return ja < jb ? -1 : 1;
+        });
+
+      if (members.length === 0 && typeof console !== 'undefined') {
+        console.warn('[useRoomMembers] empty member list with no error', { roomId });
+      }
+
+      setState({ members, loading: false, error: null });
+    }
+
+    void fetchMembers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId]);
+
+  return state;
+}
+
+function firstGrapheme(value: string): string {
+  if (!value) return '?';
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return '?';
+  const iter = trimmed[Symbol.iterator]();
+  const first = iter.next();
+  if (first.done) return '?';
+  return first.value.toUpperCase();
+}
 
 type ManageModal = 'invite-code' | 'quick-amounts' | 'buckets' | 'rename-room' | null;
 
@@ -48,9 +181,14 @@ const BUCKET_OPTION_ICONS: { id: BucketCategory; icon: ReactNode }[] = [
 
 export function ManageProject() {
   const navigate = useNavigate();
-  const { copy, formatMoney } = useI18n();
+  const { copy, formatMoney, language } = useI18n();
   const { user } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
+  const {
+    members,
+    loading: membersLoading,
+    error: membersError,
+  } = useRoomMembers(activeRoomId);
   const data = useSharedData();
   const { goal } = data.goal;
   const { archiveRoom, leaveRoom, renameRoom } = useRooms();
@@ -291,6 +429,63 @@ export function ManageProject() {
       <PageHeader eyebrow={copy.manageProject.pageEyebrow} title={copy.manageProject.pageTitle} subtitle={activeRoom.name} />
       {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList label={copy.manageProject.sectionProjectBasics} items={projectBasicsItems} />
+      <section aria-busy={membersLoading}>
+        <h2 className="font-mono text-lg font-bold leading-tight text-ink">
+          {copy.manageProject.sectionMembers}
+        </h2>
+        <div className="mt-3 flex flex-col gap-2">
+          {membersLoading ? (
+            <>
+              <MemberRowSkeleton />
+              <MemberRowSkeleton />
+            </>
+          ) : membersError && members.length === 0 ? (
+            <p className="rounded-lg bg-danger-soft px-3 py-2 font-mono text-xs text-danger">
+              {copy.manageProject.memberListErrorBody}
+            </p>
+          ) : members.length === 0 ? (
+            <p className="rounded-lg bg-surface px-3 py-2 font-mono text-xs text-ink-muted shadow-soft">
+              {copy.manageProject.memberListEmptyBody}
+            </p>
+          ) : (
+            <>
+              {members.map(member => {
+                const isYou = member.userId === user?.id;
+                const isCreator = member.userId === activeRoom.created_by;
+                const fallback = firstGrapheme(member.displayName);
+                const dateLabel = formatJoinedDate(member.joinedAt, language);
+                const joinedDateLabel = dateLabel
+                  ? copy.manageProject.memberJoinedAt(dateLabel)
+                  : copy.manageProject.memberJoinedUnknown;
+                return (
+                  <RoomMemberRow
+                    key={member.userId}
+                    name={member.displayName}
+                    fallback={fallback}
+                    imageUrl={member.avatarUrl}
+                    themeColor={member.themeColor ?? undefined}
+                    joinedDateLabel={joinedDateLabel}
+                    isYou={isYou}
+                    isCreator={isCreator}
+                    creatorBadgeLabel={copy.manageProject.creatorBadge}
+                    youSuffix={isYou ? copy.manageProject.memberYouSuffix(member.displayName) : undefined}
+                  />
+                );
+              })}
+              {members.length === 1 && (
+                <p className="font-mono text-xs text-ink-muted">
+                  {copy.manageProject.memberListSoloHint}
+                </p>
+              )}
+              {membersError && (
+                <p className="rounded-lg bg-danger-soft px-3 py-2 font-mono text-xs text-danger">
+                  {copy.manageProject.memberListErrorBody}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </section>
       <SettingsList label={copy.manageProject.sectionSavingControls} items={savingControlItems} />
       <SettingsList label={copy.manageProject.sectionRoomActions} items={roomActionItems} archiveItem={archiveItem} />
       <Modal open={activeModal === 'rename-room'} title={copy.manageProject.renameTitle} onClose={closeModal}>
@@ -394,6 +589,19 @@ export function ManageProject() {
         onCancel={() => setConfirmingLeave(false)}
         onConfirm={handleLeave}
       />
+    </div>
+  );
+}
+
+function MemberRowSkeleton() {
+  return (
+    <div className="flex items-center gap-3 rounded-lg bg-surface p-3 shadow-soft">
+      <Skeleton className="h-12 w-12 rounded-full" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <Skeleton className="h-3 w-32 rounded-pill" />
+        <Skeleton className="h-3 w-24 rounded-pill" />
+      </div>
+      <Skeleton className="h-6 w-16 rounded-pill" />
     </div>
   );
 }

@@ -39,6 +39,28 @@ export function formatShortDateKey(dateKey: string, language: Language): string 
   });
 }
 
+/**
+ * Localized "28 May 2026" (EN) / "28 พ.ค. 2026" (TH) label for a
+ * `room_members.joined_at` timestamptz. Used by the Manage Project
+ * Members section to show when each member joined the room. The year
+ * stays because join dates can be from previous years for long-running
+ * rooms; cropping it would hide useful context.
+ *
+ * Defensive: returns an empty string for `null` / invalid ISO so the
+ * caller can substitute a fallback string (e.g. "Joined recently").
+ */
+export function formatJoinedDate(iso: string | null | undefined, language: Language): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const locale = language === 'th' ? 'th-TH' : 'en-GB';
+  return date.toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 export function formatLocalDateLabel(iso: string, language: Language): string {
   const date = new Date(iso);
   const today = new Date();

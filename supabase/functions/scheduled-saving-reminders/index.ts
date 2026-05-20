@@ -40,8 +40,17 @@ interface EnqueuedRow {
   period_key: string;
 }
 
+interface PlanStartRow {
+  notification_id: string;
+  recipient_user_id: string;
+  plan_id: string;
+  room_id: string | null;
+  start_date: string;
+}
+
 interface RemindersSummary {
   created: number;
+  plan_starts_created: number;
   push_attempted: number;
   push_delivered: number;
   push_skipped_no_prefs: number;
@@ -146,6 +155,7 @@ Deno.serve(async (req) => {
 
   const summary: RemindersSummary = {
     created: 0,
+    plan_starts_created: 0,
     push_attempted: 0,
     push_delivered: 0,
     push_skipped_no_prefs: 0,
@@ -179,28 +189,46 @@ Deno.serve(async (req) => {
       : Number(attemptsDeleted ?? 0);
   }
 
-  // 1. Run eligibility + dedupe + insert in a single SQL pass.
-  const { data, error } = await admin.rpc('enqueue_saving_plan_reminders');
-  if (error) {
-    return jsonResponse({ ...summary, error: error.message }, 500);
+  // 1. Run eligibility + dedupe + insert for the saving-reminder path.
+  //    A failure here is fatal: existing reminder behavior must not be
+  //    masked by the additive plan-start path.
+  const { data: reminderData, error: reminderError } = await admin.rpc('enqueue_saving_plan_reminders');
+  if (reminderError) {
+    return jsonResponse({ ...summary, error: reminderError.message }, 500);
   }
-  const created = (data ?? []) as EnqueuedRow[];
+  const created = (reminderData ?? []) as EnqueuedRow[];
   summary.created = created.length;
 
-  if (created.length === 0) {
+  // 1b. Plan-start RPC is additive. Its time gate is independent of the
+  //     reminder RPC's, so an error here is logged and non-fatal —
+  //     matching the cleanup-RPC pattern above.
+  const { data: planStartData, error: planStartError } = await admin.rpc('enqueue_plan_start_notifications');
+  if (planStartError) {
+    summary.errors.push(`enqueue_plan_start_notifications: ${planStartError.message}`);
+  }
+  const planStarts = (planStartData ?? []) as PlanStartRow[];
+  summary.plan_starts_created = planStarts.length;
+
+  if (created.length === 0 && planStarts.length === 0) {
     console.info('[saving-reminders] enqueue produced no rows (time gate, dedupe, prefs, or no candidates)');
     return jsonResponse(summary);
   }
 
   console.info(
-    `[saving-reminders] enqueue created=${created.length} recipients=${
-      new Set(created.map((r) => r.recipient_user_id)).size
+    `[saving-reminders] enqueue reminders=${created.length} plan_starts=${planStarts.length} recipients=${
+      new Set([
+        ...created.map((r) => r.recipient_user_id),
+        ...planStarts.map((r) => r.recipient_user_id),
+      ]).size
     }`,
   );
 
   webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
 
-  const recipientIds = Array.from(new Set(created.map(row => row.recipient_user_id)));
+  const recipientIds = Array.from(new Set([
+    ...created.map(row => row.recipient_user_id),
+    ...planStarts.map(row => row.recipient_user_id),
+  ]));
 
   // 2. Pull push prefs and subscriptions for the affected recipients
   //    in one round trip each.
@@ -255,6 +283,49 @@ Deno.serve(async (req) => {
       tag: `saving_reminder:${note.plan_id}:${note.cadence}:${note.period_key}`,
     });
 
+    await deliverPush(note.notification_id, note.recipient_user_id, subs, payload);
+  }
+
+  // 3b. Deliver push for each newly created plan-start notification.
+  //     Uses the same prefs/subscription maps populated above from the
+  //     union of recipients, so a plan-start recipient who is NOT in
+  //     the reminder set still gets a push.
+  for (const note of planStarts) {
+    if (!pushEnabledFor.get(note.recipient_user_id)) {
+      summary.push_skipped_no_prefs += 1;
+      console.warn(
+        `[saving-reminders] skip recipient=${note.recipient_user_id} plan_started=${note.plan_id} reason=push_disabled`,
+      );
+      continue;
+    }
+    const subs = subsFor.get(note.recipient_user_id) ?? [];
+    if (subs.length === 0) {
+      summary.push_skipped_no_devices += 1;
+      console.warn(
+        `[saving-reminders] skip recipient=${note.recipient_user_id} plan_started=${note.plan_id} reason=no_devices`,
+      );
+      continue;
+    }
+
+    const payload = JSON.stringify({
+      notification_id: note.notification_id,
+      event_key: 'plan_started',
+      title: 'Your saving plan starts today',
+      body: "Record your first deposit when you're ready.",
+      url: safeUrl,
+      fallback_url: safeFallback,
+      tag: `plan_started:${note.plan_id}:${note.start_date}`,
+    });
+
+    await deliverPush(note.notification_id, note.recipient_user_id, subs, payload);
+  }
+
+  async function deliverPush(
+    notificationId: string,
+    recipientUserId: string,
+    subs: Array<{ id: string; endpoint: string; p256dh: string; auth_key: string }>,
+    payload: string,
+  ): Promise<void> {
     await Promise.all(subs.map(async (sub) => {
       summary.push_attempted += 1;
       try {
@@ -264,8 +335,8 @@ Deno.serve(async (req) => {
         );
         summary.push_delivered += 1;
         attempts.push({
-          notification_id: note.notification_id,
-          recipient_user_id: note.recipient_user_id,
+          notification_id: notificationId,
+          recipient_user_id: recipientUserId,
           push_subscription_id: sub.id,
           channel: 'push',
           status: 'sent',
@@ -282,8 +353,8 @@ Deno.serve(async (req) => {
         if (status === 404 || status === 410) {
           await admin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
           attempts.push({
-            notification_id: note.notification_id,
-            recipient_user_id: note.recipient_user_id,
+            notification_id: notificationId,
+            recipient_user_id: recipientUserId,
             push_subscription_id: sub.id,
             channel: 'push',
             status: 'expired',
@@ -293,8 +364,8 @@ Deno.serve(async (req) => {
         } else {
           summary.errors.push(`${sub.endpoint.slice(0, 32)}...: ${message}`);
           attempts.push({
-            notification_id: note.notification_id,
-            recipient_user_id: note.recipient_user_id,
+            notification_id: notificationId,
+            recipient_user_id: recipientUserId,
             push_subscription_id: sub.id,
             channel: 'push',
             status: 'failed',

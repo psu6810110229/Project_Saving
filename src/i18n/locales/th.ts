@@ -754,6 +754,11 @@ export const th: Messages = {
         body: `${name} กลับมาใช้แผนเก็บเงินต่อ`,
         ctaLabel: 'ดูแผน',
       }),
+      planStarted: () => ({
+        title: 'แผนเก็บเงินของคุณเริ่มวันนี้',
+        body: 'บันทึกยอดเก็บได้เมื่อคุณสะดวก',
+        ctaLabel: 'ดูแผน',
+      }),
       goalChanged: (name: string) => ({
         title: 'อัปเดตเป้าหมายโปรเจกต์',
         body: `${name} เปลี่ยนเป้าหมายหรือวันสิ้นสุด`,

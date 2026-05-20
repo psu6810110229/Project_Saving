@@ -83,6 +83,7 @@ export function notificationIconKind(eventKey: NotificationEventKey | string): '
     case 'plan_paused':
     case 'plan_resumed':
     case 'plan_created':
+    case 'plan_started':
       return 'calendar';
     case 'balance_checked':
     case 'goal_reached':

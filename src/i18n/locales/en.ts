@@ -768,6 +768,11 @@ export const en = {
         body: `${name} resumed their saving plan.`,
         ctaLabel: 'View plan',
       }),
+      planStarted: () => ({
+        title: 'Your saving plan starts today',
+        body: "Record your first deposit when you're ready.",
+        ctaLabel: 'Open plan',
+      }),
       goalChanged: (name: string) => ({
         title: 'Project goal updated',
         body: `${name} changed the target or end date.`,

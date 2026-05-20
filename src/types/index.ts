@@ -245,6 +245,7 @@ export type NotificationEventKey =
   | 'plan_changed'
   | 'plan_paused'
   | 'plan_resumed'
+  | 'plan_started'
   | 'goal_changed'
   | 'goal_reached'
   | 'bucket_added'

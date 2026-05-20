@@ -75,6 +75,8 @@ export function notificationDisplayCopy(
       return withStoredFallback(item, n.events.planPaused(actorName(payload, fallbackPartner)));
     case 'plan_resumed':
       return withStoredFallback(item, n.events.planResumed(actorName(payload, fallbackPartner)));
+    case 'plan_started':
+      return withStoredFallback(item, n.events.planStarted());
     case 'goal_changed':
       return withStoredFallback(item, n.events.goalChanged(actorName(payload, fallbackPartner)));
     case 'goal_change_request':

@@ -177,7 +177,7 @@ async function fetchNudgeStats(
         stats.daysToDeadline = Math.max(0, Math.ceil(ms / 86_400_000));
       }
     }
-  } catch (_error) {
+  } catch {
     // Best-effort — fall back to static-only pool.
   }
 

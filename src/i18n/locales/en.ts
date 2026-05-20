@@ -108,6 +108,7 @@ export const en = {
     progressRace: 'Progress Race',
     tied: 'Tied',
     leadingBy: (amount: string) => `Leading by ${amount}`,
+    invitePartnerHint: 'Invite someone to start the race.',
     // Activity section
     activity: 'Activity',
     viewAll: 'View all',

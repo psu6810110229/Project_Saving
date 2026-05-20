@@ -106,6 +106,7 @@ export const th: Messages = {
     progressRace: 'ความคืบหน้าของทุกคน',
     tied: 'เท่ากันพอดี',
     leadingBy: (amount: string) => `นำอยู่ ${amount}`,
+    invitePartnerHint: 'ชวนเพื่อนเข้ามาเพื่อเริ่มการแข่งขัน',
     activity: 'ความเคลื่อนไหว',
     viewAll: 'ดูทั้งหมด',
     noActivityYet: 'ยังไม่มีความเคลื่อนไหว',

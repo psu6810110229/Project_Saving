@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { Button } from '../components/Button/Button';
@@ -27,6 +27,7 @@ import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { SettingsList } from '../components/SettingsList/SettingsList';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { useAuth } from '../hooks/useAuth';
+import { useRoomMembers } from '../hooks/useRoomMembers';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { formatJoinedDate } from '../i18n/formatters';
@@ -34,127 +35,7 @@ import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { sumTargets } from '../lib/buckets';
 import { haptic } from '../lib/haptics';
-import { supabase } from '../lib/supabase';
-import { type ThemeSwatch } from '../lib/theme';
 import type { Bucket, BucketCategory } from '../types';
-
-/**
- * Page-local hook (Task 34): reads the active room's member list
- * via the security-definer RPC `room_members_for_room` (migration
- * 0016). Lives inside this file rather than `src/hooks/` because the
- * Members section is the only consumer; promoting it to `DataContext`
- * is intentionally out of scope.
- *
- * Room-switch reset semantics (see plan §4.4):
- * - `roomId` change resets `members` to `[]` synchronously *during
- *   render* so the previous room's members can never flash on the
- *   screen under the new room's title, even on a slow network.
- * - In-flight RPC responses for a stale `roomId` are dropped via a
- *   `cancelled` flag.
- * - On error after a room switch (post-reset, `members.length === 0`),
- *   we keep `members` as `[]` and surface the error string — never
- *   bleed stale identities into a new room.
- * - On a same-room refetch error (forward-looking; v1 fetches only
- *   on `roomId` change), keep the prior `members` and surface the
- *   error inline so the user is not stranded.
- */
-
-interface RoomMember {
-  userId: string;
-  displayName: string;
-  avatarUrl: string | null;
-  themeColor: ThemeSwatch | null;
-  joinedAt: string | null;
-}
-
-interface UseRoomMembersResult {
-  members: RoomMember[];
-  loading: boolean;
-  error: string | null;
-}
-
-interface RawMemberRow {
-  user_id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  theme_color: string | null;
-  joined_at: string | null;
-}
-
-function toThemeSwatch(value: string | null | undefined): ThemeSwatch | null {
-  if (value === 'terracotta' || value === 'slate' || value === 'teal') return value;
-  return null;
-}
-
-function useRoomMembers(roomId: string | null): UseRoomMembersResult {
-  const [state, setState] = useState<UseRoomMembersResult>(() => ({
-    members: [],
-    loading: roomId !== null,
-    error: null,
-  }));
-  const [trackedRoomId, setTrackedRoomId] = useState<string | null>(roomId);
-
-  if (trackedRoomId !== roomId) {
-    setTrackedRoomId(roomId);
-    setState({
-      members: [],
-      loading: roomId !== null,
-      error: null,
-    });
-  }
-
-  useEffect(() => {
-    if (!roomId) return;
-    let cancelled = false;
-
-    async function fetchMembers() {
-      const { data, error } = await supabase.rpc('room_members_for_room', { p_room_id: roomId });
-      if (cancelled) return;
-
-      if (error) {
-        setState(prev => ({
-          members: prev.members,
-          loading: false,
-          error: error.message,
-        }));
-        return;
-      }
-
-      const rows = (data ?? []) as RawMemberRow[];
-      const members: RoomMember[] = rows
-        .filter(r => r && typeof r.user_id === 'string')
-        .map(r => ({
-          userId: r.user_id,
-          displayName: r.display_name && r.display_name.trim().length > 0
-            ? r.display_name
-            : '\u2014',
-          avatarUrl: r.avatar_url,
-          themeColor: toThemeSwatch(r.theme_color),
-          joinedAt: r.joined_at,
-        }))
-        .sort((a, b) => {
-          const ja = a.joinedAt ?? '';
-          const jb = b.joinedAt ?? '';
-          if (ja === jb) return 0;
-          return ja < jb ? -1 : 1;
-        });
-
-      if (members.length === 0 && typeof console !== 'undefined') {
-        console.warn('[useRoomMembers] empty member list with no error', { roomId });
-      }
-
-      setState({ members, loading: false, error: null });
-    }
-
-    void fetchMembers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [roomId]);
-
-  return state;
-}
 
 function firstGrapheme(value: string): string {
   if (!value) return '?';

@@ -35,7 +35,13 @@ interface SavingPlanCardProps {
   ruleType: SavingPlanRuleType | null;
   money: MoneyStatus | null;
   habit: HabitStatus;
-  onConfigure: () => void;
+  /**
+   * Optional. When omitted, the card hides every Configure / Set up
+   * plan / edit FAB CTA so the surface renders as read-only. Used by
+   * the Member Detail page to show another member's plan without
+   * exposing an edit path.
+   */
+  onConfigure?: () => void;
   verifiedBalance?: VerifiedBalanceSlot | null;
   isPaused?: boolean;
   pausedSince?: string | null;
@@ -163,14 +169,16 @@ export function SavingPlanCard({
               </h2>
               <p className="mt-1 truncate font-mono text-base font-bold text-ink">{d.noPlanYet}</p>
             </div>
-            <Button
-              variant="action"
-              size="sm"
-              onClick={e => { e.stopPropagation(); onConfigure(); }}
-              className="shrink-0"
-            >
-              {d.setUpPlan}
-            </Button>
+            {onConfigure && (
+              <Button
+                variant="action"
+                size="sm"
+                onClick={e => { e.stopPropagation(); onConfigure(); }}
+                className="shrink-0"
+              >
+                {d.setUpPlan}
+              </Button>
+            )}
           </div>
         </section>
       </Pressable>
@@ -246,14 +254,16 @@ export function SavingPlanCard({
             {moneyHeadline}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onConfigure(); }}
-          aria-label={d.changePlan}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-transform"
-        >
-          <IconEdit size={18} />
-        </button>
+        {onConfigure && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onConfigure(); }}
+            aria-label={d.changePlan}
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-transform"
+          >
+            <IconEdit size={18} />
+          </button>
+        )}
       </div>
       {isPaused ? (
         pausedSince && (

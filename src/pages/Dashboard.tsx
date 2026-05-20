@@ -588,6 +588,13 @@ export function Dashboard() {
               partnerName={entry.name}
             />
           )}
+          onRowClick={entry => {
+            if (entry.isYou) {
+              navigate('/profile');
+              return;
+            }
+            navigate(`/members/${entry.userId}`);
+          }}
         />
       </motion.div>
 

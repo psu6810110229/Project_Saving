@@ -13,6 +13,7 @@ import { Dashboard } from './pages/Dashboard';
 import { SavingPlan } from './pages/SavingPlan';
 import { Login } from './pages/Login';
 import { ManageProject } from './pages/ManageProject';
+import { MemberDetail } from './pages/MemberDetail';
 import { MoleculesPreview } from './pages/MoleculesPreview';
 import { Notifications } from './pages/Notifications';
 import { NotificationSettings } from './pages/NotificationSettings';
@@ -52,6 +53,7 @@ function App() {
               <Route path="/saving-plan" element={<SavingPlan />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/manage-project" element={<ManageProject />} />
+              <Route path="/members/:userId" element={<MemberDetail />} />
               <Route path="/archived-projects" element={<ArchivedProjects />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />

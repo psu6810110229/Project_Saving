@@ -165,6 +165,21 @@ room's room goal lowered to the original creator-entered number, the
 creator can do that through the new room-goal editor as an explicit user
 action.
 
+Explicit backfill decision:
+- Task 37 intentionally backfills `rooms.target_amount` as the current
+  visible Vault denominator: the sum of current member
+  `goals.target_amount` values.
+- This preserves existing room visuals immediately after migration.
+- Tradeoff accepted: for old rooms where both members had the same
+  shared goal, the new room goal may become 2x that old per-member
+  value. This is accepted for visual compatibility.
+- Users can later lower the room goal manually, subject to
+  `room goal >= max(personal sub-goal)`.
+- If this decision is not accepted before implementation, switch the
+  backfill rule to max/most-common personal goal instead and update the
+  acceptance criteria because existing Vault denominators will change
+  immediately after migration.
+
 ### Verification SQL required in migration notes
 
 Before enforcing `NOT NULL` later, verify:

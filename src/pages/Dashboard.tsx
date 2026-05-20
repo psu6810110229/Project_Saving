@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
+import { Avatar } from '../components/Avatar/Avatar';
 import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
 import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
@@ -64,7 +65,7 @@ import {
   todayBangkokKey,
 } from '../lib/savingPlan';
 import type { SavingPlanRevision } from '../types';
-import type { BalanceActivityEntry, Bucket, BucketCategory } from '../types';
+import type { BalanceActivityEntry, Bucket, BucketCategory, ProfileTheme } from '../types';
 
 /** Framer Motion stagger variants for the Dashboard cascade. */
 const containerVariants = {
@@ -96,6 +97,8 @@ const VB_REMINDER_SESSION_KEY = 'verifiedBalanceReminderDismissed';
 // Daily Trend (MomentumChart) covers expected-vs-recorded. Component
 // preserved for re-enablement.
 const SHOW_DEPOSIT_RACE = false;
+
+type DailyTrendMode = 'room' | 'me' | 'compare';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -143,6 +146,14 @@ export function Dashboard() {
     : null;
   // Bucket view: 'mine' or a member userId.
   const [bucketView, setBucketView] = useState<'mine' | string>('mine');
+  // Daily Deposit Trend mode (Task 38.1). Default is `room` so 3-7
+  // member rooms read as a room total instead of "You vs Others (N)";
+  // 2-user rooms still show a clear room/me/compare experience.
+  const [trendMode, setTrendMode] = useState<DailyTrendMode>('room');
+  // Selected compare member for Compare mode. Always represents one
+  // other member — Compare must never render more than current user +
+  // one selected member.
+  const [compareMemberId, setCompareMemberId] = useState<string | null>(null);
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
@@ -175,6 +186,26 @@ export function Dashboard() {
       setExpandedBucketId(null);
     }
   }, [bucketView, otherMemberIds, roomMembersBucketsByUser]);
+
+  // Daily Deposit Trend safety: keep `compareMemberId` aligned with the
+  // current `otherMemberIds`. When the selected compare member leaves
+  // the room (or none exists yet), pick the first available member.
+  // When no other members exist, fall back out of Compare mode.
+  useEffect(() => {
+    if (otherMemberIds.length === 0) {
+      if (compareMemberId !== null) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setCompareMemberId(null);
+      }
+      if (trendMode === 'compare') {
+        setTrendMode('room');
+      }
+      return;
+    }
+    if (!compareMemberId || !otherMemberIds.includes(compareMemberId)) {
+      setCompareMemberId(otherMemberIds[0]);
+    }
+  }, [otherMemberIds, compareMemberId, trendMode]);
 
   // Verified balance reminder: open once per session when the last
   // check is ≥ 3 days old (or there has never been one). The session
@@ -388,34 +419,69 @@ export function Dashboard() {
   const expectedDailySeries = revisions
     ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
-  // Daily Deposit Trend secondary series.
-  // - 2-user rooms keep the existing single-partner series so the
-  //   chart reads as a direct head-to-head.
-  // - 3-7 member rooms aggregate every other member's daily totals
-  //   into a single "Others (N)" series so the mobile chart isn't
-  //   asked to render seven full names inline. Per Task 38, the
-  //   aggregate is for display only and does not feed Saving Plan
-  //   math or deposit writes.
-  const otherMembersCount = otherMemberIds.length;
-  const useAggregateOthers = otherMembersCount >= 2;
-  const chartOthersDailySeries = otherMembersCount === 0
-    ? undefined
-    : useAggregateOthers
-      ? otherMemberIds
-          .map(id => dailyAmountSeries(logs, id))
-          .reduce<number[]>(
-            (acc, series) => acc.map((value, index) => value + (series[index] ?? 0)),
-            [0, 0, 0, 0, 0, 0, 0],
-          )
-      : (firstOtherMemberByJoinedAt
-          ? dailyAmountSeries(logs, firstOtherMemberByJoinedAt)
-          : undefined);
-  const chartOthersLabel = otherMembersCount === 0
-    ? undefined
-    : useAggregateOthers
-      ? d.othersLabel(otherMembersCount)
-      : (firstOtherEntry?.displayName ?? d.partnerLabel);
-  const weekRecordedTotal = dailyAmountSeries(logs, user?.id).reduce((sum, v) => sum + v, 0);
+  // Daily Deposit Trend series (Task 38.1).
+  // - `Room` aggregates every visible room member's daily totals into a
+  //   single primary bar so 3-7 member rooms don't need to render N
+  //   full names inline.
+  // - `Me` is the current user's daily series only.
+  // - `Compare` is current user vs ONE selected other member.
+  // None of these change deposit writes, log queries, balance checks,
+  // or Saving Plan math — they only drive chart display.
+  const meDailySeries = dailyAmountSeries(logs, user?.id);
+  const otherDailySeriesByUserId = otherMemberIds.reduce<Record<string, number[]>>((acc, id) => {
+    acc[id] = dailyAmountSeries(logs, id);
+    return acc;
+  }, {});
+  const roomDailySeries = otherMemberIds.reduce<number[]>(
+    (acc, id) => {
+      const series = otherDailySeriesByUserId[id] ?? [];
+      return acc.map((value, index) => value + (series[index] ?? 0));
+    },
+    meDailySeries.slice(),
+  );
+  const compareSelectedSeries = compareMemberId
+    ? otherDailySeriesByUserId[compareMemberId] ?? null
+    : null;
+  const weekRecordedTotal = meDailySeries.reduce((sum, v) => sum + v, 0);
+  const roomWeekTotal = roomDailySeries.reduce((sum, v) => sum + v, 0);
+  const compareSelectedTotal = compareSelectedSeries
+    ? compareSelectedSeries.reduce((sum, v) => sum + v, 0)
+    : 0;
+  const compareSelectedEntry = compareMemberId
+    ? leaderboard.entries.find(entry => entry.userId === compareMemberId) ?? null
+    : null;
+
+  const trendModeOptions: Array<{ value: DailyTrendMode; label: string }> = [
+    { value: 'room', label: d.dailyDepositModeRoom },
+    { value: 'me', label: d.dailyDepositModeMe },
+    { value: 'compare', label: d.dailyDepositModeCompare },
+  ];
+  const hasOtherMembers = otherMemberIds.length > 0;
+
+  let chartSeries: number[];
+  let chartPartnerSeries: number[] | undefined;
+  let chartPrimaryLabel: string;
+  let chartSecondaryLabel: string | undefined;
+  let chartDisplayedTotal: number;
+  if (trendMode === 'room') {
+    chartSeries = roomDailySeries;
+    chartPartnerSeries = undefined;
+    chartPrimaryLabel = d.dailyDepositModeRoom;
+    chartSecondaryLabel = undefined;
+    chartDisplayedTotal = roomWeekTotal;
+  } else if (trendMode === 'me') {
+    chartSeries = meDailySeries;
+    chartPartnerSeries = undefined;
+    chartPrimaryLabel = d.dailyDepositModeMe;
+    chartSecondaryLabel = undefined;
+    chartDisplayedTotal = weekRecordedTotal;
+  } else {
+    chartSeries = meDailySeries;
+    chartPartnerSeries = compareSelectedSeries ?? undefined;
+    chartPrimaryLabel = d.dailyDepositModeMe;
+    chartSecondaryLabel = compareSelectedEntry?.displayName ?? d.partnerLabel;
+    chartDisplayedTotal = weekRecordedTotal + compareSelectedTotal;
+  }
   const weekExpectedTotal = expectedDailySeries
     ? expectedDailySeries.reduce((sum, v) => sum + v, 0)
     : undefined;
@@ -656,11 +722,38 @@ export function Dashboard() {
       {/* 5 — Graphs. Lighter than the insight cards above. */}
       <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
         <MomentumChart
-          series={dailyAmountSeries(logs, user?.id)}
-          partnerSeries={chartOthersDailySeries}
+          series={chartSeries}
+          partnerSeries={chartPartnerSeries}
           labels={lastSevenDayLabels(undefined, chartLocale)}
           yourName={profile?.display_name ?? d.youLabel}
-          partnerName={chartOthersLabel}
+          partnerName={chartSecondaryLabel}
+          primaryLabel={chartPrimaryLabel}
+          secondaryLabel={chartSecondaryLabel}
+          displayedTotal={chartDisplayedTotal}
+          modeControl={hasOtherMembers ? (
+            <DailyTrendModeControl
+              ariaLabel={d.dailyDepositModeAria}
+              options={trendModeOptions}
+              value={trendMode}
+              onChange={setTrendMode}
+            />
+          ) : undefined}
+          compareChips={hasOtherMembers && trendMode === 'compare' ? (
+            <CompareMemberChips
+              ariaLabel={d.dailyDepositCompareAria}
+              members={otherMemberIds.map(id => {
+                const entry = leaderboard.entries.find(e => e.userId === id);
+                return {
+                  userId: id,
+                  displayName: entry?.displayName ?? d.partnerLabel,
+                  avatarUrl: entry?.avatarUrl ?? null,
+                  themeColor: entry?.themeColor,
+                };
+              })}
+              selectedId={compareMemberId}
+              onSelect={setCompareMemberId}
+            />
+          ) : undefined}
           expectedSeries={expectedDailySeries}
           todayIndex={6}
           weekTotal={weekRecordedTotal}
@@ -1009,6 +1102,107 @@ function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMembe
             />
             <span className="max-w-[8rem] truncate whitespace-nowrap">
               {option.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+interface DailyTrendModeControlProps {
+  ariaLabel: string;
+  options: Array<{ value: DailyTrendMode; label: string }>;
+  value: DailyTrendMode;
+  onChange: (next: DailyTrendMode) => void;
+}
+
+/** Custom `Room | Me | Compare` segmented control for the Daily Deposit
+ *  Trend card. Pill-style tabs match the Smart Buckets member picker
+ *  language so the Dashboard stays visually coherent on mobile. No
+ *  browser-default select/dropdown, no emoji. */
+function DailyTrendModeControl({ ariaLabel, options, value, onChange }: DailyTrendModeControlProps) {
+  return (
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className="-mx-1 flex items-center gap-2 overflow-x-auto px-1"
+    >
+      {options.map(option => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(option.value)}
+            className={
+              'inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-3.5 py-1.5 font-mono text-xs font-bold transition-all '
+              + (active
+                ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
+                : 'bg-well text-ink-muted shadow-neuPressed')
+            }
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+interface CompareMember {
+  userId: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  themeColor?: ProfileTheme;
+}
+
+interface CompareMemberChipsProps {
+  ariaLabel: string;
+  members: CompareMember[];
+  selectedId: string | null;
+  onSelect: (next: string) => void;
+}
+
+/** Horizontal avatar chip row for choosing the Compare-mode member.
+ *  Single-line, horizontally scrollable, never wraps. Long English /
+ *  Thai names truncate inside a bounded width so the chip never steals
+ *  width from neighbours on 320-390 px screens. */
+function CompareMemberChips({ ariaLabel, members, selectedId, onSelect }: CompareMemberChipsProps) {
+  return (
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1"
+    >
+      {members.map(member => {
+        const active = member.userId === selectedId;
+        return (
+          <button
+            key={member.userId}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            aria-label={member.displayName}
+            title={member.displayName}
+            onClick={() => onSelect(member.userId)}
+            className={
+              'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-pill py-1 pl-1 pr-3 font-mono text-xs font-bold transition-all '
+              + (active
+                ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
+                : 'bg-well text-ink-muted shadow-neuPressed')
+            }
+          >
+            <Avatar
+              size="sm"
+              imageUrl={member.avatarUrl ?? undefined}
+              fallback={fallbackInitial(member.displayName)}
+              themeColor={member.themeColor}
+            />
+            <span className="max-w-[6rem] truncate whitespace-nowrap">
+              {member.displayName}
             </span>
           </button>
         );

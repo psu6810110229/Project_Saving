@@ -37,7 +37,7 @@ Affected components:
   - Read only. These already expose `otherMemberIds`, `roomMembersBuckets`, and `roomMembersSavingPlans`; this task should consume existing plural fields only.
 - `src/i18n/locales/en.ts`
 - `src/i18n/locales/th.ts`
-  - Only if short labels such as "Others" / "Selected member" / member picker accessibility copy are needed.
+  - Only if short labels such as `Room`, `Me`, `Compare`, selected-member labels, or member picker accessibility copy are needed.
 
 Related existing plans:
 
@@ -54,6 +54,9 @@ Related existing plans:
 - Do not change notification fan-out.
 - Do not change Saving Plan math or plan accrual calculations.
 - Do not add member detail navigation or change route semantics.
+- Do not use browser-default select/dropdown controls for the Daily Deposit Trend mode or compare member selection.
+- Do not use emoji.
+- Use existing app components, `Avatar`, and SVG/icon components only for the Daily Deposit Trend controls and compare chips.
 - Preserve 2-user behavior as much as practical.
 - Keep this mobile-first. The minimum target viewport is 375 px wide, with a 320 px smoke check for extra-small devices.
 
@@ -72,7 +75,7 @@ Current code:
 Root cause:
 
 - The legend is treated as a fixed-width side rail even on mobile.
-- The legend has no mobile-specific maximum width, no aggregate strategy for 3-7 member rooms, and no separation from the title/amount area.
+- The legend has no mobile-specific maximum width, no mode strategy for 3-7 member rooms, and no separation from the title/amount area.
 - `shrink-0` on the legend lets long names steal width from the title/amount block.
 - The card itself has `overflow-hidden`, so overflow can look like clipping or overlap.
 - The current chart supports only two visible bar series: you and one other series. Showing full per-member legend labels for 3-7 users would exceed the available mobile width and make the chart look broken.
@@ -111,7 +114,34 @@ Root cause:
 
 ## 4. Proposed Daily Deposit Chart Strategy
 
-### 4.1 Mobile Legend Rule
+### 4.1 Mode Control
+
+Do not use `You vs Others (N)` as the final Daily Deposit Trend UX.
+
+Use a Dashboard-scoped custom segmented control above or inside the Daily Deposit Trend card:
+
+- `Room`
+- `Me`
+- `Compare`
+
+Rules:
+
+- Default mode is `Room`.
+- The control must be a custom segmented control, not a browser-default select/dropdown.
+- The control must use existing app components, `Avatar`, and SVG/icon components only.
+- Labels must stay single-line at 320-390 px widths.
+- The selected state must be clear without increasing the control height or causing layout shift.
+
+Mode behavior:
+
+- `Room` shows total deposits for the room across the current 7-day window.
+- `Me` shows only the current user's deposits.
+- `Compare` shows the current user versus one selected member.
+- `Compare` mode member selection uses horizontal avatar chips.
+- The compare member chips must be horizontally scroll-safe, left aligned, single-line, and must not use a native select/dropdown.
+- The compare member chips should prefer avatar initials/images plus truncated names when names fit. If space is tight, keep the avatar and use a short text label or accessible full name.
+
+### 4.2 Mobile Legend Rule
 
 On mobile, do not render full member names as an inline side legend.
 
@@ -122,49 +152,53 @@ Use a compact mobile legend that cannot overlap the title/amount block:
   - No full member names in the right side of the header.
 - Legend placement:
   - Move legend below the amount row or below the SVG on mobile.
-  - Use a compact horizontal wrap-safe row of chips or dot labels.
-  - Use `You` and one short secondary label, not every full member name.
-- For 3-7 member rooms:
-  - Preferred visible series: `You` vs `Others`.
-  - `Others` is the aggregate of all other members' daily deposits for the same 7-day window.
-  - The legend label is short: `Others (N)` where `N` is the count of other members.
-  - Full names are not shown inline on mobile.
-- For 2-user rooms:
-  - Preserve the current two-series visual as much as practical.
-  - The secondary visible label may remain the partner/member display name on larger screens, but on mobile it should be constrained or replaced with a short label if it threatens layout.
+  - Use a compact horizontal no-wrap row of chips or dot labels.
+  - Chart legend must show a maximum of 2 short labels.
+- `Room` mode:
+  - Use one short legend label, such as `Room`.
+  - Do not list member names.
+- `Me` mode:
+  - Use one short legend label, such as `Me`.
+- `Compare` mode:
+  - Use two short legend labels, such as `Me` and the selected member's first name, initials, or another bounded short display label.
+  - The selected member's full display name may be available through accessible text, `title`, tooltip copy, or the avatar chip, but it must not force the legend to wrap or overlap.
 
 Rationale:
 
 - A 7-member grouped bar chart would be unreadable in the current SVG width.
 - A full 7-name legend is the direct cause of the mobile breakage.
-- `You` vs `Others` keeps the chart useful without pretending the mobile chart can carry every member identity.
+- `Room | Me | Compare` gives users an explicit way to move between room totals, personal deposits, and one-to-one comparison without cramming every member into the chart.
 
-### 4.2 Chart Data Contract
+### 4.3 Chart Data Contract
 
 For this task, change only the Dashboard chart display strategy, not Saving Plan math.
 
-- Current-user series remains `dailyAmountSeries(logs, user?.id)`.
-- For 2-user rooms, secondary series may remain the first other member's series.
-- For 3-7 member rooms, secondary series should be an aggregate of all `otherMemberIds`.
-- The chart header total should be described as the total of the visible series, not a room-level financial invariant.
+- `Room` mode series is the total daily deposits for the room for the same 7-day window.
+- `Me` mode series remains `dailyAmountSeries(logs, user?.id)`.
+- `Compare` mode uses the current-user series plus one selected member's daily deposit series.
+- `Compare` mode must never show more than two member series.
+- The chart header total should be described as the total represented by the active mode, not a room-level financial invariant outside the selected mode.
 - Expected Saving Plan series stays exactly as it is today.
 - Do not change deposit writes, log queries, balance checks, or plan calculations.
 
 If implementation risk is high, the fallback is simpler:
 
-- Keep the existing two-series data.
-- Fix the layout by moving/truncating the legend.
-- File the aggregate `Others` series as a follow-up.
+- Keep the existing chart data source shape.
+- Still add the `Room | Me | Compare` mode UI contract.
+- Fix the layout by moving/truncating the legend and limiting it to 2 short labels.
+- File any richer room-total derivation as a follow-up only if it cannot be implemented UI-only from existing data.
 
-But the preferred Task 38 result is `You` vs `Others` for 3-7 on mobile.
+The preferred Task 38 result is the complete `Room | Me | Compare` UI with `Room` as the default mode.
 
-### 4.3 Chart Layout Rules
+### 4.4 Chart Layout Rules
 
 In `MomentumChart.tsx`:
 
 - Replace the mobile header's side-by-side legend with a stacked mobile header:
   - title
   - amount + last 7 days
+  - mode segmented control if it belongs inside the chart card
+  - compare avatar chips when `Compare` is active
   - compact legend row
   - chart
 - Use responsive classes so larger screens can keep a side legend if it remains clean.
@@ -173,6 +207,7 @@ In `MomentumChart.tsx`:
 - Keep colored dots and totals readable.
 - Ensure tooltip text has a bounded width and never escapes the SVG/card at 320-390 px widths.
 - Keep chart height stable; legend changes must not cause layout shift while data loads.
+- Do not use emoji in the mode control, legend, avatar chips, tooltip, or empty states.
 
 ## 5. Proposed Bucket Member Picker Strategy
 
@@ -200,7 +235,7 @@ Preferred approach:
 - Include only other members with at least one bucket, matching current behavior.
 - Reset `bucketView` to `mine` when the selected member disappears or has no visible buckets, as the current effect already does.
 
-Do not use a dropdown for Task 38 unless horizontal picker QA fails at 7 members. The requested fix is a mobile-safe horizontal member picker.
+Do not use a dropdown for Task 38. The requested fix is a mobile-safe horizontal member picker.
 
 2-user behavior:
 
@@ -242,13 +277,19 @@ Expected files:
   - This plan.
 - `src/pages/Dashboard.tsx`
   - Derive `otherMembersCount`.
-  - Derive an aggregate "others" daily series for 3-7 member rooms if using the preferred chart strategy.
-  - Pass short chart labels/metadata into `MomentumChart`.
+  - Add Daily Deposit Trend mode state for `Room`, `Me`, and `Compare`, with `Room` as the default.
+  - Derive the room-total daily deposit series from existing visible deposit data.
+  - Derive the current-user daily deposit series.
+  - Derive the selected compare member daily deposit series.
+  - Pass active mode, short chart labels, and compare-member metadata into `MomentumChart`.
+  - Render compare member selection with horizontal avatar chips.
   - Replace the bucket selector wrapper and `Segmented` usage with a mobile-safe picker.
   - Keep `RoomLeaderboardList` untouched except for not modifying its surrounding layout.
 - `src/components/MomentumChart/MomentumChart.tsx`
+  - Add or accept the custom `Room | Me | Compare` segmented control.
+  - Add or accept horizontal compare avatar chips.
   - Make the chart legend mobile-safe.
-  - Add compact legend behavior.
+  - Add compact legend behavior with a maximum of 2 short labels.
   - Bound tooltip labels if needed.
 - `src/components/Segmented/Segmented.tsx`
   - Modify only if the safer choice is to make `Segmented` itself no-wrap and scroll-safe.
@@ -260,9 +301,12 @@ Expected files:
 - `src/i18n/locales/en.ts`
 - `src/i18n/locales/th.ts`
   - Add only minimal labels if needed, such as:
-    - `othersLabel(count)`
+    - `dailyDepositModeRoom`
+    - `dailyDepositModeMe`
+    - `dailyDepositModeCompare`
     - `selectedMemberBuckets(name)`
     - member picker aria label
+    - compare member picker aria label
 
 Files that should not be modified:
 
@@ -292,7 +336,7 @@ English:
 
 - Long names truncate with ellipsis.
 - Do not allow long first-name/last-name combinations to wrap tab labels into two lines.
-- Use short visible labels in chart legends: `You`, `Others (2)`, `Others (6)`.
+- Use short visible labels in chart legends: `Room`, `Me`, or a bounded selected-member label.
 
 Thai:
 
@@ -326,8 +370,16 @@ Use rooms with realistic display names:
 - Dashboard loads with 3 members.
 - Progress Race remains unchanged by this task.
 - Daily Deposit Trend:
+  - default mode is `Room`.
+  - segmented control shows `Room`, `Me`, and `Compare`.
+  - `Room` mode shows total deposits for the room.
+  - `Me` mode shows only the current user.
+  - `Compare` mode shows current user versus one selected member.
+  - `Compare` member selection uses horizontal avatar chips.
+  - no browser-default select/dropdown appears.
   - title, amount, and `Last 7 days` do not overlap the legend.
   - no full list of member names appears inline on mobile.
+  - chart legend shows no more than 2 short labels.
   - legend labels do not wrap vertically.
   - tooltip stays inside the card.
 - Bucket member picker:
@@ -343,7 +395,10 @@ Use rooms with realistic display names:
 ### 9.2 Five Members
 
 - Daily Deposit Trend still has a compact legend and stable chart height.
-- If using aggregate strategy, secondary label reads as an aggregate, not one misleading full member name.
+- `Room`, `Me`, and `Compare` modes all remain usable at 375 px.
+- Compare avatar chips can scroll horizontally.
+- Compare mode never shows more than the current user and one selected member.
+- Chart legend shows no more than 2 short labels.
 - Picker can scroll horizontally.
 - Active tab remains visible after selection.
 - No member label wraps.
@@ -354,6 +409,10 @@ Use rooms with realistic display names:
 
 - Dashboard does not introduce page-level horizontal overflow.
 - Daily Deposit Trend does not attempt to render seven full names inline.
+- Daily Deposit Trend does not use `You vs Others (N)` as the final UX.
+- `Room` remains the default mode.
+- Compare avatar chips show up to six selectable other members and scroll cleanly at 375 px.
+- Chart legend still shows no more than 2 short labels.
 - Picker shows up to seven options and scrolls cleanly at 375 px.
 - First and last picker options can both be reached.
 - Selecting member 7 does not clip the selected state.
@@ -367,8 +426,18 @@ Chart:
 - On mobile, the Daily Deposit Trend card never overlaps title/amount text with legend text.
 - Full member names are not rendered as an inline chart legend on mobile in 3-7 member rooms.
 - Legend labels are single-line and truncated or short by design.
+- Chart legend shows a maximum of 2 short labels.
+- Daily Deposit Trend uses a custom `Room | Me | Compare` segmented control.
+- Default Daily Deposit Trend mode is `Room`.
+- `Room` mode shows total deposits for the room.
+- `Me` mode shows only the current user.
+- `Compare` mode shows current user versus one selected member.
+- Compare member selection uses horizontal avatar chips.
+- Daily Deposit Trend controls do not use browser-default select/dropdown controls.
+- Daily Deposit Trend controls do not use emoji.
+- Daily Deposit Trend controls use existing app components, `Avatar`, and SVG/icon components only.
 - 2-user rooms still show a clear two-series chart.
-- 3-7 member rooms use either `You` vs aggregate `Others` or a documented short-label fallback.
+- 3-7 member rooms use `Room`, `Me`, and `Compare` modes rather than `You vs Others (N)`.
 - Tooltip text stays inside the card.
 - Existing Saving Plan expected series inputs are not semantically changed.
 
@@ -419,15 +488,17 @@ No data rollback is needed:
 - No room membership rows change.
 - No deposits, buckets, goals, balance checks, notifications, or Saving Plan records change.
 
-If only the aggregate chart strategy causes concern:
+If only the room-total chart derivation causes concern:
 
 - Keep the layout fix.
-- Revert only the aggregate `Others` series derivation and return to the current first-other-member series.
+- Revert only the room-total derivation to the safest existing visible data source.
+- Keep the `Room | Me | Compare` mode control.
+- Keep compare mode as current user versus one selected member.
 - Keep the mobile no-wrap compact legend rules.
 
 ## 12. Risks
 
-- Aggregate `Others` chart semantics may be a product decision. Mitigation: label it clearly and keep fallback to current first-other-member series.
+- Room-total chart semantics may be a product decision. Mitigation: label `Room` clearly and derive it only from existing deposit data available to the Dashboard.
 - Truncating names can make members ambiguous in rooms with similar names. Mitigation: include avatar initials/dots in the picker and full names in accessible labels.
 - Changing `Segmented` globally could affect Activity History and Saving Plan surfaces. Mitigation: prefer a Dashboard-scoped member picker or an opt-in prop.
 - Compact read-only bucket rows could drift from the existing bucket card visual language. Mitigation: default `BucketRow` behavior remains unchanged; use compact mode only for selected other-member buckets if QA proves it necessary.
@@ -436,10 +507,13 @@ If only the aggregate chart strategy causes concern:
 
 ## 13. Implementation Order For The Future Code Task
 
-1. Fix `MomentumChart` mobile legend layout first.
-2. Add or pass short/aggregate chart labels for 3-7 member rooms.
-3. Replace the Dashboard bucket selector with a mobile-safe horizontal picker.
-4. Tighten selected-member bucket heading truncation.
-5. QA other-member bucket readability before adding a compact bucket row variant.
-6. Run 3, 5, and 7 member mobile QA.
-7. Confirm Progress Race / leaderboard was not redesigned.
+1. Add Daily Deposit Trend mode state and default it to `Room`.
+2. Add the custom `Room | Me | Compare` segmented control.
+3. Wire `Room`, `Me`, and `Compare` chart series from existing Dashboard data.
+4. Add horizontal compare member avatar chips.
+5. Fix `MomentumChart` mobile legend layout with a maximum of 2 short labels.
+6. Replace the Dashboard bucket selector with a mobile-safe horizontal picker.
+7. Tighten selected-member bucket heading truncation.
+8. QA other-member bucket readability before adding a compact bucket row variant.
+9. Run 3, 5, and 7 member mobile QA.
+10. Confirm Progress Race / leaderboard was not redesigned.

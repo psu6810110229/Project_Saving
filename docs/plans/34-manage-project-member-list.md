@@ -252,7 +252,41 @@ slot, no chevron, no `onClick` semantics in v1, creator badge meta)
 that bending `SettingsRow` would introduce a third tone branch.
 Keeping a parallel small component preserves `SettingsRow`'s shape.
 
-Props (all primitives — strict typing per CLAUDE.md):
+Verified component APIs (read directly from source — do not invent
+props):
+
+`Avatar` (`src/components/Avatar/Avatar.tsx`):
+
+```ts
+interface AvatarProps {
+  imageUrl?: string | null;
+  fallback?: string;                       // default '?'
+  size?: 'sm' | 'md' | 'lg' | 'xl';        // default 'md'
+  ring?: 'none' | 'leader' | 'theme';      // default 'none'
+  themeColor?: ThemeSwatch;                // from src/lib/theme
+  badge?: ReactNode;                       // bottom-center badge slot
+  className?: string;
+}
+```
+
+`Chip` (`src/components/Chip/Chip.tsx`):
+
+```ts
+type Tone = 'peach' | 'white' | 'leaf' | 'danger';
+interface ChipProps {
+  tone?: Tone;          // default 'peach'
+  icon?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}
+```
+
+Note: `Avatar` has no `name` or `displayName` prop — the fallback
+letter is passed as `fallback`. `Chip` has no `label` prop — the text
+is the `children`. The RoomMemberRow must use these exact prop names
+at the call site.
+
+`RoomMemberRow` props (all primitives — strict typing per CLAUDE.md):
 
 ```ts
 interface RoomMemberRowProps {
@@ -268,18 +302,33 @@ interface RoomMemberRowProps {
 }
 ```
 
-Render:
-- `bg-surface`, `rounded-lg`, `shadow-soft`, `p-3`, flex row, gap 3,
-  to match `SettingsRow` visual language.
-- Leading: `Avatar` (`md`, no ring).
-- Middle (`flex-1 min-w-0`): primary line with name + optional
-  youSuffix, truncated; secondary line with `joinedDateLabel` in
-  `font-mono text-xs text-ink-muted`.
-- Trailing (`shrink-0`): `Chip tone="peach"` with `creatorBadgeLabel`
-  when `isCreator === true`.
+Render — verbatim against the real Avatar / Chip APIs above:
+
+- Outer: `bg-surface`, `rounded-lg`, `shadow-soft`, `p-3`, flex row,
+  `gap-3`, to match `SettingsRow` visual language.
+- Leading: `<Avatar size="md" imageUrl={imageUrl} fallback={fallback}
+  themeColor={themeColor} />`. Omit `ring` (default is `'none'`,
+  which is the desired value — the leader-ring is only used on the
+  Dashboard leaderboard). Omit `badge` (it is the bottom-center slot
+  on Avatar and is used by `PlayerProgressRow` for the "Leader" pill;
+  the Members row's creator marker is a trailing `Chip`, not an
+  avatar badge).
+- Middle (`flex-1 min-w-0`): primary line with `name` + optional
+  `youSuffix` (when `isYou === true`), `font-mono text-sm font-bold
+  text-ink truncate`; secondary line with `joinedDateLabel` in
+  `font-mono text-xs text-ink-muted truncate`.
+- Trailing (`shrink-0`): when `isCreator === true`, render
+  `<Chip tone="peach">{creatorBadgeLabel}</Chip>`. (`'peach'` is the
+  Chip default; passing it explicitly documents intent at the call
+  site and survives a future default change.) Do not pass an `icon`
+  to the Chip — the badge is text-only.
 
 No chevron, no `onClick`. The component is intentionally
 non-interactive in v1 (member detail navigation is Feature 3).
+
+If a future task adds member-detail navigation, wrap the whole row in
+a `<button>` like `SettingsRow` and add a chevron — but do not bake
+those into v1.
 
 ### 4.4 New hook: `useRoomMembers`
 
@@ -318,12 +367,44 @@ function useRoomMembers(roomId: string | null): UseRoomMembersResult;
 Implementation outline (planning only — not code):
 - If `roomId` is null, return `{ members: [], loading: false, error:
   null }` and do not query.
+- **On every `roomId` change, before any network work begins, reset
+  internal state to `{ members: [], loading: true, error: null }`.**
+  This is the room-switch reset and it MUST run synchronously inside
+  the `useEffect` (or equivalent) for the new `roomId`. Without it,
+  the previous room's members would briefly remain visible after a
+  room switch — a leak of one room's identities into another room's
+  UI. The reset applies to both the public state (what the hook
+  returns) and any internal cache/`ref` the hook keeps.
 - Otherwise call `supabase.rpc('room_members_for_room', { p_room_id:
   roomId })`. This RPC is already deployed (migration 0016) and
   returns every member regardless of `room_members` RLS state.
-- On error, set `error` to the RPC error message and `loading` to
-  `false`. Members stays as the previous value (so a refresh-error
-  does not blank the list).
+- On error:
+  - **After a room switch (members is `[]` because the reset just
+    ran)**, leave `members` as `[]`, set `loading = false`, set
+    `error = <message>`. The UI renders the error block (§8.2) with
+    no rows — correct, because we have no fresh data for the new
+    room and showing the old room's members would be a leak.
+  - **On a transient refetch within the same room (e.g., a future
+    realtime-triggered refetch or a manual retry while `roomId` is
+    unchanged and `members.length > 0`)**, keep the prior `members`
+    array, set `loading = false`, set `error = <message>`. The UI
+    keeps the prior rows visible with a small inline error banner
+    (§8.2) — losing the list on a transient hiccup would be worse
+    UX than keeping known-stale data with a visible warning.
+  - The two branches are distinguished by inspecting `members.length`
+    and the previous `roomId` inside the hook; the public API stays
+    the same (`members`, `loading`, `error`).
+- A new `roomId` arriving while a previous fetch is still in flight
+  must invalidate the in-flight result. Use a `cancelled` flag (or
+  `AbortController` if the supabase-js call supports it locally) so
+  the older response cannot overwrite the new room's reset state.
+  This is the same pattern used by `useRoomOtherMemberIds` and
+  `useLeaderboard`; copy it.
+- On `roomId` going from a value back to `null` (e.g., the user
+  leaves the active room), reset to
+  `{ members: [], loading: false, error: null }` immediately. Do not
+  preserve prior members across a logout / active-room-cleared
+  transition — the absence of an active room is unambiguous.
 - Normalise rows:
   - `user_id` → `userId`
   - `display_name` → `displayName`; if null/blank, use a fallback
@@ -337,6 +418,19 @@ Implementation outline (planning only — not code):
 - Sort by `joinedAt asc`. The RPC already orders by `joined_at asc`
   but resorting client-side keeps the contract independent of any
   future RPC re-ordering.
+
+State-transition summary (canonical, the implementation must match
+this table):
+
+| trigger                              | members           | loading | error    |
+| ------------------------------------ | ----------------- | ------- | -------- |
+| mount, `roomId === null`             | `[]`              | `false` | `null`   |
+| mount, `roomId !== null` (pre-fetch) | `[]`              | `true`  | `null`   |
+| fetch success                        | fetched + sorted  | `false` | `null`   |
+| fetch error after room switch        | `[]`              | `false` | message  |
+| same-room refetch error              | prior `members`   | `false` | message  |
+| `roomId` change to a new value       | `[]` (reset)      | `true`  | `null`   |
+| `roomId` change to `null`            | `[]`              | `false` | `null`   |
 
 No realtime subscription in v1. The page already shows fresh state
 on each visit; member list changes during a single visit are not
@@ -505,13 +599,23 @@ screen readers announce the pending state.
 
 ### 8.2 Error
 
-If `membersError !== null`:
-- Render a single `font-mono text-xs text-danger`-toned line under
-  the section header: `copy.manageProject.memberListErrorBody` (EN
+If `membersError !== null`, render depends on whether the hook has
+any members to show (per the §4.4 state-transition table — the hook
+contract is the source of truth here):
+
+- **`members.length === 0` (post room switch or first load failed)**:
+  render a single `font-mono text-xs text-danger`-toned line under
+  the section header — `copy.manageProject.memberListErrorBody` (EN
   "Couldn't load members. Pull to refresh or try again." / TH
-  "โหลดรายชื่อสมาชิกไม่สำเร็จ ลองรีเฟรชหรือลองใหม่อีกครั้ง").
-- Do not show stale members from a previous load. Empty list +
-  visible error keeps signal honest.
+  "โหลดรายชื่อสมาชิกไม่สำเร็จ ลองรีเฟรชหรือลองใหม่อีกครั้ง"). No rows.
+  This is the correct state after a room switch fails — showing the
+  previous room's members here would leak identities across rooms.
+- **`members.length > 0` (same-room refetch failed)**: keep the
+  prior rows fully visible, and add a thin inline danger-toned
+  banner immediately below the list using the same
+  `memberListErrorBody` string. This way the user is not stranded
+  without a member list because of a transient network hiccup, and
+  is still told that the refresh did not succeed.
 - Do not show a retry button in v1. The hook re-fetches when
   `roomId` changes (e.g., the user navigates away and back, or
   switches active room). A dedicated retry button is a §13
@@ -603,7 +707,11 @@ Per CLAUDE.md typing rules:
    CTA is added inside Manage Project.
 8. While the hook is loading, two skeleton rows render under the
    section header, and `aria-busy="true"` is set on the section.
-9. On hook error, a single danger-toned line replaces the rows.
+9. On hook error with `members.length === 0` (post room switch or
+   first load failed), a single danger-toned line replaces the rows.
+   On hook error with `members.length > 0` (same-room refetch
+   failed), the prior rows stay visible and a small danger-toned
+   banner appears below them.
 10. In a 1-member solo-creator room, one row renders plus the
     `memberListSoloHint` line. (Cap is 2 today, so this is the
     pre-join state and is the only "0 other members" state in
@@ -619,6 +727,14 @@ Per CLAUDE.md typing rules:
     `ProjectPreviewCard.tsx`, `RoomLeaderboardList.tsx`,
     `PlayerProgressRow.tsx`, `HeadToHeadCard.tsx`, the `notify_*`
     RPCs, or the `notify-partner-deposit` edge function.
+15. The new `RoomMemberRow` uses only props that exist on the real
+    `Avatar` (`imageUrl`, `fallback`, `size`, `ring`, `themeColor`,
+    `badge`, `className`) and `Chip` (`tone`, `icon`, `children`,
+    `className`) component signatures. No invented prop names.
+16. Switching the active room from room A to room B clears the
+    Members list to `[]` synchronously **before** the new fetch
+    resolves. The previous room's members never flash on the screen
+    after a room switch, even on a slow network.
 
 ## 11. Implementation steps (the next task — not this doc)
 
@@ -720,6 +836,14 @@ Specific risks and mitigations:
       string immediately.
 - [ ] Switching active room (via Profile) updates the Members list
       to the new room.
+- [ ] **Room switch reset**: be a member of two rooms (A and B) with
+      different members. With Manage Project open on room A, switch
+      the active room to room B. Throttle the network in DevTools so
+      the new fetch is slow. Confirm that the Members list goes
+      empty (or shows skeletons) immediately on the switch —
+      **never** shows room A's members under room B's title. Once
+      the fetch resolves, room B's members appear. Repeat the
+      switch back to A and confirm the symmetry.
 
 ### 13.2 Solo-creator room (post-create, pre-join)
 
@@ -751,11 +875,22 @@ criteria for the production cap.
 - [ ] Throttle the network in DevTools and reload Manage Project.
       Two skeleton rows render under the section header; the
       section has `aria-busy="true"` while loading.
-- [ ] Simulate an RPC error (e.g. block the network or revoke the
-      RPC grant in a dev DB). The danger-toned
-      `memberListErrorBody` renders; no skeleton, no stale rows.
+- [ ] **First-load error** (no prior members): simulate an RPC
+      error (e.g. block the network or revoke the RPC grant in a
+      dev DB). The danger-toned `memberListErrorBody` renders; no
+      skeleton, no rows from any prior load.
+- [ ] **Room-switch error**: with Manage Project open on room A and
+      a loaded member list, switch to room B and immediately fail
+      the fetch for B. Members goes empty (room A's members must
+      not stay visible under room B's title); the danger-toned
+      `memberListErrorBody` renders.
+- [ ] **Same-room refetch error** (forward-looking; manual today,
+      automatic once a refetch trigger is added): with a loaded
+      member list for room A, trigger a same-room refetch that
+      fails. The prior rows for A stay visible; a small danger-toned
+      inline banner appears below them with the same error copy.
 - [ ] Restore the network; revisit Manage Project. The list
-      re-renders.
+      re-renders cleanly with no leftover error banner.
 
 ### 13.5 Other surfaces still untouched
 

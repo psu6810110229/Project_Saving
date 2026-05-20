@@ -177,8 +177,10 @@ export function MomentumChart({
 
   return (
     <section className="overflow-hidden rounded-[2rem] bg-surface px-6 pt-6 pb-5 text-ink shadow-soft">
-      {/* Header + legend */}
-      <div className="mb-2 flex items-start justify-between gap-4">
+      {/* Header + legend — stacked on mobile so the legend never overlaps
+          the title/amount block, and long member names truncate inside a
+          single-line chip instead of stealing width from the headline. */}
+      <div className="mb-3 flex min-w-0 flex-col gap-3">
         <div className="min-w-0">
           <h2 className="mb-2 font-mono text-lg font-bold leading-tight text-ink">
             {d.dailyDepositTrend}
@@ -193,15 +195,15 @@ export function MomentumChart({
           </div>
         </div>
 
-        <div className="mr-4 mt-0 flex shrink-0 flex-col gap-4">
-          <LegendCell
+        <div className="flex min-w-0 flex-row flex-wrap gap-x-4 gap-y-2">
+          <LegendChip
             color={COLOR_YOU}
             glow="rgba(242,107,26,0.55)"
             name={resolvedYourName}
             total={yourTotal}
           />
           {hasPartner && (
-            <LegendCell
+            <LegendChip
               color={COLOR_PARTNER}
               glow="rgba(79,99,130,0.4)"
               name={resolvedPartnerName}
@@ -465,7 +467,7 @@ export function MomentumChart({
           const partnerY = baselineY - partnerH;
           const topBarY = hasPartner ? Math.min(yourY, partnerY) : yourY;
 
-          const lines = hasPartner
+          const rawLines = hasPartner
             ? [
               `${resolvedYourName} ${formatCurrency(v)}`,
               `${resolvedPartnerName} ${formatCurrency(partnerVal)}`,
@@ -477,6 +479,15 @@ export function MomentumChart({
           const rowH = 11;
           const padX = 6;
           const padY = 4;
+          // Cap tooltip line width so a long Thai/English member name can
+          // never push the box past the card edges at 320-390 px widths.
+          const maxLineChars = Math.max(
+            12,
+            Math.floor((W - PAD_LEFT - PAD_RIGHT - padX * 2) / charW) - 2,
+          );
+          const lines = rawLines.map(line => (
+            line.length > maxLineChars ? `${line.slice(0, maxLineChars - 1)}…` : line
+          ));
           const longest = lines.reduce((m, s) => Math.max(m, s.length), 0);
           const boxW = Math.ceil(longest * charW) + padX * 2;
           const boxH = lines.length * rowH + padY * 2 - 2;
@@ -530,26 +541,34 @@ export function MomentumChart({
   );
 }
 
-interface LegendCellProps {
+interface LegendChipProps {
   color: string;
   glow: string;
   name: string;
   total: number;
 }
 
-function LegendCell({ color, glow, name, total }: LegendCellProps) {
+/** Compact one-line legend chip used in the Daily Deposit Trend header.
+ *  Mobile-safe: the name truncates with an ellipsis inside a bounded
+ *  max width so long English / Thai member labels never wrap or push
+ *  the amount off the card. */
+function LegendChip({ color, glow, name, total }: LegendChipProps) {
   return (
-    <div className="min-w-0">
-      <div className="mb-0 flex items-center gap-2.5 font-mono text-[12px] text-ink-muted">
-        <span
-          className="inline-block h-3 w-3 shrink-0 rounded-full"
-          style={{ backgroundColor: color, boxShadow: `0 0 8px ${glow}` }}
-        />
-        <span className="truncate">{name}</span>
-      </div>
-      <div className="font-mono text-[14px] font-bold leading-tight text-ink">
+    <div className="inline-flex min-w-0 max-w-full items-center gap-2 font-mono text-[12px] text-ink-muted">
+      <span
+        aria-hidden
+        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+        style={{ backgroundColor: color, boxShadow: `0 0 8px ${glow}` }}
+      />
+      <span
+        className="max-w-[10rem] truncate whitespace-nowrap"
+        title={name}
+      >
+        {name}
+      </span>
+      <span className="shrink-0 whitespace-nowrap font-bold text-ink">
         {formatCurrency(total)}
-      </div>
+      </span>
     </div>
   );
 }

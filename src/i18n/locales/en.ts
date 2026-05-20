@@ -180,6 +180,7 @@ export const en = {
     addBucketModalTitle: 'Add Bucket',
     youLabel: 'You',
     partnerLabel: 'Partner',
+    othersLabel: (count: number) => `Others (${count})`,
     savingsFallback: 'Savings',
     firstBucketTitle: 'First bucket',
     firstBucketSubtitle: 'Create a bucket from Profile',

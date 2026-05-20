@@ -37,9 +37,18 @@ export function BucketGrid({
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="font-mono text-lg font-bold leading-tight text-ink">{title}</h2>
-          {subtitle && <p className="mt-1 font-mono text-xs leading-snug text-ink-muted">{subtitle}</p>}
+        <div className="min-w-0 flex-1">
+          <h2
+            className="font-mono text-lg font-bold leading-tight text-ink line-clamp-2 break-words"
+            title={title}
+          >
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="mt-1 truncate font-mono text-xs leading-snug text-ink-muted" title={subtitle}>
+              {subtitle}
+            </p>
+          )}
         </div>
         {onAddBucket && (
           <Button

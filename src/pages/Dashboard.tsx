@@ -21,7 +21,6 @@ import { NudgeButton } from '../components/NudgeButton/NudgeButton';
 import { BellIconButton } from '../components/Notifications/BellIconButton';
 import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
-import { Segmented } from '../components/Segmented/Segmented';
 import {
   IconBed,
   IconBriefcase,
@@ -389,6 +388,33 @@ export function Dashboard() {
   const expectedDailySeries = revisions
     ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
+  // Daily Deposit Trend secondary series.
+  // - 2-user rooms keep the existing single-partner series so the
+  //   chart reads as a direct head-to-head.
+  // - 3-7 member rooms aggregate every other member's daily totals
+  //   into a single "Others (N)" series so the mobile chart isn't
+  //   asked to render seven full names inline. Per Task 38, the
+  //   aggregate is for display only and does not feed Saving Plan
+  //   math or deposit writes.
+  const otherMembersCount = otherMemberIds.length;
+  const useAggregateOthers = otherMembersCount >= 2;
+  const chartOthersDailySeries = otherMembersCount === 0
+    ? undefined
+    : useAggregateOthers
+      ? otherMemberIds
+          .map(id => dailyAmountSeries(logs, id))
+          .reduce<number[]>(
+            (acc, series) => acc.map((value, index) => value + (series[index] ?? 0)),
+            [0, 0, 0, 0, 0, 0, 0],
+          )
+      : (firstOtherMemberByJoinedAt
+          ? dailyAmountSeries(logs, firstOtherMemberByJoinedAt)
+          : undefined);
+  const chartOthersLabel = otherMembersCount === 0
+    ? undefined
+    : useAggregateOthers
+      ? d.othersLabel(otherMembersCount)
+      : (firstOtherEntry?.displayName ?? d.partnerLabel);
   const weekRecordedTotal = dailyAmountSeries(logs, user?.id).reduce((sum, v) => sum + v, 0);
   const weekExpectedTotal = expectedDailySeries
     ? expectedDailySeries.reduce((sum, v) => sum + v, 0)
@@ -563,20 +589,29 @@ export function Dashboard() {
       {/* 4 — Smart Buckets. */}
       <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
         {hasOtherBuckets && (
-          <div className="-mx-2 flex items-center justify-end gap-2 overflow-x-auto px-2">
-            <Segmented
-              ariaLabel={d.switchBucketOwner}
-              options={[
-                { value: 'mine', label: d.youLabel },
-                ...otherMemberBucketGroups.map(group => ({ value: group.userId, label: group.name })),
-              ]}
-              value={bucketView}
-              onChange={next => {
-                setBucketView(next);
-                setExpandedBucketId(null);
-              }}
-            />
-          </div>
+          <BucketMemberPicker
+            ariaLabel={d.switchBucketOwner}
+            options={[
+              {
+                value: 'mine',
+                label: d.youLabel,
+                themeColor: profile?.theme_color ?? null,
+              },
+              ...otherMemberBucketGroups.map(group => {
+                const entry = leaderboard.entries.find(e => e.userId === group.userId);
+                return {
+                  value: group.userId,
+                  label: group.name,
+                  themeColor: entry?.themeColor ?? null,
+                };
+              }),
+            ]}
+            value={bucketView}
+            onChange={next => {
+              setBucketView(next);
+              setExpandedBucketId(null);
+            }}
+          />
         )}
         {activeOtherGroup ? (
           <BucketGrid
@@ -622,10 +657,10 @@ export function Dashboard() {
       <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
         <MomentumChart
           series={dailyAmountSeries(logs, user?.id)}
-          partnerSeries={firstOtherMemberByJoinedAt ? dailyAmountSeries(logs, firstOtherMemberByJoinedAt) : undefined}
+          partnerSeries={chartOthersDailySeries}
           labels={lastSevenDayLabels(undefined, chartLocale)}
           yourName={profile?.display_name ?? d.youLabel}
-          partnerName={firstOtherEntry?.displayName ?? d.partnerLabel}
+          partnerName={chartOthersLabel}
           expectedSeries={expectedDailySeries}
           todayIndex={6}
           weekTotal={weekRecordedTotal}
@@ -919,6 +954,67 @@ function bucketIcon(category: BucketCategory | undefined): ReactNode {
   if (category === 'gear') return <IconSmartphone size={22} />;
   if (category === 'home') return <IconHome size={22} />;
   return <IconBriefcase size={22} />;
+}
+
+interface BucketMemberPickerOption {
+  value: string;
+  label: string;
+  themeColor?: string | null;
+}
+
+interface BucketMemberPickerProps {
+  ariaLabel: string;
+  options: BucketMemberPickerOption[];
+  value: string;
+  onChange: (next: string) => void;
+}
+
+/** Dashboard-scoped horizontal member picker for the Smart Buckets
+ *  section. Replaces the right-aligned `Segmented` control so 3-7
+ *  member rooms can scroll cleanly on mobile without clipping the
+ *  first option, wrapping tab labels, or detaching from the bucket
+ *  section. Selection state mirrors the previous tab-pill look. */
+function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMemberPickerProps) {
+  return (
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className="-mx-2 flex items-center gap-2 overflow-x-auto px-2 pb-1"
+    >
+      {options.map(option => {
+        const active = option.value === value;
+        const dotColor = option.themeColor ?? '#F26B1A';
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            title={option.label}
+            onClick={() => onChange(option.value)}
+            className={
+              'inline-flex shrink-0 items-center gap-2 rounded-pill px-3.5 py-2 font-mono text-xs font-bold transition-all '
+              + (active
+                ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
+                : 'bg-well text-ink-muted shadow-neuPressed')
+            }
+          >
+            <span
+              aria-hidden
+              className="inline-block h-2 w-2 shrink-0 rounded-full"
+              style={{
+                backgroundColor: dotColor,
+                opacity: active ? 0.85 : 1,
+              }}
+            />
+            <span className="max-w-[8rem] truncate whitespace-nowrap">
+              {option.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 const bucketOptionIcons = [

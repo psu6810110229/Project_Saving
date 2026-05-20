@@ -171,6 +171,7 @@ export const th: Messages = {
     addBucketModalTitle: 'เพิ่มเป้าหมายย่อย',
     youLabel: 'คุณ',
     partnerLabel: 'คู่ของคุณ',
+    othersLabel: (count: number) => `อื่นๆ (${count})`,
     savingsFallback: 'เงินออม',
     firstBucketTitle: 'เป้าหมายย่อยแรก',
     firstBucketSubtitle: 'สร้างเป้าหมายย่อยจากโปรไฟล์',

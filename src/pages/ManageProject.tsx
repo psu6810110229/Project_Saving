@@ -4,6 +4,8 @@ import { BucketManager } from '../components/BucketManager/BucketManager';
 import { Button } from '../components/Button/Button';
 import { Chip } from '../components/Chip/Chip';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
+import { FormField } from '../components/FormField/FormField';
+import { TextInput } from '../components/TextInput/TextInput';
 import {
   IconArrowLeft,
   IconBed,
@@ -47,7 +49,14 @@ function firstGrapheme(value: string): string {
   return first.value.toUpperCase();
 }
 
-type ManageModal = 'invite-code' | 'quick-amounts' | 'buckets' | 'rename-room' | null;
+type ManageModal =
+  | 'invite-code'
+  | 'quick-amounts'
+  | 'buckets'
+  | 'rename-room'
+  | 'room-goal'
+  | 'personal-goal'
+  | null;
 
 const ROOM_NAME_MAX = 60;
 
@@ -72,8 +81,14 @@ export function ManageProject() {
     error: membersError,
   } = useRoomMembers(activeRoomId);
   const data = useSharedData();
-  const { goal } = data.goal;
-  const { archiveRoom, leaveRoom, renameRoom } = useRooms();
+  const {
+    personalGoalTarget,
+    roomGoalTarget,
+    roomGoalEndDate,
+    saveRoomGoal,
+    saveMemberGoal,
+  } = data.goal;
+  const { archiveRoom, leaveRoom, renameRoom, refetch: refetchRooms } = useRooms();
   const { quickAmounts, updateQuickAmounts } = data.profile;
   const { buckets, saveBuckets } = data.buckets;
   const { logs } = data.logs;
@@ -88,6 +103,12 @@ export function ManageProject() {
   const [renameDraft, setRenameDraft] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [roomGoalAmount, setRoomGoalAmount] = useState('');
+  const [roomGoalDate, setRoomGoalDate] = useState('');
+  const [roomGoalError, setRoomGoalError] = useState<string | null>(null);
+  const [pendingRoomGoal, setPendingRoomGoal] = useState<{ target: number; endDate: string } | null>(null);
+  const [personalGoalAmount, setPersonalGoalAmount] = useState('');
+  const [personalGoalError, setPersonalGoalError] = useState<string | null>(null);
 
   const bucketOptions = BUCKET_OPTION_ICONS.map(({ id, icon }) => ({
     id, icon, label: copy.bucket.categoryLabels[id],
@@ -103,7 +124,7 @@ export function ManageProject() {
   }
 
   const isCreator = activeRoom.created_by === user?.id;
-  const goalTarget = goal?.target_amount ?? null;
+  const goalTarget = personalGoalTarget;
   const yourBucketTargetTotal = sumTargets(buckets);
 
   function openModal(next: ManageModal) {
@@ -112,6 +133,16 @@ export function ManageProject() {
       if (!isCreator) return;
       setRenameDraft(activeRoom?.name ?? '');
       setRenameError(null);
+    }
+    if (next === 'room-goal') {
+      if (!isCreator) return;
+      setRoomGoalAmount(roomGoalTarget !== null ? String(roomGoalTarget) : '');
+      setRoomGoalDate(roomGoalEndDate ?? activeRoom?.end_date ?? '');
+      setRoomGoalError(null);
+    }
+    if (next === 'personal-goal') {
+      setPersonalGoalAmount(personalGoalTarget !== null ? String(personalGoalTarget) : '');
+      setPersonalGoalError(null);
     }
     setActiveModal(next);
     setMessage(null);
@@ -153,6 +184,63 @@ export function ManageProject() {
     setActiveModal(null);
     setRenameError(null);
     setMessage(copy.manageProject.renameSuccess);
+  }
+
+  function handleRoomGoalSubmit() {
+    if (!isCreator) return;
+    const amount = Number(roomGoalAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setRoomGoalError(copy.manageProject.tripGoalValidationAmount);
+      return;
+    }
+    if (!roomGoalDate) {
+      setRoomGoalError(copy.manageProject.tripGoalValidationDate);
+      return;
+    }
+    setPendingRoomGoal({ target: amount, endDate: roomGoalDate });
+  }
+
+  async function confirmRoomGoalSave() {
+    if (!pendingRoomGoal) return;
+    const { target, endDate } = pendingRoomGoal;
+    setPendingRoomGoal(null);
+    const result = await saveRoomGoal({ target_amount: target, end_date: endDate });
+    if (result.error) {
+      setRoomGoalError(result.error);
+      return;
+    }
+    await refetchRooms();
+    setRoomGoalError(null);
+    setActiveModal(null);
+    setMessage(copy.manageProject.tripGoalSuccess);
+  }
+
+  async function handlePersonalGoalSubmit() {
+    const amount = Number(personalGoalAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPersonalGoalError(copy.manageProject.tripGoalValidationAmount);
+      return;
+    }
+    if (roomGoalTarget !== null && amount > roomGoalTarget) {
+      setPersonalGoalError(
+        copy.manageProject.personalGoalErrorAboveRoom(formatMoney(roomGoalTarget)),
+      );
+      return;
+    }
+    if (amount < yourBucketTargetTotal) {
+      setPersonalGoalError(
+        copy.manageProject.personalGoalErrorBelowBuckets(formatMoney(yourBucketTargetTotal)),
+      );
+      return;
+    }
+    const result = await saveMemberGoal({ target_amount: amount });
+    if (result.error) {
+      setPersonalGoalError(result.error);
+      return;
+    }
+    setPersonalGoalError(null);
+    setActiveModal(null);
+    setMessage(copy.manageProject.personalGoalSuccess);
   }
 
   async function handleQuickAmountsSave() {
@@ -270,6 +358,32 @@ export function ManageProject() {
   ];
 
   const savingControlItems = [
+    {
+      id: 'room-goal',
+      icon: <IconEdit size={18} />,
+      label: copy.manageProject.sectionRoomGoal,
+      description: isCreator
+        ? (roomGoalTarget !== null
+            ? copy.manageProject.roomGoalCurrent(formatMoney(roomGoalTarget))
+            : copy.manageProject.roomGoalNotSet)
+        : copy.manageProject.roomGoalReadOnlyHint,
+      meta: roomGoalTarget !== null ? (
+        <span className="copy-allowed font-mono text-xs text-ink">{formatMoney(roomGoalTarget)}</span>
+      ) : undefined,
+      onClick: isCreator ? () => openModal('room-goal') : undefined,
+    },
+    {
+      id: 'personal-goal',
+      icon: <IconEdit size={18} />,
+      label: copy.manageProject.sectionPersonalGoal,
+      description: personalGoalTarget !== null
+        ? copy.manageProject.personalGoalCurrent(formatMoney(personalGoalTarget))
+        : copy.manageProject.personalGoalNotSet,
+      meta: personalGoalTarget !== null ? (
+        <span className="copy-allowed font-mono text-xs text-ink">{formatMoney(personalGoalTarget)}</span>
+      ) : undefined,
+      onClick: () => openModal('personal-goal'),
+    },
     {
       id: 'quick',
       icon: <IconPiggyBank size={18} />,
@@ -422,6 +536,68 @@ export function ManageProject() {
             </div>
           );
         })()}
+      </Modal>
+      <Modal open={activeModal === 'room-goal'} title={copy.manageProject.roomGoalEditTitle} onClose={closeModal}>
+        <div className="flex flex-col gap-4">
+          {roomGoalError && (
+            <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{roomGoalError}</p>
+          )}
+          <FormField label={copy.manageProject.endDateLabel}>
+            <TextInput
+              type="date"
+              value={roomGoalDate}
+              onChange={event => setRoomGoalDate(event.target.value)}
+            />
+          </FormField>
+          <FormField label={copy.manageProject.targetAmountLabel}>
+            <TextInput
+              type="number"
+              min={0}
+              step={100}
+              inputMode="decimal"
+              placeholder={copy.manageProject.targetAmountPlaceholder}
+              value={roomGoalAmount}
+              onChange={event => setRoomGoalAmount(event.target.value.replace(/[^0-9]/g, ''))}
+            />
+          </FormField>
+          <Button variant="primary" fullWidth onClick={handleRoomGoalSubmit}>
+            {copy.manageProject.saveButton}
+          </Button>
+        </div>
+      </Modal>
+      <ConfirmModal
+        open={pendingRoomGoal !== null}
+        title={copy.manageProject.tripGoalConfirmTitle}
+        body={copy.manageProject.tripGoalConfirmBody}
+        confirmLabel={copy.manageProject.tripGoalConfirmLabel}
+        onCancel={() => setPendingRoomGoal(null)}
+        onConfirm={confirmRoomGoalSave}
+      />
+      <Modal open={activeModal === 'personal-goal'} title={copy.manageProject.personalGoalEditTitle} onClose={closeModal}>
+        <div className="flex flex-col gap-4">
+          {personalGoalError && (
+            <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{personalGoalError}</p>
+          )}
+          <FormField
+            label={copy.manageProject.personalGoalLabel}
+            helper={roomGoalTarget !== null
+              ? copy.manageProject.personalGoalHelper(formatMoney(roomGoalTarget))
+              : undefined}
+          >
+            <TextInput
+              type="number"
+              min={0}
+              step={100}
+              inputMode="decimal"
+              placeholder={copy.manageProject.targetAmountPlaceholder}
+              value={personalGoalAmount}
+              onChange={event => setPersonalGoalAmount(event.target.value.replace(/[^0-9]/g, ''))}
+            />
+          </FormField>
+          <Button variant="primary" fullWidth onClick={handlePersonalGoalSubmit}>
+            {copy.manageProject.personalGoalSaveButton}
+          </Button>
+        </div>
       </Modal>
       <Modal open={activeModal === 'invite-code'} title={copy.manageProject.inviteCodeModalTitle} onClose={closeModal}>
         <div className="flex flex-col gap-3 text-center">

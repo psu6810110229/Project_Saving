@@ -30,6 +30,8 @@ export interface Room {
   category?: ProjectCategory;
   /** When set, the project is archived and hidden from the Vault list. Added in migration 0010. */
   archived_at?: string | null;
+  /** Room-level shared goal target (Task 37 / migration 0057). Nullable during rollout. */
+  target_amount?: number | null;
 }
 
 export interface RoomMember {
@@ -41,6 +43,7 @@ export interface RoomMember {
 export interface Goal {
   user_id: string;
   room_id: string;
+  /** Personal sub-goal under the room goal (Task 37). */
   target_amount: number;
   start_date: string;
   end_date: string;

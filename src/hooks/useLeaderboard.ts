@@ -13,7 +13,15 @@ export interface LeaderboardEntry {
   themeColor?: ProfileTheme;
   /** Recorded Deposits: sum of positive savings_logs assigned to buckets. */
   saved: number;
+  /**
+   * Member's personal sub-goal (`goals.target_amount`). Task 37
+   * relabel: this is no longer the shared room goal; it is the
+   * member's personal sub-goal under `rooms.target_amount`.
+   * `personalGoalTarget` is the canonical alias.
+   */
   target: number | null;
+  /** Alias for `target`; preferred for new callers under Task 37. */
+  personalGoalTarget: number | null;
   percent: number;
   streak: number;
   hasLoggedToday: boolean;
@@ -163,6 +171,7 @@ export function useLeaderboard(
       themeColor: p.themeColor,
       saved: p.saved,
       target: p.target,
+      personalGoalTarget: p.target,
       percent: p.percent,
       streak: p.streak,
       hasLoggedToday: p.hasLoggedToday,

@@ -49,7 +49,7 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       const goalTarget = Number(goal.target_amount);
       const bucketTargetTotal = next.reduce((total, bucket) => total + Number(bucket.target_amount), 0);
       if (bucketTargetTotal > goalTarget) {
-        return { error: `Bucket targets exceed your main goal of ${formatCurrency(goalTarget)}.` };
+        return { error: `Bucket targets exceed your personal sub-goal of ${formatCurrency(goalTarget)}.` };
       }
     }
 

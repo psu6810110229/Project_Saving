@@ -123,6 +123,7 @@ export function useRooms() {
       created_at: new Date().toISOString(),
       category: values.category,
       archived_at: null,
+      target_amount: values.target_amount,
     };
 
     const { error: roomError } = await supabase
@@ -134,6 +135,7 @@ export function useRooms() {
         end_date: room.end_date,
         created_by: room.created_by,
         category: room.category,
+        target_amount: values.target_amount,
       });
     if (roomError) return { error: roomError.message };
 

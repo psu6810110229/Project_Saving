@@ -117,9 +117,15 @@ function MilestoneCelebration({ roomId }: { roomId: string }) {
   const { user } = useAuth();
   const { leaderboard, goal } = useSharedData();
   const totalSaved = leaderboard.entries.reduce((sum, entry) => sum + entry.saved, 0);
+  // Task 37: Vault denominator is the room goal. Fall back to summed
+  // personal sub-goals only while `rooms.target_amount` is unbackfilled.
+  const summedPersonal = leaderboard.entries.reduce(
+    (sum, entry) => sum + (entry.personalGoalTarget ?? 0),
+    0,
+  );
   const totalTarget =
-    leaderboard.entries.reduce((sum, entry) => sum + (entry.target ?? 0), 0)
-    || (goal.goal?.target_amount ?? 0);
+    goal.roomGoalTarget
+    ?? (summedPersonal > 0 ? summedPersonal : (goal.personalGoalTarget ?? 0));
   const { pendingThreshold, acknowledge } = useMilestoneCrossings({
     roomId,
     userId: user?.id,

@@ -4,35 +4,60 @@ import { notifyGoalChanged } from '../lib/notifyEvents';
 import { useAuth } from './useAuth';
 import type { Goal } from '../types';
 
-interface SaveValues {
+interface SaveRoomGoalValues {
   target_amount: number;
-  start_date: string;
   end_date: string;
+}
+
+interface SaveMemberGoalValues {
+  target_amount: number;
+}
+
+interface RoomGoalState {
+  target_amount: number | null;
+  end_date: string | null;
 }
 
 export function useGoal(roomId: string | null = null) {
   const { user } = useAuth();
-  const [goal, setGoal] = useState<Goal | null>(null);
+  // `personalGoal` is the caller's `goals` row (their personal sub-goal).
+  const [personalGoal, setPersonalGoal] = useState<Goal | null>(null);
+  const [roomGoal, setRoomGoal] = useState<RoomGoalState>({ target_amount: null, end_date: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchGoal = useCallback(async () => {
     if (!user || !roomId) {
-      setGoal(null);
+      setPersonalGoal(null);
+      setRoomGoal({ target_amount: null, end_date: null });
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
-    const { data, error: err } = await supabase
-      .from('goals')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('room_id', roomId)
-      .maybeSingle();
+    const [{ data: personalData, error: personalErr }, { data: roomData, error: roomErr }] = await Promise.all([
+      supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('room_id', roomId)
+        .maybeSingle(),
+      supabase
+        .from('rooms')
+        .select('target_amount, end_date')
+        .eq('id', roomId)
+        .maybeSingle(),
+    ]);
 
+    const err = personalErr ?? roomErr;
     if (err) setError(err.message);
-    else setGoal(data ? { ...data, target_amount: Number(data.target_amount) } : null);
+    setPersonalGoal(personalData ? { ...personalData, target_amount: Number(personalData.target_amount) } : null);
+    setRoomGoal({
+      target_amount: roomData?.target_amount !== null && roomData?.target_amount !== undefined
+        ? Number(roomData.target_amount)
+        : null,
+      end_date: roomData?.end_date ?? null,
+    });
     setLoading(false);
   }, [user, roomId]);
 
@@ -53,26 +78,17 @@ export function useGoal(roomId: string | null = null) {
           void fetchGoal();
         },
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+        () => { void fetchGoal(); },
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [fetchGoal, roomId, user]);
 
-  async function save(values: SaveValues): Promise<{ error?: string }> {
-    if (!user) return { error: 'Not authenticated' };
-    if (!roomId) return { error: 'No active room' };
-    const { error: err } = await supabase
-      .from('goals')
-      .upsert(
-        { user_id: user.id, room_id: roomId, ...values, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id,room_id' }
-      );
-    if (err) return { error: goalSaveErrorMessage(err.message) };
-    setGoal({ user_id: user.id, room_id: roomId, ...values, updated_at: new Date().toISOString() });
-    return {};
-  }
-
-  async function saveRoomGoal(values: Omit<SaveValues, 'start_date'>): Promise<{ error?: string }> {
+  async function saveRoomGoal(values: SaveRoomGoalValues): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };
     if (!roomId) return { error: 'No active room' };
 
@@ -83,26 +99,52 @@ export function useGoal(roomId: string | null = null) {
     });
     if (err) return { error: err.message };
 
-    const nextGoal: Goal = {
-      user_id: user.id,
-      room_id: roomId,
-      target_amount: values.target_amount,
-      start_date: goal?.start_date ?? new Date().toISOString().slice(0, 10),
-      end_date: values.end_date,
-      updated_at: new Date().toISOString(),
-    };
-    setGoal(nextGoal);
-    // Fire-and-forget partner notification.
+    setRoomGoal({ target_amount: values.target_amount, end_date: values.end_date });
     notifyGoalChanged(roomId);
     return {};
   }
 
-  return { goal, loading, error, save, saveRoomGoal, refetch: fetchGoal };
+  async function saveMemberGoal(values: SaveMemberGoalValues): Promise<{ error?: string }> {
+    if (!user) return { error: 'Not authenticated' };
+    if (!roomId) return { error: 'No active room' };
+
+    const { error: err } = await supabase.rpc('update_member_goal', {
+      p_room_id: roomId,
+      p_target_amount: values.target_amount,
+    });
+    if (err) return { error: personalGoalSaveErrorMessage(err.message) };
+
+    await fetchGoal();
+    return {};
+  }
+
+  return {
+    // Canonical fields (Task 37).
+    roomGoal,
+    personalGoal,
+    roomGoalTarget: roomGoal.target_amount,
+    personalGoalTarget: personalGoal?.target_amount ?? null,
+    roomGoalEndDate: roomGoal.end_date,
+    // Back-compat alias: `goal` was the caller's personal goal row.
+    goal: personalGoal,
+    loading,
+    error,
+    saveRoomGoal,
+    saveMemberGoal,
+    refetch: fetchGoal,
+  };
 }
 
-function goalSaveErrorMessage(message: string): string {
-  if (message.toLowerCase().includes('bucket targets exceed new goal target')) {
-    return 'Main goal cannot be lower than existing bucket targets.';
+function personalGoalSaveErrorMessage(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes('cannot be less than your bucket target total')) {
+    return 'Personal sub-goal cannot be lower than your existing bucket targets.';
+  }
+  if (lower.includes('cannot exceed room goal')) {
+    return 'Personal sub-goal cannot exceed the room goal.';
+  }
+  if (lower.includes('room goal not set')) {
+    return 'The room goal has not been set yet.';
   }
   return message;
 }

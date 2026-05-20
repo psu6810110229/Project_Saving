@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { appVersion } from '../lib/version';
 
 // Dummy data matching the screenshot
 const DUMMY_DATA = {
@@ -281,7 +282,7 @@ export function DashboardBucketsScreen() {
     <div className="min-h-screen bg-bg w-full max-w-[390px] mx-auto flex flex-col">
       {/* Version badge */}
       <div className="absolute top-4 right-4">
-        <span className="font-mono text-xs text-ink-muted border border-ink/10 rounded-full px-2 py-0.5">v0.9.9</span>
+        <span className="font-mono text-xs text-ink-muted border border-ink/10 rounded-full px-2 py-0.5">v{appVersion()}</span>
       </div>
 
       {/* Main scrollable content */}

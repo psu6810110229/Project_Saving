@@ -1,31 +1,46 @@
 // Supabase Edge Function: notify-partner-deposit
 //
-// Task P0-007 (0.9.7 bugfix pass). Sends a Web Push to the partner
-// every time a deposit is recorded, in addition to the existing in-app
-// notification. Modelled on `send-nudge` (auth + push fan-out) and
+// Task 31 (multi-user notification fan-out). Sends a Web Push to every
+// other current room member when a deposit is recorded, in addition to
+// the in-app notification rows inserted by the `notify_partner_deposit`
+// RPC. Modelled on `send-nudge` (auth + push fan-out) and
 // `scheduled-saving-reminders` (push gating + recipient locale).
+//
+// History:
+//   - Original (Task P0-007 in 0.9.7): single-recipient. The RPC
+//     returned a single `uuid` (or NULL) and this function pushed to
+//     one partner.
+//   - Task 31: fans push out across all "other" current room members.
+//     The RPC now returns `jsonb`:
+//        null            → no other members in the room
+//        '[]'::jsonb     → other members existed but every per-recipient
+//                          insert collided on dedupe
+//        non-empty array → one entry per inserted in-app row:
+//          [{ notification_id, recipient_user_id }, ...]
+//
+// Deployment safety: this function tolerates BOTH the legacy `uuid`
+// return shape (pre-migration 0055) and the new `jsonb` shape so it can
+// be deployed BEFORE the migration without breaking push delivery. The
+// legacy branch reads the recipient id back from the notifications row
+// and continues with a single-recipient fan-out, exactly matching the
+// pre-fan-out behaviour.
 //
 // Flow:
 //   1. Verify the caller is authenticated and parse `log_id`.
 //   2. Call `notify_partner_deposit(p_log_id)` with the caller's JWT.
-//      The RPC validates that the caller owns the log, resolves the
-//      partner, gates on the recipient's
-//      `master_enabled + partner_activity_enabled` preferences, and
-//      inserts the in-app notification row with `ON CONFLICT (recipient,
-//      dedupe_key) DO NOTHING`. The returned notification id is null
-//      when:
-//        a) the room has no partner yet,
-//        b) the recipient disabled master / partner-activity,
-//        c) the dedupe key already exists for this log + recipient.
-//      In all three cases there is nothing to push, so we return early.
-//   3. With the service-role client (still scoped to a single recipient
-//      whose id came back from the RPC), look up the saved notification
-//      row, the recipient's `push_enabled` preference, and the
-//      recipient's `ui_language` for Thai copy selection.
-//   4. If `push_enabled` is true and the recipient has at least one
-//      active subscription, send Web Push to each device. Expired
-//      endpoints (404/410) are cleaned up like in `send-nudge`.
-//   5. Return a structured summary. The caller treats any non-2xx as a
+//      Normalise the response into an array of
+//      `{ notification_id, recipient_user_id }` entries, tolerating
+//      both the legacy uuid and new jsonb return shapes.
+//   3. If the array is empty (`null` or `[]` from RPC), return early
+//      with `no_partner` / `duplicate`.
+//   4. With the service-role client, batch-load notification rows,
+//      preferences, profile language, and push subscriptions for all
+//      involved recipients.
+//   5. For each recipient, evaluate the push gate, build locale-aware
+//      copy from that recipient's notification payload, and send Web
+//      Push to each of their devices. Expired endpoints (404/410) are
+//      cleaned up per recipient.
+//   6. Return a structured summary. The caller treats any non-2xx as a
 //      "log + continue" event — the deposit save must never depend on
 //      this function succeeding.
 //
@@ -47,16 +62,30 @@ interface DepositPushPayload {
 }
 
 type DepositPushStatus =
-  | 'sent'             // push delivered to >=1 device
-  | 'saved_no_push'    // in-app saved; push skipped or all failed
-  | 'no_partner'       // RPC returned null (no partner or dedupe)
-  | 'duplicate';       // alias for no_partner when dedupe collided
+  | 'sent'             // push delivered to >=1 device across all recipients
+  | 'saved_no_push'    // in-app saved; push skipped or all attempts failed
+  | 'partial'          // at least one recipient delivered, at least one didn't
+  | 'no_partner'       // RPC returned null (no other members)
+  | 'duplicate';       // RPC returned '[]' (every recipient deduped)
+
+interface RecipientResult {
+  recipient_user_id: string;
+  notification_id: string;
+  delivered: number;
+  error?: string;
+}
 
 interface DepositPushResult {
   status: DepositPushStatus;
   delivered: number;
-  notification_id: string | null;
+  notification_ids: string[];
+  recipients: RecipientResult[];
   error?: string;
+}
+
+interface NormalisedEntry {
+  notification_id: string;
+  recipient_user_id: string | null;
 }
 
 const TARGET_ROUTE = '/dashboard';
@@ -146,6 +175,62 @@ function buildPushCopy(
   };
 }
 
+/**
+ * Normalise the RPC response to a list of inserted entries.
+ *
+ * Three shapes are accepted to keep the function safe across the
+ * pre-migration / post-migration deploy window:
+ *
+ *   - string (legacy 0040 shape)           → single recipient
+ *   - { notification_id: string } (legacy) → single recipient
+ *   - null                                 → no other members
+ *   - []                                   → fan-out, all deduped
+ *   - [{ notification_id, recipient_user_id }, ...] (new 0055 shape)
+ *
+ * Returns a `null` outer value to signal "no other members" so callers
+ * can distinguish it from "[]" (all deduped). Entries whose
+ * `recipient_user_id` we don't already know (legacy single-uuid path)
+ * have `recipient_user_id: null` and need a lookup against the
+ * notifications row before the push step.
+ */
+function normaliseRpcReturn(value: unknown): NormalisedEntry[] | null {
+  if (value === null || value === undefined) return null;
+
+  // Legacy: a bare uuid string.
+  if (typeof value === 'string') {
+    return [{ notification_id: value, recipient_user_id: null }];
+  }
+
+  // Legacy: `{ notification_id }` object (defensive, not currently emitted).
+  if (!Array.isArray(value) && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.notification_id === 'string') {
+      const recipient = typeof obj.recipient_user_id === 'string'
+        ? obj.recipient_user_id
+        : null;
+      return [{ notification_id: obj.notification_id, recipient_user_id: recipient }];
+    }
+    return [];
+  }
+
+  // New shape: jsonb array.
+  if (Array.isArray(value)) {
+    const out: NormalisedEntry[] = [];
+    for (const item of value) {
+      if (!item || typeof item !== 'object') continue;
+      const obj = item as Record<string, unknown>;
+      if (typeof obj.notification_id !== 'string') continue;
+      const recipient = typeof obj.recipient_user_id === 'string'
+        ? obj.recipient_user_id
+        : null;
+      out.push({ notification_id: obj.notification_id, recipient_user_id: recipient });
+    }
+    return out;
+  }
+
+  return [];
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeadersFor(req) });
@@ -187,116 +272,146 @@ Deno.serve(async (req) => {
   }
   const logId = body.log_id;
 
-  // 2. Insert the in-app notification by invoking the RPC AS the user
+  // 2. Insert in-app notification rows by invoking the RPC AS the user
   //    so the RPC's `auth.uid()` ownership check passes. The RPC also
-  //    handles partner resolution, preference gating, and dedupe.
-  const { data: notificationId, error: rpcError } = await callerClient
+  //    handles per-recipient preference gating and dedupe.
+  const { data: rpcReturn, error: rpcError } = await callerClient
     .rpc('notify_partner_deposit', { p_log_id: logId });
   if (rpcError) {
     return jsonResponse(req, { error: `notify_partner_deposit: ${rpcError.message}` }, 400);
   }
-  if (!notificationId || typeof notificationId !== 'string') {
-    // RPC returned NULL — no partner, prefs disabled, or dedupe hit.
+
+  const normalised = normaliseRpcReturn(rpcReturn);
+
+  // 2a. No other members. The RPC returned NULL (1-person room).
+  if (normalised === null) {
     const result: DepositPushResult = {
       status: 'no_partner',
       delivered: 0,
-      notification_id: null,
+      notification_ids: [],
+      recipients: [],
     };
     return jsonResponse(req, result);
   }
 
-  // 3. Pull recipient context with the service-role client (the saved
-  //    row, recipient prefs, recipient profile language, and active
-  //    push subscriptions).
+  // 2b. Fan-out happened but every recipient was deduped, OR an
+  //     unrecognised non-null shape — treat both as "nothing to push".
+  if (normalised.length === 0) {
+    const result: DepositPushResult = {
+      status: 'duplicate',
+      delivered: 0,
+      notification_ids: [],
+      recipients: [],
+    };
+    return jsonResponse(req, result);
+  }
+
+  // 3. Service-role client for the per-recipient fan-out.
   const admin = createClient(supabaseUrl, serviceKey);
 
-  const { data: notifRow, error: notifFetchError } = await admin
+  const notificationIds = normalised.map(e => e.notification_id);
+
+  const { data: notifRows, error: notifFetchError } = await admin
     .from('notifications')
     .select('id, recipient_user_id, room_id, payload, dedupe_key')
-    .eq('id', notificationId)
-    .maybeSingle();
-  if (notifFetchError || !notifRow) {
-    return jsonResponse(req, {
-      status: 'saved_no_push',
-      delivered: 0,
-      notification_id: notificationId,
-      error: 'Saved in-app notification but could not load it for push.',
-    } satisfies DepositPushResult);
-  }
-
-  const recipientId = notifRow.recipient_user_id as string;
-
-  const { data: prefs } = await admin
-    .from('notification_preferences')
-    .select('master_enabled, push_enabled, partner_activity_enabled')
-    .eq('user_id', recipientId)
-    .maybeSingle();
-  // Mirror the 0037 defaults when no row exists (master=true,
-  // partner_activity=true, push=false). The RPC already gated the
-  // in-app row on master + partner_activity, so re-checking here is
-  // belt-and-braces for push only.
-  const masterEnabled = prefs?.master_enabled ?? true;
-  const partnerEnabled = prefs?.partner_activity_enabled ?? true;
-  const pushEnabled = prefs?.push_enabled ?? false;
-  const pushAllowed = Boolean(masterEnabled && partnerEnabled && pushEnabled);
-
-  if (!pushAllowed) {
+    .in('id', notificationIds);
+  if (notifFetchError || !notifRows || notifRows.length === 0) {
     const result: DepositPushResult = {
       status: 'saved_no_push',
       delivered: 0,
-      notification_id: notificationId,
-      error: 'Recipient has push notifications off.',
+      notification_ids: notificationIds,
+      recipients: [],
+      error: 'Saved in-app notification(s) but could not load them for push.',
     };
     return jsonResponse(req, result);
   }
 
-  const { data: profileRow } = await admin
-    .from('profiles')
-    .select('ui_language')
-    .eq('id', recipientId)
-    .maybeSingle();
-  const recipientLanguage = (profileRow?.ui_language as string | null | undefined) ?? 'en';
+  type NotifRow = {
+    id: string;
+    recipient_user_id: string;
+    room_id: string | null;
+    payload: Record<string, unknown> | null;
+    dedupe_key: string | null;
+  };
 
-  const { data: subs } = await admin
-    .from('push_subscriptions')
-    .select('id, endpoint, p256dh, auth_key')
-    .eq('user_id', recipientId);
+  const rowsById = new Map<string, NotifRow>();
+  for (const row of notifRows as NotifRow[]) {
+    rowsById.set(row.id, row);
+  }
 
-  if (!subs || subs.length === 0) {
+  // Build the recipient set from the loaded rows (authoritative) +
+  // patch any legacy-shape entries that arrived without a known
+  // recipient id.
+  const recipientIds = new Set<string>();
+  for (const row of notifRows as NotifRow[]) {
+    recipientIds.add(row.recipient_user_id);
+  }
+
+  if (recipientIds.size === 0) {
     const result: DepositPushResult = {
       status: 'saved_no_push',
       delivered: 0,
-      notification_id: notificationId,
-      error: 'Recipient has no enrolled devices.',
+      notification_ids: notificationIds,
+      recipients: [],
+      error: 'No recipient ids resolved from notification rows.',
     };
     return jsonResponse(req, result);
   }
 
-  // 4. Build payload + send. Locale-aware copy is derived from the
-  //    payload the RPC stored, not from any client-supplied data.
-  const payload = (notifRow.payload ?? {}) as Record<string, unknown>;
-  const actorName = typeof payload.actor_name === 'string' ? payload.actor_name : 'Your partner';
-  const amount = typeof payload.amount === 'number'
-    ? payload.amount
-    : Number(payload.amount ?? 0);
-  const bucketName = typeof payload.bucket_name === 'string' ? payload.bucket_name : null;
-  const { title, body: bodyText } = buildPushCopy(recipientLanguage, actorName, amount, bucketName);
+  const recipientList = Array.from(recipientIds);
+
+  // 4. Batch-load preferences, profile language, and subscriptions for
+  //    every recipient. Each result is keyed by user id so the
+  //    per-recipient loop below can index in O(1).
+  const [
+    { data: prefsRows },
+    { data: profileRows },
+    { data: subRows },
+  ] = await Promise.all([
+    admin
+      .from('notification_preferences')
+      .select('user_id, master_enabled, push_enabled, partner_activity_enabled')
+      .in('user_id', recipientList),
+    admin
+      .from('profiles')
+      .select('id, ui_language')
+      .in('id', recipientList),
+    admin
+      .from('push_subscriptions')
+      .select('id, user_id, endpoint, p256dh, auth_key')
+      .in('user_id', recipientList),
+  ]);
+
+  type PrefsRow = {
+    user_id: string;
+    master_enabled: boolean | null;
+    push_enabled: boolean | null;
+    partner_activity_enabled: boolean | null;
+  };
+  type ProfileRow = { id: string; ui_language: string | null };
+  type SubRow = {
+    id: string;
+    user_id: string;
+    endpoint: string;
+    p256dh: string;
+    auth_key: string;
+  };
+
+  const prefsById = new Map<string, PrefsRow>();
+  for (const p of (prefsRows ?? []) as PrefsRow[]) prefsById.set(p.user_id, p);
+  const langById = new Map<string, string>();
+  for (const pr of (profileRows ?? []) as ProfileRow[]) {
+    langById.set(pr.id, pr.ui_language ?? 'en');
+  }
+  const subsByUser = new Map<string, SubRow[]>();
+  for (const s of (subRows ?? []) as SubRow[]) {
+    const list = subsByUser.get(s.user_id) ?? [];
+    list.push(s);
+    subsByUser.set(s.user_id, list);
+  }
 
   webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
 
-  const safeUrl = sanitizeRoute(TARGET_ROUTE);
-  const safeFallback = sanitizeRoute(FALLBACK_ROUTE);
-  const pushPayload = JSON.stringify({
-    notification_id: notificationId,
-    event_key: 'partner_deposited',
-    title,
-    body: bodyText,
-    url: safeUrl,
-    fallback_url: safeFallback,
-    tag: `partner_deposited:${logId}`,
-  });
-
-  let delivered = 0;
   type AttemptRow = {
     notification_id: string | null;
     recipient_user_id: string;
@@ -307,67 +422,152 @@ Deno.serve(async (req) => {
     error_message: string | null;
   };
   const attempts: AttemptRow[] = [];
+  const recipients: RecipientResult[] = [];
+  let totalDelivered = 0;
 
-  await Promise.all(subs.map(async (sub) => {
-    try {
-      await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-        pushPayload,
-      );
-      delivered += 1;
-      attempts.push({
-        notification_id: notificationId,
+  // 5. For each loaded in-app row, evaluate the push gate for THAT
+  //    recipient and push to their devices in parallel. We iterate
+  //    over notification rows (not recipientList) so a recipient with
+  //    multiple rows for the same log — which shouldn't happen, since
+  //    the RPC dedupes per recipient — would still be handled
+  //    correctly.
+  await Promise.all((notifRows as NotifRow[]).map(async (row) => {
+    const recipientId = row.recipient_user_id;
+    const prefs = prefsById.get(recipientId);
+    const masterEnabled = prefs?.master_enabled ?? true;
+    const partnerEnabled = prefs?.partner_activity_enabled ?? true;
+    const pushEnabled = prefs?.push_enabled ?? false;
+    const pushAllowed = Boolean(masterEnabled && partnerEnabled && pushEnabled);
+
+    if (!pushAllowed) {
+      recipients.push({
         recipient_user_id: recipientId,
-        push_subscription_id: sub.id,
-        channel: 'push',
-        status: 'sent',
-        error_code: null,
-        error_message: null,
+        notification_id: row.id,
+        delivered: 0,
+        error: 'Recipient has push notifications off.',
       });
-    } catch (error) {
-      const status = typeof error === 'object' && error && 'statusCode' in error
-        ? Number((error as { statusCode: number }).statusCode)
-        : 0;
-      const message = typeof error === 'object' && error && 'message' in error
-        ? String((error as { message: string }).message).slice(0, 500)
-        : null;
-      if (status === 404 || status === 410) {
-        await admin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      return;
+    }
+
+    const subs = subsByUser.get(recipientId) ?? [];
+    if (subs.length === 0) {
+      recipients.push({
+        recipient_user_id: recipientId,
+        notification_id: row.id,
+        delivered: 0,
+        error: 'Recipient has no enrolled devices.',
+      });
+      return;
+    }
+
+    const payload = (row.payload ?? {}) as Record<string, unknown>;
+    const actorName = typeof payload.actor_name === 'string' ? payload.actor_name : 'Your partner';
+    const amount = typeof payload.amount === 'number'
+      ? payload.amount
+      : Number(payload.amount ?? 0);
+    const bucketName = typeof payload.bucket_name === 'string' ? payload.bucket_name : null;
+    const recipientLanguage = langById.get(recipientId) ?? 'en';
+    const { title, body: bodyText } = buildPushCopy(recipientLanguage, actorName, amount, bucketName);
+
+    const safeUrl = sanitizeRoute(TARGET_ROUTE);
+    const safeFallback = sanitizeRoute(FALLBACK_ROUTE);
+    const pushPayload = JSON.stringify({
+      notification_id: row.id,
+      event_key: 'partner_deposited',
+      title,
+      body: bodyText,
+      url: safeUrl,
+      fallback_url: safeFallback,
+      tag: `partner_deposited:${logId}`,
+    });
+
+    let recipientDelivered = 0;
+
+    await Promise.all(subs.map(async (sub) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
+          pushPayload,
+        );
+        recipientDelivered += 1;
         attempts.push({
-          notification_id: notificationId,
+          notification_id: row.id,
           recipient_user_id: recipientId,
           push_subscription_id: sub.id,
           channel: 'push',
-          status: 'expired',
-          error_code: String(status),
+          status: 'sent',
+          error_code: null,
           error_message: null,
         });
-      } else {
-        attempts.push({
-          notification_id: notificationId,
-          recipient_user_id: recipientId,
-          push_subscription_id: sub.id,
-          channel: 'push',
-          status: 'failed',
-          error_code: status ? String(status) : null,
-          error_message: message,
-        });
+      } catch (error) {
+        const status = typeof error === 'object' && error && 'statusCode' in error
+          ? Number((error as { statusCode: number }).statusCode)
+          : 0;
+        const message = typeof error === 'object' && error && 'message' in error
+          ? String((error as { message: string }).message).slice(0, 500)
+          : null;
+        if (status === 404 || status === 410) {
+          await admin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+          attempts.push({
+            notification_id: row.id,
+            recipient_user_id: recipientId,
+            push_subscription_id: sub.id,
+            channel: 'push',
+            status: 'expired',
+            error_code: String(status),
+            error_message: null,
+          });
+        } else {
+          attempts.push({
+            notification_id: row.id,
+            recipient_user_id: recipientId,
+            push_subscription_id: sub.id,
+            channel: 'push',
+            status: 'failed',
+            error_code: status ? String(status) : null,
+            error_message: message,
+          });
+        }
       }
-    }
+    }));
+
+    totalDelivered += recipientDelivered;
+    recipients.push({
+      recipient_user_id: recipientId,
+      notification_id: row.id,
+      delivered: recipientDelivered,
+      ...(recipientDelivered === 0
+        ? { error: 'Push could not be delivered. Notification was saved.' }
+        : {}),
+    });
   }));
 
   if (attempts.length > 0) {
     await admin.from('notification_delivery_attempts').insert(attempts);
   }
 
-  // Sender does not get a self-push: the RPC resolved the recipient as
-  // the OTHER room member, so the actor is never the recipient and the
-  // push fan-out above only targets the partner's subscriptions.
+  // 6. Aggregate status across all recipients:
+  //    - `sent`           — every recipient delivered at least once
+  //    - `partial`        — some delivered, some didn't (>=1 each)
+  //    - `saved_no_push`  — no push delivered to anyone
+  let status: DepositPushStatus;
+  const delivered = recipients.filter(r => r.delivered > 0).length;
+  if (delivered === 0) {
+    status = 'saved_no_push';
+  } else if (delivered === recipients.length) {
+    status = 'sent';
+  } else {
+    status = 'partial';
+  }
+
   const result: DepositPushResult = {
-    status: delivered > 0 ? 'sent' : 'saved_no_push',
-    delivered,
-    notification_id: notificationId,
-    ...(delivered === 0 ? { error: 'Push could not be delivered. Notification was saved.' } : {}),
+    status,
+    delivered: totalDelivered,
+    notification_ids: notificationIds,
+    recipients,
+    ...(totalDelivered === 0
+      ? { error: 'Push could not be delivered to any recipient. Notifications were saved.' }
+      : {}),
   };
 
   return jsonResponse(req, result);

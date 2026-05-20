@@ -217,7 +217,7 @@ export function MomentumChart({
       setLingeringChips(compareChips);
       return;
     }
-    const t = window.setTimeout(() => setLingeringChips(null), 320);
+    const t = window.setTimeout(() => setLingeringChips(null), 620);
     return () => window.clearTimeout(t);
   }, [compareChips]);
 
@@ -319,24 +319,27 @@ export function MomentumChart({
         </div>
 
         {modeControl && (
-          <div className="min-w-0">{modeControl}</div>
+          <div className="flex min-w-0 flex-nowrap items-start gap-2">
+            <div className="min-w-0">{modeControl}</div>
+            {/* Compare avatar chips — sits inline to the right of the
+                mode toggle so the chip column reads as a direct
+                extension of the Compare option. Animates both
+                grid-template-rows and grid-template-columns so the
+                card eases open/closed in both axes instead of
+                snapping when Compare is toggled. */}
+            <div
+              className="grid min-w-0 transition-[grid-template-rows,grid-template-columns,opacity] duration-[600ms] ease-[cubic-bezier(0.16,1,0.2,1)]"
+              style={{
+                gridTemplateRows: compareChips ? '1fr' : '0fr',
+                gridTemplateColumns: compareChips ? '1fr' : '0fr',
+                opacity: compareChips ? 1 : 0,
+              }}
+              aria-hidden={!compareChips}
+            >
+              <div className="min-w-0 overflow-hidden">{lingeringChips}</div>
+            </div>
+          </div>
         )}
-
-        {/* Compare avatar chip row — always mounted so the height
-            transition can animate between "no row" (0fr) and "row
-            visible" (1fr). Pairs the bar tween with a smooth card
-            resize when switching to/from Compare instead of the card
-            snapping taller/shorter. */}
-        <div
-          className="grid min-w-0 transition-[grid-template-rows,opacity] duration-300 ease-out"
-          style={{
-            gridTemplateRows: compareChips ? '1fr' : '0fr',
-            opacity: compareChips ? 1 : 0,
-          }}
-          aria-hidden={!compareChips}
-        >
-          <div className="min-w-0 overflow-hidden">{lingeringChips}</div>
-        </div>
 
         <div className="flex min-w-0 flex-row flex-wrap gap-x-4 gap-y-1">
           <LegendChip

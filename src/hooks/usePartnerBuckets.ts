@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useMemo } from 'react';
 import type { Bucket } from '../types';
+import { useRoomMembersBuckets } from './useRoomMembersBuckets';
 
 export interface UsePartnerBucketsResult {
   buckets: Bucket[];
@@ -8,44 +8,25 @@ export interface UsePartnerBucketsResult {
 }
 
 /**
- * Fetches the partner's bucket plan for the active room (read-only).
- * Requires migration 0019 which extends the buckets SELECT policy to
- * any co-member of the same room. Without 0019 the result will simply
- * be an empty list (RLS-filtered), so the segmented Partner tab will
- * render an empty state instead of throwing.
+ * Backward-compatible wrapper preserving today's single-partner shape.
  *
- * Edits are NOT allowed from this hook — INSERT/UPDATE/DELETE policies
- * on buckets remain scoped to the owning user, so the Dashboard's
- * Partner tab is render-only by construction.
+ * Delegates to {@link useRoomMembersBuckets} with a one-element id
+ * array so the 2-user case exercises the same code path as the N-user
+ * case. The N-aware list surface replaces this wrapper in slice S4 of
+ * the multi-user-rooms audit.
+ *
+ * Returns the partner's buckets sorted by `position asc`, matching the
+ * pre-task contract byte-for-byte.
  */
-export function usePartnerBuckets(roomId: string | null, partnerUserId: string | null | undefined): UsePartnerBucketsResult {
-  const [buckets, setBuckets] = useState<Bucket[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!roomId || !partnerUserId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBuckets([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    supabase
-      .from('buckets')
-      .select('*')
-      .eq('room_id', roomId)
-      .eq('user_id', partnerUserId)
-      .order('position', { ascending: true })
-      .then(({ data }) => {
-        if (cancelled) return;
-        setBuckets((data ?? []) as Bucket[]);
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [roomId, partnerUserId]);
-
+export function usePartnerBuckets(
+  roomId: string | null,
+  partnerUserId: string | null | undefined,
+): UsePartnerBucketsResult {
+  const ids = useMemo(
+    () => (partnerUserId ? [partnerUserId] : []),
+    [partnerUserId],
+  );
+  const { bucketsByUser, loading } = useRoomMembersBuckets(roomId, ids);
+  const buckets = partnerUserId ? (bucketsByUser[partnerUserId] ?? []) : [];
   return { buckets, loading };
 }

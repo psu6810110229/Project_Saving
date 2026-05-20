@@ -7,6 +7,9 @@ import type { usePartnerBuckets } from '../../hooks/usePartnerBuckets';
 import type { usePartnerSavingPlan } from '../../hooks/usePartnerSavingPlan';
 import type { useProfile } from '../../hooks/useProfile';
 import type { useReconcile } from '../../hooks/useReconcile';
+import type { useRoomMembersBuckets } from '../../hooks/useRoomMembersBuckets';
+import type { useRoomMembersSavingPlans } from '../../hooks/useRoomMembersSavingPlans';
+import type { useRoomOtherMemberIds } from '../../hooks/useRoomOtherMemberIds';
 import type { useSavingPlan } from '../../hooks/useSavingPlan';
 import type { useStreakFreeze } from '../../hooks/useStreakFreeze';
 
@@ -21,6 +24,9 @@ export interface DataContextValue {
   partnerSavingPlan: ReturnType<typeof usePartnerSavingPlan>;
   reconcile: ReturnType<typeof useReconcile>;
   streakFreeze: ReturnType<typeof useStreakFreeze>;
+  otherMemberIds: ReturnType<typeof useRoomOtherMemberIds>;
+  roomMembersBuckets: ReturnType<typeof useRoomMembersBuckets>;
+  roomMembersSavingPlans: ReturnType<typeof useRoomMembersSavingPlans>;
 }
 
 export const DataContext = createContext<DataContextValue | null>(null);

@@ -32,7 +32,7 @@ type StopMode = 'target' | 'days' | 'date';
 export function SavingPlan() {
   const navigate = useNavigate();
   const data = useSharedData();
-  const { goal } = data.goal;
+  const { goal, roomGoalEndDate } = data.goal;
   const { plan, loading, error, isPaused, createPlan, changePlan, pausePlan, resumePlan } = data.savingPlan;
   const { plan: partnerPlan, loading: partnerLoading } = data.partnerSavingPlan;
   const partnerEntry = data.leaderboard.entries.find(entry => !entry.isYou);
@@ -148,10 +148,13 @@ export function SavingPlan() {
     }
     if (!didSeedCreateTarget && goal?.target_amount) {
       setTargetAmount(String(goal.target_amount));
-      setEndDate(goal.end_date ?? '');
+      // Task 37: the canonical project end date now lives on
+      // rooms.end_date (exposed as roomGoalEndDate). Fall back to the
+      // personal goal row only when the room end date is missing.
+      setEndDate(roomGoalEndDate ?? goal.end_date ?? '');
       setDidSeedCreateTarget(true);
     }
-  }, [loading, latestRevision, goal?.target_amount, goal?.end_date, didSeedCreateTarget, seededRevisionId]);
+  }, [loading, latestRevision, goal?.target_amount, goal?.end_date, roomGoalEndDate, didSeedCreateTarget, seededRevisionId]);
 
   const effectiveFromDate = todayBangkokKey();
 

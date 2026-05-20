@@ -414,7 +414,12 @@ export function Dashboard() {
         fallback: fallbackInitial(entry.displayName ?? (entry.isYou ? profile?.display_name : d.partnerLabel)),
         imageUrl: entry.avatarUrl,
         saved: entry.saved,
-        target: entry.target ?? target,
+        // Task 37: each row's denominator is that member's personal
+        // sub-goal. Only the current user's row falls back to the
+        // resolved personal target — other members with a missing
+        // personal goal row render with 0 rather than borrowing this
+        // user's target.
+        target: entry.target ?? (entry.isYou ? target : 0),
         themeColor: entry.themeColor,
         isYou: entry.isYou,
       }))

@@ -34,7 +34,8 @@
       "Bash(where supabase *)",
       "Bash(supabase --version)",
       "Bash(supabase projects *)",
-      "Bash(supabase status *)"
+      "Bash(supabase status *)",
+      "Bash(grep *)"
     ]
   }
 }

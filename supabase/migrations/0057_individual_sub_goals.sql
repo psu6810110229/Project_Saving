@@ -82,9 +82,14 @@ begin
    where r.target_amount is null
      and r.archived_at is null;
 
+  -- Verification is scoped to CURRENT room members; stale leaver goal
+  -- rows must not count against an otherwise consistent room.
   select count(*) into v_room_below_personal
     from public.rooms r
     join public.goals g on g.room_id = r.id
+    join public.room_members rm
+      on rm.room_id = g.room_id
+     and rm.user_id = g.user_id
    where r.target_amount is not null
      and g.target_amount > r.target_amount;
 
@@ -93,6 +98,9 @@ begin
       select g.user_id, g.room_id, g.target_amount as personal,
              coalesce(sum(b.target_amount), 0) as bucket_sum
         from public.goals g
+        join public.room_members rm
+          on rm.room_id = g.room_id
+         and rm.user_id = g.user_id
         left join public.buckets b
           on b.user_id = g.user_id
          and b.room_id = g.room_id
@@ -135,9 +143,16 @@ begin
       using errcode = '23514';
   end if;
 
+  -- Only consider personal sub-goals belonging to CURRENT room members.
+  -- A user who left the room may leave behind a high historical goal
+  -- row; ignoring those rows prevents valid creator edits from being
+  -- rejected forever.
   select coalesce(max(g.target_amount), 0)
     into v_max_personal
     from public.goals g
+    join public.room_members rm
+      on rm.room_id = g.room_id
+     and rm.user_id = g.user_id
    where g.room_id = new.id
      and g.target_amount > 0;
 
@@ -267,9 +282,14 @@ begin
       using errcode = '42501';
   end if;
 
+  -- Only consider personal sub-goals belonging to CURRENT room members.
+  -- See enforce_room_target_amount_invariant for the same guardrail.
   select coalesce(max(g.target_amount), 0)
     into v_max_personal
     from public.goals g
+    join public.room_members rm
+      on rm.room_id = g.room_id
+     and rm.user_id = g.user_id
    where g.room_id = p_room_id
      and g.target_amount > 0;
 
@@ -431,9 +451,14 @@ begin
   if v_room_target is not null and v_room_target > 0 then
     v_seed_target := v_room_target;
   else
+    -- Fallback only considers personal sub-goals owned by CURRENT
+    -- room members so a stale leaver row cannot seed the joiner.
     select max(g.target_amount)
       into v_seed_target
       from public.goals g
+      join public.room_members rm
+        on rm.room_id = g.room_id
+       and rm.user_id = g.user_id
      where g.room_id = p_room_id
        and g.target_amount > 0;
   end if;
@@ -455,8 +480,11 @@ revoke all on function public.bootstrap_joiner_goal(uuid) from public;
 grant execute on function public.bootstrap_joiner_goal(uuid) to authenticated;
 
 -- 7. _smart_check_goal_reached: read rooms.target_amount --------
--- Only the target source changes. Fan-out recipients, dedupe
--- shape, push behavior, and notification transport are preserved.
+-- Only the target source changes from migration 0055. Fan-out
+-- recipients (loop over every current room member), dedupe shape,
+-- per-recipient strict crossing logic with v_log_created_at /
+-- v_prev_total / v_new_total, push behavior, and notification
+-- transport are all preserved verbatim from 0055.
 
 create or replace function public._smart_check_goal_reached(p_log_id uuid)
 returns void
@@ -465,16 +493,18 @@ security definer
 set search_path = public
 as $$
 declare
-  v_log_user    uuid;
-  v_room_id     uuid;
-  v_amount      numeric;
-  v_target      numeric;
-  v_total_after numeric;
-  v_partner     uuid;
-  v_dedupe      text;
+  v_log_user       uuid;
+  v_room_id        uuid;
+  v_amount         numeric;
+  v_log_created_at timestamptz;
+  v_target         numeric;
+  v_prev_total     numeric;
+  v_new_total      numeric;
+  v_dedupe         text;
+  v_member         record;
 begin
-  select s.user_id, s.room_id, s.amount
-    into v_log_user, v_room_id, v_amount
+  select s.user_id, s.room_id, s.amount, s.created_at
+    into v_log_user, v_room_id, v_amount, v_log_created_at
   from public.savings_logs s
   where s.id = p_log_id;
 
@@ -482,6 +512,7 @@ begin
     return;
   end if;
 
+  -- Task 37: the shared project target lives on rooms.target_amount.
   select r.target_amount into v_target
     from public.rooms r
    where r.id = v_room_id;
@@ -490,37 +521,33 @@ begin
     return;
   end if;
 
-  select coalesce(sum(s.amount), 0)::numeric into v_total_after
-    from public.savings_logs s
-   where s.room_id = v_room_id;
+  -- Combined room total just before this log landed.
+  select coalesce(sum(amount), 0)::numeric into v_prev_total
+  from public.savings_logs
+  where room_id = v_room_id
+    and id <> p_log_id
+    and created_at <= v_log_created_at;
 
-  if v_total_after < v_target then
+  v_new_total := v_prev_total + v_amount;
+
+  -- Strict crossing only.
+  if v_prev_total >= v_target then
     return;
   end if;
-  if (v_total_after - v_amount) >= v_target then
+  if v_new_total < v_target then
     return;
   end if;
 
-  v_partner := public._other_room_member(v_room_id, v_log_user);
-
-  v_dedupe := 'goal_reached:' || v_room_id::text || ':' || v_target::text
-              || ':' || v_log_user::text;
-  perform public._insert_partner_notification(
-    v_log_user, v_log_user, v_room_id, 'goal_reached', v_dedupe,
-    'Goal reached',
-    'The project hit its savings target.',
-    'View dashboard',
-    '/dashboard', null, '/dashboard',
-    false,
-    jsonb_build_object('target_amount', v_target),
-    'rooms', v_room_id
-  );
-
-  if v_partner is not null then
+  -- Fan out to every current room member (the depositor included).
+  for v_member in
+    select rm.user_id
+      from public.room_members rm
+     where rm.room_id = v_room_id
+  loop
     v_dedupe := 'goal_reached:' || v_room_id::text || ':' || v_target::text
-                || ':' || v_partner::text;
+                || ':' || v_member.user_id::text;
     perform public._insert_partner_notification(
-      v_partner, v_log_user, v_room_id, 'goal_reached', v_dedupe,
+      v_member.user_id, v_log_user, v_room_id, 'goal_reached', v_dedupe,
       'Goal reached',
       'The project hit its savings target.',
       'View dashboard',
@@ -529,7 +556,7 @@ begin
       jsonb_build_object('target_amount', v_target),
       'rooms', v_room_id
     );
-  end if;
+  end loop;
 end;
 $$;
 

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { palette } from '../../lib/theme';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
@@ -61,7 +61,10 @@ const COLOR_PARTNER = '#4F6382';
 
 const W = 280;
 const H = 188;
-const PAD_LEFT = 22;
+// 28px left gutter fits 4-char y-axis labels like "5.7k" without
+// clipping when Room mode pushes the y-axis max into the decimal-k
+// range. Older 22px gutter only fitted 2-3 char labels.
+const PAD_LEFT = 28;
 const PAD_RIGHT = 4;
 const PAD_TOP = 12;
 const PAD_BOTTOM = 22;
@@ -70,6 +73,66 @@ const PAD_BOTTOM = 22;
  *  glyphs in SVG `<text>` fall through to IBM Plex Sans Thai instead of
  *  the system monospace fallback (which lacks Thai coverage). */
 const SVG_MONO = '"IBM Plex Mono", "IBM Plex Sans Thai", ui-monospace, SFMono-Regular, monospace';
+
+/** Tween two numeric series toward target values whenever the targets
+ *  change. Each call to `setTargets` starts a fresh ~350ms ease-out
+ *  animation from the *currently displayed* values, so a mode switch
+ *  visibly morphs bar heights instead of snapping. Partner series is
+ *  optional and padded with zeros when it appears/disappears across
+ *  modes, so bars grow/collapse smoothly. */
+function useAnimatedSeries(
+  target: number[],
+  targetPartner: number[] | undefined,
+  duration = 350,
+): { series: number[]; partner: number[] | undefined } {
+  const [state, setState] = useState(() => ({
+    series: target.slice(),
+    partner: targetPartner ? targetPartner.slice() : undefined,
+  }));
+  const fromRef = useRef<{ series: number[]; partner: number[] | undefined }>(state);
+  const rafRef = useRef<number | null>(null);
+  const targetRef = useRef({ series: target, partner: targetPartner });
+
+  useEffect(() => {
+    const prev = targetRef.current;
+    const sameSeries = prev.series.length === target.length
+      && prev.series.every((v, i) => v === target[i]);
+    const samePartner = (!prev.partner && !targetPartner)
+      || (!!prev.partner && !!targetPartner
+        && prev.partner.length === targetPartner.length
+        && prev.partner.every((v, i) => v === targetPartner[i]));
+    if (sameSeries && samePartner) return;
+    targetRef.current = { series: target, partner: targetPartner };
+
+    const len = target.length;
+    const pad = (arr: number[] | undefined): number[] =>
+      Array.from({ length: len }, (_, i) => arr?.[i] ?? 0);
+    const fromS = pad(fromRef.current.series);
+    const fromP = pad(fromRef.current.partner);
+    const toS = pad(target);
+    const toP = pad(targetPartner);
+    const hasPartnerNow = !!targetPartner;
+
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const e = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      const s = toS.map((to, i) => fromS[i] + (to - fromS[i]) * e);
+      const p = hasPartnerNow
+        ? toP.map((to, i) => fromP[i] + (to - fromP[i]) * e)
+        : undefined;
+      fromRef.current = { series: s, partner: p };
+      setState({ series: s, partner: p });
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [target, targetPartner, duration]);
+
+  return state;
+}
 
 function fmtShort(v: number): string {
   if (v >= 10000) return `${Math.round(v / 1000)}k`;
@@ -143,6 +206,28 @@ export function MomentumChart({
   const hasPartner = Array.isArray(partnerSeries) && partnerSeries.length === series.length;
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
+  // Retain the last non-null compare chips while collapsing so the
+  // grid-template-rows transition has real content to shrink from
+  // instead of unmounting in the same frame (which would resolve `1fr`
+  // to 0 immediately and skip the animation in the compare→room/me
+  // direction).
+  const [lingeringChips, setLingeringChips] = useState<ReactNode>(compareChips);
+  useEffect(() => {
+    if (compareChips) {
+      setLingeringChips(compareChips);
+      return;
+    }
+    const t = window.setTimeout(() => setLingeringChips(null), 320);
+    return () => window.clearTimeout(t);
+  }, [compareChips]);
+
+  // Tween bar values whenever the mode (or underlying data) changes so
+  // bars visibly morph between Room / Me / Compare instead of snapping.
+  // Header totals and legend amounts stay snapped to the target values.
+  const animated = useAnimatedSeries(series, hasPartner ? partnerSeries : undefined, 750);
+  const animSeries = animated.series;
+  const animPartner = animated.partner;
+
   // Props preserved on the API for compatibility with existing
   // Dashboard / DashboardHero call sites; the reference visual does not
   // surface these.
@@ -150,17 +235,23 @@ export function MomentumChart({
   void expectedSeries;
   void weekExpected;
 
+  // Drive the y-axis from the *animated* values so the axis labels,
+  // grid lines, and trend line scale in sync with the bar tween instead
+  // of snapping to the new mode's max.
   const rawMax = Math.max(
     1,
-    ...series,
-    ...(hasPartner ? partnerSeries! : []),
+    ...animSeries,
+    ...(animPartner ?? []),
   );
   // Cap the y-axis at 1.25× the tallest bar so the chart hugs the data
   // and bars use more vertical space than a wide-rounded niceMax would.
   const max = rawMax * 1.25;
 
   const barCount = series.length;
-  const groupGap = 2;
+  // Wider gap in single-bar modes (Room / Me) so bars don't read as a
+  // continuous block; Compare mode keeps the tighter gap because each
+  // group is already a visually separated pair.
+  const groupGap = hasPartner ? 2 : 8;
   const innerGap = hasPartner ? 1 : 0;
   const chartW = W - PAD_LEFT - PAD_RIGHT;
   const groupW = (chartW - groupGap * Math.max(barCount - 1, 0)) / Math.max(barCount, 1);
@@ -192,8 +283,9 @@ export function MomentumChart({
       : yourTotal + partnerTotal;
 
   // Overlay polyline coordinates — through the top-centre of every
-  // "you" bar so the trend line traces the primary series.
-  const linePoints = series.map((v, i) => {
+  // "you" bar so the trend line traces the primary series. Uses the
+  // animated heights so any overlay would track the tween.
+  const linePoints = animSeries.map((v, i) => {
     const { yourBarX } = barLayoutAt(i);
     const yourX = yourBarX + barW / 2;
     const yourH = (v / max) * chartH;
@@ -230,9 +322,21 @@ export function MomentumChart({
           <div className="min-w-0">{modeControl}</div>
         )}
 
-        {compareChips && (
-          <div className="min-w-0">{compareChips}</div>
-        )}
+        {/* Compare avatar chip row — always mounted so the height
+            transition can animate between "no row" (0fr) and "row
+            visible" (1fr). Pairs the bar tween with a smooth card
+            resize when switching to/from Compare instead of the card
+            snapping taller/shorter. */}
+        <div
+          className="grid min-w-0 transition-[grid-template-rows,opacity] duration-300 ease-out"
+          style={{
+            gridTemplateRows: compareChips ? '1fr' : '0fr',
+            opacity: compareChips ? 1 : 0,
+          }}
+          aria-hidden={!compareChips}
+        >
+          <div className="min-w-0 overflow-hidden">{lingeringChips}</div>
+        </div>
 
         <div className="flex min-w-0 flex-row flex-wrap gap-x-4 gap-y-1">
           <LegendChip
@@ -241,14 +345,28 @@ export function MomentumChart({
             name={resolvedYourName}
             total={yourTotal}
           />
-          {hasPartner && (
-            <LegendChip
-              color={COLOR_PARTNER}
-              glow="rgba(79,99,130,0.4)"
-              name={resolvedPartnerName}
-              total={partnerTotal}
-            />
-          )}
+          {/* Partner legend chip — always rendered while a partner
+              value is known, then collapsed via a grid-template-columns
+              transition so the legend row eases between 1-chip and
+              2-chip layouts (matching the chips-row resize) instead of
+              snapping when switching from Compare back to Room / Me. */}
+          <div
+            className="grid min-w-0 transition-[grid-template-columns,opacity] duration-300 ease-out"
+            style={{
+              gridTemplateColumns: hasPartner ? '1fr' : '0fr',
+              opacity: hasPartner ? 1 : 0,
+            }}
+            aria-hidden={!hasPartner}
+          >
+            <div className="min-w-0 overflow-hidden">
+              <LegendChip
+                color={COLOR_PARTNER}
+                glow="rgba(79,99,130,0.4)"
+                name={resolvedPartnerName}
+                total={animPartner ? animPartner.reduce((s, v) => s + v, 0) : partnerTotal}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -341,13 +459,19 @@ export function MomentumChart({
           onPointerDown={() => setSelectedIndex(null)}
         />
 
-        {/* Bar groups */}
+        {/* Bar groups — bar heights are tweened via `animSeries` /
+            `animPartner` so a mode switch (Room / Me / Compare) morphs
+            the bars instead of snapping. Value labels keep showing the
+            real target numbers so the displayed text doesn't flicker
+            mid-tween. */}
         {series.map((v, i) => {
           const { groupX, partnerBarX, yourBarX } = barLayoutAt(i);
           const partnerVal = hasPartner ? partnerSeries![i] : 0;
-          const yourH = (v / max) * chartH;
+          const animV = animSeries[i] ?? 0;
+          const animPartnerVal = animPartner?.[i] ?? 0;
+          const yourH = (animV / max) * chartH;
           const yourY = baselineY - yourH;
-          const partnerH = (partnerVal / max) * chartH;
+          const partnerH = (animPartnerVal / max) * chartH;
           const partnerY = baselineY - partnerH;
           const yourCenterX = yourBarX + barW / 2;
           const partnerCenterX = partnerBarX !== null ? partnerBarX + barW / 2 : 0;

@@ -48,7 +48,8 @@ Sources read:
   Verified Balance, no checkpoint/adjustment details, no raw email, no
   notification preferences, and no push subscriptions.
 - Do not touch notification fan-out mechanics. Existing per-recipient
-  loops and dedupe behavior stay as-is.
+  loops, dedupe behavior, push behavior, and notification transport stay
+  as-is.
 - Do not change Saving Plan target semantics.
 - Do not allow withdrawals, negative `savings_logs`, bucket allocation
   hacks, or direct mutation of meaningful financial history.
@@ -186,6 +187,16 @@ enforce `rooms.target_amount not null`. Do not combine that with v1.
 Replace the current `update_room_goal(p_room_id, p_target_amount,
 p_end_date)` body.
 
+Contract preservation:
+- keep the existing function name, argument list, and return shape;
+- existing callers must continue compiling without TypeScript or SQL
+  callsite changes caused by this RPC contract;
+- if implementation discovers the return shape must change, stop and
+  report before coding that change;
+- after `CREATE OR REPLACE FUNCTION`, preserve the current privilege
+  posture by revoking from `public` and granting only to
+  `authenticated`.
+
 It must:
 - require `auth.uid()`;
 - require `p_room_id`, `p_target_amount`, and `p_end_date`;
@@ -210,6 +221,14 @@ Add a new security-definer RPC for personal sub-goal edits. Preferred
 signature:
 
 `update_member_goal(p_room_id uuid, p_target_amount numeric)`
+
+Return shape:
+- return `void`, matching `update_room_goal` and keeping this as a
+  command-style RPC;
+- after success, the client should refresh or update local goal state
+  through the hook layer rather than depending on a custom RPC payload;
+- if implementation discovers a payload is required, stop and report
+  before coding a different shape.
 
 Do not accept a user id unless there is a strong implementation reason.
 If a user id argument is kept for compatibility, reject it unless it
@@ -255,10 +274,25 @@ RPC validation alone is not enough because existing RLS allows direct
 creator room updates and own goal updates.
 
 Add trigger-level defense in depth:
-- on `rooms`, prevent `target_amount <= 0` and prevent lowering a room
-  target below max current member personal goals;
-- on `goals`, prevent personal goals above `rooms.target_amount` and
-  below that member's bucket target total.
+- add a room target invariant trigger on `rooms` before
+  `target_amount` updates. Name it explicitly in the migration, for
+  example `trg_rooms_target_amount_invariant`, backed by a function such
+  as `enforce_room_target_amount_invariant()`. It must prevent
+  `target_amount <= 0` and prevent lowering a room target below max
+  current member personal goals.
+- add a personal goal invariant trigger on `goals` before insert or
+  update. Name it explicitly in the migration, for example
+  `trg_goals_personal_target_invariant`, backed by a function such as
+  `enforce_personal_goal_target_invariant()`. It must prevent personal
+  goals above `rooms.target_amount` and below that member's bucket target
+  total.
+- triggers must skip unchanged irrelevant columns where appropriate, so
+  updates to unrelated `rooms` or `goals` fields do not perform needless
+  validation or block valid legacy maintenance writes.
+- triggers must be compatible with `createRoom` and
+  `bootstrap_joiner_goal`: new room creation with a positive
+  `rooms.target_amount`, creator goal seeding, and joiner goal seeding
+  must pass without special client-side ordering hacks.
 
 These triggers protect direct PostgREST/Supabase writes and future
 callers that accidentally bypass the RPCs.
@@ -372,12 +406,15 @@ Fallback:
 - If a member has no personal goal row, show an unset state for that
   member instead of silently using the room goal. For the current user,
   offer a path to Manage Project to set the personal sub-goal.
-- Remove the Dashboard room-goal edit modal or convert the Vault edit
-  affordance into navigation to `/manage-project`. The editing surface
-  for this task is Manage Project.
-- Non-creators should not be prompted to edit the room goal from
-  Dashboard. If the existing goal-change request remains in the codebase,
-  it should not be the primary v1 path for this feature.
+- Remove the Dashboard room-goal edit modal in v1.
+- Dashboard room-goal edit affordance decision:
+  - creators who can edit the room goal from Dashboard must be
+    navigated to `/manage-project`;
+  - non-creators must not see a Dashboard room-goal edit affordance;
+  - Manage Project is the only editing surface for both room goal and
+    personal sub-goal in v1.
+- If the existing goal-change request remains in the codebase, it should
+  not be the primary v1 path for this feature.
 - Update `AppLayout` milestone celebration denominator to use
   `roomGoalTarget`; it currently matches the old Dashboard
   sum-of-targets behavior.
@@ -388,11 +425,13 @@ Fallback:
 Server-side smart event note:
 - `_smart_check_goal_reached` currently reads the depositor's
   `goals.target_amount` and compares it to combined room deposits.
-  With the new semantics, the room-level target source should be
-  `rooms.target_amount`.
-- If this is updated during implementation, change only the target
-  source and payload target. Do not alter fan-out recipients, dedupe
-  shape, or notification transport in this task.
+  With the new semantics, `_smart_check_goal_reached` must be updated in
+  this task to use `rooms.target_amount` as the room-level target.
+- After this feature lands, `_smart_check_goal_reached` must not use
+  `goals.target_amount` as the room goal.
+- Change only the target source and the payload target if needed. Do not
+  change fan-out recipients, dedupe shape, push behavior, or
+  notification transport in this task.
 
 ## 8. Manage Project Changes
 
@@ -508,16 +547,28 @@ Compatibility contract:
   manual repair before a `NOT NULL` migration.
 
 Deployment compatibility:
-- The safest rollout is two database phases plus one client phase:
-  1. Add nullable `rooms.target_amount`, backfill, add new validation
-     triggers, and add `update_member_goal` while keeping old clients
-     functional.
-  2. Deploy the client that reads `roomGoalTarget` and writes personal
-     sub-goals through `update_member_goal`.
-  3. Replace `update_room_goal` so it no longer syncs member goals, or
-     deploy that replacement in the same locked release as the client.
-- Avoid a long window where old clients still expect `update_room_goal`
-  to sync `goals` but the database has already stopped doing so.
+- Preferred rollout for Task 37 is one locked database plus client
+  release: add `rooms.target_amount`, backfill, add triggers, add
+  `update_member_goal`, replace `update_room_goal`, update
+  `_smart_check_goal_reached`, and deploy the client that reads room
+  target and personal sub-goals together.
+- Avoid a long window where old clients expect `update_room_goal` to
+  sync member `goals.target_amount` rows.
+- No partial rollout is allowed if it lets old clients silently desync
+  room goal and personal goals.
+- If split rollout is unavoidable, use this safe order:
+  1. First deploy additive database work only: nullable
+     `rooms.target_amount`, backfill, validation triggers that preserve
+     current writes, and `update_member_goal`; keep old
+     `update_room_goal` sync behavior during this temporary window.
+  2. Then perform a locked client plus RPC release: deploy the new
+     client, replace `update_room_goal` so it only writes
+     `rooms.target_amount` and `rooms.end_date`, and update
+     `_smart_check_goal_reached` to read `rooms.target_amount`.
+  3. Temporarily allowed behavior during step 1 only: old clients may
+     continue syncing member goals through `update_room_goal`. That
+     behavior ends at the locked client plus RPC release and must not
+     overlap with new clients expecting independent personal sub-goals.
 
 ## 13. Acceptance Criteria
 
@@ -530,12 +581,20 @@ Deployment compatibility:
 - Each member row denominator is that member's personal sub-goal.
 - Existing rooms show the same Vault denominator and member row
   denominators immediately after migration/backfill.
-- Creator can edit the room goal and end date.
+- Dashboard creators who use the room-goal edit affordance are routed to
+  `/manage-project`.
+- Dashboard non-creators do not see a room-goal edit affordance.
+- Manage Project is the only v1 editing surface for room goal and
+  personal sub-goal.
+- Creator can edit the room goal and end date from Manage Project.
 - Non-creators see the room goal and end date as read-only.
 - Every member can edit only their own personal sub-goal.
 - Creator cannot edit another member's personal sub-goal.
 - Room goal update rejects values below the max existing personal
   sub-goal.
+- `update_room_goal` keeps its existing function name, arguments, return
+  shape, revoke/grant posture, and existing callers continue compiling.
+- `update_member_goal` returns void.
 - Personal sub-goal update rejects values <= 0.
 - Personal sub-goal update rejects values above the room goal.
 - Personal sub-goal update rejects values below that member's bucket
@@ -544,8 +603,13 @@ Deployment compatibility:
   personal sub-goal at both client and database layers.
 - Saving Plan revision targets do not change when room goal or personal
   sub-goal changes.
+- `_smart_check_goal_reached` compares combined room deposits against
+  `rooms.target_amount`.
+- `goal_reached` payload target, if present, reflects the room target
+  from `rooms.target_amount`, not a member's personal sub-goal.
 - No room-cap behavior changes.
-- No notification fan-out behavior changes.
+- No notification fan-out recipients, dedupe shape, push behavior, or
+  notification transport changes.
 - No Member Detail privacy behavior changes.
 - No negative deposits, withdrawals, or Recorded Deposits / Verified
   Balance / Planned Balance mixing.
@@ -564,11 +628,22 @@ Deployment compatibility:
       denominators match the pre-migration snapshot.
 - [ ] Confirm milestone modal thresholds still use the same denominator
       immediately after backfill.
+- [ ] Create a new room and confirm the room target invariant trigger
+      permits positive `rooms.target_amount` plus creator goal seeding.
+- [ ] Join a room and confirm the personal goal invariant trigger permits
+      `bootstrap_joiner_goal` to seed the joiner's personal sub-goal from
+      the room target.
 
 ### Room goal edits
 
 - [ ] Creator edits room goal to a valid amount above all personal
-      sub-goals; Dashboard Vault denominator updates.
+      sub-goals from Manage Project; Dashboard Vault denominator
+      updates.
+- [ ] Dashboard room-goal edit affordance navigates creators to
+      `/manage-project` instead of opening an edit modal.
+- [ ] Non-creators do not see a Dashboard room-goal edit affordance.
+- [ ] Manage Project is the only v1 editing surface for room goal and
+      personal sub-goal.
 - [ ] Creator attempts room goal below the highest personal sub-goal;
       SQL rejects it and UI shows clear copy.
 - [ ] Non-creator sees room goal read-only and cannot call
@@ -593,6 +668,18 @@ Deployment compatibility:
       sub-goal.
 - [ ] Deposit flow remains fast and positive-only.
 - [ ] No withdrawal or negative `savings_logs` path appears.
+
+### Goal reached notification
+
+- [ ] Seed a room where combined positive recorded deposits reach
+      `rooms.target_amount` while at least one member's personal
+      sub-goal differs from the room target.
+- [ ] Confirm `goal_reached` fires based on `rooms.target_amount`, not
+      any member's personal sub-goal.
+- [ ] Confirm the `goal_reached` payload target, if present, equals
+      `rooms.target_amount`.
+- [ ] Confirm fan-out recipients, dedupe shape, push behavior, and
+      notification transport match the pre-Task-37 behavior.
 
 ### Dashboard and Profile
 
@@ -664,8 +751,9 @@ Partial rollback:
   on `rooms`. All display and Saving Plan seed paths must use
   `rooms.end_date`.
 - `_smart_check_goal_reached` currently reads `goals.target_amount` as a
-  room target. It needs a target-source audit without changing
-  notification fan-out.
+  room target. It must be updated in Task 37 to read
+  `rooms.target_amount` without changing fan-out recipients, dedupe
+  shape, push behavior, or notification transport.
 - Saving Plan form seeding from `goal.target_amount` can accidentally be
   mistaken for coupling. QA must prove revisions remain independent.
 
@@ -673,20 +761,24 @@ Partial rollback:
 
 1. Read-only audit: confirm all current target callsites from this plan
    still match the code before implementation starts.
-2. Migration phase A: add nullable `rooms.target_amount`, backfill,
-   verification SQL, validation triggers, and `update_member_goal`.
-3. Hook/type phase: update `Room`, `Goal` comments, `useGoal`,
-   `DataContext`, and `useLeaderboard` explicit personal target shape.
-4. UI phase: update Dashboard denominator, AppLayout milestones,
-   Manage Project room/personal goal editors, Profile copy, and bucket
-   validation labels.
-5. RPC phase B: replace `update_room_goal` so it updates only room goal
-   and end date. Deploy with the new client or in a locked release.
-6. Saving Plan verification: run manual checks proving revision targets
+2. Preferred locked Task 37 release: in one coordinated database plus
+   client release, add nullable `rooms.target_amount`, backfill,
+   verification SQL, validation triggers, `update_member_goal`, the
+   preserved-contract `update_room_goal` replacement,
+   `_smart_check_goal_reached` room-target update, hook/type changes,
+   Dashboard/AppLayout changes, Manage Project editors, Profile copy,
+   and bucket validation labels.
+3. Saving Plan verification: run manual checks proving revision targets
    are independent.
-7. Regression QA: existing rooms, room cap, notification fan-out,
+4. Regression QA: existing rooms, room cap, notification fan-out,
    Member Detail privacy, positive-only deposits.
-8. Follow-up only after production verification: enforce
+5. If the locked release must be split, use only the safe order from
+   Deployment compatibility: additive database first while preserving
+   old `update_room_goal` sync behavior, then a locked client plus RPC
+   release that ends that temporary behavior. Do not ship a partial
+   rollout that lets old clients silently desync room goal and personal
+   goals.
+6. Follow-up only after production verification: enforce
    `rooms.target_amount not null`.
 
 End of Task 37 plan.

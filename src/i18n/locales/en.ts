@@ -193,6 +193,11 @@ export const en = {
     // Daily trend chart
     dailyDepositTrend: 'Daily Deposit Trend',
     last7Days: 'Last 7 days',
+    dailyDepositModeRoom: 'Room',
+    dailyDepositModeMe: 'Me',
+    dailyDepositModeCompare: 'Compare',
+    dailyDepositModeAria: 'Daily Deposit Trend mode',
+    dailyDepositCompareAria: 'Choose a member to compare with',
     thisWeek: 'This week',
     yourPlan: 'Your plan',
     depositRace: 'Deposit Race',

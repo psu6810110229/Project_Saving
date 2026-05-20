@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { palette } from '../../lib/theme';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
@@ -27,6 +27,26 @@ interface MomentumChartProps {
   labels?: string[];
   yourName?: string;
   partnerName?: string;
+  /** Short legend/tooltip label for the primary series. Overrides the
+   *  default "You" copy so Dashboard can render `Room` or `Me` for the
+   *  active Daily Deposit Trend mode. Mobile-safe legend uses this
+   *  bounded short label rather than full member names. */
+  primaryLabel?: string;
+  /** Short legend/tooltip label for the secondary series. Used in
+   *  Compare mode for the one selected member. When omitted the chart
+   *  falls back to `partnerName`. */
+  secondaryLabel?: string;
+  /** Caller-controlled header total. Overrides the legacy
+   *  weekTotal-based sum so each mode (`Room` / `Me` / `Compare`) can
+   *  drive its own visible total. */
+  displayedTotal?: number;
+  /** Optional mode segmented control rendered inside the chart card,
+   *  between the title/amount block and the legend. Dashboard passes
+   *  the custom `Room | Me | Compare` control here. */
+  modeControl?: ReactNode;
+  /** Optional compare-member avatar chip row rendered between the mode
+   *  control and the legend. Only mounted while Compare is active. */
+  compareChips?: ReactNode;
   expectedSeries?: number[];
   todayIndex?: number;
   weekTotal?: number;
@@ -102,6 +122,11 @@ export function MomentumChart({
   labels,
   yourName,
   partnerName,
+  primaryLabel,
+  secondaryLabel,
+  displayedTotal,
+  modeControl,
+  compareChips,
   expectedSeries,
   todayIndex,
   weekTotal,
@@ -109,11 +134,12 @@ export function MomentumChart({
 }: MomentumChartProps) {
   const { copy } = useI18n();
   const d = copy.dashboard;
-  // Self-identity in the legend always reads as "You" / "คุณ" regardless
-  // of the supplied display name, so the chart speaks directly to the
-  // viewer. The partner cell still uses the supplied display name.
-  const resolvedYourName = d.youLabel;
-  const resolvedPartnerName = partnerName ?? d.partnerLabel;
+  // Primary/secondary labels in the legend prefer the caller-controlled
+  // short label (`Room` / `Me` / selected member short). They fall back
+  // to the legacy "You" / partnerName copy so 2-user code paths keep
+  // their current legend text.
+  const resolvedYourName = primaryLabel ?? d.youLabel;
+  const resolvedPartnerName = secondaryLabel ?? partnerName ?? d.partnerLabel;
   const hasPartner = Array.isArray(partnerSeries) && partnerSeries.length === series.length;
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
@@ -154,13 +180,16 @@ export function MomentumChart({
 
   const yourTotal = series.reduce((s, v) => s + v, 0);
   const partnerTotal = hasPartner ? partnerSeries!.reduce((s, v) => s + v, 0) : 0;
-  // Header total: prefer the explicit weekTotal prop (your contribution)
-  // when supplied, otherwise sum what the chart can see. The reference
-  // shows a combined household total — when a partner series is present
-  // we add the partner total in so the header matches that semantic.
-  const headerTotal = typeof weekTotal === 'number'
-    ? weekTotal + (hasPartner ? partnerTotal : 0)
-    : yourTotal + partnerTotal;
+  // Header total: prefer the caller-controlled `displayedTotal` so each
+  // Daily Deposit Trend mode can drive its own visible total
+  // (`Room` = room total, `Me` = personal, `Compare` = visible pair).
+  // Fall back to the legacy weekTotal + partner sum when the prop is
+  // omitted so older call sites keep their previous behaviour.
+  const headerTotal = typeof displayedTotal === 'number'
+    ? displayedTotal
+    : typeof weekTotal === 'number'
+      ? weekTotal + (hasPartner ? partnerTotal : 0)
+      : yourTotal + partnerTotal;
 
   // Overlay polyline coordinates — through the top-centre of every
   // "you" bar so the trend line traces the primary series.
@@ -177,9 +206,11 @@ export function MomentumChart({
 
   return (
     <section className="overflow-hidden rounded-[2rem] bg-surface px-6 pt-6 pb-5 text-ink shadow-soft">
-      {/* Header + legend — stacked on mobile so the legend never overlaps
-          the title/amount block, and long member names truncate inside a
-          single-line chip instead of stealing width from the headline. */}
+      {/* Header — fully stacked on mobile so the legend never overlaps
+          the title/amount block. Order: title → amount + last7Days →
+          mode control → compare avatar chips → compact legend → chart.
+          Long member names are not allowed inline; the legend uses the
+          short caller-controlled labels (`Room` / `Me` / short member). */}
       <div className="mb-3 flex min-w-0 flex-col gap-3">
         <div className="min-w-0">
           <h2 className="mb-2 font-mono text-lg font-bold leading-tight text-ink">
@@ -195,7 +226,15 @@ export function MomentumChart({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-row flex-wrap gap-x-4 gap-y-2">
+        {modeControl && (
+          <div className="min-w-0">{modeControl}</div>
+        )}
+
+        {compareChips && (
+          <div className="min-w-0">{compareChips}</div>
+        )}
+
+        <div className="flex min-w-0 flex-row flex-wrap gap-x-4 gap-y-1">
           <LegendChip
             color={COLOR_YOU}
             glow="rgba(242,107,26,0.55)"
@@ -561,7 +600,7 @@ function LegendChip({ color, glow, name, total }: LegendChipProps) {
         style={{ backgroundColor: color, boxShadow: `0 0 8px ${glow}` }}
       />
       <span
-        className="max-w-[10rem] truncate whitespace-nowrap"
+        className="max-w-[6rem] truncate whitespace-nowrap sm:max-w-[10rem]"
         title={name}
       >
         {name}

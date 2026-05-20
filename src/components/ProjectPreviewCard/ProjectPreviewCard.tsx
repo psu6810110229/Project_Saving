@@ -17,7 +17,6 @@ interface ProjectPreviewCardProps {
   creatorName: string;
   creatorFallback: string;
   creatorAvatarUrl?: string | null;
-  memberCount: number;
 }
 
 export function ProjectPreviewCard({
@@ -26,7 +25,6 @@ export function ProjectPreviewCard({
   creatorName,
   creatorFallback,
   creatorAvatarUrl,
-  memberCount,
 }: ProjectPreviewCardProps) {
   const { copy } = useI18n();
   return (
@@ -40,7 +38,7 @@ export function ProjectPreviewCard({
         <Avatar size="sm" fallback={creatorFallback} imageUrl={creatorAvatarUrl} />
         <span className="font-mono text-xs text-ink-muted">{copy.joinProject.createdBy(creatorName)}</span>
       </div>
-      <Chip tone="peach">{copy.joinProject.members(memberCount)}</Chip>
+      <Chip tone="peach">{copy.joinProject.capacityHint}</Chip>
     </section>
   );
 }

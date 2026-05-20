@@ -255,7 +255,6 @@ export function MoleculesPreview() {
               name="Japan 2027"
               creatorName="Art"
               creatorFallback="A"
-              memberCount={2}
             />
           </div>
         </Group>

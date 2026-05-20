@@ -4,6 +4,7 @@ import { useAuth } from './useAuth';
 import { useRoom } from './useRoom';
 import { generateInviteCode } from '../lib/inviteCode';
 import { notifyRoomJoined, notifyRoomLeft } from '../lib/notifyEvents';
+import { useI18n } from '../i18n/useI18n';
 import type { ProjectCategory, Room } from '../types';
 
 interface CreateRoomValues {
@@ -42,6 +43,7 @@ const ROOM_FETCH_TIMEOUT_MS = 12_000;
 export function useRooms() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
+  const { copy } = useI18n();
   const { rooms: currentRooms, setRooms, activeRoomId, setActiveRoomId } = useRoom();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -176,7 +178,7 @@ export function useRooms() {
     const status = first?.status ?? null;
 
     if (status === 'not_found' || !roomId) return { error: 'No project found for that code' };
-    if (status === 'full') return { error: 'That project already has two players.' };
+    if (status === 'full') return { error: copy.joinProject.roomFullError };
 
     // Ensure the joiner has their own goals row so the dashboard
     // can render TotalVault / HeadToHead targets for them. The RPC

@@ -10,7 +10,6 @@ interface JoinProjectPreview {
   creatorName: string;
   creatorFallback: string;
   creatorAvatarUrl?: string | null;
-  memberCount: number;
 }
 
 interface JoinProjectFlowProps {

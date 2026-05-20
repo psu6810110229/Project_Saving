@@ -261,6 +261,5 @@ function joinPreview(code: string, copy: ReturnType<typeof useI18n>['copy']) {
     name: copy.projectSetup.inviteName(code.toUpperCase()),
     creatorName: copy.projectSetup.projectOwner,
     creatorFallback: 'P',
-    memberCount: 2,
   };
 }

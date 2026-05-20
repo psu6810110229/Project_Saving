@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { Button } from '../components/Button/Button';
+import { Chip } from '../components/Chip/Chip';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import {
   IconArrowLeft,
@@ -363,6 +364,7 @@ export function ManageProject() {
     navigate('/profile');
   }
 
+  const isRoomFull = members.length === 7;
   const projectBasicsItems = [
     {
       id: 'project-name',
@@ -378,9 +380,11 @@ export function ManageProject() {
       id: 'invite',
       icon: <IconQrCode size={18} />,
       label: copy.manageProject.inviteCodeLabel,
-      description: copy.manageProject.inviteCodeDesc,
+      description: isRoomFull
+        ? copy.manageProject.inviteCodeFullHint
+        : copy.manageProject.inviteCodeDesc,
       meta: <span className="copy-allowed font-mono text-xs text-brand-800">{activeRoom.invite_code}</span>,
-      onClick: () => openModal('invite-code'),
+      onClick: isRoomFull ? undefined : () => openModal('invite-code'),
     },
   ];
 
@@ -430,9 +434,16 @@ export function ManageProject() {
       {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList label={copy.manageProject.sectionProjectBasics} items={projectBasicsItems} />
       <section aria-busy={membersLoading}>
-        <h2 className="font-mono text-lg font-bold leading-tight text-ink">
-          {copy.manageProject.sectionMembers}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-mono text-lg font-bold leading-tight text-ink">
+            {copy.manageProject.sectionMembers}
+          </h2>
+          {members.length > 0 && (
+            <Chip tone={isRoomFull ? 'white' : 'peach'}>
+              {copy.manageProject.memberCapacity(members.length)}
+            </Chip>
+          )}
+        </div>
         <div className="mt-3 flex flex-col gap-2">
           {membersLoading ? (
             <>

@@ -306,6 +306,8 @@ export const th: Messages = {
     projectFound: 'พบโปรเจกต์',
     createdBy: (name: string) => `สร้างโดย ${name}`,
     members: (count: number) => `${count} สมาชิก`,
+    capacityHint: 'รองรับสมาชิกสูงสุด 7 คน',
+    roomFullError: 'ห้องนี้มีสมาชิกครบ 7 คนแล้ว',
   },
   sharedControls: {
     settings: 'ตั้งค่า',
@@ -475,6 +477,8 @@ export const th: Messages = {
     renameErrorArchived: 'ไม่สามารถเปลี่ยนชื่อโปรเจกต์ที่เก็บถาวรแล้ว',
     renameErrorGeneric: 'เปลี่ยนชื่อโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่',
     sectionMembers: 'สมาชิก',
+    memberCapacity: (current: number) => `${current}/7`,
+    inviteCodeFullHint: 'ห้องนี้เต็มแล้ว (7/7) เชิญสมาชิกเพิ่มไม่ได้',
     creatorBadge: 'ผู้สร้าง',
     memberYouSuffix: (name: string) => `${name} (คุณ)`,
     memberJoinedAt: (dateLabel: string) => `เข้าร่วมเมื่อ ${dateLabel}`,

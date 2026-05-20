@@ -318,6 +318,8 @@ export const en = {
     projectFound: 'Project Found',
     createdBy: (name: string) => `Created by ${name}`,
     members: (count: number) => `${count} member${count === 1 ? '' : 's'}`,
+    capacityHint: 'Up to 7 members',
+    roomFullError: 'This project already has 7 members.',
   },
   sharedControls: {
     settings: 'Settings',
@@ -487,6 +489,8 @@ export const en = {
     renameErrorArchived: 'You can\'t rename an archived project.',
     renameErrorGeneric: 'Couldn\'t rename the project. Try again.',
     sectionMembers: 'Members',
+    memberCapacity: (current: number) => `${current}/7`,
+    inviteCodeFullHint: 'Project is full (7/7). No more members can join.',
     creatorBadge: 'Creator',
     memberYouSuffix: (name: string) => `${name} (You)`,
     memberJoinedAt: (dateLabel: string) => `Joined ${dateLabel}`,

@@ -1121,14 +1121,72 @@ interface DailyTrendModeControlProps {
  *  Trend card. Pill-style tabs match the Smart Buckets member picker
  *  language so the Dashboard stays visually coherent on mobile. No
  *  browser-default select/dropdown, no emoji. */
+const TREND_MODE_HINT_STORAGE_KEY = 'daily-trend-mode-hint-seen-v1';
+
 function DailyTrendModeControl({ ariaLabel, options, value, onChange }: DailyTrendModeControlProps) {
+  // First-visit shimmer: sweep a soft sheen across the toggle once
+  // *after the card scrolls into view*, so users who never reach the
+  // Daily Trend section don't burn their one-time hint. Stored per
+  // browser; respects prefers-reduced-motion via framer-motion.
+  const [showHint, setShowHint] = useState(false);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(TREND_MODE_HINT_STORAGE_KEY)) return;
+    } catch {
+      return;
+    }
+    const el = trackRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    let startId = 0;
+    let endId = 0;
+    const observer = new IntersectionObserver(entries => {
+      const entry = entries[0];
+      if (!entry?.isIntersecting) return;
+      observer.disconnect();
+      startId = window.setTimeout(() => setShowHint(true), 350);
+      // Three sweeps × 2s each + 350ms lead-in ≈ 6.4s total before the
+      // hint is marked seen, giving the user plenty of chances to catch it.
+      endId = window.setTimeout(() => {
+        setShowHint(false);
+        try { window.localStorage.setItem(TREND_MODE_HINT_STORAGE_KEY, '1'); } catch { /* ignore */ }
+      }, 6400);
+    }, { threshold: 0.5 });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(startId);
+      window.clearTimeout(endId);
+    };
+  }, []);
+
   return (
     <LayoutGroup id="trend-mode-pill">
       <div
+        ref={trackRef}
         role="tablist"
         aria-label={ariaLabel}
-        className="inline-flex w-fit items-center gap-1 self-start rounded-pill bg-well p-1 shadow-neuPressed"
+        className="relative inline-flex w-fit items-center gap-1 self-start overflow-hidden rounded-pill bg-well p-1 shadow-neuPressed"
       >
+        {showHint && (
+          <motion.span
+            aria-hidden
+            initial={{ x: '-110%', opacity: 0 }}
+            animate={{ x: '220%', opacity: [0, 1, 1, 0] }}
+            transition={{
+              duration: 2,
+              ease: [0.22, 1, 0.36, 1],
+              times: [0, 0.15, 0.85, 1],
+              repeat: 2,
+              repeatDelay: 0.2,
+            }}
+            className="pointer-events-none absolute inset-y-0 left-0 z-20 w-1/2 rounded-pill mix-blend-screen"
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(242,107,26,0.45) 45%, rgba(255,200,140,0.85) 50%, rgba(242,107,26,0.45) 55%, transparent 100%)',
+              filter: 'blur(2px)',
+            }}
+          />
+        )}
         {options.map(option => {
           const active = option.value === value;
           return (

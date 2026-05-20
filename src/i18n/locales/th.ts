@@ -107,6 +107,8 @@ export const th: Messages = {
     tied: 'เท่ากันพอดี',
     leadingBy: (amount: string) => `นำอยู่ ${amount}`,
     invitePartnerHint: 'ชวนเพื่อนเข้ามาเพื่อเริ่มการแข่งขัน',
+    viewYourProfile: 'ดูโปรไฟล์ของคุณ',
+    viewMemberAria: (name: string) => `ดูข้อมูลของ ${name}`,
     activity: 'ความเคลื่อนไหว',
     viewAll: 'ดูทั้งหมด',
     noActivityYet: 'ยังไม่มีความเคลื่อนไหว',

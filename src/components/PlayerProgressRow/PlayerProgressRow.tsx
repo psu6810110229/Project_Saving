@@ -26,6 +26,17 @@ interface PlayerProgressRowProps {
   gapLabel?: string;
   isYou?: boolean;
   trailing?: ReactNode;
+  /**
+   * When provided, the avatar + content stack becomes a native
+   * `<button>` that calls `onClick`. The `trailing` slot renders
+   * outside the button so that an interactive trailing control (e.g.
+   * `NudgeButton`) is never nested inside another interactive
+   * element. When omitted, the row is fully non-interactive — matches
+   * the legacy behaviour used by `HeadToHeadCard` and previews.
+   */
+  onClick?: () => void;
+  /** Accessible label for the row button when `onClick` is set. */
+  clickAriaLabel?: string;
 }
 
 function CrownBadge() {
@@ -65,29 +76,86 @@ export function PlayerProgressRow({
   gapLabel,
   isYou = false,
   trailing,
+  onClick,
+  clickAriaLabel,
 }: PlayerProgressRowProps) {
   const { copy } = useI18n();
   const pct = target > 0 ? (saved / target) * 100 : 0;
-  return (
-    <div
-      className={`flex items-center gap-3 rounded-xl bg-surface p-4 shadow-soft ${
-        isYou ? 'border-2 border-brand-100' : ''
-      }`}
-    >
-      <div className="relative shrink-0">
-        {isLeader && <CrownBadge />}
-        <Avatar
-          size="lg"
-          imageUrl={imageUrl}
-          fallback={fallback}
-          ring={isLeader ? 'leader' : themeColor ? 'theme' : 'none'}
-          themeColor={themeColor}
-        />
+
+  const displayName = isYou ? `${copy.dashboard.youLabel} - ${name}` : name;
+
+  const avatar = (
+    <div className="relative shrink-0">
+      {isLeader && <CrownBadge />}
+      <Avatar
+        size="lg"
+        imageUrl={imageUrl}
+        fallback={fallback}
+        ring={isLeader ? 'leader' : themeColor ? 'theme' : 'none'}
+        themeColor={themeColor}
+      />
+    </div>
+  );
+
+  const cardClasses = `flex items-center gap-3 rounded-xl bg-surface p-4 shadow-soft ${
+    isYou ? 'border-2 border-brand-100' : ''
+  }`;
+
+  // Interactive variant. The avatar + content stack is wrapped in a
+  // native `<button>` so navigation is a real button activation. The
+  // `trailing` slot renders outside the button as a sibling — this
+  // prevents an interactive control (e.g. `NudgeButton`) from being
+  // nested inside another interactive element, which is invalid HTML
+  // and bad for assistive tech.
+  if (onClick) {
+    return (
+      <div className={cardClasses}>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={clickAriaLabel}
+          className="flex flex-1 min-w-0 items-center gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        >
+          {avatar}
+          <div className="flex-1 min-w-0">
+            <span className="block font-mono text-base font-bold text-ink truncate">
+              {displayName}
+            </span>
+            <div className="mt-1 flex items-baseline gap-2 font-mono">
+              <span className="text-lg font-bold text-brand-500">{formatCurrency(saved)}</span>
+              <span className="text-xs text-ink-muted shrink-0">/ {formatCurrency(target)}</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className={`font-mono text-xs font-bold tabular-nums shrink-0 ${pctColor(pct)}`}>
+                {Math.round(pct)}%
+              </span>
+              <div className="flex-1">
+                <ProgressBar
+                  value={pct}
+                  tone={themeColor ? 'theme' : 'primary'}
+                  themeHex={themeColor ? themeSwatches[themeColor] : undefined}
+                  size="md"
+                  animate
+                />
+              </div>
+            </div>
+            {gapLabel && (
+              <p className="mt-2 font-mono text-xs text-ink-muted">{gapLabel}</p>
+            )}
+          </div>
+        </button>
+        {trailing && <div className="shrink-0">{trailing}</div>}
       </div>
+    );
+  }
+
+  return (
+    <div className={cardClasses}>
+      {avatar}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="font-mono text-base font-bold text-ink truncate">
-            {isYou ? `${copy.dashboard.youLabel} - ${name}` : name}
+            {displayName}
           </span>
           {trailing && <div className="shrink-0">{trailing}</div>}
         </div>

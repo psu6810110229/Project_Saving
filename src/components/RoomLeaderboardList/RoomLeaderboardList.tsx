@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { formatCurrency } from '../../lib/format';
 import type { ThemeSwatch } from '../../lib/theme';
 import { PlayerProgressRow } from '../PlayerProgressRow/PlayerProgressRow';
@@ -31,18 +31,15 @@ interface RoomLeaderboardListProps {
   /** Empty-state body when entries.length === 1 (solo creator). */
   emptyBody?: string;
   /**
-   * Optional per-row tap handler. When provided, rows become
-   * tappable: each row is wrapped in a `div role="button"` with
-   * keyboard activation (Enter / Space). Used by Dashboard to deep
-   * link into `/members/:userId` (or `/profile` for the caller's own
-   * row). When omitted, rows remain non-interactive — matches the
-   * Task-33 contract for legacy callsites and Storybook previews.
-   *
-   * The row wrapper is a `div` rather than a `<button>` because the
-   * Dashboard's trailing slot can contain a `NudgeButton` (a native
-   * `<button>`); nesting buttons is invalid. The trailing slot stops
-   * pointer / keyboard event propagation so activating the nudge
-   * does not also navigate.
+   * Optional per-row tap handler. When provided, the avatar + content
+   * stack of each row becomes a native `<button>` via
+   * `PlayerProgressRow`'s `onClick` prop. The trailing slot (e.g.
+   * `NudgeButton`) renders as a sibling of that button — never nested
+   * inside it — so no interactive control sits inside another
+   * interactive control. Used by Dashboard to deep link into
+   * `/members/:userId` (or `/profile` for the caller's own row). When
+   * omitted, rows remain non-interactive — matches the Task-33
+   * contract for legacy callsites and Storybook previews.
    */
   onRowClick?: (entry: PlayerProgressEntry) => void;
 }
@@ -92,17 +89,13 @@ export function RoomLeaderboardList({
             ? (tied ? d.tied : d.leadingBy(formatCurrency(gap)))
             : undefined;
           const trailing = !entry.isYou ? renderRowTrailing?.(entry) : undefined;
-          const wrappedTrailing = trailing ? (
-            <div
-              onClick={e => e.stopPropagation()}
-              onKeyDown={e => e.stopPropagation()}
-              onKeyUp={e => e.stopPropagation()}
-            >
-              {trailing}
-            </div>
-          ) : undefined;
-          const row = (
+          const handleClick = onRowClick ? () => onRowClick(entry) : undefined;
+          const clickAriaLabel = handleClick
+            ? (entry.isYou ? d.viewYourProfile : d.viewMemberAria(entry.name))
+            : undefined;
+          return (
             <PlayerProgressRow
+              key={entry.userId}
               name={entry.name}
               fallback={entry.fallback}
               imageUrl={entry.imageUrl}
@@ -112,33 +105,10 @@ export function RoomLeaderboardList({
               isYou={entry.isYou}
               isLeader={isLeader}
               gapLabel={gapLabel}
-              trailing={wrappedTrailing}
+              trailing={trailing}
+              onClick={handleClick}
+              clickAriaLabel={clickAriaLabel}
             />
-          );
-
-          if (!onRowClick) {
-            return <div key={entry.userId}>{row}</div>;
-          }
-
-          const handleActivate = () => onRowClick(entry);
-          const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-            if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
-              event.preventDefault();
-              handleActivate();
-            }
-          };
-
-          return (
-            <div
-              key={entry.userId}
-              role="button"
-              tabIndex={0}
-              onClick={handleActivate}
-              onKeyDown={handleKeyDown}
-              className="cursor-pointer rounded-xl outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-brand-500"
-            >
-              {row}
-            </div>
           );
         })}
       </div>

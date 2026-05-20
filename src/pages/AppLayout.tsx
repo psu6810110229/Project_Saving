@@ -37,6 +37,20 @@ function isRoomlessRoute(pathname: string): boolean {
   );
 }
 
+// Routes that are room-bound (require an active room) but must NOT mount
+// `DataProvider`. The shared provider eagerly runs `useLogs` /
+// `useReconcile`, which would otherwise pull private columns (notes, slip
+// urls, balance checkpoints, balance adjustments) for any nested page —
+// including Member Detail, which is intentionally restricted to a
+// safe-fields-only data surface (Task 36).
+const PRIVATE_DATA_FREE_ROUTES = ['/members'];
+
+function isPrivateDataFreeRoute(pathname: string): boolean {
+  return PRIVATE_DATA_FREE_ROUTES.some(
+    prefix => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +61,7 @@ export function AppLayout() {
   const activeTab = tabFromPath(location.pathname);
   const outlet = useOutlet();
   const roomlessAllowed = isRoomlessRoute(location.pathname);
+  const privateDataFree = isPrivateDataFreeRoute(location.pathname);
 
   return (
     <AppShell
@@ -70,7 +85,12 @@ export function AppLayout() {
           {outlet}
         </PageTransition>
       )}
-      {!loading && !error && activeRoom && (
+      {!loading && !error && activeRoom && privateDataFree && (
+        <PageTransition transitionKey={location.pathname}>
+          {outlet}
+        </PageTransition>
+      )}
+      {!loading && !error && activeRoom && !privateDataFree && (
         <DataProvider roomId={activeRoom.id}>
           <PageTransition transitionKey={location.pathname}>
             {outlet}

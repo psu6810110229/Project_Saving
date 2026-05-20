@@ -19,11 +19,12 @@ import { ProgressBar } from '../components/ProgressBar/ProgressBar';
 import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { useAuth } from '../hooks/useAuth';
+import { useMemberSavingSnapshot } from '../hooks/useMemberSavingSnapshot';
 import { useRoom } from '../hooks/useRoom';
 import { useRoomMember } from '../hooks/useRoomMembers';
-import { useSharedData } from '../hooks/useSharedData';
+import { useRoomMembersBuckets } from '../hooks/useRoomMembersBuckets';
+import { useRoomMembersSavingPlans } from '../hooks/useRoomMembersSavingPlans';
 import { useI18n } from '../i18n/useI18n';
-import { bucketSaved } from '../lib/buckets';
 import { formatCurrency } from '../lib/format';
 import {
   activeRevisionAt,
@@ -108,41 +109,33 @@ interface MemberDetailBodyProps {
 
 function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: MemberDetailBodyProps) {
   const { activeRoom, activeRoomId } = useRoom();
-  const data = useSharedData();
   const { member, loading: memberLoading, error: memberError } = useRoomMember(activeRoomId, userId);
   void formatShortDateKey;
 
-  const leaderboard = data.leaderboard;
-  const { bucketsByUser } = data.roomMembersBuckets;
-  const { plansByUser } = data.roomMembersSavingPlans;
-  const { logs } = data.logs;
+  // Member-scoped data fetches. Each one is scoped to (roomId, userId)
+  // and queries only fields the Member Detail page may display. Notably
+  // the snapshot hook deliberately omits `note` / `slip_url` from
+  // savings_logs and does not touch any balance/reconcile tables.
+  const memberIds = useMemo(() => (userId ? [userId] : []), [userId]);
+  const snapshot = useMemberSavingSnapshot(activeRoomId, userId);
+  const { bucketsByUser, loading: bucketsLoading } = useRoomMembersBuckets(activeRoomId, memberIds);
+  const { plansByUser, loading: plansLoading } = useRoomMembersSavingPlans(activeRoomId, memberIds);
 
-  const leaderboardEntry = userId
-    ? leaderboard.entries.find(entry => entry.userId === userId) ?? null
-    : null;
   const memberPlan = userId ? plansByUser[userId] ?? null : null;
   const memberBuckets = useMemo(() => (userId ? bucketsByUser[userId] ?? [] : []), [bucketsByUser, userId]);
-  const memberLogDayKeys = useMemo(() => {
-    if (!userId) return [] as string[];
-    const set = new Set<string>();
-    for (const log of logs) {
-      if (log.user_id !== userId) continue;
-      set.add(log.created_at.slice(0, 10));
-    }
-    return Array.from(set);
-  }, [logs, userId]);
 
   const isLoading =
     !userId ||
     memberLoading ||
-    leaderboard.loading ||
-    data.roomMembersBuckets.loading ||
-    data.roomMembersSavingPlans.loading ||
-    data.logs.loading;
+    snapshot.loading ||
+    bucketsLoading ||
+    plansLoading;
 
   const memberNotFound =
     !isLoading && memberError === null && !member;
-  const memberHardError = !isLoading && memberError !== null && !member;
+  const memberHardError =
+    !isLoading
+    && ((memberError !== null && !member) || snapshot.error !== null);
 
   // Header bits
   const memberName = member?.displayName ?? '';
@@ -185,16 +178,16 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
                 themeColor={themeColor}
               />
               <PersonalGoalSection
-                saved={leaderboardEntry?.saved ?? 0}
-                target={leaderboardEntry?.target ?? 0}
+                saved={snapshot.saved}
+                target={snapshot.target}
                 themeColor={themeColor}
                 sectionLabel={md.sectionPersonalGoal}
                 goalUnsetBody={md.goalUnsetBody}
               />
               <MemberSavingPlanSection
                 plan={memberPlan}
-                depositTotal={leaderboardEntry?.saved ?? 0}
-                depositDayKeys={memberLogDayKeys}
+                depositTotal={snapshot.saved}
+                depositDayKeys={snapshot.depositDayKeys}
                 roomEndDate={activeRoom?.end_date ?? null}
                 d={d}
                 emptyBody={md.savingPlanEmptyBody}
@@ -206,7 +199,7 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
                   id: bucket.id,
                   icon: bucketIcon(bucket.category),
                   name: bucket.name,
-                  saved: bucketSaved(bucket.id, logs),
+                  saved: snapshot.bucketSavedById[bucket.id] ?? 0,
                   target: bucket.target_amount,
                 }))}
                 titleFn={md.bucketsTitle}

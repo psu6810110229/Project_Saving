@@ -109,6 +109,8 @@ export const en = {
     tied: 'Tied',
     leadingBy: (amount: string) => `Leading by ${amount}`,
     invitePartnerHint: 'Invite someone to start the race.',
+    viewYourProfile: 'View your profile',
+    viewMemberAria: (name: string) => `View ${name}'s details`,
     // Activity section
     activity: 'Activity',
     viewAll: 'View all',

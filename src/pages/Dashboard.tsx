@@ -15,7 +15,7 @@ import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketFor
 import { FormField } from '../components/FormField/FormField';
 import { TextInput } from '../components/TextInput/TextInput';
 import { notifyGoalChangeRequest } from '../lib/notifyEvents';
-import { HeadToHeadCard } from '../components/HeadToHeadCard/HeadToHeadCard';
+import { RoomLeaderboardList, type PlayerProgressEntry } from '../components/RoomLeaderboardList/RoomLeaderboardList';
 import { IconBubble } from '../components/IconBubble/IconBubble';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
@@ -131,9 +131,18 @@ export function Dashboard() {
   const d = copy.dashboard;
   const c = copy.common;
 
-  const partnerEntry = leaderboard.entries.find(entry => !entry.isYou);
-  const { buckets: partnerBuckets } = data.partnerBuckets;
-  const [bucketView, setBucketView] = useState<'mine' | 'partner'>('mine');
+  // Task 32 plural fields — N-safe other-member data.
+  const { memberIds: otherMemberIds } = data.otherMemberIds;
+  const { bucketsByUser: roomMembersBucketsByUser } = data.roomMembersBuckets;
+  // First other member by joined_at asc — deterministic source for the
+  // legacy single-partner chart props (MomentumChart, BucketSheet
+  // trendPreview). At N = 2 this equals today's `partnerEntry.userId`.
+  const firstOtherMemberByJoinedAt = otherMemberIds[0] ?? null;
+  const firstOtherEntry = firstOtherMemberByJoinedAt
+    ? leaderboard.entries.find(entry => entry.userId === firstOtherMemberByJoinedAt) ?? null
+    : null;
+  // Bucket view: 'mine' or a member userId.
+  const [bucketView, setBucketView] = useState<'mine' | string>('mine');
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
@@ -160,6 +169,21 @@ export function Dashboard() {
   }));
   const loading = goalLoading || bucketsLoading || logsLoading || leaderboard.loading;
   const error = goalError ?? logsError;
+
+  // Bucket view falls back to 'mine' whenever the selected other
+  // member leaves the room, switches rooms, or empties out their
+  // buckets. Guarded so the effect only fires when a stale selection
+  // exists, preventing an unconditional set + re-render loop.
+  useEffect(() => {
+    if (bucketView === 'mine') return;
+    const stillVisible = otherMemberIds.includes(bucketView)
+      && (roomMembersBucketsByUser[bucketView]?.length ?? 0) > 0;
+    if (!stillVisible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBucketView('mine');
+      setExpandedBucketId(null);
+    }
+  }, [bucketView, otherMemberIds, roomMembersBucketsByUser]);
 
   // Verified balance reminder: open once per session when the last
   // check is ≥ 3 days old (or there has never been one). The session
@@ -190,11 +214,17 @@ export function Dashboard() {
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
   const you = leaderboard.entries.find(entry => entry.isYou);
-  const partner = leaderboard.entries.find(entry => !entry.isYou);
   const target = goal?.target_amount ?? you?.target ?? 0;
   const totalSaved = leaderboard.entries.reduce((sum, entry) => sum + entry.saved, 0);
   const totalTarget = leaderboard.entries.reduce((sum, entry) => sum + (entry.target ?? 0), 0) || target;
   const bucketTargetTotal = sumTargets(buckets);
+  // Per-member sum of bucket targets across every other member.
+  const othersBucketTotalByUser: Record<string, number> = Object.fromEntries(
+    otherMemberIds.map(id => [id, sumTargets(roomMembersBucketsByUser[id] ?? [])]),
+  );
+  const highestOtherMemberAllocated = otherMemberIds.length > 0
+    ? Math.max(0, ...otherMemberIds.map(id => othersBucketTotalByUser[id] ?? 0))
+    : 0;
   const bucketTargetRemaining = target > 0 ? Math.max(0, target - bucketTargetTotal) : null;
   const newBucketTargetAmount = Number(bucketTarget);
   const newBucketExceedsCapacity = bucketTargetRemaining !== null
@@ -216,8 +246,7 @@ export function Dashboard() {
   // creator can edit directly; the partner can send an in-app
   // "request goal change" notification.
   const isCreator = Boolean(user?.id && activeRoom?.created_by === user.id);
-  const partnerBucketTotal = sumTargets(partnerBuckets);
-  const highestBucketTotal = Math.max(bucketTargetTotal, partnerBucketTotal);
+  const highestBucketTotal = Math.max(bucketTargetTotal, highestOtherMemberAllocated);
   const goalEditAmountNumber = Number(goalEditAmount);
   const effectiveGoalDraftAmount = Number.isFinite(goalEditAmountNumber) && goalEditAmountNumber > 0
     ? goalEditAmountNumber
@@ -293,14 +322,39 @@ export function Dashboard() {
     }, 1200);
   }
 
-  const partnerBucketItems = partnerBuckets.map(bucket => ({
-    id: bucket.id,
-    icon: bucketIcon(bucket.category),
-    name: bucket.name,
-    saved: bucketSaved(bucket.id, logs),
-    target: bucket.target_amount,
-  }));
-  const partnerName = partnerEntry?.displayName ?? d.partnerLabel;
+  // Per-member grouping for the buckets section. Order follows
+  // `otherMemberIds` (joined_at asc) — stable across re-renders, unlike
+  // leaderboard rank. Members with zero buckets are filtered out so the
+  // tab disappears (matches today's `hasPartnerBuckets` gate).
+  interface OtherMemberBucketGroup {
+    userId: string;
+    name: string;
+    items: {
+      id: string;
+      icon: ReactNode;
+      name: string;
+      saved: number;
+      target: number;
+    }[];
+  }
+  const otherMemberBucketGroups: OtherMemberBucketGroup[] = otherMemberIds
+    .map(userId => {
+      const memberBuckets = roomMembersBucketsByUser[userId] ?? [];
+      const entry = leaderboard.entries.find(e => e.userId === userId);
+      const name = entry?.displayName ?? d.partnerLabel;
+      const items = memberBuckets.map(bucket => ({
+        id: bucket.id,
+        icon: bucketIcon(bucket.category),
+        name: bucket.name,
+        saved: bucketSaved(bucket.id, logs),
+        target: bucket.target_amount,
+      }));
+      return { userId, name, items };
+    })
+    .filter(group => group.items.length > 0);
+  const activeOtherGroup = bucketView === 'mine'
+    ? null
+    : otherMemberBucketGroups.find(group => group.userId === bucketView) ?? null;
   const activityItems = logs.map(log => ({
     id: log.id,
     actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? d.youLabel : d.partnerLabel),
@@ -311,8 +365,7 @@ export function Dashboard() {
     hasSlip: Boolean(log.slip_url),
     slipUrl: log.slip_url,
   }));
-  const hasPartnerBuckets = Boolean(partnerEntry) && partnerBucketItems.length > 0;
-  const showingPartner = bucketView === 'partner' && hasPartnerBuckets;
+  const hasOtherBuckets = otherMemberBucketGroups.length > 0;
 
   // Saving Plan status — computed once for the primary insight card.
   const todayKey = todayBangkokKey();
@@ -432,24 +485,30 @@ export function Dashboard() {
     : undefined;
 
   const youName = you?.displayName ?? profile?.display_name ?? d.youLabel;
-  const leftPlayer = {
-    name: youName,
-    fallback: fallbackInitial(you?.displayName ?? profile?.display_name),
-    imageUrl: you?.avatarUrl,
-    saved: you?.saved ?? total,
-    target,
-    themeColor: you?.themeColor,
-    isYou: true,
-  };
-  const rightPlayer = {
-    name: partner?.displayName ?? d.partnerLabel,
-    fallback: fallbackInitial(partner?.displayName ?? d.partnerLabel),
-    imageUrl: partner?.avatarUrl,
-    saved: partner?.saved ?? 0,
-    target: partner?.target ?? target,
-    themeColor: partner?.themeColor ?? ('teal' as const),
-    isYou: false,
-  };
+  // Leader-first list for the N-aware Progress Race. When the caller
+  // is the only member, we synthesise their row from profile/total so
+  // the section still renders before any partner has joined.
+  const leaderboardEntries: PlayerProgressEntry[] = leaderboard.entries.length > 0
+    ? leaderboard.entries.map(entry => ({
+        userId: entry.userId,
+        name: entry.isYou ? youName : (entry.displayName ?? d.partnerLabel),
+        fallback: fallbackInitial(entry.displayName ?? (entry.isYou ? profile?.display_name : d.partnerLabel)),
+        imageUrl: entry.avatarUrl,
+        saved: entry.saved,
+        target: entry.target ?? target,
+        themeColor: entry.themeColor,
+        isYou: entry.isYou,
+      }))
+    : (user?.id ? [{
+        userId: user.id,
+        name: youName,
+        fallback: fallbackInitial(profile?.display_name),
+        imageUrl: profile?.avatar_url ?? null,
+        saved: total,
+        target,
+        themeColor: profile?.theme_color,
+        isYou: true,
+      }] : []);
 
   const chartLocale = language === 'th' ? 'th-TH' : 'en-US';
 
@@ -517,18 +576,18 @@ export function Dashboard() {
         />
       </motion.div>
 
-      {/* 2 — Progress Race (Head-to-Head). */}
+      {/* 2 — Progress Race (N-aware leaderboard). */}
       <motion.div variants={sectionVariants}>
-        <HeadToHeadCard
-          left={leftPlayer}
-          right={rightPlayer}
-          partnerSlot={partnerEntry ? (
+        <RoomLeaderboardList
+          entries={leaderboardEntries}
+          emptyBody={d.invitePartnerHint}
+          renderRowTrailing={entry => (
             <NudgeButton
-              partnerUserId={partnerEntry.userId}
+              partnerUserId={entry.userId}
               roomId={activeRoomId}
-              partnerName={partnerEntry.displayName ?? d.partnerLabel}
+              partnerName={entry.name}
             />
-          ) : undefined}
+          )}
         />
       </motion.div>
 
@@ -572,13 +631,13 @@ export function Dashboard() {
 
       {/* 4 — Smart Buckets. */}
       <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
-        {hasPartnerBuckets && (
-          <div className="flex items-center justify-end gap-2">
+        {hasOtherBuckets && (
+          <div className="-mx-2 flex items-center justify-end gap-2 overflow-x-auto px-2">
             <Segmented
               ariaLabel={d.switchBucketOwner}
               options={[
                 { value: 'mine', label: d.youLabel },
-                { value: 'partner', label: partnerName },
+                ...otherMemberBucketGroups.map(group => ({ value: group.userId, label: group.name })),
               ]}
               value={bucketView}
               onChange={next => {
@@ -588,11 +647,11 @@ export function Dashboard() {
             />
           </div>
         )}
-        {showingPartner ? (
+        {activeOtherGroup ? (
           <BucketGrid
-            title={d.yourBuckets(partnerName)}
-            subtitle={`${d.bucketCount(partnerBucketItems.length)} — ${d.bucketReadOnly}`}
-            buckets={partnerBucketItems}
+            title={d.yourBuckets(activeOtherGroup.name)}
+            subtitle={`${d.bucketCount(activeOtherGroup.items.length)} — ${d.bucketReadOnly}`}
+            buckets={activeOtherGroup.items}
             renderBucket={bucket => (
               <BucketRow
                 icon={bucket.icon}
@@ -632,23 +691,23 @@ export function Dashboard() {
       <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
         <MomentumChart
           series={dailyAmountSeries(logs, user?.id)}
-          partnerSeries={partnerEntry ? dailyAmountSeries(logs, partnerEntry.userId) : undefined}
+          partnerSeries={firstOtherMemberByJoinedAt ? dailyAmountSeries(logs, firstOtherMemberByJoinedAt) : undefined}
           labels={lastSevenDayLabels(undefined, chartLocale)}
           yourName={profile?.display_name ?? d.youLabel}
-          partnerName={partnerEntry?.displayName ?? d.partnerLabel}
+          partnerName={firstOtherEntry?.displayName ?? d.partnerLabel}
           expectedSeries={expectedDailySeries}
           todayIndex={6}
           weekTotal={weekRecordedTotal}
           weekExpected={weekExpectedTotal}
         />
-        {SHOW_DEPOSIT_RACE && partnerEntry && (
+        {SHOW_DEPOSIT_RACE && firstOtherMemberByJoinedAt && (
           <SavingRaceSection
             logs={logs}
-            buckets={[...buckets, ...partnerBuckets]}
+            buckets={[...buckets, ...data.roomMembersBuckets.allBuckets]}
             yourUserId={user?.id}
-            partnerUserId={partnerEntry.userId}
+            partnerUserId={firstOtherMemberByJoinedAt}
             yourName={profile?.display_name ?? d.youLabel}
-            partnerName={partnerEntry.displayName}
+            partnerName={firstOtherEntry?.displayName ?? d.partnerLabel}
             activeRoomId={activeRoomId}
             expectedSeries={expectedCumulativeSeries}
           />
@@ -731,7 +790,7 @@ export function Dashboard() {
           <GoalTargetSummary
             goalTarget={goal?.target_amount ?? 0}
             allocated={bucketTargetTotal}
-            partnerAllocated={partnerEntry ? partnerBucketTotal : null}
+            partnerAllocated={highestOtherMemberAllocated > bucketTargetTotal ? highestOtherMemberAllocated : null}
           />
           <FormField
             label={d.goalEditAmountLabel}
@@ -814,9 +873,9 @@ export function Dashboard() {
             quickAmounts={quickAmounts}
             trendPreview={{
               mineLabel: profile?.display_name ?? d.youLabel,
-              theirLabel: partnerEntry?.displayName ?? copy.addMoney.partnerLabel,
+              theirLabel: firstOtherEntry?.displayName ?? copy.addMoney.partnerLabel,
               mineSeries: pending => cumulativeAmountSeries(logs, user?.id, pending),
-              theirSeries: cumulativeAmountSeries(logs, partnerEntry?.userId),
+              theirSeries: cumulativeAmountSeries(logs, firstOtherMemberByJoinedAt ?? undefined),
             }}
             onConfirm={async amount => {
               if (!expandedBucketId) return { error: copy.bucket.validationNameAndTarget };

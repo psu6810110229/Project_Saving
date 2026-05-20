@@ -1179,42 +1179,51 @@ interface CompareMemberChipsProps {
  *  width from neighbours on 320-390 px screens. */
 function CompareMemberChips({ ariaLabel, members, selectedId, onSelect }: CompareMemberChipsProps) {
   return (
-    <div
-      role="tablist"
-      aria-label={ariaLabel}
-      className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1"
-    >
-      {members.map(member => {
-        const active = member.userId === selectedId;
-        return (
-          <button
-            key={member.userId}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-label={member.displayName}
-            title={member.displayName}
-            onClick={() => onSelect(member.userId)}
-            className={
-              'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-pill py-1 pl-1 pr-3 font-mono text-xs font-bold transition-all '
-              + (active
-                ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
-                : 'bg-well text-ink-muted shadow-neuPressed')
-            }
-          >
-            <Avatar
-              size="sm"
-              imageUrl={member.avatarUrl ?? undefined}
-              fallback={fallbackInitial(member.displayName)}
-              themeColor={member.themeColor}
-            />
-            <span className="max-w-[6rem] truncate whitespace-nowrap">
-              {member.displayName}
-            </span>
-          </button>
-        );
-      })}
-    </div>
+    <LayoutGroup id="compare-member-pill">
+      <div
+        role="tablist"
+        aria-label={ariaLabel}
+        className="inline-flex w-fit max-w-full flex-col items-stretch gap-1 rounded-xl bg-well p-1 shadow-neuPressed"
+      >
+        {members.map(member => {
+          const active = member.userId === selectedId;
+          return (
+            <button
+              key={member.userId}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-label={member.displayName}
+              title={member.displayName}
+              onClick={() => onSelect(member.userId)}
+              className={
+                'relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-pill py-1 pl-1 pr-3 font-mono text-xs font-bold transition-colors '
+                + (active ? 'text-ink-inverse' : 'text-ink-muted')
+              }
+            >
+              {active && (
+                <motion.span
+                  layoutId="compare-member-active-pill"
+                  className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                />
+              )}
+              <span className="relative z-10 inline-flex shrink-0 [&_.rounded-full]:!h-6 [&_.rounded-full]:!w-6">
+                <Avatar
+                  size="sm"
+                  imageUrl={member.avatarUrl ?? undefined}
+                  fallback={fallbackInitial(member.displayName)}
+                  themeColor={member.themeColor}
+                />
+              </span>
+              <span className="relative z-10 max-w-[3.5rem] truncate whitespace-nowrap">
+                {member.displayName}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </LayoutGroup>
   );
 }
 

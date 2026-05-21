@@ -1,16 +1,14 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { AddMoneyForm } from '../components/AddMoneyForm/AddMoneyForm';
-import { Button } from '../components/Button/Button';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { Modal } from '../components/Modal/Modal';
-import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
 import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
+import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
   IconBed,
   IconBriefcase,
-  IconCheck,
   IconFork,
   IconHome,
   IconPlane,
@@ -21,6 +19,7 @@ import { PageHeader } from '../components/PageHeader/PageHeader';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { useAuth } from '../hooks/useAuth';
+import { useRoom } from '../hooks/useRoom';
 import { useSharedData } from '../hooks/useSharedData';
 import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
@@ -42,11 +41,13 @@ const BUCKET_OPTION_ICONS: { id: BucketCategory; icon: ReactNode }[] = [
 export function AddMoney() {
   const { copy, formatMoney } = useI18n();
   const { user, profile } = useAuth();
+  const { activeRoom } = useRoom();
   const data = useSharedData();
   const { quickAmounts, updateQuickAmounts } = data.profile;
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const leaderboard = data.leaderboard;
+  const { roomGoalTarget } = data.goal;
   const [selectedBucketId, setSelectedBucketId] = useState<string | null>(null);
   const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(500);
   const [amountValue, setAmountValue] = useState('');
@@ -54,9 +55,14 @@ export function AddMoney() {
   const [saving, setSaving] = useState(false);
   const [confirmingDeposit, setConfirmingDeposit] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [created, setCreated] = useState(false);
-  const [lastDepositAmount, setLastDepositAmount] = useState(0);
-  const [lastDepositReachedBucket, setLastDepositReachedBucket] = useState(false);
+  const [vaultPreview, setVaultPreview] = useState<{
+    prevSaved: number;
+    newSaved: number;
+    target: number;
+    depositAmount: number;
+    bucketName: string;
+    reachedBucket: boolean;
+  } | null>(null);
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
@@ -139,6 +145,12 @@ export function AddMoney() {
     setSaving(true);
     const slipMarker = SHOW_ATTACHED_SLIP && slip ? `attached:${slip.name}` : null;
     const prevBucketSaved = bucketSaved(selectedBucket.id, logs);
+    const prevTotalSaved = leaderboard.entries.reduce((sum, entry) => sum + entry.saved, 0);
+    const legacySummedTargets = leaderboard.entries.reduce(
+      (sum, entry) => sum + (entry.personalGoalTarget ?? 0),
+      0,
+    );
+    const previewTarget = roomGoalTarget ?? (legacySummedTargets > 0 ? legacySummedTargets : 0);
     const result = await insert(amount, selectedBucket.id, undefined, slipMarker);
     setSaving(false);
     setConfirmingDeposit(false);
@@ -147,9 +159,14 @@ export function AddMoney() {
       const reachedBucket = prevBucketSaved < selectedBucket.target_amount
         && prevBucketSaved + amount >= selectedBucket.target_amount;
       haptic(reachedBucket ? 'milestone' : 'success');
-      setLastDepositAmount(amount);
-      setLastDepositReachedBucket(reachedBucket);
-      setCreated(true);
+      setVaultPreview({
+        prevSaved: prevTotalSaved,
+        newSaved: prevTotalSaved + amount,
+        target: previewTarget,
+        depositAmount: amount,
+        bucketName: selectedBucket.name,
+        reachedBucket,
+      });
       setAmountValue('');
       setSelectedQuickAmount(500);
       setSlip(null);
@@ -271,28 +288,21 @@ export function AddMoney() {
         }}
         onConfirm={handleConfirmDeposit}
       />
-      <OutcomeModal
-        open={created}
-        outcome="success"
-        icon={<IconCheck size={28} />}
-        title={lastDepositReachedBucket ? copy.addMoney.bucketReachedTitle : copy.addMoney.outcomeTitle}
-        body={
-          lastDepositReachedBucket
-            ? copy.addMoney.bucketReachedBody(selectedBucket.name, formatMoney(selectedBucket.target_amount))
-            : copy.addMoney.outcomeBody(selectedBucket.name, formatMoney(lastDepositAmount))
-        }
-      >
-        <Button
-          variant="action"
-          fullWidth
-          onClick={() => {
-            setCreated(false);
-            setLastDepositReachedBucket(false);
-          }}
-        >
-          {copy.addMoney.outcomeDone}
-        </Button>
-      </OutcomeModal>
+      <VaultUpdatePreviewModal
+        open={vaultPreview !== null}
+        prevSaved={vaultPreview?.prevSaved ?? 0}
+        newSaved={vaultPreview?.newSaved ?? 0}
+        target={vaultPreview?.target ?? 0}
+        depositAmount={vaultPreview?.depositAmount ?? 0}
+        bucketName={vaultPreview?.bucketName ?? ''}
+        reachedBucket={vaultPreview?.reachedBucket ?? false}
+        cardholderNames={leaderboard.entries.map(e => e.displayName)}
+        validThru={activeRoom?.end_date ?? null}
+        onDone={() => {
+          setVaultPreview(null);
+          window.location.assign('/dashboard');
+        }}
+      />
     </div>
   );
 }

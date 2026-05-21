@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
 import { BucketRow } from '../BucketRow/BucketRow';
-import { Button } from '../Button/Button';
 import { IconPlus } from '../Icon/Icon';
-import { useI18n } from '../../i18n/useI18n';
 
 export interface BucketGridItem {
   id: string;
@@ -20,6 +18,7 @@ interface BucketGridProps {
   onAddBucket?: () => void;
   onBucketClick?: (id: string) => void;
   renderBucket?: (bucket: BucketGridItem) => ReactNode;
+  belowHeader?: ReactNode;
 }
 
 export function BucketGrid({
@@ -30,10 +29,8 @@ export function BucketGrid({
   onAddBucket,
   onBucketClick,
   renderBucket,
+  belowHeader,
 }: BucketGridProps) {
-  const { copy } = useI18n();
-  const resolvedCta = ctaLabel ?? copy.dashboard.addBucket;
-
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -51,16 +48,18 @@ export function BucketGrid({
           )}
         </div>
         {onAddBucket && (
-          <Button
-            variant="action"
-            size="sm"
+          <button
+            type="button"
             onClick={onAddBucket}
-            leadingIcon={<IconPlus size={18} />}
+            aria-label={ctaLabel}
+            title={ctaLabel}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-all duration-200 hover:bg-brand-400 active:scale-[0.98]"
           >
-            {resolvedCta}
-          </Button>
+            <IconPlus size={20} />
+          </button>
         )}
       </div>
+      {belowHeader}
       <div className="grid grid-cols-2 gap-4">
         {buckets.map(bucket => (
           renderBucket ? (

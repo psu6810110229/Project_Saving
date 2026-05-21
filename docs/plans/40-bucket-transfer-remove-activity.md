@@ -58,6 +58,13 @@ Task slicing rules:
 - Do not make one giant final commit for the whole feature.
 - Do not mix unrelated refactors into the feature commits.
 
+Assistant working rule for this plan:
+
+- This plan and its slices are pre-approved. When the user starts a slice (for example `start 40.3`), the assistant implements the code directly without writing a new approval plan or asking for confirmation.
+- The one-slice-at-a-time rule still holds. After each slice is finished and committed, the assistant must stop and wait for the next explicit start command instead of rolling forward into the following slice.
+- The assistant may still flag a question only when something is genuinely ambiguous (an unstated product decision, a schema/security trade-off not covered here, or a missing prerequisite). Routine implementation choices already covered by this plan do not need confirmation.
+- Each slice still ends with the relevant checks (build/lint/manual where applicable) and a focused commit covering only that slice.
+
 Suggested commit shape:
 
 - `task40: add bucket transfer schema`

@@ -10,6 +10,17 @@ import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
+import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
+import { BucketTransferSheet } from '../components/BucketTransferSheet/BucketTransferSheet';
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { RoomLeaderboardList, type PlayerProgressEntry } from '../components/RoomLeaderboardList/RoomLeaderboardList';
@@ -159,6 +170,26 @@ export function Dashboard() {
   const [compareMemberId, setCompareMemberId] = useState<string | null>(null);
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [transferIntent, setTransferIntent] = useState<{ sourceId: string; destinationId: string } | null>(null);
+
+  // dnd-kit sensors for the bucket transfer drag shortcut (slice 40.6).
+  // Activation thresholds follow plan §12: desktop ~150ms / touch ~250ms so
+  // a quick tap still opens the deposit BucketSheet and a press-and-drag
+  // triggers transfer mode.
+  const dragSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  function handleBucketDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+    const sourceId = String(active.id);
+    const destinationId = String(over.id);
+    if (sourceId === destinationId) return;
+    setTransferIntent({ sourceId, destinationId });
+  }
   const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
   const [vaultPreview, setVaultPreview] = useState<{
     prevSaved: number;
@@ -715,23 +746,27 @@ export function Dashboard() {
             )}
           />
         ) : (
-          <BucketGrid
-            title={d.tripBuckets}
-            subtitle={buckets.length > 0 ? d.bucketCount(buckets.length) : undefined}
-            buckets={bucketItems}
-            ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
-            onAddBucket={() => setBucketModalOpen(true)}
-            belowHeader={memberPicker}
-            renderBucket={bucket => (
-              <BucketRow
-                icon={bucket.icon}
-                name={bucket.name}
-                saved={bucket.saved}
-                target={bucket.target}
-                onClick={() => setExpandedBucketId(bucket.id)}
-              />
-            )}
-          />
+          <DndContext sensors={dragSensors} onDragEnd={handleBucketDragEnd}>
+            <BucketGrid
+              title={d.tripBuckets}
+              subtitle={buckets.length > 0 ? d.bucketCount(buckets.length) : undefined}
+              buckets={bucketItems}
+              ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
+              onAddBucket={() => setBucketModalOpen(true)}
+              belowHeader={memberPicker}
+              renderBucket={bucket => (
+                <BucketDragCard id={bucket.id}>
+                  <BucketRow
+                    icon={bucket.icon}
+                    name={bucket.name}
+                    saved={bucket.saved}
+                    target={bucket.target}
+                    onClick={() => setExpandedBucketId(bucket.id)}
+                  />
+                </BucketDragCard>
+              )}
+            />
+          </DndContext>
         );
         })()}
         {buckets.length === 0 && (
@@ -864,6 +899,19 @@ export function Dashboard() {
         onCheckNow={() => {
           closeVbReminder();
           navigate('/check-balance');
+        }}
+      />
+
+      {/* Bucket-to-bucket transfer sheet (drag-shortcut entry, slice 40.6). */}
+      <BucketTransferSheet
+        open={transferIntent !== null}
+        onClose={() => setTransferIntent(null)}
+        buckets={bucketItems}
+        initialSourceId={transferIntent?.sourceId ?? null}
+        initialDestinationId={transferIntent?.destinationId ?? null}
+        onSuccess={() => {
+          haptic('success');
+          setTransferIntent(null);
         }}
       />
 

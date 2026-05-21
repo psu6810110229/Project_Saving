@@ -31,6 +31,7 @@ import { TextInput } from '../components/TextInput/TextInput';
 import { ThemeSwatchPicker } from '../components/ThemeSwatchPicker/ThemeSwatchPicker';
 import { VersionBadge } from '../components/VersionBadge/VersionBadge';
 import { useAuth } from '../hooks/useAuth';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
@@ -81,7 +82,13 @@ export function Profile() {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  if (loading) return <ProfileSkeleton ariaLabel={copy.common.loadingProfile} />;
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
+  if (loading && shouldShowSkeleton) return <ProfileSkeleton ariaLabel={copy.common.loadingProfile} />;
+  if (loading) return null;
   if (error) return <StatusCard title={copy.profile.errorTitle} body={error} />;
 
   async function handleLanguageChange(next: Language) {

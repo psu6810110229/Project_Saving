@@ -43,6 +43,7 @@ import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilte
 import { useAuth } from '../hooks/useAuth';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useSharedData } from '../hooks/useSharedData';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
@@ -179,6 +180,11 @@ export function Dashboard() {
     label: copy.bucket.categoryLabels[id],
   }));
   const loading = goalLoading || bucketsLoading || logsLoading || leaderboard.loading;
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
   const error = goalError ?? logsError;
 
   // Bucket view falls back to 'mine' whenever the selected other
@@ -241,7 +247,8 @@ export function Dashboard() {
     setVbReminder(prev => ({ ...prev, open: false }));
   }
 
-  if (loading) return <DashboardSkeleton />;
+  if (loading && shouldShowSkeleton) return <DashboardSkeleton />;
+  if (loading) return null;
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
   const you = leaderboard.entries.find(entry => entry.isYou);

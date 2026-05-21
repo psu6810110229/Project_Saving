@@ -19,6 +19,7 @@ import { PageHeader } from '../components/PageHeader/PageHeader';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { useAuth } from '../hooks/useAuth';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useRoom } from '../hooks/useRoom';
 import { useSharedData } from '../hooks/useSharedData';
 import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
@@ -84,7 +85,15 @@ export function AddMoney() {
   const partner = leaderboard.entries.find(entry => !entry.isYou);
   const smartDefault = useSmartDefaultAmount(user?.id, selectedBucket?.id ?? null, logs);
 
-  if (bucketsLoading || logsLoading) return <AddMoneySkeleton />;
+  const dataLoading = bucketsLoading || logsLoading;
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading: dataLoading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
+
+  if (dataLoading && shouldShowSkeleton) return <AddMoneySkeleton />;
+  if (dataLoading) return null;
   if (logsError) return <StatusCard title={copy.addMoney.loadError} body={logsError} sectionLabel={copy.addMoney.sectionLabel} />;
 
   async function handleCreateBucket() {

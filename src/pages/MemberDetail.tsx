@@ -19,6 +19,7 @@ import { ProgressBar } from '../components/ProgressBar/ProgressBar';
 import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { useAuth } from '../hooks/useAuth';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useMemberSavingSnapshot } from '../hooks/useMemberSavingSnapshot';
 import { useRoom } from '../hooks/useRoom';
 import { useRoomMember } from '../hooks/useRoomMembers';
@@ -131,6 +132,12 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
     bucketsLoading ||
     plansLoading;
 
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading: isLoading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
+
   const memberNotFound =
     !isLoading && memberError === null && !member;
   const memberHardError =
@@ -165,7 +172,7 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
           />
 
           {isLoading ? (
-            <LoadingShell md={md} />
+            shouldShowSkeleton ? <LoadingShell md={md} /> : null
           ) : memberHardError ? (
             <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">
               {md.errorBody}

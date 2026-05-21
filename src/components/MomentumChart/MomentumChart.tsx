@@ -214,8 +214,8 @@ export function MomentumChart({
   const [lingeringChips, setLingeringChips] = useState<ReactNode>(compareChips);
   useEffect(() => {
     if (compareChips) {
-      setLingeringChips(compareChips);
-      return;
+      const t = window.setTimeout(() => setLingeringChips(compareChips), 0);
+      return () => window.clearTimeout(t);
     }
     const t = window.setTimeout(() => setLingeringChips(null), 620);
     return () => window.clearTimeout(t);

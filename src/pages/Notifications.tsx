@@ -6,6 +6,7 @@ import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { NotificationListItem } from '../components/Notifications/NotificationListItem';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../i18n/useI18n';
 import { notificationGroupLabel, resolveNotificationTarget } from '../lib/notifications';
@@ -30,6 +31,11 @@ export function Notifications() {
 
   const groups = useMemo(() => groupNotifications(notifications), [notifications]);
   const hasUnread = notifications.some(item => !item.read_at);
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
 
   async function handleItemClick(item: NotificationItem) {
     const target = resolveNotificationTarget(item);
@@ -74,7 +80,7 @@ export function Notifications() {
         )}
       </div>
 
-      {loading && (
+      {loading && shouldShowSkeleton && (
         <section className="flex flex-col gap-3" aria-label={n.center.loadingAriaLabel}>
           <div className="flex items-center justify-between gap-3">
             <Skeleton className="h-3 w-24 rounded-pill" />

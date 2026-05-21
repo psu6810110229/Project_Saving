@@ -31,7 +31,7 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholde
 
   const card = (
     <div className="vault-card-frame">
-      <section className="vault-credit-card rounded-2xl px-4 py-3 text-white">
+      <section className="vault-credit-card flex flex-col rounded-2xl px-4 py-3 text-white min-[390px]:px-5 min-[390px]:py-4">
         <div className="pointer-events-none absolute -left-16 -top-14 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
         <div className="pointer-events-none absolute -right-12 bottom-0 h-28 w-28 rounded-full bg-orange-100/14 blur-2xl" />
         <div className="relative z-10 flex items-center justify-between gap-2">
@@ -71,7 +71,7 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholde
         </div>
 
         <div className="relative z-10 mt-3 grid grid-cols-2 gap-0">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/[0.16] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-md">
               <IconPiggyBank size={18} />
             </span>
@@ -84,7 +84,7 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholde
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/[0.16] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-md">
               <IconTrendingUp size={18} />
             </span>
@@ -100,12 +100,12 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholde
         </div>
 
         {(cardholderNames?.length || validThru) && (
-          <div className="relative z-10 mt-3 flex items-end justify-between gap-3">
+          <div className="relative z-10 mt-auto flex items-end justify-between gap-4 pt-3 min-[390px]:gap-5 min-[390px]:pt-4">
             <div className="min-w-0 flex-1">
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+              <p className="font-mono text-[10px] uppercase leading-none tracking-[0.18em] text-white/55">
                 Cardholders
               </p>
-              <p className="truncate font-mono text-[11px] font-semibold uppercase tracking-wide text-white/85">
+              <p className="mt-1.5 truncate font-mono text-[11px] font-semibold uppercase leading-none tracking-wide text-white/85 min-[390px]:mt-2">
                 {(() => {
                   const names = cardholderNames ?? [];
                   if (names.length <= 3) return names.join(' • ');
@@ -115,10 +115,10 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholde
             </div>
             {formatValidThru(validThru) && (
               <div className="shrink-0 text-right">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+                <p className="font-mono text-[10px] uppercase leading-none tracking-[0.18em] text-white/55">
                   Valid thru
                 </p>
-                <p className="font-mono text-xs font-semibold tabular-nums text-white/85">
+                <p className="mt-1.5 font-mono text-xs font-semibold leading-none tabular-nums text-white/85 min-[390px]:mt-2">
                   {formatValidThru(validThru)}
                 </p>
               </div>

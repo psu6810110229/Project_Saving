@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Spinner } from '../Spinner/Spinner';
 
 interface LoadingStateProps {
@@ -39,13 +39,15 @@ export function LoadingState({
   messageRotateMs = DEFAULT_ROTATE_MS,
 }: LoadingStateProps) {
   const hasMessages = !!messages && messages.length > 0;
+  const [index, setIndex] = useState(0);
 
-  const initialIndex = useMemo(() => {
-    if (!hasMessages || !messages) return 0;
-    return Math.floor(Math.random() * messages.length);
-  }, [messages, hasMessages]);
-
-  const [index, setIndex] = useState(initialIndex);
+  useEffect(() => {
+    if (!hasMessages || !messages) return;
+    const id = window.setTimeout(() => {
+      setIndex(Math.floor(Math.random() * messages.length));
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [hasMessages, messages]);
 
   useEffect(() => {
     if (!hasMessages || !messages || slow) return;
@@ -59,7 +61,7 @@ export function LoadingState({
   let rotatingBody: string | undefined;
   if (hasMessages && messages) {
     if (slow && slowMessage) rotatingBody = slowMessage;
-    else rotatingBody = messages[index];
+    else rotatingBody = messages[index % messages.length];
   }
 
   const resolvedBody = rotatingBody ?? body ?? label;

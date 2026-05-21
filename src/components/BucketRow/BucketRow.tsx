@@ -3,6 +3,7 @@ import { IconBubble } from '../IconBubble/IconBubble';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
 import Pressable from '../Pressable/Pressable';
+import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
 
 interface BucketRowProps {
   icon: ReactNode;
@@ -15,6 +16,9 @@ interface BucketRowProps {
 
 export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
+  const animSaved = useAnimatedNumber(saved);
+  const animTarget = useAnimatedNumber(target);
+  const animPct = useAnimatedNumber(pct);
   const wasComplete = useRef(target > 0 && saved >= target);
 
   useEffect(() => {
@@ -31,7 +35,7 @@ export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps
       className="relative flex aspect-square w-full flex-col items-center rounded-2xl bg-surface px-4 pb-4 pt-7 text-center shadow-soft"
     >
       <span className="absolute right-4 top-4 font-mono text-sm font-bold text-brand-500">
-        {Math.round(pct)}%
+        {Math.round(animPct)}%
       </span>
 
       <IconBubble tone="peach" size="md" className="text-brand-500">{icon}</IconBubble>
@@ -39,12 +43,12 @@ export function BucketRow({ icon, name, saved, target, onClick }: BucketRowProps
       <div className="mt-3 w-full">
         <p className="truncate font-mono text-sm font-bold leading-tight text-ink">{name}</p>
         <p className="mt-1.5 font-mono text-xs leading-tight text-ink-muted">
-          {formatCurrency(saved)} / {formatCurrency(target)}
+          {formatCurrency(Math.round(animSaved))} / {formatCurrency(Math.round(animTarget))}
         </p>
       </div>
 
       <div className="mt-auto w-full pb-1 pt-3">
-        <ProgressBar key={saved} value={pct} tone="primary" size="sm" animate className="bg-brand-50" />
+        <ProgressBar value={animPct} tone="primary" size="sm" className="bg-brand-50" />
       </div>
     </Pressable>
   );

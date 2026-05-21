@@ -20,6 +20,7 @@ import {
   type MoneyBehindSeverity,
 } from '../../lib/savingPlan';
 import { useI18n } from '../../i18n/useI18n';
+import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
 import type { BalanceAdjustmentReason, SavingPlanRuleType } from '../../types';
 
 interface VerifiedBalanceSlot {
@@ -105,6 +106,10 @@ export function SavingPlanCard({
   const [vbError, setVbError] = useState<string | null>(null);
   const [vbDone, setVbDone] = useState<{ matched: boolean } | null>(null);
   const clientIdRef = useRef<string | null>(null);
+  const animProgressPct = useAnimatedNumber(progressPct);
+  const animExpectedToday = useAnimatedNumber(money?.expectedToday ?? 0);
+  const animDelta = useAnimatedNumber(money?.delta ?? 0);
+  const animVerified = useAnimatedNumber(verifiedBalance?.amount ?? 0);
 
   function handleVbToggle() {
     if (vbExpanded) {
@@ -200,9 +205,9 @@ export function SavingPlanCard({
   const moneyHeadline = isPaused
     ? d.planPaused
     : money.state === 'ahead'
-      ? d.aheadBy(formatCurrency(Math.round(money.delta)))
+      ? d.aheadBy(formatCurrency(Math.round(animDelta)))
       : money.state === 'behind'
-        ? d.behindBy(formatCurrency(Math.round(-money.delta)))
+        ? d.behindBy(formatCurrency(Math.round(-animDelta)))
         : money.state === 'on_track'
           ? d.onTrack
           : planStartDateKey && todayDateKey && planStartDateKey > todayDateKey
@@ -239,7 +244,7 @@ export function SavingPlanCard({
     ? Math.round((vbActualNumber - (verifiedBalance?.amount ?? 0)) * 100) / 100
     : null;
 
-  const progressPctRounded = Math.max(0, Math.min(100, Math.round(progressPct)));
+  const progressPctRounded = Math.max(0, Math.min(100, Math.round(animProgressPct)));
 
   return (
     <Pressable onClick={onConfigure}>
@@ -291,7 +296,7 @@ export function SavingPlanCard({
           <div className="min-w-0">
             <p className="font-mono text-[10px] leading-tight text-ink-muted">{d.todaysPlan}</p>
             <p className="font-mono text-sm font-bold text-ink truncate">
-              {formatCurrency(Math.round(money.expectedToday))}
+              {formatCurrency(Math.round(animExpectedToday))}
             </p>
           </div>
         </div>
@@ -363,7 +368,7 @@ export function SavingPlanCard({
                 {d.verifiedBalanceRowLabel}
               </p>
               <p className="mt-0.5 truncate font-mono text-sm font-bold text-ink">
-                {formatCurrency(verifiedBalance.amount)}
+                {formatCurrency(Math.round(animVerified))}
                 <span className="ml-2 font-normal text-ink-muted">
                   · {verifiedBalance.sinceLabel === null
                     ? d.notChecked

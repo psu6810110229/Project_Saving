@@ -1,5 +1,6 @@
 import { ProjectedProgressBar } from '../ProjectedProgressBar/ProjectedProgressBar';
 import { useI18n } from '../../i18n/useI18n';
+import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
 
 interface ProjectedProgressCardProps {
   bucketName: string;
@@ -17,7 +18,11 @@ export function ProjectedProgressCard({
   const { copy, formatMoney } = useI18n();
   const currentPct = target > 0 ? (saved / target) * 100 : 0;
   const projectedPct = target > 0 ? Math.min(100, ((saved + pendingDeposit) / target) * 100) : 0;
-  const projectedPctRounded = Math.round(projectedPct);
+  const animCurrent = useAnimatedNumber(currentPct);
+  const animProjected = useAnimatedNumber(projectedPct);
+  const animSaved = useAnimatedNumber(saved);
+  const animPending = useAnimatedNumber(pendingDeposit);
+  const projectedPctRounded = Math.round(animProjected);
 
   return (
     <section className="rounded-xl border border-brand-100 bg-surface p-5 shadow-soft">
@@ -28,17 +33,17 @@ export function ProjectedProgressCard({
         <span className="font-mono text-xs font-bold text-brand-500">{projectedPctRounded}%</span>
       </div>
       <div className="mt-3">
-        <ProjectedProgressBar current={currentPct} projected={projectedPct} />
+        <ProjectedProgressBar current={animCurrent} projected={animProjected} />
       </div>
       <div className="mt-4 grid grid-cols-2 divide-x divide-well">
         <div className="pr-3">
           <span className="block font-mono text-xs text-ink-muted">
-            {copy.addMoney.savedLabel(formatMoney(saved))}
+            {copy.addMoney.savedLabel(formatMoney(Math.round(animSaved)))}
           </span>
         </div>
         <div className="pl-3 text-right">
           <span className="block font-mono text-xs font-bold text-brand-500">
-            {copy.addMoney.projectedLabel(formatMoney(pendingDeposit), projectedPctRounded)}
+            {copy.addMoney.projectedLabel(formatMoney(Math.round(animPending)), projectedPctRounded)}
           </span>
         </div>
       </div>

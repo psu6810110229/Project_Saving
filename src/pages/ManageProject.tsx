@@ -29,6 +29,7 @@ import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { SettingsList } from '../components/SettingsList/SettingsList';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { useAuth } from '../hooks/useAuth';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useRoomMembers } from '../hooks/useRoomMembers';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
@@ -109,6 +110,11 @@ export function ManageProject() {
   const [pendingRoomGoal, setPendingRoomGoal] = useState<{ target: number; endDate: string } | null>(null);
   const [personalGoalAmount, setPersonalGoalAmount] = useState('');
   const [personalGoalError, setPersonalGoalError] = useState<string | null>(null);
+  const { shouldShowLoader: shouldShowMemberSkeleton } = useLoadingGate({
+    loading: membersLoading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
 
   const bucketOptions = BUCKET_OPTION_ICONS.map(({ id, icon }) => ({
     id, icon, label: copy.bucket.categoryLabels[id],
@@ -440,12 +446,12 @@ export function ManageProject() {
           )}
         </div>
         <div className="mt-3 flex flex-col gap-2">
-          {membersLoading ? (
+          {membersLoading && shouldShowMemberSkeleton ? (
             <>
               <MemberRowSkeleton />
               <MemberRowSkeleton />
             </>
-          ) : membersError && members.length === 0 ? (
+          ) : membersLoading ? null : membersError && members.length === 0 ? (
             <p className="rounded-lg bg-danger-soft px-3 py-2 font-mono text-xs text-danger">
               {copy.manageProject.memberListErrorBody}
             </p>

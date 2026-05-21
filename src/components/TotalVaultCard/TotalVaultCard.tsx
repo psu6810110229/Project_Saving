@@ -2,23 +2,36 @@ import { IconEdit, IconPiggyBank, IconTrendingUp } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { useI18n } from '../../i18n/useI18n';
 import Pressable from '../Pressable/Pressable';
+import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
 
 interface TotalVaultCardProps {
   saved: number;
   target: number;
   onEdit?: () => void;
   editAriaLabel?: string;
+  cardholderNames?: string[];
+  validThru?: string | null;
 }
 
-export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVaultCardProps) {
+function formatValidThru(date?: string | null): string | null {
+  if (!date) return null;
+  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(date);
+  if (!m) return null;
+  return `${m[2]}/${m[1].slice(2)}`;
+}
+
+export function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholderNames, validThru }: TotalVaultCardProps) {
   const { copy } = useI18n();
   const pct = target > 0 ? (saved / target) * 100 : 0;
-  const pctRounded = Math.round(pct);
-  const clamped = Math.max(0, Math.min(100, pct));
+  const animSaved = useAnimatedNumber(saved);
+  const animTarget = useAnimatedNumber(target);
+  const animPct = useAnimatedNumber(pct);
+  const pctRounded = Math.round(animPct);
+  const clamped = Math.max(0, Math.min(100, animPct));
 
   const card = (
     <div className="vault-card-frame">
-      <section className="vault-credit-card rounded-2xl p-5 text-white">
+      <section className="vault-credit-card flex flex-col rounded-2xl px-4 py-3 text-white min-[390px]:px-5 min-[390px]:py-4">
         <div className="pointer-events-none absolute -left-16 -top-14 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
         <div className="pointer-events-none absolute -right-12 bottom-0 h-28 w-28 rounded-full bg-orange-100/14 blur-2xl" />
         <div className="relative z-10 flex items-center justify-between gap-2">
@@ -45,20 +58,20 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVa
           </div>
         </div>
 
-        <div className="relative z-10 mt-3 flex items-baseline gap-2">
-          <span className="font-mono text-3xl font-bold tabular-nums drop-shadow-[0_1px_10px_rgba(95,36,23,0.5)]">{formatCurrency(saved)}</span>
-          <span className="font-mono text-sm font-semibold tabular-nums text-white/80">/ {formatCurrency(target)}</span>
+        <div className="relative z-10 mt-2 flex items-baseline gap-2">
+          <span className="font-mono text-3xl font-bold tabular-nums drop-shadow-[0_1px_10px_rgba(95,36,23,0.5)]">{formatCurrency(Math.round(animSaved))}</span>
+          <span className="font-mono text-sm font-semibold tabular-nums text-white/80">/ {formatCurrency(Math.round(animTarget))}</span>
         </div>
 
-        <div className="relative z-10 mt-4 h-2 w-full overflow-hidden rounded-pill bg-white/[0.35] shadow-[inset_0_1px_2px_rgba(92,40,7,0.35)]">
+        <div className="relative z-10 mt-3 h-2 w-full overflow-hidden rounded-pill bg-white/[0.35] shadow-[inset_0_1px_2px_rgba(92,40,7,0.35)]">
           <div
             className="h-full rounded-pill bg-white shadow-[0_0_14px_rgba(255,255,255,0.58)] transition-[width] duration-500"
             style={{ width: `${clamped}%` }}
           />
         </div>
 
-        <div className="relative z-10 mt-4 grid grid-cols-2 gap-0">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="relative z-10 mt-3 grid grid-cols-2 gap-0">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/[0.16] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-md">
               <IconPiggyBank size={18} />
             </span>
@@ -67,11 +80,11 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVa
                 {copy.dashboard.vaultSaved}
               </p>
               <p className="truncate font-mono text-base font-medium tabular-nums text-white/80">
-                {formatCurrency(saved)}
+                {formatCurrency(Math.round(animSaved))}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/[0.16] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-md">
               <IconTrendingUp size={18} />
             </span>
@@ -80,11 +93,38 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel }: TotalVa
                 {copy.dashboard.vaultTarget}
               </p>
               <p className="truncate font-mono text-base font-medium tabular-nums text-white/80">
-                {formatCurrency(target)}
+                {formatCurrency(Math.round(animTarget))}
               </p>
             </div>
           </div>
         </div>
+
+        {(cardholderNames?.length || validThru) && (
+          <div className="relative z-10 mt-auto flex items-end justify-between gap-4 pt-3 min-[390px]:gap-5 min-[390px]:pt-4">
+            <div className="min-w-0 flex-1">
+              <p className="font-mono text-[10px] uppercase leading-none tracking-[0.18em] text-white/55">
+                Cardholders
+              </p>
+              <p className="mt-1.5 truncate font-mono text-[11px] font-semibold uppercase leading-none tracking-wide text-white/85 min-[390px]:mt-2">
+                {(() => {
+                  const names = cardholderNames ?? [];
+                  if (names.length <= 3) return names.join(' • ');
+                  return `${names.slice(0, 3).join(' • ')} +${names.length - 3}`;
+                })()}
+              </p>
+            </div>
+            {formatValidThru(validThru) && (
+              <div className="shrink-0 text-right">
+                <p className="font-mono text-[10px] uppercase leading-none tracking-[0.18em] text-white/55">
+                  Valid thru
+                </p>
+                <p className="mt-1.5 font-mono text-xs font-semibold leading-none tabular-nums text-white/85 min-[390px]:mt-2">
+                  {formatValidThru(validThru)}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -14,6 +14,7 @@ import { PageHeader } from '../components/PageHeader/PageHeader';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { useAuth } from '../hooks/useAuth';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useRooms } from '../hooks/useRooms';
 import { useI18n } from '../i18n/useI18n';
 import { localDateLabel } from '../lib/format';
@@ -40,6 +41,11 @@ export function ArchivedProjects() {
   const [confirming, setConfirming] = useState<Room | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
 
   async function load() {
     setLoading(true);
@@ -88,7 +94,7 @@ export function ArchivedProjects() {
         <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>
       )}
 
-      {loading && (
+      {loading && shouldShowSkeleton && (
         <section className="flex flex-col gap-2" aria-label={a.loadingAriaLabel}>
           <Skeleton className="h-20" />
           <Skeleton className="h-20" />

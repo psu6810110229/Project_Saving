@@ -10,6 +10,7 @@ import { Segmented } from '../components/Segmented/Segmented';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { TextInput } from '../components/TextInput/TextInput';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { formatCurrency } from '../lib/format';
@@ -371,6 +372,14 @@ export function SavingPlan() {
     }
     return undefined;
   }, [ruleType, startAmount, incrementAmount, capAmount, amount, planStartDate]);
+
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
+
+  if (loading && !shouldShowSkeleton) return null;
 
   if (loading) {
     return (

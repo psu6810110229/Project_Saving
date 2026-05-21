@@ -18,6 +18,7 @@ import {
   IconSmartphone,
 } from '../components/Icon/Icon';
 import { useAuth } from '../hooks/useAuth';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useMilestoneCrossings } from '../hooks/useMilestoneCrossings';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
@@ -56,6 +57,7 @@ export function AppLayout() {
   const location = useLocation();
   const { activeRoom } = useRoom();
   const { loading, error, createRoom, joinRoomByCode } = useRooms();
+  const { shouldShowLoader, fakeLoadingExpired } = useLoadingGate({ loading });
   const { copy } = useI18n();
   const al = copy.appLayout;
   const activeTab = tabFromPath(location.pathname);
@@ -73,24 +75,33 @@ export function AppLayout() {
       }}
     >
       <ProfileLanguageSync />
-      {loading && <LoadingState variant="card" label={al.loadingTitle} title={al.loadingTitle} body={al.loadingBody} />}
-      {!loading && error && <StatusCard title={al.errorTitle} body={error} />}
-      {!loading && !error && !activeRoom && !roomlessAllowed && (
+      {shouldShowLoader && (
+        <LoadingState
+          variant="card"
+          label={al.loadingTitle}
+          title={al.loadingTitle}
+          messages={copy.common.loadingMessages}
+          slow={fakeLoadingExpired}
+          slowMessage={copy.common.loadingSlow}
+        />
+      )}
+      {!shouldShowLoader && !loading && error && <StatusCard title={al.errorTitle} body={error} />}
+      {!shouldShowLoader && !loading && !error && !activeRoom && !roomlessAllowed && (
         <PageTransition transitionKey="project-setup">
           <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />
         </PageTransition>
       )}
-      {!loading && !error && !activeRoom && roomlessAllowed && (
+      {!shouldShowLoader && !loading && !error && !activeRoom && roomlessAllowed && (
         <PageTransition transitionKey={location.pathname}>
           {outlet}
         </PageTransition>
       )}
-      {!loading && !error && activeRoom && privateDataFree && (
+      {!shouldShowLoader && !loading && !error && activeRoom && privateDataFree && (
         <PageTransition transitionKey={location.pathname}>
           {outlet}
         </PageTransition>
       )}
-      {!loading && !error && activeRoom && !privateDataFree && (
+      {!shouldShowLoader && !loading && !error && activeRoom && !privateDataFree && (
         <DataProvider roomId={activeRoom.id}>
           <PageTransition transitionKey={location.pathname}>
             {outlet}

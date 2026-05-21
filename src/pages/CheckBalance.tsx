@@ -8,6 +8,7 @@ import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { TextInput } from '../components/TextInput/TextInput';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { formatCurrency } from '../lib/format';
@@ -35,7 +36,16 @@ export function CheckBalance() {
   // hardened `current_reconciled_balance` RPC so it stays consistent
   // with what `create_balance_checkpoint` computes server-side, and
   // it is not capped by any client-side log list.
-  if (reconcileLoading || appBalance === null) return <CheckBalanceSkeleton loadingLabel={r.loadingAriaLabel} />;
+  const dataLoading = reconcileLoading || appBalance === null;
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading: dataLoading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
+  if (reconcileLoading || appBalance === null) {
+    if (shouldShowSkeleton) return <CheckBalanceSkeleton loadingLabel={r.loadingAriaLabel} />;
+    return null;
+  }
   const displayedAppBalance = appBalance;
 
   const actualNumber = Number(actualValue);

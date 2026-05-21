@@ -17,6 +17,7 @@ import { IconBubble } from '../components/IconBubble/IconBubble';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { TotalVaultCard } from '../components/TotalVaultCard/TotalVaultCard';
+import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { VerifiedBalanceReminderModal } from '../components/VerifiedBalanceReminderModal/VerifiedBalanceReminderModal';
 import { NudgeButton } from '../components/NudgeButton/NudgeButton';
 import { BellIconButton } from '../components/Notifications/BellIconButton';
@@ -42,6 +43,7 @@ import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilte
 import { useAuth } from '../hooks/useAuth';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useSharedData } from '../hooks/useSharedData';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
@@ -157,6 +159,14 @@ export function Dashboard() {
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
+  const [vaultPreview, setVaultPreview] = useState<{
+    prevSaved: number;
+    newSaved: number;
+    target: number;
+    depositAmount: number;
+    bucketName: string;
+    reachedBucket: boolean;
+  } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [vbReminder, setVbReminder] = useState<{ open: boolean; days: number | null }>({ open: false, days: null });
   const vbReminderEvaluatedRef = useRef(false);
@@ -170,6 +180,11 @@ export function Dashboard() {
     label: copy.bucket.categoryLabels[id],
   }));
   const loading = goalLoading || bucketsLoading || logsLoading || leaderboard.loading;
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
   const error = goalError ?? logsError;
 
   // Bucket view falls back to 'mine' whenever the selected other
@@ -232,7 +247,8 @@ export function Dashboard() {
     setVbReminder(prev => ({ ...prev, open: false }));
   }
 
-  if (loading) return <DashboardSkeleton />;
+  if (loading && shouldShowSkeleton) return <DashboardSkeleton />;
+  if (loading) return null;
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
   const you = leaderboard.entries.find(entry => entry.isYou);
@@ -589,6 +605,8 @@ export function Dashboard() {
           target={totalTarget}
           onEdit={isCreator ? () => navigate('/manage-project') : undefined}
           editAriaLabel={isCreator ? d.goalEditAria : undefined}
+          cardholderNames={leaderboardEntries.map(e => e.name)}
+          validThru={activeRoom?.end_date ?? null}
         />
       </motion.div>
 
@@ -654,36 +672,38 @@ export function Dashboard() {
 
       {/* 4 — Smart Buckets. */}
       <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
-        {hasOtherBuckets && (
-          <BucketMemberPicker
-            ariaLabel={d.switchBucketOwner}
-            options={[
-              {
-                value: 'mine',
-                label: d.youLabel,
-                themeColor: profile?.theme_color ?? null,
-              },
-              ...otherMemberBucketGroups.map(group => {
-                const entry = leaderboard.entries.find(e => e.userId === group.userId);
-                return {
-                  value: group.userId,
-                  label: group.name,
-                  themeColor: entry?.themeColor ?? null,
-                };
-              }),
-            ]}
-            value={bucketView}
-            onChange={next => {
-              setBucketView(next);
-              setExpandedBucketId(null);
-            }}
-          />
-        )}
-        {activeOtherGroup ? (
+        {(() => {
+          const memberPicker = hasOtherBuckets ? (
+            <BucketMemberPicker
+              ariaLabel={d.switchBucketOwner}
+              options={[
+                {
+                  value: 'mine',
+                  label: d.youLabel,
+                  themeColor: profile?.theme_color ?? null,
+                },
+                ...otherMemberBucketGroups.map(group => {
+                  const entry = leaderboard.entries.find(e => e.userId === group.userId);
+                  return {
+                    value: group.userId,
+                    label: group.name,
+                    themeColor: entry?.themeColor ?? null,
+                  };
+                }),
+              ]}
+              value={bucketView}
+              onChange={next => {
+                setBucketView(next);
+                setExpandedBucketId(null);
+              }}
+            />
+          ) : null;
+          return activeOtherGroup ? (
           <BucketGrid
             title={d.yourBuckets(activeOtherGroup.name)}
             subtitle={`${d.bucketCount(activeOtherGroup.items.length)} — ${d.bucketReadOnly}`}
             buckets={activeOtherGroup.items}
+            belowHeader={memberPicker}
             renderBucket={bucket => (
               <BucketRow
                 icon={bucket.icon}
@@ -700,6 +720,7 @@ export function Dashboard() {
             buckets={bucketItems}
             ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
             onAddBucket={() => setBucketModalOpen(true)}
+            belowHeader={memberPicker}
             renderBucket={bucket => (
               <BucketRow
                 icon={bucket.icon}
@@ -710,7 +731,8 @@ export function Dashboard() {
               />
             )}
           />
-        )}
+        );
+        })()}
         {buckets.length === 0 && (
           <Button variant="action" fullWidth onClick={() => setBucketModalOpen(true)}>
             {d.createFirstBucket}
@@ -869,15 +891,35 @@ export function Dashboard() {
               if (!result.error) {
                 const reached = prev < (selectedBucketItem?.target ?? 0) && prev + amount >= (selectedBucketItem?.target ?? 0);
                 haptic(reached ? 'milestone' : 'success');
-                if (reached && selectedBucketItem) {
-                  setBucketGoalOutcome({ name: selectedBucketItem.name, target: selectedBucketItem.target });
+                if (selectedBucketItem) {
+                  setVaultPreview({
+                    prevSaved: totalSaved,
+                    newSaved: totalSaved + amount,
+                    target: totalTarget,
+                    depositAmount: amount,
+                    bucketName: selectedBucketItem.name,
+                    reachedBucket: reached,
+                  });
                 }
+                setExpandedBucketId(null);
               }
               return result;
             }}
           />
         );
       })()}
+      <VaultUpdatePreviewModal
+        open={vaultPreview !== null}
+        prevSaved={vaultPreview?.prevSaved ?? 0}
+        newSaved={vaultPreview?.newSaved ?? 0}
+        target={vaultPreview?.target ?? 0}
+        depositAmount={vaultPreview?.depositAmount ?? 0}
+        bucketName={vaultPreview?.bucketName ?? ''}
+        reachedBucket={vaultPreview?.reachedBucket ?? false}
+        cardholderNames={leaderboardEntries.map(e => e.name)}
+        validThru={activeRoom?.end_date ?? null}
+        onDone={() => setVaultPreview(null)}
+      />
       <OutcomeModal
         open={Boolean(bucketGoalOutcome)}
         outcome="success"
@@ -1062,18 +1104,73 @@ interface BucketMemberPickerProps {
   onChange: (next: string) => void;
 }
 
+const BUCKET_MEMBER_PICKER_HINT_STORAGE_KEY = 'bucket-member-picker-hint-seen-v1';
+
 /** Dashboard-scoped horizontal member picker for the Smart Buckets
  *  section. Replaces the right-aligned `Segmented` control so 3-7
  *  member rooms can scroll cleanly on mobile without clipping the
  *  first option, wrapping tab labels, or detaching from the bucket
  *  section. Selection state mirrors the previous tab-pill look. */
 function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMemberPickerProps) {
+  const [showHint, setShowHint] = useState(false);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(BUCKET_MEMBER_PICKER_HINT_STORAGE_KEY)) return;
+    } catch {
+      return;
+    }
+    const el = shellRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    let startId = 0;
+    let endId = 0;
+    const observer = new IntersectionObserver(entries => {
+      const entry = entries[0];
+      if (!entry?.isIntersecting) return;
+      observer.disconnect();
+      startId = window.setTimeout(() => setShowHint(true), 350);
+      endId = window.setTimeout(() => {
+        setShowHint(false);
+        try { window.localStorage.setItem(BUCKET_MEMBER_PICKER_HINT_STORAGE_KEY, '1'); } catch { /* ignore */ }
+      }, 6400);
+    }, { threshold: 0.5 });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(startId);
+      window.clearTimeout(endId);
+    };
+  }, []);
+
   return (
     <LayoutGroup id="bucket-member-pill">
       <div
+        ref={shellRef}
+        className="relative inline-flex w-fit max-w-full self-start overflow-hidden rounded-pill"
+      >
+        {showHint && (
+          <motion.span
+            aria-hidden
+            initial={{ x: '-110%', opacity: 0 }}
+            animate={{ x: '220%', opacity: [0, 1, 1, 0] }}
+            transition={{
+              duration: 2,
+              ease: [0.22, 1, 0.36, 1],
+              times: [0, 0.15, 0.85, 1],
+              repeat: 2,
+              repeatDelay: 0.2,
+            }}
+            className="pointer-events-none absolute inset-y-0 left-0 z-20 w-1/2 rounded-pill mix-blend-screen"
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(242,107,26,0.45) 45%, rgba(255,200,140,0.85) 50%, rgba(242,107,26,0.45) 55%, transparent 100%)',
+              filter: 'blur(2px)',
+            }}
+          />
+        )}
+      <div
         role="tablist"
         aria-label={ariaLabel}
-        className="inline-flex w-fit max-w-full items-center gap-1 self-start overflow-x-auto rounded-pill bg-well p-1 shadow-neuPressed"
+        className="inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-pill bg-well p-1 shadow-neuPressed"
       >
         {options.map(option => {
           const active = option.value === value;
@@ -1103,6 +1200,7 @@ function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMembe
             </button>
           );
         })}
+      </div>
       </div>
     </LayoutGroup>
   );
@@ -1272,7 +1370,7 @@ function CompareMemberChips({ ariaLabel, members, selectedId, onSelect }: Compar
                   themeColor={member.themeColor}
                 />
               </span>
-              <span className="relative z-10 max-w-[3.5rem] truncate whitespace-nowrap">
+              <span className="relative z-10 max-w-[6rem] truncate whitespace-nowrap">
                 {member.displayName}
               </span>
             </button>

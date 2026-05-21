@@ -9,6 +9,7 @@ import {
   PermissionStatusPill,
   type PushPermissionState,
 } from '../components/Notifications/PermissionStatusPill';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useNotificationPreferences } from '../hooks/useNotificationPreferences';
 import { usePushSubscription } from '../hooks/usePushSubscription';
 import { useI18n } from '../i18n/useI18n';
@@ -30,6 +31,11 @@ export function NotificationSettings() {
   const permission = toPillState(rawPermission);
   const [deviceBusy, setDeviceBusy] = useState(false);
   const [deviceMessage, setDeviceMessage] = useState<string | null>(null);
+  const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
+    loading,
+    showAfterMs: 120,
+    minimumVisibleMs: 400,
+  });
 
   function localizeDeviceError(message: string | undefined): string {
     switch (message) {
@@ -79,7 +85,7 @@ export function NotificationSettings() {
     setDeviceMessage(n.permission.disabledMessage);
   }
 
-  if (loading) {
+  if (loading && shouldShowSkeleton) {
     return (
       <div className="flex flex-col gap-6 pb-24">
         <PageHeader eyebrow={n.settings.eyebrow} title={n.settings.title} subtitle={n.settings.subtitle} showBack />
@@ -95,6 +101,7 @@ export function NotificationSettings() {
       </div>
     );
   }
+  if (loading) return null;
 
   if (error || !preferences) {
     return (

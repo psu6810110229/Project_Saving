@@ -19,11 +19,15 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
   const fetchBuckets = useCallback(async () => {
     if (!roomId || !user) { setBuckets([]); setLoading(false); return; }
     setLoading(true);
+    // Active screens hide archived buckets (Task 40 / migration 0058).
+    // Historical surfaces that need archived rows must query without
+    // this filter; this hook is the active-buckets path.
     const { data, error } = await supabase
       .from('buckets')
       .select('*')
       .eq('user_id', user.id)
       .eq('room_id', roomId)
+      .is('archived_at', null)
       .order('position', { ascending: true });
     setLoading(false);
     if (!error) setBuckets(data ?? []);

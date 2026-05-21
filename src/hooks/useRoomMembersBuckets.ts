@@ -57,6 +57,8 @@ export function useRoomMembersBuckets(
       .select('*')
       .eq('room_id', roomId)
       .in('user_id', otherMemberIds)
+      // Active partner-bucket grid hides archived rows (Task 40).
+      .is('archived_at', null)
       .order('position', { ascending: true })
       .then(({ data, error }) => {
         if (cancelled) return;

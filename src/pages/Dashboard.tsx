@@ -67,7 +67,7 @@ import {
   todayBangkokKey,
 } from '../lib/savingPlan';
 import type { SavingPlanRevision } from '../types';
-import type { BalanceActivityEntry, Bucket, BucketCategory, ProfileTheme } from '../types';
+import type { BalanceActivityEntry, Bucket, BucketCategory, BucketTransfer, ProfileTheme } from '../types';
 
 /** Framer Motion stagger variants for the Dashboard cascade. */
 const containerVariants = {
@@ -116,6 +116,7 @@ export function Dashboard() {
   } = data.goal;
   useRooms();
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
+  const { transfers: bucketTransfers } = data.bucketTransfers;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = data.leaderboard;
@@ -269,12 +270,12 @@ export function Dashboard() {
   const newBucketExceedsCapacity = bucketTargetRemaining !== null
     && Number.isFinite(newBucketTargetAmount)
     && newBucketTargetAmount > bucketTargetRemaining;
-  const selectedBucket = bestMicroGoalBucket(buckets, logs, d, formatMoney);
+  const selectedBucket = bestMicroGoalBucket(buckets, logs, bucketTransfers, d, formatMoney);
   const bucketItems = buckets.map(bucket => ({
     id: bucket.id,
     icon: bucketIcon(bucket.category),
     name: bucket.name,
-    saved: bucketSaved(bucket.id, logs),
+    saved: bucketSaved(bucket.id, logs, bucketTransfers),
     target: bucket.target_amount,
   })).sort((a, b) => {
     const pctA = a.target > 0 ? a.saved / a.target : 0;
@@ -1055,11 +1056,12 @@ function DashboardSkeleton() {
 function bestMicroGoalBucket(
   buckets: Bucket[],
   logs: ReturnType<typeof useLogs>['logs'],
+  transfers: BucketTransfer[],
   copy: ReturnType<typeof useI18n>['copy']['dashboard'],
   formatMoney: (amount: number) => string,
 ) {
   const bucket = buckets
-    .map(item => ({ bucket: item, saved: bucketSaved(item.id, logs) }))
+    .map(item => ({ bucket: item, saved: bucketSaved(item.id, logs, transfers) }))
     .sort((a, b) => (a.bucket.target_amount - a.saved) - (b.bucket.target_amount - b.saved))[0];
 
   if (!bucket) {

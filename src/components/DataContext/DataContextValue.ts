@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 import type { useBuckets } from '../../hooks/useBuckets';
+import type { useBucketTransfers } from '../../hooks/useBucketTransfers';
 import type { useGoal } from '../../hooks/useGoal';
 import type { useLeaderboard } from '../../hooks/useLeaderboard';
 import type { useLogs } from '../../hooks/useLogs';
@@ -16,6 +17,7 @@ import type { useStreakFreeze } from '../../hooks/useStreakFreeze';
 export interface DataContextValue {
   profile: ReturnType<typeof useProfile>;
   buckets: ReturnType<typeof useBuckets>;
+  bucketTransfers: ReturnType<typeof useBucketTransfers>;
   logs: ReturnType<typeof useLogs>;
   leaderboard: ReturnType<typeof useLeaderboard>;
   goal: ReturnType<typeof useGoal>;

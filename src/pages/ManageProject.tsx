@@ -92,6 +92,7 @@ export function ManageProject() {
   const { archiveRoom, leaveRoom, renameRoom, refetch: refetchRooms } = useRooms();
   const { quickAmounts, updateQuickAmounts } = data.profile;
   const { buckets, saveBuckets } = data.buckets;
+  const { transfers: bucketTransfers } = data.bucketTransfers;
   const { logs } = data.logs;
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
@@ -631,6 +632,7 @@ export function ManageProject() {
         <BucketManager
           buckets={buckets}
           logs={logs}
+          transfers={bucketTransfers}
           goalTarget={goalTarget}
           category={bucketCategory}
           options={bucketOptions}

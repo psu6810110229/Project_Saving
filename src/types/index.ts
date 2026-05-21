@@ -74,6 +74,66 @@ export interface Bucket {
   created_at: string;
   /** Visual / icon category for this bucket. Added in migration 0008. */
   category?: BucketCategory;
+  /** Set when the bucket has been archived via `archive_bucket` (migration 0058). Active screens filter `archived_at IS NULL`. */
+  archived_at?: string | null;
+  /** Actor who archived the bucket. */
+  archived_by?: string | null;
+}
+
+/**
+ * Same-user, same-room bucket-to-bucket money movement. Append-only
+ * ledger written by `transfer_bucket_money` (migration 0059). Per
+ * `bucket_transfers_select_own` RLS the client only ever sees rows
+ * where `user_id = auth.uid()`.
+ */
+export interface BucketTransfer {
+  id: string;
+  room_id: string;
+  user_id: string;
+  source_bucket_id: string;
+  destination_bucket_id: string;
+  amount: number;
+  note: string | null;
+  client_request_id: string;
+  created_at: string;
+}
+
+/** Return shape of the `transfer_bucket_money` RPC. */
+export interface TransferBucketMoneyResult {
+  transfer_id: string;
+  source_bucket_id: string;
+  destination_bucket_id: string;
+  amount: number;
+  source_balance_after: number;
+  destination_balance_after: number;
+  activity_id: string | null;
+  /** `true` when the same `client_request_id` was already used — no second money movement happened. */
+  reused: boolean;
+  created_at: string;
+}
+
+/** Return shape of the `archive_bucket` RPC. */
+export interface ArchiveBucketResult {
+  bucket_id: string;
+  archived_at: string;
+  archived_by: string;
+  activity_id: string | null;
+  /** `true` when the bucket was already archived — no new archive happened. */
+  reused: boolean;
+}
+
+/** Return shape of the `transfer_and_archive_bucket` RPC. */
+export interface TransferAndArchiveBucketResult {
+  transfer_id: string | null;
+  bucket_id: string;
+  archived_at: string;
+  archived_by: string;
+  amount: number;
+  source_balance_after: number;
+  destination_balance_after: number;
+  transfer_activity_id: string | null;
+  archive_activity_id: string | null;
+  reused: boolean;
 }
 
 /** Working copy used inside BucketEditor before saving. */

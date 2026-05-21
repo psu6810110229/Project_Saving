@@ -46,6 +46,7 @@ export function AddMoney() {
   const data = useSharedData();
   const { quickAmounts, updateQuickAmounts } = data.profile;
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
+  const { transfers: bucketTransfers } = data.bucketTransfers;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const leaderboard = data.leaderboard;
   const { roomGoalTarget } = data.goal;
@@ -77,7 +78,7 @@ export function AddMoney() {
   }));
 
   const selectedBucket = buckets.find(bucket => bucket.id === selectedBucketId) ?? buckets[0];
-  const selectedBucketSaved = selectedBucket ? bucketSaved(selectedBucket.id, logs) : 0;
+  const selectedBucketSaved = selectedBucket ? bucketSaved(selectedBucket.id, logs, bucketTransfers) : 0;
   const selectedBucketAlreadyComplete = selectedBucket
     ? selectedBucket.target_amount > 0 && selectedBucketSaved >= selectedBucket.target_amount
     : false;
@@ -153,7 +154,7 @@ export function AddMoney() {
     }
     setSaving(true);
     const slipMarker = SHOW_ATTACHED_SLIP && slip ? `attached:${slip.name}` : null;
-    const prevBucketSaved = bucketSaved(selectedBucket.id, logs);
+    const prevBucketSaved = bucketSaved(selectedBucket.id, logs, bucketTransfers);
     const prevTotalSaved = leaderboard.entries.reduce((sum, entry) => sum + entry.saved, 0);
     const legacySummedTargets = leaderboard.entries.reduce(
       (sum, entry) => sum + (entry.personalGoalTarget ?? 0),

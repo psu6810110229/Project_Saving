@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { bucketSaved, sumTargets } from '../../lib/buckets';
-import type { Bucket, BucketCategory, SavingsLog } from '../../types';
+import type { Bucket, BucketCategory, BucketTransfer, SavingsLog } from '../../types';
 import { Button } from '../Button/Button';
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../CreateBucketForm/CreateBucketForm';
@@ -20,6 +20,8 @@ interface BucketCategoryOption {
 interface BucketManagerProps {
   buckets: Bucket[];
   logs: SavingsLog[];
+  /** Caller's own bucket transfers, for transfer-aware balance display. */
+  transfers?: BucketTransfer[];
   category: BucketCategory | null;
   options: BucketCategoryOption[];
   name: string;
@@ -37,6 +39,7 @@ interface BucketManagerProps {
 export function BucketManager({
   buckets,
   logs,
+  transfers,
   category,
   options,
   name,
@@ -117,7 +120,7 @@ export function BucketManager({
   async function confirmDelete() {
     if (!pendingDelete) return;
 
-    if (bucketSaved(pendingDelete.id, logs) !== 0) {
+    if (bucketSaved(pendingDelete.id, logs, transfers) !== 0) {
       setLocalMessage(copy.bucket.deleteHistoryBody(pendingDelete.name));
       setPendingDelete(null);
       return;
@@ -144,7 +147,7 @@ export function BucketManager({
     onCreate();
   }
 
-  const blockedDelete = pendingDelete ? bucketSaved(pendingDelete.id, logs) !== 0 : false;
+  const blockedDelete = pendingDelete ? bucketSaved(pendingDelete.id, logs, transfers) !== 0 : false;
 
   return (
     <div className="flex flex-col gap-4">
@@ -156,6 +159,7 @@ export function BucketManager({
       <BucketSummary
         buckets={buckets}
         logs={logs}
+        transfers={transfers}
         goalTarget={goalTarget}
         totalBucketTargets={totalBucketTargets}
         editingId={editingId}
@@ -229,6 +233,7 @@ function TargetCapacitySummary({ goalTarget, allocated }: { goalTarget: number; 
 function BucketSummary({
   buckets,
   logs,
+  transfers,
   goalTarget,
   totalBucketTargets,
   editingId,
@@ -244,6 +249,7 @@ function BucketSummary({
 }: {
   buckets: Bucket[];
   logs: SavingsLog[];
+  transfers?: BucketTransfer[];
   goalTarget?: number | null;
   totalBucketTargets: number;
   editingId: string | null;
@@ -268,7 +274,7 @@ function BucketSummary({
       <SectionLabel tone="brand">{copy.bucket.currentBuckets}</SectionLabel>
       <div className="mt-3 flex flex-col gap-3">
         {buckets.map(bucket => {
-          const saved = bucketSaved(bucket.id, logs);
+          const saved = bucketSaved(bucket.id, logs, transfers);
           const remaining = Math.max(0, bucket.target_amount - saved);
           const editing = editingId === bucket.id;
           const capacityForEdit = typeof goalTarget === 'number'

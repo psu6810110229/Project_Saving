@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { LoadingState } from '../components/LoadingState/LoadingState';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useI18n } from '../i18n/useI18n';
 import { supabase } from '../lib/supabase';
 
@@ -11,6 +12,8 @@ export function AuthCallback() {
   const navigate = useNavigate();
   const { copy } = useI18n();
   const [error, setError] = useState<string | null>(null);
+  const loading = error === null;
+  const { shouldShowLoader, fakeLoadingExpired } = useLoadingGate({ loading });
 
   useEffect(() => {
     let cancelled = false;
@@ -75,14 +78,20 @@ export function AuthCallback() {
     );
   }
 
-  return (
-    <LoadingState
-      variant="fullscreen"
-      label={copy.common.loading}
-      title={copy.auth.callbackSection}
-      body={copy.common.loading}
-    />
-  );
+  if (shouldShowLoader) {
+    return (
+      <LoadingState
+        variant="fullscreen"
+        label={copy.common.loading}
+        title={copy.auth.callbackSection}
+        messages={copy.common.loadingMessages}
+        slow={fakeLoadingExpired}
+        slowMessage={copy.common.loadingSlow}
+      />
+    );
+  }
+
+  return null;
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {

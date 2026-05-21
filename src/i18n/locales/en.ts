@@ -8,6 +8,13 @@ export const en = {
     loading: 'Loading…',
     loadingDashboard: 'Loading dashboard',
     loadingProfile: 'Loading profile',
+    loadingMessages: [
+      'Getting things ready',
+      'Opening your project',
+      'Syncing the latest room',
+      'Almost there',
+    ] as readonly string[],
+    loadingSlow: 'This is taking longer than usual…',
     save: 'Save',
     confirm: 'Confirm',
     gotIt: 'Got it',

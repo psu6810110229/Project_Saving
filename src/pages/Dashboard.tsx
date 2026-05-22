@@ -35,6 +35,7 @@ import { BellIconButton } from '../components/Notifications/BellIconButton';
 import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
+  IconArrowRight,
   IconBed,
   IconBriefcase,
   IconCheck,
@@ -44,6 +45,7 @@ import {
   IconRocket,
   IconSmartphone,
   IconTicket,
+  IconTrash,
   IconUser,
   IconVault,
 } from '../components/Icon/Icon';
@@ -79,6 +81,7 @@ import {
 } from '../lib/savingPlan';
 import type { SavingPlanRevision } from '../types';
 import type { BalanceActivityEntry, Bucket, BucketCategory, BucketTransfer, ProfileTheme } from '../types';
+import type { BucketActivityEvent } from '../hooks/useBucketActivityEvents';
 
 /** Framer Motion stagger variants for the Dashboard cascade. */
 const containerVariants = {
@@ -128,6 +131,7 @@ export function Dashboard() {
   useRooms();
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
   const { transfers: bucketTransfers } = data.bucketTransfers;
+  const { events: bucketActivityEvents } = data.bucketActivityEvents;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = data.leaderboard;
@@ -453,10 +457,43 @@ export function Dashboard() {
       }
     : null;
 
-  // Merged activity feed: top 3 most-recent items across deposits and
-  // balance checks. Each item keeps its native kind so the row UI
-  // can match (deposit timeline row vs sanitized balance-check row).
-  const mergedActivity = buildMergedActivity(activityItems, balanceActivity, 3, user?.id);
+  // Merged activity feed: top 3 most-recent items across deposits,
+  // balance checks, and bucket transfer / remove events from
+  // `activity_events`. Each item keeps its native kind so the row UI
+  // can match (deposit timeline row vs sanitized balance-check row vs
+  // bucket-event row). Actor names resolve through the leaderboard so
+  // "You" labelling stays consistent with the rest of the dashboard.
+  function actorDisplayNameFor(actorUserId: string | null): string {
+    if (!actorUserId) return d.partnerLabel;
+    if (actorUserId === user?.id) return profile?.display_name ?? d.youLabel;
+    const entry = leaderboard.entries.find(e => e.userId === actorUserId);
+    return entry?.displayName ?? d.partnerLabel;
+  }
+  function actorFallbackFor(actorUserId: string | null): string {
+    if (!actorUserId) return fallbackInitial(undefined);
+    if (actorUserId === user?.id) return fallbackInitial(profile?.display_name);
+    const entry = leaderboard.entries.find(e => e.userId === actorUserId);
+    return fallbackInitial(entry?.displayName);
+  }
+  function actorAvatarFor(actorUserId: string | null): string | null | undefined {
+    if (!actorUserId) return null;
+    if (actorUserId === user?.id) return profile?.avatar_url;
+    const entry = leaderboard.entries.find(e => e.userId === actorUserId);
+    return entry?.avatarUrl;
+  }
+  const bucketEventItems = bucketActivityEvents.map(event => ({
+    event,
+    actorName: actorDisplayNameFor(event.actor_user_id),
+    actorFallback: actorFallbackFor(event.actor_user_id),
+    actorAvatarUrl: actorAvatarFor(event.actor_user_id),
+  }));
+  const mergedActivity = buildMergedActivity(
+    activityItems,
+    balanceActivity,
+    bucketEventItems,
+    3,
+    user?.id,
+  );
 
   // Saving Plan chart overlays: per-day Expected Progress aligned to
   // the same 7-day window the deposit charts use. We deliberately do
@@ -848,21 +885,25 @@ export function Dashboard() {
         </div>
         {mergedActivity.length > 0 ? (
           <div className="rounded-xl bg-surface shadow-soft px-4 divide-y divide-well">
-            {mergedActivity.map(item => (
-              item.kind === 'deposit' ? (
-                <ActivityTimelineRow
-                  key={`d-${item.id}`}
-                  actorName={item.actorName}
-                  actorFallback={item.actorFallback}
-                  bucketName={item.bucketName}
-                  amount={item.amount}
-                  occurredAt={item.occurredAt}
-                  hasSlip={item.hasSlip}
-                />
-              ) : (
-                <BalanceActivityRow key={`b-${item.id}`} entry={item.entry} />
-              )
-            ))}
+            {mergedActivity.map(item => {
+              if (item.kind === 'deposit') {
+                return (
+                  <ActivityTimelineRow
+                    key={`d-${item.id}`}
+                    actorName={item.actorName}
+                    actorFallback={item.actorFallback}
+                    bucketName={item.bucketName}
+                    amount={item.amount}
+                    occurredAt={item.occurredAt}
+                    hasSlip={item.hasSlip}
+                  />
+                );
+              }
+              if (item.kind === 'balance') {
+                return <BalanceActivityRow key={`b-${item.id}`} entry={item.entry} />;
+              }
+              return <BucketEventActivityRow key={`e-${item.id}`} item={item.item} />;
+            })}
           </div>
         ) : (
           <DashboardStatusCard title={d.noActivityYet} body={d.noActivityBody(formatMoney(100))} />
@@ -871,6 +912,7 @@ export function Dashboard() {
           open={historyOpen}
           onClose={() => setHistoryOpen(false)}
           items={activityItems}
+          bucketEvents={bucketEventItems}
         />
       </motion.section>
 
@@ -1000,13 +1042,22 @@ interface DepositActivityItem {
   slipUrl?: string | null;
 }
 
+interface BucketEventActivityItem {
+  event: BucketActivityEvent;
+  actorName: string;
+  actorFallback: string;
+  actorAvatarUrl?: string | null;
+}
+
 type MergedActivity =
   | { kind: 'deposit'; id: string; at: string; actorName: string; actorFallback: string; bucketName: string; amount: number; occurredAt: string; hasSlip: boolean }
-  | { kind: 'balance'; id: string; at: string; entry: BalanceActivityEntry };
+  | { kind: 'balance'; id: string; at: string; entry: BalanceActivityEntry }
+  | { kind: 'bucket_event'; id: string; at: string; item: BucketEventActivityItem };
 
 function buildMergedActivity(
   deposits: DepositActivityItem[],
   balances: BalanceActivityEntry[],
+  bucketEvents: BucketEventActivityItem[],
   limit: number,
   currentUserId: string | undefined,
 ): MergedActivity[] {
@@ -1027,10 +1078,69 @@ function buildMergedActivity(
     at: b.checked_at,
     entry: b,
   }));
+  const events: MergedActivity[] = bucketEvents.map(item => ({
+    kind: 'bucket_event',
+    id: item.event.id,
+    at: item.event.created_at,
+    item,
+  }));
   void currentUserId; // currentUserId is captured in row UI, not the merge
-  return [...dep, ...bal]
+  return [...dep, ...bal, ...events]
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, Math.max(1, limit));
+}
+
+/**
+ * Bucket transfer / remove row for the merged activity feed. Payload
+ * fields come from `activity_events`, which the RPCs in 0059 write
+ * server-side; the transfer-note text is intentionally NOT included
+ * because the server only carries `has_note` for partner visibility.
+ */
+function BucketEventActivityRow({ item }: { item: BucketEventActivityItem }) {
+  const { copy, formatMoney, formatRelativeTime } = useI18n();
+  const d = copy.dashboard;
+  const event = item.event;
+  const payload = event.payload as Record<string, unknown>;
+
+  const pickString = (key: string): string | null => {
+    const value = payload[key];
+    return typeof value === 'string' && value.trim() ? value : null;
+  };
+
+  const isTransfer = event.event_key === 'bucket_transfer_created';
+  const sourceName = pickString('source_bucket_name');
+  const destinationName = pickString('destination_bucket_name');
+  const bucketName = pickString('bucket_name') ?? sourceName;
+
+  const description = isTransfer
+    ? (sourceName && destinationName
+        ? d.transferredBetweenBuckets(sourceName, destinationName)
+        : d.transferredBetweenBucketsFallback)
+    : (bucketName ? d.removedBucket(bucketName) : d.removedBucketFallback);
+
+  const amountText = isTransfer && event.amount != null
+    ? formatMoney(event.amount)
+    : null;
+
+  return (
+    <div className="flex items-start gap-3 py-3">
+      <IconBubble tone="muted" size="md">
+        {isTransfer ? <IconArrowRight size={18} /> : <IconTrash size={18} />}
+      </IconBubble>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-mono text-sm font-bold text-ink truncate">{item.actorName}</span>
+          <span className="font-mono text-xs text-ink-muted shrink-0">{formatRelativeTime(event.created_at)}</span>
+        </div>
+        <p className="mt-0.5 font-mono text-xs text-ink-muted truncate">{description}</p>
+      </div>
+      {amountText && (
+        <div className="shrink-0 font-mono text-sm font-bold text-ink-muted">
+          {amountText}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** One sanitized balance-check row inside the merged activity feed. */

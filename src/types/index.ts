@@ -313,6 +313,8 @@ export type NotificationEventKey =
   | 'goal_reached'
   | 'bucket_added'
   | 'bucket_updated'
+  | 'bucket_removed'
+  | 'bucket_transferred'
   | 'bucket_goal_reached'
   | 'room_joined'
   | 'room_left'

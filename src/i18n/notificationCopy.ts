@@ -97,6 +97,23 @@ export function notificationDisplayCopy(
         item,
         n.events.bucketUpdated(actorName(payload, fallbackPartner), payloadString(payload, 'bucket_name')),
       );
+    case 'bucket_transferred': {
+      const amount = payloadNumber(payload, 'amount');
+      return withStoredFallback(
+        item,
+        n.events.bucketTransferred(
+          actorName(payload, fallbackPartner),
+          amount == null ? null : formatMoney(amount),
+          payloadString(payload, 'source_bucket_name'),
+          payloadString(payload, 'destination_bucket_name'),
+        ),
+      );
+    }
+    case 'bucket_removed':
+      return withStoredFallback(
+        item,
+        n.events.bucketRemoved(actorName(payload, fallbackPartner), payloadString(payload, 'bucket_name')),
+      );
     case 'room_joined':
       return withStoredFallback(
         item,

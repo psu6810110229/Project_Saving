@@ -124,6 +124,11 @@ export const th: Messages = {
     slipAttached: 'มีสลิปแนบ',
     checkedBalanceMatched: 'เช็กยอด — ตรงกัน',
     checkedBalanceDiff: (diff: string) => `เช็กยอด — ${diff}`,
+    transferredBetweenBuckets: (sourceName: string, destinationName: string) =>
+      `ย้ายเงินจาก ${sourceName} ไปที่ ${destinationName}`,
+    transferredBetweenBucketsFallback: 'ย้ายเงินระหว่างเป้าหมายย่อย',
+    removedBucket: (bucketName: string) => `ลบ ${bucketName}`,
+    removedBucketFallback: 'ลบเป้าหมายย่อย',
     activityHistory: 'ประวัติความเคลื่อนไหว',
     activitySearch: 'ค้นหา',
     activitySearchPlaceholder: 'ชื่อ, เป้าหมายย่อย, หรือจำนวน',
@@ -912,6 +917,23 @@ export const th: Messages = {
       bucketUpdated: (name: string, bucketName: string | null) => ({
         title: 'อัปเดตเป้าหมายย่อย',
         body: `${name} อัปเดต ${bucketName ?? 'เป้าหมายย่อย'}`,
+        ctaLabel: 'ดูเป้าหมายย่อย',
+      }),
+      bucketTransferred: (
+        name: string,
+        amount: string | null,
+        sourceBucketName: string | null,
+        destinationBucketName: string | null,
+      ) => ({
+        title: 'ย้ายเงินระหว่างเป้าหมายย่อย',
+        body: amount && sourceBucketName && destinationBucketName
+          ? `${name} ย้าย ${amount} จาก ${sourceBucketName} ไปที่ ${destinationBucketName}`
+          : `${name} ย้ายเงินระหว่างเป้าหมายย่อย`,
+        ctaLabel: 'ดูเป้าหมายย่อย',
+      }),
+      bucketRemoved: (name: string, bucketName: string | null) => ({
+        title: 'ลบเป้าหมายย่อยแล้ว',
+        body: `${name} ลบ ${bucketName ?? 'เป้าหมายย่อย'}`,
         ctaLabel: 'ดูเป้าหมายย่อย',
       }),
       roomJoined: (name: string, roomName: string | null) => ({

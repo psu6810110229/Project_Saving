@@ -1,9 +1,11 @@
 import { IconBubble } from '../IconBubble/IconBubble';
 import {
+  IconArrowRight,
   IconBell,
   IconCalendar,
   IconEdit,
   IconPiggyBank,
+  IconTrash,
   IconTrendingUp,
   IconUser,
   IconVault,
@@ -26,6 +28,8 @@ function iconFor(kind: ReturnType<typeof notificationIconKind>) {
     case 'edit': return <IconEdit size={18} />;
     case 'user': return <IconUser size={18} />;
     case 'trend': return <IconTrendingUp size={18} />;
+    case 'transfer': return <IconArrowRight size={18} />;
+    case 'remove': return <IconTrash size={18} />;
     case 'bell':
     default:
       return <IconBell size={18} />;

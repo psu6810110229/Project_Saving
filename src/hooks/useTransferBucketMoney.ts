@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { notifyBucketTransferred } from '../lib/notifyEvents';
 import type { TransferBucketMoneyResult } from '../types';
 
 export type TransferErrorHint =
@@ -128,7 +129,16 @@ export function useTransferBucketMoney(): UseTransferBucketMoneyResult {
         };
       }
 
-      return { data: normalize(row) };
+      const normalized = normalize(row);
+      // Fan out the in-app notification to other room members after the
+      // money movement is durable. Skipped on the idempotency-reused
+      // path because the original transfer already fired notifications;
+      // `_insert_partner_notification` would dedupe anyway, but skipping
+      // here avoids the extra round-trip.
+      if (!normalized.reused) {
+        notifyBucketTransferred(normalized.transfer_id);
+      }
+      return { data: normalized };
     } finally {
       setPending(false);
     }

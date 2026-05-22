@@ -69,7 +69,7 @@ export const NOTIFICATION_CATEGORY_COPY = {
  * keeps its own concrete icon mapping; this string is exposed for
  * components that want to vary tone or analytics later.
  */
-export function notificationIconKind(eventKey: NotificationEventKey | string): 'bell' | 'piggy' | 'calendar' | 'vault' | 'edit' | 'user' | 'trend' {
+export function notificationIconKind(eventKey: NotificationEventKey | string): 'bell' | 'piggy' | 'calendar' | 'vault' | 'edit' | 'user' | 'trend' | 'transfer' | 'remove' {
   switch (eventKey) {
     case 'nudge_received':
       return 'bell';
@@ -78,6 +78,10 @@ export function notificationIconKind(eventKey: NotificationEventKey | string): '
     case 'bucket_updated':
     case 'bucket_goal_reached':
       return 'piggy';
+    case 'bucket_transferred':
+      return 'transfer';
+    case 'bucket_removed':
+      return 'remove';
     case 'saving_reminder_due':
     case 'plan_changed':
     case 'plan_paused':

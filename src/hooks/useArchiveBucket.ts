@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { notifyBucketRemoved, notifyBucketTransferred } from '../lib/notifyEvents';
 import type {
   ArchiveBucketResult,
   TransferAndArchiveBucketResult,
@@ -150,7 +151,14 @@ export function useArchiveBucket(): UseArchiveBucketResult {
           },
         };
       }
-      return { data: normalizeArchive(row) };
+      const normalized = normalizeArchive(row);
+      // Fire-and-forget in-app fan-out to other room members. Reused
+      // rows mean the bucket was already archived (and notifications
+      // already fanned out), so we skip the re-call.
+      if (!normalized.reused) {
+        notifyBucketRemoved(normalized.bucket_id);
+      }
+      return { data: normalized };
     } finally {
       setPending(false);
     }
@@ -194,7 +202,18 @@ export function useArchiveBucket(): UseArchiveBucketResult {
           },
         };
       }
-      return { data: normalizeTransferArchive(row) };
+      const normalized = normalizeTransferArchive(row);
+      // Combined flow fans out two notifications: one for the bucket
+      // transfer (only when money actually moved) and one for the
+      // archive itself. Reused responses come from the idempotency
+      // short-circuit; the original call already fanned out, so skip.
+      if (!normalized.reused) {
+        if (normalized.transfer_id && normalized.amount > 0) {
+          notifyBucketTransferred(normalized.transfer_id);
+        }
+        notifyBucketRemoved(normalized.bucket_id);
+      }
+      return { data: normalized };
     } finally {
       setPending(false);
     }

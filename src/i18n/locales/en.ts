@@ -128,6 +128,11 @@ export const en = {
     slipAttached: 'Slip Attached',
     checkedBalanceMatched: 'checked balance — matched',
     checkedBalanceDiff: (diff: string) => `checked balance — ${diff}`,
+    transferredBetweenBuckets: (sourceName: string, destinationName: string) =>
+      `moved money from ${sourceName} to ${destinationName}`,
+    transferredBetweenBucketsFallback: 'moved money between buckets',
+    removedBucket: (bucketName: string) => `removed ${bucketName}`,
+    removedBucketFallback: 'removed a bucket',
     // Activity history modal
     activityHistory: 'Activity History',
     activitySearch: 'Search',
@@ -925,6 +930,23 @@ export const en = {
       bucketUpdated: (name: string, bucketName: string | null) => ({
         title: 'Bucket updated',
         body: `${name} updated ${bucketName ?? 'a bucket'}.`,
+        ctaLabel: 'View buckets',
+      }),
+      bucketTransferred: (
+        name: string,
+        amount: string | null,
+        sourceBucketName: string | null,
+        destinationBucketName: string | null,
+      ) => ({
+        title: 'Bucket transfer',
+        body: amount && sourceBucketName && destinationBucketName
+          ? `${name} moved ${amount} from ${sourceBucketName} to ${destinationBucketName}.`
+          : `${name} moved money between buckets.`,
+        ctaLabel: 'View buckets',
+      }),
+      bucketRemoved: (name: string, bucketName: string | null) => ({
+        title: 'Bucket removed',
+        body: `${name} removed ${bucketName ?? 'a bucket'}.`,
         ctaLabel: 'View buckets',
       }),
       roomJoined: (name: string, roomName: string | null) => ({

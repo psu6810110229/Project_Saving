@@ -108,6 +108,26 @@ export function notifyBucketUpdated(bucketId: string): void {
 }
 
 /**
+ * In-app fan-out for a successful bucket-to-bucket transfer. Migration
+ * 0060 enforces actor ownership and partner-preference gating. Push is
+ * never used for transfer events — the RPC pins channel_policy to
+ * `in_app` via the shared `_insert_partner_notification` helper.
+ */
+export function notifyBucketTransferred(transferId: string): void {
+  void call('notify_bucket_transferred', { p_transfer_id: transferId });
+}
+
+/**
+ * In-app fan-out for a bucket archive event (`archive_bucket` or the
+ * archive half of `transfer_and_archive_bucket`). Owner-only; push is
+ * not used. Safe to call after the idempotent already-archived branch
+ * because dedupe_key collapses retries.
+ */
+export function notifyBucketRemoved(bucketId: string): void {
+  void call('notify_bucket_removed', { p_bucket_id: bucketId });
+}
+
+/**
  * Server-side dispatch for the four smart-event threshold checks
  * (bucket goal reached, overtaking, streak milestone, project goal
  * reached). Each check is dedupe-guarded inside the RPC so calling

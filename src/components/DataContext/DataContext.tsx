@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useBuckets } from '../../hooks/useBuckets';
+import { useBucketActivityEvents } from '../../hooks/useBucketActivityEvents';
 import { useBucketTransfers } from '../../hooks/useBucketTransfers';
 import { useGoal } from '../../hooks/useGoal';
 import { useLeaderboard } from '../../hooks/useLeaderboard';
@@ -23,6 +24,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const profile = useProfile();
   const buckets = useBuckets(roomId);
   const bucketTransfers = useBucketTransfers(roomId);
+  const bucketActivityEvents = useBucketActivityEvents(roomId);
   const logs = useLogs(100, roomId);
   const streakFreeze = useStreakFreeze(user?.id);
   const leaderboard = useLeaderboard(logs.logs, user?.id, roomId, streakFreeze.frozenDates);
@@ -50,6 +52,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       profile,
       buckets,
       bucketTransfers,
+      bucketActivityEvents,
       logs,
       leaderboard,
       goal,
@@ -66,6 +69,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       profile,
       buckets,
       bucketTransfers,
+      bucketActivityEvents,
       logs,
       leaderboard,
       goal,

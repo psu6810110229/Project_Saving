@@ -527,6 +527,10 @@ export const en = {
     },
     tryAgainButton: 'Try Again',
   },
+  bucketDragHint: {
+    message: 'Drag a bucket onto another to move money.',
+    dismissAriaLabel: 'Hide drag hint',
+  },
   manageProject: {
     pageEyebrow: 'Project',
     pageTitle: 'Manage Project',

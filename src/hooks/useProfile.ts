@@ -28,7 +28,7 @@ export function useProfile() {
     setError(null);
     const { data, error: fetchError } = await supabase
       .from('profiles')
-      .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, created_at')
+      .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, bucket_drag_hint_seen_at, created_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -57,7 +57,7 @@ export function useProfile() {
       setError(null);
       const { data, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, created_at')
+        .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, bucket_drag_hint_seen_at, created_at')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -148,6 +148,28 @@ export function useProfile() {
     return {};
   }
 
+  /**
+   * Marks the one-time bucket-drag hint as seen. Idempotent: once
+   * `bucket_drag_hint_seen_at` is set the hint never reopens for this
+   * account, even on a fresh device. Optimistic — UI is updated
+   * immediately and the row write happens in the background.
+   * (Task 40 / Sprint 40.9.)
+   */
+  async function markBucketDragHintSeen(): Promise<{ error?: string }> {
+    if (!user) return { error: 'Not authenticated' };
+    if (profile?.bucket_drag_hint_seen_at) return {};
+
+    const seenAt = new Date().toISOString();
+    setProfile(prev => prev ? { ...prev, bucket_drag_hint_seen_at: seenAt } : prev);
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ bucket_drag_hint_seen_at: seenAt })
+      .eq('id', user.id);
+    if (updateError) return { error: updateError.message };
+    return {};
+  }
+
   async function updateQuickAmounts(amounts: number[]): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };
 
@@ -179,5 +201,6 @@ export function useProfile() {
     updateQuickAmounts,
     updateLanguage,
     uploadAvatar,
+    markBucketDragHintSeen,
   };
 }

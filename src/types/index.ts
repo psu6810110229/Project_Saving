@@ -13,6 +13,8 @@ export interface Profile {
   quick_add_amounts?: number[] | null;
   /** Persisted UI language preference. Added in migration 0045. */
   ui_language?: ProfileLanguage;
+  /** Timestamp marking when the one-time bucket-drag hint was seen. Added in migration 0061. */
+  bucket_drag_hint_seen_at?: string | null;
   created_at: string;
 }
 

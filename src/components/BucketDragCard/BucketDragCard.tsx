@@ -35,19 +35,34 @@ export function BucketDragCard({ id, children }: BucketDragCardProps) {
 
   const sameBucket = active?.id === id;
   const validTarget = isOver && !sameBucket;
+  // Reduced motion skips the lift entirely; otherwise stay within the
+  // 1.01–1.02 range called out in plan §12 so the card feels picked up
+  // without bouncing.
   const liftScale = reduceMotion ? 1 : 1.02;
+  // Calm cubic-bezier eases the settle after a drag and the highlight
+  // fade for valid targets. Matches the brand-soft motion language.
+  const ease = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
   const style: CSSProperties = {
     transform: transform
       ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${isDragging ? liftScale : 1})`
       : undefined,
     zIndex: isDragging ? 50 : undefined,
-    transition: isDragging ? 'none' : 'transform 160ms ease, box-shadow 160ms ease',
+    transition: isDragging
+      ? 'none'
+      : reduceMotion
+        ? `box-shadow 120ms linear, opacity 120ms linear`
+        : `transform 180ms ${ease}, box-shadow 180ms ${ease}, opacity 180ms ${ease}`,
     touchAction: 'manipulation',
+    cursor: isDragging ? 'grabbing' : 'grab',
   };
 
+  // Reduced motion keeps the ring tighter (no offset) so the state
+  // change reads as a calm highlight instead of a glow shimmer.
   const ringClass = validTarget
-    ? 'ring-2 ring-brand-500 ring-offset-2 ring-offset-bg'
+    ? reduceMotion
+      ? 'ring-2 ring-brand-500'
+      : 'ring-2 ring-brand-500 ring-offset-2 ring-offset-bg'
     : '';
   const liftClass = isDragging ? 'shadow-neuRaised opacity-95' : '';
 

@@ -516,6 +516,10 @@ export const th: Messages = {
     },
     tryAgainButton: 'ลองอีกครั้ง',
   },
+  bucketDragHint: {
+    message: 'ลากเป้าหมายหนึ่งไปวางบนอีกอันเพื่อย้ายเงิน',
+    dismissAriaLabel: 'ซ่อนคำแนะนำการลาก',
+  },
   manageProject: {
     pageEyebrow: 'โปรเจกต์',
     pageTitle: 'จัดการโปรเจกต์',

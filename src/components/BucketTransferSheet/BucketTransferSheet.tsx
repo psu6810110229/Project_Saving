@@ -11,7 +11,7 @@ import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/moti
 import type { TransferBucketMoneyResult } from '../../types';
 import { Button } from '../Button/Button';
 import { FormField } from '../FormField/FormField';
-import { IconArrowRight, IconPiggyBank } from '../Icon/Icon';
+import { IconPiggyBank, IconSwap } from '../Icon/Icon';
 import { IconBubble } from '../IconBubble/IconBubble';
 import Pressable from '../Pressable/Pressable';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
@@ -271,8 +271,8 @@ function BucketTransferSheetInner({
       setSuccessResult(result.data);
       setStep('success');
       setShowRing(true);
-      // Brief success pulse, then close. Matches BucketSheet's tactile feel.
-      await new Promise((r) => setTimeout(r, 520));
+      // Keep the success state visible long enough to read before closing.
+      await new Promise((r) => setTimeout(r, 1800));
       await innerControls.start({ y: 8, transition: MICRO_BOUNCE_TRANSITION });
       onSuccess?.(result.data);
       onClose();
@@ -333,19 +333,20 @@ function BucketTransferSheetInner({
                 variants={contentVariants}
                 initial="hidden"
                 animate="visible"
-                className="flex flex-col gap-5"
+                className="flex flex-col gap-4"
               >
                 {step === 'edit' && source && destination && (
                   <>
                     <motion.div variants={itemVariants}>
-                      <SectionLabel tone="muted">{buckCopy.sheetTitle}</SectionLabel>
-                      <p className="mt-1 font-mono text-xs text-ink-muted">
-                        {buckCopy.sheetSubtitle}
-                      </p>
+                      <h2 className="font-mono text-2xl font-bold leading-tight text-ink">
+                        {buckCopy.sheetTitle}
+                      </h2>
                     </motion.div>
 
                     <motion.div variants={itemVariants}>
-                      <SectionLabel tone="brand">{buckCopy.fromLabel}</SectionLabel>
+                      <h3 className="font-mono text-sm font-bold leading-tight text-brand-800">
+                        {buckCopy.fromLabel}
+                      </h3>
                       <BucketPickerRow
                         buckets={buckets}
                         selectedId={source.id}
@@ -354,9 +355,6 @@ function BucketTransferSheetInner({
                         savedChipBuilder={buckCopy.bucketChipSaved}
                         formatMoney={formatMoney}
                       />
-                      <p className="mt-2 font-mono text-xs text-ink-muted">
-                        {buckCopy.availableInBucket(formatMoney(source.saved))}
-                      </p>
                     </motion.div>
 
                     <motion.div variants={itemVariants} className="flex justify-center">
@@ -366,13 +364,15 @@ function BucketTransferSheetInner({
                         disabled={buckets.length < 2}
                         className="inline-flex items-center gap-2 rounded-pill bg-brand-50 px-3 py-1.5 font-mono text-xs font-bold text-brand-800 hover:bg-brand-100 active:scale-[0.98] transition-all disabled:opacity-50"
                       >
-                        <IconArrowRight size={14} />
+                        <IconSwap size={14} />
                         {buckCopy.swapButton}
                       </button>
                     </motion.div>
 
                     <motion.div variants={itemVariants}>
-                      <SectionLabel tone="brand">{buckCopy.toLabel}</SectionLabel>
+                      <h3 className="font-mono text-sm font-bold leading-tight text-brand-800">
+                        {buckCopy.toLabel}
+                      </h3>
                       <BucketPickerRow
                         buckets={buckets}
                         selectedId={destination.id}
@@ -395,7 +395,6 @@ function BucketTransferSheetInner({
                     <motion.div variants={itemVariants}>
                       <FormField
                         label={buckCopy.amountLabel}
-                        helper={buckCopy.availableInBucket(formatMoney(source.saved))}
                         error={insufficientLocal ? buckCopy.errors.insufficient_balance : undefined}
                       >
                         <TextInput
@@ -410,7 +409,7 @@ function BucketTransferSheetInner({
                     </motion.div>
 
                     <motion.div variants={itemVariants}>
-                      <FormField label={buckCopy.noteLabel} helper={buckCopy.notePrivateHelper}>
+                      <FormField label={buckCopy.noteLabel}>
                         <TextInput
                           value={noteValue}
                           placeholder={buckCopy.notePlaceholder}
@@ -449,8 +448,7 @@ function BucketTransferSheetInner({
                 {step === 'review' && source && destination && (
                   <>
                     <motion.div variants={itemVariants}>
-                      <SectionLabel tone="muted">{buckCopy.reviewEyebrow}</SectionLabel>
-                      <h2 className="mt-1 font-mono text-2xl font-bold leading-tight text-ink">
+                      <h2 className="font-mono text-xl font-bold leading-tight text-ink">
                         {buckCopy.reviewHeading(formatMoney(amountNumber))}
                       </h2>
                     </motion.div>
@@ -463,7 +461,7 @@ function BucketTransferSheetInner({
                             bucket={source}
                             formatMoney={formatMoney}
                           />
-                          <IconArrowRight size={20} className="text-brand-500 shrink-0" />
+                          <IconSwap size={20} className="text-brand-500 shrink-0" />
                           <ReviewBucketCard
                             column={buckCopy.destinationColumnLabel}
                             bucket={destination}

@@ -214,13 +214,6 @@ function BucketTransferSheetInner({
     clearInlineError();
   }
 
-  function handleUseMax() {
-    if (!source) return;
-    if (source.saved <= 0) return;
-    setAmountValue(String(source.saved));
-    clearInlineError();
-  }
-
   function handleSwap() {
     if (!source || !destination) return;
     setSourceId(destination.id);
@@ -400,32 +393,20 @@ function BucketTransferSheetInner({
                     )}
 
                     <motion.div variants={itemVariants}>
-                      <div className="flex items-end justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <FormField
-                            label={buckCopy.amountLabel}
-                            helper={buckCopy.availableInBucket(formatMoney(source.saved))}
-                            error={insufficientLocal ? buckCopy.errors.insufficient_balance : undefined}
-                          >
-                            <TextInput
-                              value={amountValue}
-                              inputMode="decimal"
-                              placeholder={buckCopy.amountPlaceholder}
-                              leadingIcon={<IconPiggyBank size={16} />}
-                              onChange={handleAmountChange}
-                              error={insufficientLocal}
-                            />
-                          </FormField>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleUseMax}
-                          disabled={source.saved <= 0}
-                          className="mb-1 shrink-0 rounded-pill bg-brand-50 px-3 py-2 font-mono text-xs font-bold text-brand-800 hover:bg-brand-100 active:scale-[0.98] transition-all disabled:opacity-50"
-                        >
-                          {buckCopy.useMaxButton}
-                        </button>
-                      </div>
+                      <FormField
+                        label={buckCopy.amountLabel}
+                        helper={buckCopy.availableInBucket(formatMoney(source.saved))}
+                        error={insufficientLocal ? buckCopy.errors.insufficient_balance : undefined}
+                      >
+                        <TextInput
+                          value={amountValue}
+                          inputMode="decimal"
+                          placeholder={buckCopy.amountPlaceholder}
+                          leadingIcon={<IconPiggyBank size={16} />}
+                          onChange={handleAmountChange}
+                          error={insufficientLocal}
+                        />
+                      </FormField>
                     </motion.div>
 
                     <motion.div variants={itemVariants}>

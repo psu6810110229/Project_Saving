@@ -483,7 +483,6 @@ export const th: Messages = {
     notePlaceholder: 'ใช้สำหรับอะไร?',
     notePrivateHelper: 'มีแค่คุณเท่านั้นที่เห็นบันทึกนี้',
     availableInBucket: (amount: string) => `ใช้ได้: ${amount}`,
-    useMaxButton: 'ใช้สูงสุด',
     swapButton: 'สลับเป้าหมาย',
     reviewButton: 'ตรวจสอบรายการย้าย',
     keepEditingButton: 'แก้ไขต่อ',
@@ -506,7 +505,7 @@ export const th: Messages = {
     errors: {
       same_bucket: 'เลือกเป้าหมายให้ต่างกัน',
       invalid_amount: 'ใส่จำนวนที่มากกว่า 0',
-      insufficient_balance: 'เงินในเป้าหมายไม่พอ ลองกด ใช้สูงสุด เพื่อย้ายเท่าที่มี',
+      insufficient_balance: 'เงินในเป้าหมายไม่พอ ใส่จำนวนที่ไม่เกินยอดที่มี',
       source_archived: 'เป้าหมายนี้ถูกเก็บถาวรแล้ว',
       destination_archived: 'เลือกเป้าหมายปลายทางที่ใช้งานอยู่',
       partner_source: 'ย้ายได้เฉพาะจากเป้าหมายของคุณเองเท่านั้น',

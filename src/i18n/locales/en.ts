@@ -494,7 +494,6 @@ export const en = {
     notePlaceholder: 'What is this for?',
     notePrivateHelper: 'Only you can see this note.',
     availableInBucket: (amount: string) => `Available: ${amount}`,
-    useMaxButton: 'Use Max',
     swapButton: 'Swap Buckets',
     reviewButton: 'Review Transfer',
     keepEditingButton: 'Keep Editing',
@@ -517,7 +516,7 @@ export const en = {
     errors: {
       same_bucket: 'Choose a different bucket.',
       invalid_amount: 'Enter an amount above zero.',
-      insufficient_balance: 'Not enough money in this bucket. Try Use Max to move what is available.',
+      insufficient_balance: 'Not enough money in this bucket. Enter an amount within the available balance.',
       source_archived: 'This bucket is no longer active.',
       destination_archived: 'Choose an active destination bucket.',
       partner_source: 'You can only move money from your own buckets.',

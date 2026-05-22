@@ -352,9 +352,14 @@ export const th: Messages = {
     versionLabel: (version: string) => `เวอร์ชัน ${version}`,
     viewAllChanges: (count: number) => `ดูทั้งหมด (อีก ${count} รายการ)`,
     showLess: 'แสดงน้อยลง',
-    heading: 'GO-OUT v0.9.9',
+    heading: 'GO-OUT v0.9.10',
     intro: 'อัปเดตรอบนี้ทำให้การออมเป็นกลุ่มดูง่ายขึ้น โดยเฉพาะเวลามีเพื่อนเพิ่มเข้ามาในเป้าหมายเดียวกัน',
     notes: [
+      {
+        id: 'bucket-transfer-activity',
+        title: 'การเปลี่ยนแปลงในบักเก็ตชัดขึ้น',
+        body: 'ย้ายเงินระหว่างบักเก็ตได้แล้ว และเห็นการย้ายเงินหรือการลบบักเก็ตในกิจกรรมและการแจ้งเตือน',
+      },
       {
         id: 'bigger-groups',
         title: 'ออมกับเพื่อนได้มากขึ้น',

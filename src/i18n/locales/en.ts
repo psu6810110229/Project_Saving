@@ -364,9 +364,14 @@ export const en = {
     versionLabel: (version: string) => `Version ${version}`,
     viewAllChanges: (count: number) => `View all changes (${count} more)`,
     showLess: 'Show less',
-    heading: 'GO-OUT v0.9.9',
-    intro: 'This update makes group saving easier to follow, especially when more friends join the same goal.',
+    heading: 'GO-OUT v0.9.10',
+    intro: 'This update makes bucket changes clearer and easier to follow.',
     notes: [
+      {
+        id: 'bucket-transfer-activity',
+        title: 'Clearer bucket changes',
+        body: 'You can now move money between your buckets and see transfer or remove-bucket updates in activity and notifications.',
+      },
       {
         id: 'bigger-groups',
         title: 'Save with more friends',

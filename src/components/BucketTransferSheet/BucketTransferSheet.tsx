@@ -306,18 +306,11 @@ function BucketTransferSheetInner({
       {/* Sheet */}
       <motion.div
         key="bucket-transfer-sheet"
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md touch-none"
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md"
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={SPRING.sheet}
-        drag={pending ? false : 'y'}
-        dragConstraints={{ top: 0 }}
-        dragElastic={{ top: 0, bottom: 0.45 }}
-        onDragEnd={(_, info) => {
-          if (pending) return;
-          if (info.offset.y > 90 || info.velocity.y > 550) handleClose();
-        }}
       >
         <motion.div
           animate={innerControls}

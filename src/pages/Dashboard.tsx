@@ -21,6 +21,8 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type Modifier,
+  type Modifiers,
 } from '@dnd-kit/core';
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
@@ -116,6 +118,23 @@ const VB_REMINDER_SESSION_KEY = 'verifiedBalanceReminderDismissed';
 const SHOW_DEPOSIT_RACE = false;
 
 type DailyTrendMode = 'room' | 'me' | 'compare';
+
+const restrictBucketDragToViewport: Modifier = ({ activeNodeRect, transform, windowRect }) => {
+  if (!activeNodeRect || !windowRect) return transform;
+
+  const minX = windowRect.left - activeNodeRect.left;
+  const maxX = windowRect.right - activeNodeRect.right;
+  const minY = windowRect.top - activeNodeRect.top;
+  const maxY = windowRect.bottom - activeNodeRect.bottom;
+
+  return {
+    ...transform,
+    x: Math.min(Math.max(transform.x, minX), maxX),
+    y: Math.min(Math.max(transform.y, minY), maxY),
+  };
+};
+
+const bucketDragModifiers: Modifiers = [restrictBucketDragToViewport];
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -840,6 +859,7 @@ export function Dashboard() {
         ) : (
           <DndContext
             sensors={dragSensors}
+            modifiers={bucketDragModifiers}
             onDragStart={handleBucketDragStart}
             onDragEnd={handleBucketDragEnd}
           >

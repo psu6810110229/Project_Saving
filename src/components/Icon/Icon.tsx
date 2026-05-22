@@ -175,6 +175,17 @@ export function IconArrowRight(p: IconProps) {
   );
 }
 
+export function IconSwap(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M7 7h11" />
+      <path d="M15 4l3 3-3 3" />
+      <path d="M17 17H6" />
+      <path d="M9 14l-3 3 3 3" />
+    </svg>
+  );
+}
+
 export function IconPlus(p: IconProps) {
   return (
     <svg {...svgProps(p)} aria-hidden>

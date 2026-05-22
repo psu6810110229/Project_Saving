@@ -271,10 +271,10 @@ function BucketTransferSheetInner({
       setSuccessResult(result.data);
       setStep('success');
       setShowRing(true);
+      onSuccess?.(result.data);
       // Keep the success state visible long enough to read before closing.
       await new Promise((r) => setTimeout(r, 1800));
       await innerControls.start({ y: 8, transition: MICRO_BOUNCE_TRANSITION });
-      onSuccess?.(result.data);
       onClose();
     }
   }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 import type { BucketTransfer } from '../types';
@@ -35,6 +35,7 @@ export interface UseBucketTransfersResult {
   transfers: BucketTransfer[];
   loading: boolean;
   error: string | null;
+  upsertTransfer: (transfer: BucketTransfer) => void;
 }
 
 /**
@@ -58,6 +59,16 @@ export function useBucketTransfers(roomId: string | null): UseBucketTransfersRes
   const [transfers, setTransfers] = useState<BucketTransfer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const upsertTransfer = useCallback((transfer: BucketTransfer) => {
+    setTransfers(prev => {
+      const existing = prev.find(t => t.id === transfer.id);
+      if (existing) {
+        return prev.map(t => t.id === transfer.id ? transfer : t);
+      }
+      return [transfer, ...prev].slice(0, LIMIT);
+    });
+  }, []);
 
   useEffect(() => {
     if (!roomId || !userId) {
@@ -104,10 +115,7 @@ export function useBucketTransfers(roomId: string | null): UseBucketTransfersRes
             // realtime payloads can include rows that would have been
             // filtered on read. Drop anything not owned by the caller.
             if (row.user_id !== userId) return;
-            setTransfers(prev => {
-              if (prev.some(t => t.id === row.id)) return prev;
-              return [normalize(row), ...prev].slice(0, LIMIT);
-            });
+            upsertTransfer(normalize(row));
           }
           if (payload.eventType === 'UPDATE') {
             const row = payload.new as RawTransferRow;
@@ -130,7 +138,7 @@ export function useBucketTransfers(roomId: string | null): UseBucketTransfersRes
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [roomId, userId]);
+  }, [roomId, upsertTransfer, userId]);
 
-  return { transfers, loading, error };
+  return { transfers, loading, error, upsertTransfer };
 }

@@ -155,7 +155,7 @@ export function Dashboard() {
   } = data.goal;
   useRooms();
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
-  const { transfers: bucketTransfers } = data.bucketTransfers;
+  const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const { total } = useSavingsTotal(user?.id, logs);
@@ -1041,7 +1041,20 @@ export function Dashboard() {
         buckets={bucketItems}
         initialSourceId={transferIntent?.sourceId ?? null}
         initialDestinationId={transferIntent?.destinationId ?? null}
-        onSuccess={() => {
+        onSuccess={(result) => {
+          if (activeRoomId && user?.id) {
+            upsertTransfer({
+              id: result.transfer_id,
+              room_id: activeRoomId,
+              user_id: user.id,
+              source_bucket_id: result.source_bucket_id,
+              destination_bucket_id: result.destination_bucket_id,
+              amount: result.amount,
+              note: null,
+              client_request_id: '',
+              created_at: result.created_at,
+            });
+          }
           haptic('success');
           setTransferIntent(null);
         }}

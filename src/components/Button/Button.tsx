@@ -62,7 +62,7 @@ export function Button({
       className={`${BASE} ${VARIANTS[variant]} ${SIZES[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
     >
       {leadingIcon}
-      <span>{children}</span>
+      <span className="min-w-0 break-words text-center leading-tight">{children}</span>
       {trailingIcon}
     </button>
   );

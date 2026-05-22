@@ -27,6 +27,82 @@ create index if not exists idx_buckets_user_room_active
   on public.buckets(user_id, room_id)
   where archived_at is null;
 
+-- The original bucket limit counted archived rows forever. Once
+-- remove is archive-style, the cap must apply to active buckets so
+-- users can replace an archived bucket.
+create or replace function public.enforce_bucket_limit()
+returns trigger
+language plpgsql
+as $$
+begin
+  if (
+    select count(*)
+    from public.buckets
+    where user_id = new.user_id
+      and room_id = new.room_id
+      and archived_at is null
+  ) >= 10 then
+    raise exception 'Bucket limit reached (10 active buckets per room)';
+  end if;
+  return new;
+end;
+$$;
+
+-- Direct client updates may edit bucket details, but must not mutate
+-- ownership, room identity, or archive fields. Archive/remove flows go
+-- through the security-definer RPCs added in 0059 so activity and
+-- transfer math remain consistent.
+create or replace function public.prevent_bucket_protected_field_update()
+returns trigger
+language plpgsql
+as $$
+begin
+  if current_user in ('postgres', 'service_role', 'supabase_admin') then
+    return new;
+  end if;
+
+  if old.user_id is distinct from new.user_id
+     or old.room_id is distinct from new.room_id
+     or old.archived_at is distinct from new.archived_at
+     or old.archived_by is distinct from new.archived_by then
+    raise exception 'protected bucket fields must be changed through bucket RPCs'
+      using errcode = '42501';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_prevent_bucket_protected_field_update on public.buckets;
+create trigger trg_prevent_bucket_protected_field_update
+  before update on public.buckets
+  for each row execute function public.prevent_bucket_protected_field_update();
+
+drop policy if exists "buckets_own_update" on public.buckets;
+create policy "buckets_own_update"
+  on public.buckets
+  for update
+  to authenticated
+  using (
+    user_id = auth.uid()
+    and archived_at is null
+  )
+  with check (
+    user_id = auth.uid()
+    and archived_at is null
+    and exists (
+      select 1
+        from public.room_members rm
+       where rm.room_id = public.buckets.room_id
+         and rm.user_id = auth.uid()
+    )
+  );
+
+-- Hard deletes are no longer a normal client action. Buckets with
+-- history remain addressable through transfers, activity, and
+-- notifications after archive.
+drop policy if exists "buckets_own_delete" on public.buckets;
+
 -- Make the (user_id, room_id, name) uniqueness apply only to
 -- active buckets so a user can later create a new "Flight"
 -- after archiving the old one. The original constraint was

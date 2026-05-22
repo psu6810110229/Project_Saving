@@ -66,30 +66,13 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
     const currentIds = buckets.map(b => b.id);
     const nextIds = next.filter(d => d.id !== undefined).map(d => d.id as string);
 
-    // Detect deletes
-    const toDelete = currentIds.filter(id => !nextIds.includes(id));
-
-    // Check if deleted buckets have logs
-    for (const id of toDelete) {
-      const { count, error: countErr } = await supabase
-        .from('savings_logs')
-        .select('id', { count: 'exact', head: true })
-        .eq('bucket_id', id);
-      if (countErr) return { error: countErr.message };
-      const logCount = count ?? 0;
-      if (logCount > 0) {
-        const bName = buckets.find(b => b.id === id)?.name ?? id;
-        return { error: `Bucket "${bName}" has ${logCount} log${logCount !== 1 ? 's' : ''}; reassign or delete those first.` };
-      }
-    }
-
-    // Execute deletes
-    if (toDelete.length > 0) {
-      const { error: delErr } = await supabase
-        .from('buckets')
-        .delete()
-        .in('id', toDelete);
-      if (delErr) return { error: delErr.message };
+    // Task 40: removing a bucket must go through archive_bucket /
+    // transfer_and_archive_bucket so history, activity, and transfer
+    // math stay intact. Treat a missing existing id as a caller bug
+    // instead of falling back to the legacy hard-delete path.
+    const toRemove = currentIds.filter(id => !nextIds.includes(id));
+    if (toRemove.length > 0) {
+      return { error: 'Use Remove Bucket to archive buckets instead of deleting them.' };
     }
 
     // Separate updates (with IDs) and inserts (without IDs)

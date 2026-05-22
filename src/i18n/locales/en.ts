@@ -496,7 +496,7 @@ export const en = {
     changeDetailsButton: 'Change Details',
     moveAmountButton: (amount: string) => `Move ${amount}`,
     movingButton: 'Moving…',
-    cancelButton: 'Cancel',
+    cancelButton: 'Back to Buckets',
     sameBucketHelper: 'Pick two different buckets to move money.',
     reviewEyebrow: 'Review',
     reviewHeading: (amount: string) => `Move ${amount}`,

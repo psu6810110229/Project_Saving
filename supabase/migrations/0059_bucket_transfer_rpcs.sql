@@ -73,7 +73,11 @@ as $$
 $$;
 
 revoke all on function public.bucket_balance(uuid) from public;
-grant execute on function public.bucket_balance(uuid) to authenticated;
+-- Internal helper only. The transfer/archive RPCs below call it under
+-- their security-definer owner; direct client execution would expose
+-- balances for guessed bucket ids.
+revoke all on function public.bucket_balance(uuid) from anon;
+revoke all on function public.bucket_balance(uuid) from authenticated;
 
 -- 2. transfer_bucket_money ------------------------------------------------
 create or replace function public.transfer_bucket_money(
@@ -136,7 +140,12 @@ begin
       using errcode = '22023', hint = 'transfer_invalid_amount';
   end if;
 
-  v_amount := round(p_amount::numeric, 2);
+  if p_amount <> round(p_amount::numeric, 2) then
+    raise exception 'amount must use at most two decimal places'
+      using errcode = '22023', hint = 'transfer_invalid_amount';
+  end if;
+
+  v_amount := p_amount::numeric(12,2);
   if v_amount <= 0 then
     raise exception 'amount must be greater than zero'
       using errcode = '22023', hint = 'transfer_invalid_amount';

@@ -485,7 +485,7 @@ export const th: Messages = {
     changeDetailsButton: 'แก้ไขรายละเอียด',
     moveAmountButton: (amount: string) => `ย้าย ${amount}`,
     movingButton: 'กำลังย้าย…',
-    cancelButton: 'ยกเลิก',
+    cancelButton: 'กลับไปดูเป้าหมาย',
     sameBucketHelper: 'เลือกเป้าหมายให้ต่างกันก่อนย้าย',
     reviewEyebrow: 'ตรวจสอบ',
     reviewHeading: (amount: string) => `ย้าย ${amount}`,

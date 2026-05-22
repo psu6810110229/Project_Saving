@@ -107,17 +107,19 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
         aria-label={n.ariaLabel}
         aria-describedby={message ? 'nudge-button-status' : undefined}
         title={subscribed ? n.titleReady : n.titleNeedsDevice}
-        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-pill border border-brand-100 bg-brand-50 px-3 text-xs font-bold tracking-wide text-brand-800 shadow-soft transition-all duration-200 hover:bg-brand-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-pill bg-brand-500 py-1.5 pl-1.5 pr-3 font-mono text-xs font-bold tracking-wide text-ink-inverse shadow-haloOrange transition-all duration-200 hover:bg-brand-400 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-soft disabled:active:scale-100"
       >
-        <IconHeart size={15} />
-        <span>{busy ? n.buttonBusy : n.buttonIdle}</span>
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/20 text-ink-inverse shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
+          <IconHeart size={15} />
+        </span>
+        <span className="leading-tight">{busy ? n.buttonBusy : n.buttonIdle}</span>
       </button>
       {message && (
         <span
           id="nudge-button-status"
           role="status"
           aria-live="polite"
-          className="absolute right-0 top-full z-10 mt-2 w-[min(14rem,calc(100vw-2rem))] rounded-lg bg-surface px-3 py-2 text-right font-mono text-[11px] leading-snug text-ink-muted shadow-soft"
+          className="absolute right-0 top-full z-10 mt-2 w-[min(14rem,calc(100vw-2rem))] rounded-lg border border-brand-100 bg-surface px-3 py-2 text-right font-mono text-[11px] leading-snug text-ink-muted shadow-soft"
         >
           {message}
         </span>

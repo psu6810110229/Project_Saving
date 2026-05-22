@@ -1,10 +1,53 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useCallback, useState, type CSSProperties, type ReactNode } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+import type { Transform } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
 
 interface BucketDragCardProps {
   id: string;
   children: ReactNode;
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (min > max) return value;
+  return Math.min(Math.max(value, min), max);
+}
+
+function sameRect(a: DOMRect | null, b: DOMRect) {
+  return Boolean(
+    a
+      && a.left === b.left
+      && a.top === b.top
+      && a.width === b.width
+      && a.height === b.height,
+  );
+}
+
+function clampTransformToViewport(
+  transform: Transform,
+  rect: DOMRect | null,
+  scale: number,
+): Transform {
+  if (!rect || typeof window === 'undefined') return transform;
+
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+  const scaledWidthOffset = (rect.width * (scale - 1)) / 2;
+  const scaledHeightOffset = (rect.height * (scale - 1)) / 2;
+
+  return {
+    ...transform,
+    x: clamp(
+      transform.x,
+      -rect.left + scaledWidthOffset,
+      viewportWidth - rect.right - scaledWidthOffset,
+    ),
+    y: clamp(
+      transform.y,
+      -rect.top + scaledHeightOffset,
+      viewportHeight - rect.bottom - scaledHeightOffset,
+    ),
+  };
 }
 
 /**
@@ -20,6 +63,7 @@ interface BucketDragCardProps {
  */
 export function BucketDragCard({ id, children }: BucketDragCardProps) {
   const reduceMotion = useReducedMotion();
+  const [dragStartRect, setDragStartRect] = useState<DOMRect | null>(null);
   const {
     attributes,
     listeners,
@@ -39,13 +83,16 @@ export function BucketDragCard({ id, children }: BucketDragCardProps) {
   // 1.01–1.02 range called out in plan §12 so the card feels picked up
   // without bouncing.
   const liftScale = reduceMotion ? 1 : 1.02;
+  const constrainedTransform = transform
+    ? clampTransformToViewport(transform, dragStartRect, isDragging ? liftScale : 1)
+    : null;
   // Calm cubic-bezier eases the settle after a drag and the highlight
   // fade for valid targets. Matches the brand-soft motion language.
   const ease = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
   const style: CSSProperties = {
-    transform: transform
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${isDragging ? liftScale : 1})`
+    transform: constrainedTransform
+      ? `translate3d(${constrainedTransform.x}px, ${constrainedTransform.y}px, 0) scale(${isDragging ? liftScale : 1})`
       : undefined,
     zIndex: isDragging ? 50 : undefined,
     transition: isDragging
@@ -65,13 +112,18 @@ export function BucketDragCard({ id, children }: BucketDragCardProps) {
       : 'ring-2 ring-brand-500 ring-offset-2 ring-offset-bg'
     : '';
   const liftClass = isDragging ? 'shadow-neuRaised opacity-95' : '';
+  const setBucketNodeRef = useCallback((node: HTMLDivElement | null) => {
+    if (node && !isDragging) {
+      const nextRect = node.getBoundingClientRect();
+      setDragStartRect((currentRect) => (sameRect(currentRect, nextRect) ? currentRect : nextRect));
+    }
+    setDragRef(node);
+    setDropRef(node);
+  }, [isDragging, setDragRef, setDropRef]);
 
   return (
     <div
-      ref={(node) => {
-        setDragRef(node);
-        setDropRef(node);
-      }}
+      ref={setBucketNodeRef}
       style={style}
       className={`relative rounded-2xl ${liftClass} ${ringClass}`.trim()}
       {...attributes}

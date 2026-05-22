@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { usePushSubscription } from '../../hooks/usePushSubscription';
 import { useI18n } from '../../i18n/useI18n';
-import { IconHeart } from '../Icon/Icon';
+import { IconBell } from '../Icon/Icon';
 
 interface NudgeButtonProps {
   /** Partner user id (the recipient of the nudge). */
@@ -107,12 +107,9 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
         aria-label={n.ariaLabel}
         aria-describedby={message ? 'nudge-button-status' : undefined}
         title={subscribed ? n.titleReady : n.titleNeedsDevice}
-        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-pill bg-brand-500 py-1.5 pl-1.5 pr-3 font-mono text-xs font-bold tracking-wide text-ink-inverse shadow-haloOrange transition-all duration-200 hover:bg-brand-400 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-soft disabled:active:scale-100"
+        className="grid h-10 w-10 place-items-center rounded-full bg-surface text-brand-500 shadow-soft transition-all duration-200 hover:bg-brand-50 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
       >
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/20 text-ink-inverse shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
-          <IconHeart size={15} />
-        </span>
-        <span className="leading-tight">{busy ? n.buttonBusy : n.buttonIdle}</span>
+        <IconBell size={18} />
       </button>
       {message && (
         <span

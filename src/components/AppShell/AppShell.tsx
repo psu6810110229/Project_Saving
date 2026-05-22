@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { AppUpdateAvailableModal } from '../AppUpdateAvailableModal/AppUpdateAvailableModal';
 import { BottomNav, type BottomNavTab } from '../BottomNav/BottomNav';
 import { ReleaseUpdateModal } from '../ReleaseUpdateModal/ReleaseUpdateModal';
 import { VersionChip } from '../VersionChip/VersionChip';
@@ -21,6 +22,7 @@ export function AppShell({ activeTab, onTabChange, children }: AppShellProps) {
         {children}
       </main>
       <ReleaseUpdateModal />
+      <AppUpdateAvailableModal />
       <BottomNav activeTab={activeTab} onChange={onTabChange} />
     </div>
   );

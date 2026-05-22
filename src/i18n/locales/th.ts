@@ -382,6 +382,11 @@ export const th: Messages = {
       },
     ],
   },
+  appUpdate: {
+    title: 'มีเวอร์ชันใหม่',
+    body: 'GO-OUT เวอร์ชันใหม่พร้อมใช้งานแล้ว อัปเดตเดี๋ยวนี้เพื่อรับการแก้ไขและฟีเจอร์ล่าสุด',
+    updateNow: 'อัปเดตเดี๋ยวนี้',
+  },
   bucket: {
     categoryLabels: {
       travel: 'เดินทาง',

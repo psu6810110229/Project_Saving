@@ -394,6 +394,11 @@ export const en = {
       },
     ],
   },
+  appUpdate: {
+    title: 'Update available',
+    body: 'A new version of GO-OUT is ready. Update now to get the latest fixes and improvements.',
+    updateNow: 'Update Now',
+  },
   bucket: {
     categoryLabels: {
       travel: 'Travel',

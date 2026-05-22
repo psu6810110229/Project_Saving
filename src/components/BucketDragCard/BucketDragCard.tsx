@@ -1,4 +1,4 @@
-import { useCallback, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Transform } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
@@ -8,45 +8,47 @@ interface BucketDragCardProps {
   children: ReactNode;
 }
 
+interface DragBounds {
+  card: DOMRect;
+  boundary: DOMRect;
+}
+
 function clamp(value: number, min: number, max: number) {
   if (min > max) return value;
   return Math.min(Math.max(value, min), max);
 }
 
-function sameRect(a: DOMRect | null, b: DOMRect) {
-  return Boolean(
-    a
-      && a.left === b.left
-      && a.top === b.top
-      && a.width === b.width
-      && a.height === b.height,
-  );
-}
-
-function clampTransformToViewport(
+function clampTransformToBounds(
   transform: Transform,
-  rect: DOMRect | null,
+  bounds: DragBounds | null,
   scale: number,
 ): Transform {
-  if (!rect || typeof window === 'undefined') return transform;
+  if (!bounds) return transform;
 
-  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-  const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
-  const scaledWidthOffset = (rect.width * (scale - 1)) / 2;
-  const scaledHeightOffset = (rect.height * (scale - 1)) / 2;
+  const { card, boundary } = bounds;
+  const scaledWidthOffset = (card.width * (scale - 1)) / 2;
+  const scaledHeightOffset = (card.height * (scale - 1)) / 2;
 
   return {
     ...transform,
     x: clamp(
       transform.x,
-      -rect.left + scaledWidthOffset,
-      viewportWidth - rect.right - scaledWidthOffset,
+      boundary.left - card.left + scaledWidthOffset,
+      boundary.right - card.right - scaledWidthOffset,
     ),
     y: clamp(
       transform.y,
-      -rect.top + scaledHeightOffset,
-      viewportHeight - rect.bottom - scaledHeightOffset,
+      boundary.top - card.top + scaledHeightOffset,
+      boundary.bottom - card.bottom - scaledHeightOffset,
     ),
+  };
+}
+
+function readDragBounds(node: HTMLDivElement): DragBounds {
+  const boundary = node.closest<HTMLElement>('[data-bucket-drag-boundary="true"]');
+  return {
+    card: node.getBoundingClientRect(),
+    boundary: (boundary ?? document.documentElement).getBoundingClientRect(),
   };
 }
 
@@ -63,7 +65,7 @@ function clampTransformToViewport(
  */
 export function BucketDragCard({ id, children }: BucketDragCardProps) {
   const reduceMotion = useReducedMotion();
-  const [dragStartRect, setDragStartRect] = useState<DOMRect | null>(null);
+  const [dragBounds, setDragBounds] = useState<DragBounds | null>(null);
   const {
     attributes,
     listeners,
@@ -84,7 +86,7 @@ export function BucketDragCard({ id, children }: BucketDragCardProps) {
   // without bouncing.
   const liftScale = reduceMotion ? 1 : 1.02;
   const constrainedTransform = transform
-    ? clampTransformToViewport(transform, dragStartRect, isDragging ? liftScale : 1)
+    ? clampTransformToBounds(transform, dragBounds, isDragging ? liftScale : 1)
     : null;
   // Calm cubic-bezier eases the settle after a drag and the highlight
   // fade for valid targets. Matches the brand-soft motion language.
@@ -113,19 +115,23 @@ export function BucketDragCard({ id, children }: BucketDragCardProps) {
     : '';
   const liftClass = isDragging ? 'shadow-neuRaised opacity-95' : '';
   const setBucketNodeRef = useCallback((node: HTMLDivElement | null) => {
-    if (node && !isDragging) {
-      const nextRect = node.getBoundingClientRect();
-      setDragStartRect((currentRect) => (sameRect(currentRect, nextRect) ? currentRect : nextRect));
+    if (node) {
+      setDragBounds(readDragBounds(node));
     }
     setDragRef(node);
     setDropRef(node);
-  }, [isDragging, setDragRef, setDropRef]);
+  }, [setDragRef, setDropRef]);
+
+  const handlePointerDownCapture = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    setDragBounds(readDragBounds(event.currentTarget));
+  }, []);
 
   return (
     <div
       ref={setBucketNodeRef}
       style={style}
       className={`relative rounded-2xl ${liftClass} ${ringClass}`.trim()}
+      onPointerDownCapture={handlePointerDownCapture}
       {...attributes}
       {...listeners}
     >

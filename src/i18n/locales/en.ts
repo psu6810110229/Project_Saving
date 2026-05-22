@@ -364,35 +364,25 @@ export const en = {
     versionLabel: (version: string) => `Version ${version}`,
     viewAllChanges: (count: number) => `View all changes (${count} more)`,
     showLess: 'Show less',
-    heading: 'GO-OUT v0.9.10',
-    intro: 'This update makes bucket changes clearer and easier to follow.',
+    heading: 'GO-OUT v0.9.11',
+    intro: 'Smaller polish update — getting new versions is now one tap.',
     notes: [
       {
-        id: 'bucket-transfer-activity',
-        title: 'Clearer bucket changes',
-        body: 'You can now move money between your buckets and see transfer or remove-bucket updates in activity and notifications.',
+        id: 'update-prompt',
+        title: 'One-tap updates',
+        body: 'When a new version of GO-OUT is ready, a small popup appears in the middle of the screen. Tap Update Now and the app switches over right away — no more closing and reopening it a few times to get the latest fixes.',
       },
       {
-        id: 'bigger-groups',
-        title: 'Save with more friends',
-        body: 'A project can now support up to 7 members, so bigger groups can save together in one place.',
-      },
-      {
-        id: 'member-progress',
-        title: 'Clearer group progress',
-        body: 'The Dashboard now shows each member more clearly, with easier views for their savings and goals.',
-      },
-      {
-        id: 'personal-goals',
-        title: 'Personal goals inside the group',
-        body: 'Members can have their own target while still saving toward the shared project goal.',
-      },
-      {
-        id: 'mobile-polish',
-        title: 'Better on small screens',
-        body: 'Group charts and member lists are easier to read on mobile, even with more people in the project.',
+        id: 'faster-update-check',
+        title: 'Faster update checks',
+        body: 'GO-OUT now checks for new versions every few minutes and right when you switch back to the tab, so fixes reach you sooner.',
       },
     ],
+  },
+  appUpdate: {
+    title: 'Update available',
+    body: 'A new version of GO-OUT is ready. Update now to get the latest fixes and improvements.',
+    updateNow: 'Update Now',
   },
   bucket: {
     categoryLabels: {

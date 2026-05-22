@@ -9,6 +9,12 @@ export interface UseBucketsResult {
   buckets: Bucket[];
   loading: boolean;
   saveBuckets: (next: BucketDraft[]) => Promise<{ error?: string }>;
+  /**
+   * Refetch active buckets after server-side mutations the local cache
+   * cannot observe directly (e.g. `archive_bucket` /
+   * `transfer_and_archive_bucket` RPCs in slice 40.7).
+   */
+  refetch: () => Promise<void>;
 }
 
 export function useBuckets(roomId: string | null): UseBucketsResult {
@@ -151,5 +157,5 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
     return {};
   }
 
-  return { buckets, loading, saveBuckets };
+  return { buckets, loading, saveBuckets, refetch: fetchBuckets };
 }

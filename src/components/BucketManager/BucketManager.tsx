@@ -1,12 +1,15 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { bucketSaved, sumTargets } from '../../lib/buckets';
+import { type ArchiveErrorHint, useArchiveBucket } from '../../hooks/useArchiveBucket';
 import type { Bucket, BucketCategory, BucketTransfer, SavingsLog } from '../../types';
+import { BucketTransferSheet, type TransferBucketOption } from '../BucketTransferSheet/BucketTransferSheet';
 import { Button } from '../Button/Button';
-import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../CreateBucketForm/CreateBucketForm';
 import { FormField } from '../FormField/FormField';
 import { IconCheck, IconEdit, IconPiggyBank, IconTrash, IconX } from '../Icon/Icon';
 import { IconButton } from '../IconButton/IconButton';
+import { RemoveBucketModal, type RemoveBucketDestination } from '../RemoveBucketModal/RemoveBucketModal';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
@@ -33,7 +36,37 @@ interface BucketManagerProps {
   onTargetChange: (value: string) => void;
   onCreate: () => void;
   onUpdate: (bucket: Bucket, next: { name: string; target_amount: number }) => Promise<{ error?: string }>;
-  onDelete: (bucket: Bucket) => Promise<{ error?: string }>;
+  /**
+   * Called after a bucket is archived (with or without a balance
+   * transfer) so the parent can refresh server-side state the local
+   * `useBuckets` cache cannot observe directly.
+   */
+  onRemoved?: () => void | Promise<void>;
+}
+
+function mapArchiveHintToErrorKey(
+  hint: ArchiveErrorHint,
+): keyof ReturnType<typeof useI18n>['copy']['bucketRemove']['errors'] {
+  switch (hint) {
+    case 'archive_unauthenticated': return 'unauthenticated';
+    case 'archive_invalid_request': return 'invalid_request';
+    case 'archive_bucket_missing': return 'bucket_missing';
+    case 'archive_partner_bucket': return 'partner_bucket';
+    case 'archive_not_room_member': return 'not_room_member';
+    case 'archive_nonzero_balance': return 'nonzero_balance';
+    case 'archive_last_active': return 'last_active';
+    case 'archive_same_bucket': return 'same_bucket';
+    case 'archive_source_missing': return 'source_missing';
+    case 'archive_destination_missing': return 'destination_missing';
+    case 'archive_partner_source': return 'partner_source';
+    case 'archive_partner_destination': return 'partner_destination';
+    case 'archive_source_archived': return 'source_archived';
+    case 'archive_destination_archived': return 'destination_archived';
+    case 'archive_cross_room': return 'cross_room';
+    case 'archive_unknown':
+    default:
+      return 'unknown';
+  }
 }
 
 export function BucketManager({
@@ -51,13 +84,17 @@ export function BucketManager({
   onTargetChange,
   onCreate,
   onUpdate,
-  onDelete,
+  onRemoved,
 }: BucketManagerProps) {
   const { copy, formatMoney } = useI18n();
+  const navigate = useNavigate();
+  const { archive, transferAndArchive, pending: removePending } = useArchiveBucket();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draftTarget, setDraftTarget] = useState('');
-  const [pendingDelete, setPendingDelete] = useState<Bucket | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<Bucket | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [transferSheetSourceId, setTransferSheetSourceId] = useState<string | null>(null);
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const totalBucketTargets = sumTargets(buckets);
@@ -68,6 +105,33 @@ export function BucketManager({
   const createTargetOverCapacity = typeof remainingCapacity === 'number'
     && Number.isFinite(createTargetAmount)
     && createTargetAmount > remainingCapacity;
+
+  const pendingRemoveSaved = pendingRemove
+    ? bucketSaved(pendingRemove.id, logs, transfers)
+    : 0;
+  const removeDestinations: RemoveBucketDestination[] = useMemo(() => {
+    if (!pendingRemove) return [];
+    return buckets
+      .filter(b => b.id !== pendingRemove.id)
+      .map(b => ({
+        id: b.id,
+        name: b.name,
+        saved: bucketSaved(b.id, logs, transfers),
+      }));
+  }, [buckets, logs, transfers, pendingRemove]);
+
+  // Mirror the dashboard's transfer-sheet shape so the "Transfer Balance
+  // First" fallback opens the same sheet UI users see elsewhere.
+  const transferSheetOptions: TransferBucketOption[] = useMemo(
+    () => buckets.map(b => ({
+      id: b.id,
+      name: b.name,
+      saved: bucketSaved(b.id, logs, transfers),
+      target: b.target_amount,
+      icon: <IconPiggyBank size={20} />,
+    })),
+    [buckets, logs, transfers],
+  );
 
   function startEdit(bucket: Bucket) {
     setEditingId(bucket.id);
@@ -117,26 +181,69 @@ export function BucketManager({
     setEditingId(null);
   }
 
-  async function confirmDelete() {
-    if (!pendingDelete) return;
+  function openRemove(bucket: Bucket) {
+    setLocalMessage(null);
+    setRemoveError(null);
+    setPendingRemove(bucket);
+  }
 
-    if (bucketSaved(pendingDelete.id, logs, transfers) !== 0) {
-      setLocalMessage(copy.bucket.deleteHistoryBody(pendingDelete.name));
-      setPendingDelete(null);
-      return;
-    }
+  function closeRemove() {
+    if (removePending) return;
+    setPendingRemove(null);
+    setRemoveError(null);
+  }
 
-    setSaving(true);
-    const result = await onDelete(pendingDelete);
-    setSaving(false);
-    setPendingDelete(null);
-
+  async function handleArchive() {
+    if (!pendingRemove) return;
+    setRemoveError(null);
+    const result = await archive({ bucketId: pendingRemove.id });
     if (result.error) {
-      setLocalMessage(result.error);
+      setRemoveError(copy.bucketRemove.errors[mapArchiveHintToErrorKey(result.error.hint)]);
       return;
     }
+    const removedName = pendingRemove.name;
+    setPendingRemove(null);
+    setLocalMessage(copy.bucketRemove.successRemoved(removedName));
+    if (onRemoved) await onRemoved();
+  }
 
-    setLocalMessage(copy.bucket.deletedSuccess);
+  async function handleTransferAndArchive(destinationId: string) {
+    if (!pendingRemove) return;
+    setRemoveError(null);
+    const result = await transferAndArchive({
+      sourceBucketId: pendingRemove.id,
+      destinationBucketId: destinationId,
+    });
+    if (result.error) {
+      setRemoveError(copy.bucketRemove.errors[mapArchiveHintToErrorKey(result.error.hint)]);
+      return;
+    }
+    const removedName = pendingRemove.name;
+    const destName = buckets.find(b => b.id === destinationId)?.name ?? '';
+    const movedAmount = result.data?.amount ?? pendingRemoveSaved;
+    setPendingRemove(null);
+    setLocalMessage(
+      copy.bucketRemove.successTransferredAndRemoved(
+        formatMoney(movedAmount),
+        destName,
+        removedName,
+      ),
+    );
+    if (onRemoved) await onRemoved();
+  }
+
+  function handleTransferFirst() {
+    if (!pendingRemove) return;
+    const sourceId = pendingRemove.id;
+    setPendingRemove(null);
+    setRemoveError(null);
+    setTransferSheetSourceId(sourceId);
+  }
+
+  function handleViewActivity() {
+    setPendingRemove(null);
+    setRemoveError(null);
+    navigate('/notifications');
   }
 
   function handleCreate() {
@@ -146,8 +253,6 @@ export function BucketManager({
     }
     onCreate();
   }
-
-  const blockedDelete = pendingDelete ? bucketSaved(pendingDelete.id, logs, transfers) !== 0 : false;
 
   return (
     <div className="flex flex-col gap-4">
@@ -171,10 +276,7 @@ export function BucketManager({
         onStartEdit={startEdit}
         onCancelEdit={cancelEdit}
         onSaveEdit={saveEdit}
-        onAskDelete={(bucket) => {
-          setLocalMessage(null);
-          setPendingDelete(bucket);
-        }}
+        onAskRemove={openRemove}
       />
       {typeof goalTarget === 'number' && (
         <TargetCapacitySummary
@@ -198,20 +300,28 @@ export function BucketManager({
         onTargetChange={onTargetChange}
         onSubmit={handleCreate}
       />
-      <ConfirmModal
-        open={Boolean(pendingDelete)}
-        title={blockedDelete ? copy.bucket.deleteHistoryTitle : copy.bucket.deleteConfirmTitle}
-        body={
-          pendingDelete
-            ? blockedDelete
-              ? copy.bucket.deleteHistoryBody(pendingDelete.name)
-              : copy.bucket.deleteConfirmBody(pendingDelete.name)
-            : ''
-        }
-        confirmLabel={blockedDelete ? copy.bucket.deleteHistoryLabel : copy.bucket.deleteConfirmLabel}
-        danger={!blockedDelete}
-        onCancel={() => setPendingDelete(null)}
-        onConfirm={blockedDelete ? () => setPendingDelete(null) : confirmDelete}
+      <RemoveBucketModal
+        open={pendingRemove !== null}
+        bucketName={pendingRemove?.name ?? null}
+        savedAmount={pendingRemoveSaved}
+        destinations={removeDestinations}
+        pending={removePending}
+        errorMessage={removeError}
+        onClose={closeRemove}
+        onArchive={handleArchive}
+        onTransferAndArchive={handleTransferAndArchive}
+        onTransferFirst={handleTransferFirst}
+        onViewActivity={handleViewActivity}
+      />
+      <BucketTransferSheet
+        open={transferSheetSourceId !== null}
+        buckets={transferSheetOptions}
+        initialSourceId={transferSheetSourceId}
+        onClose={() => setTransferSheetSourceId(null)}
+        onSuccess={async () => {
+          setTransferSheetSourceId(null);
+          if (onRemoved) await onRemoved();
+        }}
       />
     </div>
   );
@@ -245,7 +355,7 @@ function BucketSummary({
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
-  onAskDelete,
+  onAskRemove,
 }: {
   buckets: Bucket[];
   logs: SavingsLog[];
@@ -261,7 +371,7 @@ function BucketSummary({
   onStartEdit: (bucket: Bucket) => void;
   onCancelEdit: () => void;
   onSaveEdit: (bucket: Bucket) => void;
-  onAskDelete: (bucket: Bucket) => void;
+  onAskRemove: (bucket: Bucket) => void;
 }) {
   const { copy, formatMoney } = useI18n();
 
@@ -361,7 +471,7 @@ function BucketSummary({
                       size="sm"
                       ariaLabel={copy.bucket.deleteAriaLabel(bucket.name)}
                       className="bg-danger-soft text-danger hover:bg-danger-soft/80"
-                      onClick={() => onAskDelete(bucket)}
+                      onClick={() => onAskRemove(bucket)}
                     >
                       <IconTrash size={16} />
                     </IconButton>

@@ -91,7 +91,7 @@ export function ManageProject() {
   } = data.goal;
   const { archiveRoom, leaveRoom, renameRoom, refetch: refetchRooms } = useRooms();
   const { quickAmounts, updateQuickAmounts } = data.profile;
-  const { buckets, saveBuckets } = data.buckets;
+  const { buckets, saveBuckets, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { logs } = data.logs;
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
@@ -305,22 +305,6 @@ export function ManageProject() {
 
     setMessage(copy.bucket.updatedSuccess);
     haptic('success');
-    return result;
-  }
-
-  async function handleDeleteBucket(bucket: Bucket) {
-    const result = await saveBuckets(
-      buckets
-        .filter(item => item.id !== bucket.id)
-        .map(item => ({ id: item.id, name: item.name, target_amount: item.target_amount, category: item.category })),
-    );
-
-    if (result.error) {
-      setMessage(result.error);
-      return result;
-    }
-
-    setMessage(copy.bucket.deletedSuccess);
     return result;
   }
 
@@ -643,7 +627,7 @@ export function ManageProject() {
           onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
           onCreate={handleCreateBucket}
           onUpdate={handleUpdateBucket}
-          onDelete={handleDeleteBucket}
+          onRemoved={refetchBuckets}
           statusMessage={message}
         />
       </Modal>

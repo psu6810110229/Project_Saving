@@ -60,7 +60,7 @@ export function BucketGrid({
         )}
       </div>
       {belowHeader}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4" data-bucket-drag-boundary="true">
         {buckets.map(bucket => (
           renderBucket ? (
             <div key={bucket.id}>{renderBucket(bucket)}</div>

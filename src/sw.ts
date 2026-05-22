@@ -8,6 +8,20 @@ declare const self: ServiceWorkerGlobalScope;
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
+// Activate a waiting worker on demand when the app's Update Available
+// modal posts SKIP_WAITING. clients.claim() takes over the existing
+// tab so the page can reload onto the new bundle without a manual
+// close-and-reopen of every window.
+self.addEventListener('message', (event) => {
+  const data = event.data as { type?: string } | undefined;
+  if (data?.type === 'SKIP_WAITING') {
+    event.waitUntil((async () => {
+      await self.skipWaiting();
+      await self.clients.claim();
+    })());
+  }
+});
+
 // Never cache Supabase — auth + realtime must always be fresh
 registerRoute(
   ({ url }) => url.hostname.endsWith('.supabase.co'),

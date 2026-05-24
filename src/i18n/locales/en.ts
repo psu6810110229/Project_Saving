@@ -546,6 +546,10 @@ export const en = {
       unknown: 'Could not move money. Try again.',
     },
     tryAgainButton: 'Try Again',
+    suggestion: {
+      completedToNext: (source: string, destination: string) => `${source} is complete and ${destination} is next.`,
+      completedExtra: (source: string) => `${source} is complete. Moving extra keeps the bucket tidy.`,
+    },
   },
   bucketDragHint: {
     message: 'Drag a bucket onto another to move money.',

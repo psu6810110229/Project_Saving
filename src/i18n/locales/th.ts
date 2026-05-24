@@ -535,6 +535,10 @@ export const th: Messages = {
       unknown: 'ย้ายเงินไม่สำเร็จ ลองใหม่อีกครั้ง',
     },
     tryAgainButton: 'ลองอีกครั้ง',
+    suggestion: {
+      completedToNext: (source: string, destination: string) => `${source} ครบแล้ว และ ${destination} เป็นถัดไป`,
+      completedExtra: (source: string) => `${source} ครบแล้ว ย้ายส่วนเกินออกได้`,
+    },
   },
   bucketDragHint: {
     message: 'ลากเป้าหมายหนึ่งไปวางบนอีกอันเพื่อย้ายเงิน',

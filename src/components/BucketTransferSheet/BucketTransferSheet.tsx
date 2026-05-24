@@ -1,4 +1,4 @@
-import { type ChangeEvent, type ReactNode, useMemo, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
@@ -32,6 +32,9 @@ interface BucketTransferSheetProps {
   buckets: TransferBucketOption[];
   initialSourceId?: string | null;
   initialDestinationId?: string | null;
+  initialAmount?: number | null;
+  suggestionReason?: string | null;
+  onSuggestionShown?: () => void;
   /** Fires once the RPC reports success (including the idempotency-reused case). */
   onSuccess?: (result: TransferBucketMoneyResult) => void;
 }
@@ -98,6 +101,9 @@ export function BucketTransferSheet({
   buckets,
   initialSourceId,
   initialDestinationId,
+  initialAmount,
+  suggestionReason,
+  onSuggestionShown,
   onSuccess,
 }: BucketTransferSheetProps) {
   useBodyScrollLock(open);
@@ -110,6 +116,9 @@ export function BucketTransferSheet({
           buckets={buckets}
           initialSourceId={initialSourceId}
           initialDestinationId={initialDestinationId}
+          initialAmount={initialAmount}
+          suggestionReason={suggestionReason}
+          onSuggestionShown={onSuggestionShown}
           onClose={onClose}
           onSuccess={onSuccess}
         />
@@ -123,6 +132,9 @@ interface InnerProps {
   buckets: TransferBucketOption[];
   initialSourceId?: string | null;
   initialDestinationId?: string | null;
+  initialAmount?: number | null;
+  suggestionReason?: string | null;
+  onSuggestionShown?: () => void;
   onClose: () => void;
   onSuccess?: (result: TransferBucketMoneyResult) => void;
 }
@@ -153,6 +165,9 @@ function BucketTransferSheetInner({
   buckets,
   initialSourceId,
   initialDestinationId,
+  initialAmount,
+  suggestionReason,
+  onSuggestionShown,
   onClose,
   onSuccess,
 }: InnerProps) {
@@ -166,7 +181,20 @@ function BucketTransferSheetInner({
   const [step, setStep] = useState<Step>('edit');
   const [sourceId, setSourceId] = useState<string | null>(initialSource);
   const [destinationId, setDestinationId] = useState<string | null>(initialDestination);
-  const [amountValue, setAmountValue] = useState('');
+  const [amountValue, setAmountValue] = useState(
+    () => initialAmount != null && Number.isFinite(initialAmount) && initialAmount > 0
+      ? String(initialAmount)
+      : '',
+  );
+
+  const suggestionFiredRef = useRef(false);
+  useEffect(() => {
+    if (suggestionFiredRef.current) return;
+    if (suggestionReason || (initialAmount != null && initialAmount > 0)) {
+      suggestionFiredRef.current = true;
+      onSuggestionShown?.();
+    }
+  }, [suggestionReason, initialAmount, onSuggestionShown]);
   const [noteValue, setNoteValue] = useState('');
   const [errorKey, setErrorKey] = useState<keyof TransferErrorCopy | null>(null);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
@@ -341,6 +369,9 @@ function BucketTransferSheetInner({
                       <h2 className="font-mono text-2xl font-bold leading-tight text-ink">
                         {buckCopy.sheetTitle}
                       </h2>
+                      {suggestionReason && (
+                        <p className="mt-1 font-mono text-xs text-ink-muted">{suggestionReason}</p>
+                      )}
                     </motion.div>
 
                     <motion.div variants={itemVariants}>

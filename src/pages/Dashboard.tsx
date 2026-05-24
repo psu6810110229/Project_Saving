@@ -199,7 +199,12 @@ export function Dashboard() {
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [nextPickerOpen, setNextPickerOpen] = useState(false);
-  const [transferIntent, setTransferIntent] = useState<{ sourceId: string; destinationId: string } | null>(null);
+  const [transferIntent, setTransferIntent] = useState<{
+    sourceId: string;
+    destinationId: string | null;
+    initialAmount?: number | null;
+    suggestionReason?: string | null;
+  } | null>(null);
   // Local "dismissed this render" flag so the hint disappears
   // immediately once it auto-times-out, the user closes it, or a drag
   // starts — without waiting for the optimistic profile update to
@@ -223,7 +228,28 @@ export function Dashboard() {
     const sourceId = String(active.id);
     const destinationId = String(over.id);
     if (sourceId === destinationId) return;
-    setTransferIntent({ sourceId, destinationId });
+
+    const sourceBucket = bucketItems.find(b => b.id === sourceId);
+    const destBucket = bucketItems.find(b => b.id === destinationId);
+    const sourceIsDone = sourceBucket?.status?.kind === 'done';
+    const extraAmt = sourceIsDone && sourceBucket
+      ? Math.max(0, sourceBucket.saved - sourceBucket.target)
+      : 0;
+
+    let initialAmount: number | null = null;
+    let suggestionReason: string | null = null;
+    if (sourceIsDone && extraAmt > 0) {
+      initialAmount = extraAmt;
+      if (destBucket && destBucket.id === intentResult.nextBucketId) {
+        suggestionReason = copy.bucketTransfer.suggestion.completedToNext(
+          sourceBucket!.name, destBucket.name,
+        );
+      } else {
+        suggestionReason = copy.bucketTransfer.suggestion.completedExtra(sourceBucket!.name);
+      }
+    }
+
+    setTransferIntent({ sourceId, destinationId, initialAmount, suggestionReason });
   }
 
   // Once the user actually starts a drag the hint has served its
@@ -1108,6 +1134,11 @@ export function Dashboard() {
         buckets={bucketItems}
         initialSourceId={transferIntent?.sourceId ?? null}
         initialDestinationId={transferIntent?.destinationId ?? null}
+        initialAmount={transferIntent?.initialAmount ?? null}
+        suggestionReason={transferIntent?.suggestionReason ?? null}
+        onSuggestionShown={() => {
+          void logIntentEvent({ eventKey: 'transfer_suggested' });
+        }}
         onSuccess={(result) => {
           if (activeRoomId && user?.id) {
             upsertTransfer({
@@ -1122,6 +1153,14 @@ export function Dashboard() {
               created_at: result.created_at,
             });
           }
+          void logIntentEvent({
+            eventKey: 'transfer_completed',
+            bucketId: result.source_bucket_id,
+            payload: {
+              destination_bucket_id: result.destination_bucket_id,
+              amount: result.amount,
+            },
+          });
           haptic('success');
           setTransferIntent(null);
         }}
@@ -1152,9 +1191,18 @@ export function Dashboard() {
             nextBucketName={nextBucket?.name ?? null}
             onRequestTransferExtra={(sourceBucketId) => {
               setExpandedBucketId(null);
+              const srcBkt = bucketItems.find(b => b.id === sourceBucketId);
+              const destId = intentResult.nextBucketId ?? bucketItems.find(b => b.id !== sourceBucketId)?.id ?? null;
+              const destBkt = destId ? bucketItems.find(b => b.id === destId) : null;
+              const extra = srcBkt ? Math.max(0, srcBkt.saved - srcBkt.target) : 0;
+              const reason = destBkt && destBkt.id === intentResult.nextBucketId
+                ? copy.bucketTransfer.suggestion.completedToNext(srcBkt?.name ?? '', destBkt.name)
+                : copy.bucketTransfer.suggestion.completedExtra(srcBkt?.name ?? '');
               setTransferIntent({
                 sourceId: sourceBucketId,
-                destinationId: intentResult.nextBucketId ?? bucketItems.find(b => b.id !== sourceBucketId)?.id ?? '',
+                destinationId: destId,
+                initialAmount: extra > 0 ? extra : null,
+                suggestionReason: reason,
               });
             }}
             onDoneLockOverride={(bId) => {

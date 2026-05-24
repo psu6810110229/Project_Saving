@@ -25,12 +25,14 @@ export function BucketCategoryReviewModal({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selections, setSelections] = useState<Record<string, BucketCategory>>({});
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const bucket = reviewable[currentIndex] as Bucket | undefined;
   const isLast = currentIndex >= reviewable.length - 1;
 
   function handleSelect(category: BucketCategory) {
     if (!bucket) return;
+    setSaveError(null);
     setSelections(prev => ({ ...prev, [bucket.id]: category }));
   }
 
@@ -60,14 +62,26 @@ export function BucketCategoryReviewModal({
       return;
     }
     setSaving(true);
-    await onSave(updates);
-    setSaving(false);
+    setSaveError(null);
+    try {
+      const result = await onSave(updates);
+      if (result.error) {
+        setSaveError(result.error);
+        return;
+      }
+    } catch {
+      setSaveError(copy.bucket.categoryReview.saveError);
+      return;
+    } finally {
+      setSaving(false);
+    }
     resetAndClose();
   }
 
   function resetAndClose() {
     setCurrentIndex(0);
     setSelections({});
+    setSaveError(null);
     onClose();
   }
 
@@ -106,6 +120,12 @@ export function BucketCategoryReviewModal({
             </button>
           ))}
         </div>
+
+        {saveError && (
+          <p role="alert" className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">
+            {saveError}
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <Button

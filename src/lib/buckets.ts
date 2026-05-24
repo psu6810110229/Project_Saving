@@ -1,7 +1,52 @@
 import type { Bucket, BucketTransfer, SavingsLog } from '../types';
 
+type BucketNameCandidate = {
+  id?: string;
+  name: string;
+};
+
 export function sumTargets(buckets: Pick<Bucket, 'target_amount'>[]): number {
   return buckets.reduce((s, b) => s + b.target_amount, 0);
+}
+
+export function normalizeBucketNameForUniqueness(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+export function hasDuplicateBucketName<T extends BucketNameCandidate>(
+  buckets: T[],
+  name: string,
+  ignoreId?: string,
+): boolean {
+  const normalizedName = normalizeBucketNameForUniqueness(name);
+  if (!normalizedName) return false;
+
+  return buckets.some(bucket => {
+    if (ignoreId && bucket.id === ignoreId) return false;
+    return normalizeBucketNameForUniqueness(bucket.name) === normalizedName;
+  });
+}
+
+export function findDuplicateBucketName<T extends BucketNameCandidate>(buckets: T[]): string | null {
+  const seen = new Set<string>();
+
+  for (const bucket of buckets) {
+    const normalizedName = normalizeBucketNameForUniqueness(bucket.name);
+    if (!normalizedName) continue;
+    if (seen.has(normalizedName)) return bucket.name.trim();
+    seen.add(normalizedName);
+  }
+
+  return null;
+}
+
+export function shouldAutofillBucketName(
+  currentName: string,
+  defaultNames: Record<string, string>,
+): boolean {
+  const normalizedCurrent = currentName.trim();
+  if (!normalizedCurrent) return true;
+  return Object.values(defaultNames).some(defaultName => defaultName.trim() === normalizedCurrent);
 }
 
 export interface BucketValidation {

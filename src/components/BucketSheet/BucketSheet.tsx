@@ -4,10 +4,11 @@ import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { BucketHeader } from '../BucketHeader/BucketHeader';
 import { Button } from '../Button/Button';
+import { CompleteBucketLock } from '../CompleteBucketLock/CompleteBucketLock';
 import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { FormField } from '../FormField/FormField';
-import { IconCheck, IconPiggyBank, IconTrash } from '../Icon/Icon';
+import { IconPiggyBank, IconTrash } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { TextInput } from '../TextInput/TextInput';
@@ -186,46 +187,30 @@ export function BucketSheet({
 
                   {showDoneLock ? (
                     <>
-                      <motion.div variants={itemVariants} className="flex flex-col items-center gap-2 py-2">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-                          <IconCheck size={20} className="text-green-700" />
-                        </div>
-                        <p className="text-center font-mono text-sm font-bold text-ink">
-                          {copy.addMoney.doneLock.title}
-                        </p>
-                        <p className="text-center font-mono text-xs text-ink-muted">
-                          {copy.addMoney.doneLock.body(name)}
-                        </p>
-                        {nextBucketName && (
-                          <p className="text-center font-mono text-xs text-accent-700">
-                            {copy.addMoney.doneLock.nextBucket(nextBucketName)}
-                          </p>
-                        )}
-                      </motion.div>
-
-                      <motion.div variants={itemVariants} className="grid gap-2">
-                        {extraAmount != null && extraAmount > 0 && onRequestTransferExtra && (
-                          <Button
-                            variant="action"
-                            size="md"
-                            onClick={() => {
-                              handleClose();
-                              onRequestTransferExtra(bucketId);
-                            }}
-                          >
-                            {copy.addMoney.doneLock.moveExtra} ({formatMoney(extraAmount)})
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="md"
-                          onClick={() => {
+                      <motion.div variants={itemVariants}>
+                        <CompleteBucketLock
+                          title={copy.addMoney.doneLock.title}
+                          body={copy.addMoney.doneLock.body(name, nextBucketName)}
+                          nextLine={nextBucketName ? copy.addMoney.doneLock.nextBucket(nextBucketName) : null}
+                          backLabel={copy.common.back}
+                          addAnywayLabel={copy.addMoney.doneLock.addAnyway}
+                          onBack={handleClose}
+                          onAddAnyway={() => {
                             setDoneLockOverridden(true);
                             onDoneLockOverride?.(bucketId);
                           }}
-                        >
-                          {copy.addMoney.doneLock.addAnyway}
-                        </Button>
+                          primaryAction={
+                            extraAmount != null && extraAmount > 0 && onRequestTransferExtra
+                              ? {
+                                  label: `${copy.addMoney.doneLock.moveExtra} (${formatMoney(extraAmount)})`,
+                                  onClick: () => {
+                                    handleClose();
+                                    onRequestTransferExtra(bucketId);
+                                  },
+                                }
+                              : undefined
+                          }
+                        />
                       </motion.div>
                     </>
                   ) : (

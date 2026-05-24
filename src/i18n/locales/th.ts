@@ -174,8 +174,8 @@ export const th: Messages = {
     matchedSince: (since: string) => `ตรงกัน · ${since}`,
     smartBuckets: '',
     tripBuckets: 'เป้าหมายย่อย',
-    yourBuckets: (name: string) => `เป้าหมายย่อยของ${name}`,
-    bucketCount: (n: number) => `ตอนนี้คุณมี ${n} เป้าหมายย่อย`,
+    yourBuckets: (name: string) => `เป้าหมายย่อยของ ${name}`,
+    bucketCount: (n: number) => `มี ${n} เป้าหมายย่อย`,
     bucketReadOnly: 'ดูได้อย่างเดียว',
     addBucket: 'เพิ่มเป้าหมายย่อย',
     createBucket: 'สร้างเป้าหมายย่อย',
@@ -272,7 +272,7 @@ export const th: Messages = {
     smartDefaultHint: 'อิงจากยอดที่คุณบันทึกล่าสุด',
     projectedProgress: (bucketName: string) => `ความคืบหน้าของ ${bucketName}`,
     savedLabel: (amount: string) => `บันทึกแล้ว ${amount}`,
-    projectedLabel: (amount: string, percent: number) => `เพิ่ม ${amount} ซึ่งจะทำให้คุณคืบหน้ากว่า ${percent}%`,
+    projectedLabel: (amount: string, percent: number) => `เพิ่ม ${amount} จะถึง ${percent}%`,
     confirmDepositButton: 'ยืนยันยอดนี้',
     editAmountButton: 'แก้ไขยอด',
     editQuickAmountsLabel: 'แก้ไข',
@@ -282,9 +282,12 @@ export const th: Messages = {
     slipTapToAttach: 'แตะเพื่อแนบสลิปโอนเงิน',
     partnerLabel: 'คู่คุณ',
     doneLock: {
-      title: 'ครบเป้าแล้ว',
-      body: (name: string) => `${name} ถึงเป้าหมายแล้ว`,
-      nextBucket: (name: string) => `ถัดไป: ${name}`,
+      title: 'ครบเป้านี้แล้ว',
+      body: (name: string, nextName?: string | null) =>
+        nextName
+          ? `${name}ครบแล้ว จะเพิ่มต่อหรือไม่`
+          : `${name}ครบแล้ว กดปุ่มล่างถ้าจะเพิ่มเป้านี้ต่อ`,
+      nextBucket: (name: string) => `ต่อที่ ${name}`,
       moveExtra: 'ย้ายส่วนเกิน',
       addAnyway: 'เพิ่มต่อ',
       useNextBucket: 'ไปเป้าถัดไป',
@@ -292,13 +295,13 @@ export const th: Messages = {
   },
   milestoneCelebration: {
     title: (threshold: 25 | 50 | 75 | 90) => {
-      if (threshold === 25) return 'เก็บได้หนึ่งในสี่แล้ว';
-      if (threshold === 50) return 'มาถึงครึ่งทางแล้ว';
-      if (threshold === 75) return 'เก็บได้สามในสี่แล้ว';
+      if (threshold === 25) return 'เก็บได้ 25% แล้ว';
+      if (threshold === 50) return 'เก็บได้ 50% แล้ว';
+      if (threshold === 75) return 'เก็บได้ 75% แล้ว';
       return 'ใกล้ถึงเป้าหมายแล้ว';
     },
     body: (threshold: 25 | 50 | 75 | 90) =>
-      `ยอดรวมในโปรเจกต์เพิ่งข้าม ${threshold} เปอร์เซ็นต์ของเป้าหมาย`,
+      `ยอดรวมในโปรเจกต์เพิ่งข้าม ${threshold} ความคืบหน้าของเป้าหมาย`,
     cta: 'เข้าใจแล้ว',
   },
   streakFreeze: {
@@ -360,18 +363,28 @@ export const th: Messages = {
     versionLabel: (version: string) => `เวอร์ชัน ${version}`,
     viewAllChanges: (count: number) => `ดูทั้งหมด (อีก ${count} รายการ)`,
     showLess: 'แสดงน้อยลง',
-    heading: 'GO-OUT v0.9.11',
-    intro: 'อัปเดตเล็ก ๆ — รับเวอร์ชันใหม่ได้ด้วยปุ่มเดียว ไม่ต้องเปิด-ปิดแอปหลายรอบอีกต่อไป',
+    heading: 'GO-OUT v0.9.12',
+    intro: 'อัปเดตเป้าหมายย่อยอัจฉริยะ — นำออกปลอดภัยขึ้น โอนเงินชัดขึ้น และเลือกเป้าถัดไปง่ายขึ้น',
     notes: [
       {
-        id: 'update-prompt',
-        title: 'อัปเดตด้วยปุ่มเดียว',
-        body: 'เมื่อมีเวอร์ชันใหม่ของ GO-OUT จะมีหน้าต่างเล็ก ๆ ขึ้นกลางจอ แตะ "อัปเดตเดี๋ยวนี้" แอปจะเปลี่ยนไปใช้เวอร์ชันใหม่ทันที ไม่ต้องปิดแล้วเปิดแอปใหม่หลายครั้งเพื่อให้ได้การแก้ไขล่าสุด',
+        id: 'bucket-transfer-remove',
+        title: 'โอนและนำเป้าหมายย่อยออกปลอดภัยขึ้น',
+        body: 'ย้ายเงินไปยังเป้าหมายย่อยที่ใช้งานอยู่ก่อนนำออก พร้อมหน้าตรวจสอบที่ชัดขึ้นและเก็บประวัติไว้ครบถ้วน',
       },
       {
-        id: 'faster-update-check',
-        title: 'ตรวจเวอร์ชันใหม่ไวขึ้น',
-        body: 'GO-OUT จะเช็กเวอร์ชันใหม่ทุกไม่กี่นาที และตอนที่กลับมาเปิดแท็บอีกครั้ง ทำให้การแก้ไขถึงคุณเร็วขึ้น',
+        id: 'bucket-intelligence',
+        title: 'แนะนำเป้าหมายย่อยฉลาดขึ้น',
+        body: 'หมวดหมู่เป้าหมายย่อยช่วยเลือกเป้าถัดไป แสดงจังหวะให้ตรวจสอบ และยังตั้งเป้าหมายถัดไปเองได้',
+      },
+      {
+        id: 'done-bucket-polish',
+        title: 'เป้าหมายที่ครบแล้วยังเป็นระเบียบ',
+        body: 'เป้าหมายที่ครบยอดแล้วจะช่วยกันการเพิ่มเงินพลาด พร้อมตัวเลือกไปเป้าถัดไป เพิ่มต่อ หรือย้ายเงินส่วนเกิน',
+      },
+      {
+        id: 'release-hardening',
+        title: 'บันทึกและโอนเงินเสถียรขึ้น',
+        body: 'อัปเดตนี้ปรับการบันทึกหมวดหมู่ การจำคำแนะนำลากเป้าหมาย และกฎเก็บประวัติการโอนให้ทำงานสม่ำเสมอขึ้น',
       },
     ],
   },
@@ -429,6 +442,7 @@ export const th: Messages = {
     validationNameAndTarget: 'ใส่ชื่อ ยอดเป้าหมาย และหมวดหมู่ก่อนนะ',
     validationNameBeforeSaving: 'ใส่ชื่อเป้าหมายย่อยก่อนบันทึก',
     validationTargetAboveZero: 'ยอดเป้าหมายต้องมากกว่า 0',
+    duplicateName: (name: string) => `คุณมีเป้าหมายย่อยชื่อ "${name}" อยู่แล้ว ลองใช้ชื่ออื่นนะ`,
     capacityError: (amount: string) => `ยอดเป้าหมายเกินความจุที่มี คงเหลืออีก ${amount}`,
     capacityErrorForEdit: (amount: string) => `ยอดเป้าหมายเกินความจุที่มี คงเหลืออีก ${amount}`,
     createdSuccess: 'สร้างเป้าหมายย่อยแล้ว',
@@ -443,30 +457,24 @@ export const th: Messages = {
       save: 'บันทึก',
       skip: 'ข้าม',
       reviewedSuccess: 'อัปเดตหมวดหมู่แล้ว',
+      saveError: 'บันทึกหมวดหมู่ไม่สำเร็จ ลองใหม่อีกครั้ง',
     },
   },
   bucketRemove: {
     emptyTitle: (name: string) => `นำ ${name} ออก?`,
     emptyBody: (name: string) =>
-      `${name} ไม่มีเงินอยู่ การนำออกจะซ่อนจากรายการที่ใช้งานอยู่ แต่ข้อมูลเดิมยังถูกเก็บไว้`,
+      `${name} ไม่มีเงินอยู่ เลือกนำออกเพื่อลบเป้าหมายย่อยนี้`,
     removeEmptyButton: 'นำเป้าหมายย่อยที่ว่างออก',
     removingButton: 'กำลังนำออก…',
-    balanceTitle: (name: string) => `ย้ายเงินออกจาก ${name}?`,
+    balanceTitle: (name: string) => `คุณกำลังจะลบเป้าหมายย่อย ${name}`,
     balanceBody: (name: string, amount: string) =>
-      `${name} ยังมีเงินอยู่ ${amount} เลือกเป้าหมายย่อยอื่นเพื่อย้ายยอดคงเหลือ จากนั้นจึงนำ ${name} ออกได้`,
-    chooseDestinationLabel: 'ส่งยอดคงเหลือไปยัง',
+      `แต่${name}ยังมีเงินอยู่ ${amount} โปรดย้ายเงินไปยังเป้าหมายอื่นก่อนจึงจะลบ${name}ได้`,
     noDestinationsTitle: 'สร้างเป้าหมายย่อยอื่นก่อน',
     noDestinationsBody: (name: string, amount: string) =>
       `${name} มีเงินอยู่ ${amount} สร้างเป้าหมายย่อยที่ใช้งานอยู่อีกหนึ่งรายการเพื่อรับยอดนี้ก่อนนำ ${name} ออก`,
-    transferAndRemoveButton: (amount: string) => `ย้าย ${amount} แล้วนำออก`,
-    transferAndRemovingButton: 'กำลังย้ายและนำออก…',
-    transferFirstButton: 'ย้ายยอดคงเหลือก่อน',
-    keepBucketButton: 'เก็บเป้าหมายย่อยไว้',
-    viewActivityButton: 'ดูกิจกรรม',
-    bucketChipSaved: (amount: string) => `${amount} ในเป้าหมาย`,
+    transferFirstButton: 'ยืนยันย้ายยอดคงเหลือ',
+    keepBucketButton: 'ยกเลิก',
     successRemoved: (name: string) => `นำ ${name} ออกแล้ว`,
-    successTransferredAndRemoved: (amount: string, destination: string, name: string) =>
-      `ย้าย ${amount} ไปยัง ${destination} และนำ ${name} ออกแล้ว`,
     errors: {
       last_active: 'ต้องเก็บเป้าหมายย่อยที่ใช้งานอยู่อย่างน้อยหนึ่งรายการ สร้างเป้าหมายย่อยใหม่ก่อนแล้วค่อยกลับมานำรายการนี้ออก',
       nonzero_balance: 'เป้าหมายย่อยนี้ยังมีเงินอยู่ ย้ายยอดคงเหลือไปยังเป้าหมายย่อยอื่นก่อน',
@@ -480,6 +488,7 @@ export const th: Messages = {
       partner_destination: 'เลือกเป้าหมายย่อยของคุณเองเป็นปลายทาง',
       cross_room: 'เป้าหมายย่อยปลายทางอยู่คนละโปรเจกต์',
       not_room_member: 'คุณไม่ได้เป็นสมาชิกของโปรเจกต์นี้แล้ว',
+      database_migration: 'กฎนำออกในฐานข้อมูลยังไม่อัปเดต ใช้ Supabase migration ล่าสุดแล้วลองอีกครั้ง',
       same_bucket: 'เลือกเป้าหมายย่อยอื่นเป็นปลายทาง',
       unauthenticated: 'กรุณาเข้าสู่ระบบใหม่เพื่อทำรายการต่อ',
       invalid_request: 'ไม่สามารถนำเป้าหมายย่อยออกได้ ลองอีกครั้ง',
@@ -499,6 +508,7 @@ export const th: Messages = {
     notePlaceholder: 'ใช้สำหรับอะไร?',
     notePrivateHelper: 'มีแค่คุณเท่านั้นที่เห็นบันทึกนี้',
     availableInBucket: (amount: string) => `ใช้ได้: ${amount}`,
+    moveAllButton: (amount: string) => `ย้าย 100% (${amount})`,
     swapButton: 'สลับต้นทางกับปลายทาง',
     reviewButton: 'ตรวจสอบ',
     keepEditingButton: 'แก้ไขต่อ',
@@ -508,7 +518,7 @@ export const th: Messages = {
     cancelButton: 'กลับ',
     sameBucketHelper: 'เลือกเป้าหมายให้ต่างกันก่อนย้าย',
     reviewEyebrow: 'ตรวจสอบ',
-    reviewHeading: (amount: string) => `ย้าย ${amount}`,
+    reviewHeading: (from: string, to: string) => `ตรวจสอบเส้นทาง: ${from} → ${to}`,
     reviewFromTo: (from: string, to: string) => `${from} → ${to}`,
     reviewNoteLabel: 'บันทึก',
     reviewNoneLabel: 'ไม่มีบันทึก',

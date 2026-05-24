@@ -22,14 +22,15 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  hidden?: boolean;
 }
 
-export function Modal({ open, title, children, onClose }: ModalProps) {
+export function Modal({ open, title, children, onClose, hidden = false }: ModalProps) {
   const { copy } = useI18n();
-  useBodyScrollLock(open);
+  useBodyScrollLock(open && !hidden);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || hidden) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
@@ -37,7 +38,7 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open, hidden, onClose]);
 
   return createPortal(
     <AnimatePresence>
@@ -46,18 +47,25 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
           {/* Backdrop */}
           <motion.div
             key="modal-backdrop"
-            className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-[2px]"
+            className={[
+              'fixed inset-0 z-50 bg-ink/40 backdrop-blur-[2px]',
+              hidden ? 'pointer-events-none opacity-0' : '',
+            ].join(' ')}
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: hidden ? 0 : 1 }}
             exit={{ opacity: 0 }}
             transition={FADE_TRANSITION}
-            onClick={onClose}
+            onClick={hidden ? undefined : onClose}
           />
 
           {/* Card */}
           <motion.div
             key="modal-card"
-            className="fixed inset-0 z-50 flex items-end justify-center px-3 pb-3 pt-10 pointer-events-none md:items-center md:p-6"
+            className={[
+              'fixed inset-0 z-50 flex items-end justify-center px-3 pb-3 pt-10 pointer-events-none md:items-center md:p-6',
+              hidden ? 'invisible' : '',
+            ].join(' ')}
+            aria-hidden={hidden}
           >
             <motion.section
               role="dialog"
@@ -65,7 +73,7 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
               aria-labelledby="modal-title"
               className="relative pointer-events-auto max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-bg p-4 shadow-neuRaised md:rounded-xl md:p-5"
               initial={{ opacity: 0, y: 28, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
+              animate={{ opacity: hidden ? 0 : 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 14, scale: 0.97 }}
               transition={SPRING.modal}
             >

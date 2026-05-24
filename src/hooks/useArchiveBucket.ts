@@ -22,12 +22,15 @@ export type ArchiveErrorHint =
   | 'archive_source_archived'
   | 'archive_destination_archived'
   | 'archive_cross_room'
+  | 'archive_protected_fields'
   | 'archive_unknown';
 
 export interface ArchiveBucketError {
+  code?: string;
   message: string;
   hint: ArchiveErrorHint;
   detail?: string;
+  balance?: number;
 }
 
 export interface ArchiveBucketArgs {
@@ -108,6 +111,61 @@ function normalizeTransferArchive(row: RawTransferArchiveRow): TransferAndArchiv
   };
 }
 
+function inferArchiveHint(error: { code?: string; message: string; details?: string | null; hint?: string | null }): ArchiveErrorHint {
+  if (error.hint === 'bucket_protected_fields') return 'archive_protected_fields';
+  if (error.hint?.startsWith('archive_')) return error.hint as ArchiveErrorHint;
+  const message = error.message.toLocaleLowerCase();
+  const details = (error.details ?? '').toLocaleLowerCase();
+  const combined = `${message} ${details}`;
+
+  if (error.code === '42702' && combined.includes('archived_at')) return 'archive_protected_fields';
+  if (combined.includes('protected bucket fields')) return 'archive_protected_fields';
+  if (combined.includes('positive balance') || combined.includes('balance=')) {
+    return 'archive_nonzero_balance';
+  }
+  if (combined.includes('last active bucket')) return 'archive_last_active';
+  if (combined.includes('not a member')) return 'archive_not_room_member';
+  if (combined.includes('not owned') || combined.includes('owned by caller')) return 'archive_partner_bucket';
+  if (combined.includes('not found')) return 'archive_bucket_missing';
+  if (combined.includes('authentication')) return 'archive_unauthenticated';
+  return 'archive_unknown';
+}
+
+function extractBalanceDetail(detail?: string | null): number | undefined {
+  const match = detail?.match(/balance=([0-9]+(?:\.[0-9]+)?)/i);
+  if (!match) return undefined;
+  const balance = Number(match[1]);
+  return Number.isFinite(balance) ? balance : undefined;
+}
+
+function normalizeArchiveError(error: {
+  code?: string;
+  message: string;
+  details?: string | null;
+  hint?: string | null;
+}): ArchiveBucketError {
+  const hint = inferArchiveHint(error);
+  const normalized = {
+    code: error.code,
+    message: error.message,
+    hint,
+    detail: error.details ?? undefined,
+    balance: extractBalanceDetail(error.details),
+  };
+
+  if (import.meta.env.DEV) {
+    console.warn('[archive_bucket] RPC rejected', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      rawHint: error.hint,
+      normalizedHint: hint,
+    });
+  }
+
+  return normalized;
+}
+
 /**
  * Wraps the bucket-archive RPCs (migration 0059). Direct client
  * deletes on `buckets` will be removed in slice 40.7; this hook is
@@ -132,13 +190,8 @@ export function useArchiveBucket(): UseArchiveBucketResult {
         p_bucket_id: args.bucketId,
       });
       if (error) {
-        const hint = (error.hint as ArchiveErrorHint | undefined) ?? 'archive_unknown';
         return {
-          error: {
-            message: error.message,
-            hint,
-            detail: error.details ?? undefined,
-          },
+          error: normalizeArchiveError(error),
         };
       }
       const rows = (data ?? []) as RawArchiveRow[];
@@ -183,13 +236,8 @@ export function useArchiveBucket(): UseArchiveBucketResult {
         p_client_request_id: requestId,
       });
       if (error) {
-        const hint = (error.hint as ArchiveErrorHint | undefined) ?? 'archive_unknown';
         return {
-          error: {
-            message: error.message,
-            hint,
-            detail: error.details ?? undefined,
-          },
+          error: normalizeArchiveError(error),
         };
       }
       const rows = (data ?? []) as RawTransferArchiveRow[];

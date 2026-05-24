@@ -1,9 +1,9 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { bucketSaved, sumTargets } from '../../lib/buckets';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { bucketSaved, hasDuplicateBucketName, sumTargets } from '../../lib/buckets';
 import { isLowConfidenceCategory } from '../../lib/bucketCategories';
 import { type ArchiveErrorHint, useArchiveBucket } from '../../hooks/useArchiveBucket';
 import type { Bucket, BucketCategory, BucketTransfer, SavingsLog } from '../../types';
+import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { BucketCategoryReviewModal } from '../BucketCategoryReviewModal/BucketCategoryReviewModal';
 import { BucketTransferSheet, type TransferBucketOption } from '../BucketTransferSheet/BucketTransferSheet';
 import { Button } from '../Button/Button';
@@ -37,8 +37,9 @@ interface BucketManagerProps {
   onNameChange: (value: string) => void;
   onTargetChange: (value: string) => void;
   onCreate: () => void;
-  onUpdate: (bucket: Bucket, next: { name: string; target_amount: number }) => Promise<{ error?: string }>;
+  onUpdate: (bucket: Bucket, next: { name: string; target_amount: number }) => Promise<{ error?: string; code?: string; duplicateName?: string }>;
   onReviewCategories?: (updates: { id: string; category: BucketCategory }[]) => Promise<{ error?: string }>;
+  onTransferSheetOpenChange?: (open: boolean) => void;
   /**
    * Called after a bucket is archived (with or without a balance
    * transfer) so the parent can refresh server-side state the local
@@ -66,10 +67,27 @@ function mapArchiveHintToErrorKey(
     case 'archive_source_archived': return 'source_archived';
     case 'archive_destination_archived': return 'destination_archived';
     case 'archive_cross_room': return 'cross_room';
+    case 'archive_protected_fields': return 'database_migration';
     case 'archive_unknown':
     default:
       return 'unknown';
   }
+}
+
+function formatArchiveErrorMessage(
+  baseMessage: string,
+  error: { hint: ArchiveErrorHint; code?: string; message: string; detail?: string },
+): string {
+  if (!import.meta.env.DEV) return baseMessage;
+
+  const debug = [
+    error.hint,
+    error.code,
+    error.detail,
+    error.message,
+  ].filter(Boolean).join(' | ');
+
+  return debug ? `${baseMessage} (${debug})` : baseMessage;
 }
 
 export function BucketManager({
@@ -88,11 +106,11 @@ export function BucketManager({
   onCreate,
   onUpdate,
   onReviewCategories,
+  onTransferSheetOpenChange,
   onRemoved,
 }: BucketManagerProps) {
   const { copy, formatMoney } = useI18n();
-  const navigate = useNavigate();
-  const { archive, transferAndArchive, pending: removePending } = useArchiveBucket();
+  const { archive, pending: removePending } = useArchiveBucket();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
@@ -100,6 +118,7 @@ export function BucketManager({
   const [pendingRemove, setPendingRemove] = useState<Bucket | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [transferSheetSourceId, setTransferSheetSourceId] = useState<string | null>(null);
+  const [balanceOverrides, setBalanceOverrides] = useState<Record<string, number>>({});
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const totalBucketTargets = sumTargets(buckets);
@@ -112,7 +131,7 @@ export function BucketManager({
     && createTargetAmount > remainingCapacity;
 
   const pendingRemoveSaved = pendingRemove
-    ? bucketSaved(pendingRemove.id, logs, transfers)
+    ? balanceOverrides[pendingRemove.id] ?? bucketSaved(pendingRemove.id, logs, transfers)
     : 0;
   const removeDestinations: RemoveBucketDestination[] = useMemo(() => {
     if (!pendingRemove) return [];
@@ -121,9 +140,9 @@ export function BucketManager({
       .map(b => ({
         id: b.id,
         name: b.name,
-        saved: bucketSaved(b.id, logs, transfers),
+        saved: balanceOverrides[b.id] ?? bucketSaved(b.id, logs, transfers),
       }));
-  }, [buckets, logs, transfers, pendingRemove]);
+  }, [balanceOverrides, buckets, logs, transfers, pendingRemove]);
 
   // Mirror the dashboard's transfer-sheet shape so the "Transfer Balance
   // First" fallback opens the same sheet UI users see elsewhere.
@@ -131,12 +150,20 @@ export function BucketManager({
     () => buckets.map(b => ({
       id: b.id,
       name: b.name,
-      saved: bucketSaved(b.id, logs, transfers),
+      saved: balanceOverrides[b.id] ?? bucketSaved(b.id, logs, transfers),
       target: b.target_amount,
-      icon: <IconPiggyBank size={20} />,
+      icon: <BucketCategoryIcon category={b.category} size={20} />,
     })),
-    [buckets, logs, transfers],
+    [balanceOverrides, buckets, logs, transfers],
   );
+
+  useEffect(() => {
+    onTransferSheetOpenChange?.(transferSheetSourceId !== null);
+  }, [onTransferSheetOpenChange, transferSheetSourceId]);
+
+  useEffect(() => () => {
+    onTransferSheetOpenChange?.(false);
+  }, [onTransferSheetOpenChange]);
 
   function startEdit(bucket: Bucket) {
     setEditingId(bucket.id);
@@ -162,6 +189,10 @@ export function BucketManager({
       setLocalMessage(copy.bucket.validationTargetAboveZero);
       return;
     }
+    if (hasDuplicateBucketName(buckets, draftName, bucket.id)) {
+      setLocalMessage(copy.bucket.duplicateName(draftName.trim()));
+      return;
+    }
     if (typeof goalTarget === 'number') {
       const capacityForEdit = goalTarget - (totalBucketTargets - bucket.target_amount);
       if (targetAmount > capacityForEdit) {
@@ -178,7 +209,9 @@ export function BucketManager({
     setSaving(false);
 
     if (result.error) {
-      setLocalMessage(result.error);
+      setLocalMessage(result.code === 'duplicate_name'
+        ? copy.bucket.duplicateName(result.duplicateName ?? draftName.trim())
+        : result.error);
       return;
     }
 
@@ -203,37 +236,22 @@ export function BucketManager({
     setRemoveError(null);
     const result = await archive({ bucketId: pendingRemove.id });
     if (result.error) {
-      setRemoveError(copy.bucketRemove.errors[mapArchiveHintToErrorKey(result.error.hint)]);
+      if (result.error.hint === 'archive_nonzero_balance' && result.error.balance != null) {
+        const sourceId = pendingRemove.id;
+        setBalanceOverrides(prev => ({ ...prev, [sourceId]: result.error?.balance ?? prev[sourceId] ?? 0 }));
+        if (buckets.some(b => b.id !== sourceId)) {
+          setPendingRemove(null);
+          setTransferSheetSourceId(sourceId);
+          return;
+        }
+      }
+      const baseMessage = copy.bucketRemove.errors[mapArchiveHintToErrorKey(result.error.hint)];
+      setRemoveError(formatArchiveErrorMessage(baseMessage, result.error));
       return;
     }
     const removedName = pendingRemove.name;
     setPendingRemove(null);
     setLocalMessage(copy.bucketRemove.successRemoved(removedName));
-    if (onRemoved) await onRemoved();
-  }
-
-  async function handleTransferAndArchive(destinationId: string) {
-    if (!pendingRemove) return;
-    setRemoveError(null);
-    const result = await transferAndArchive({
-      sourceBucketId: pendingRemove.id,
-      destinationBucketId: destinationId,
-    });
-    if (result.error) {
-      setRemoveError(copy.bucketRemove.errors[mapArchiveHintToErrorKey(result.error.hint)]);
-      return;
-    }
-    const removedName = pendingRemove.name;
-    const destName = buckets.find(b => b.id === destinationId)?.name ?? '';
-    const movedAmount = result.data?.amount ?? pendingRemoveSaved;
-    setPendingRemove(null);
-    setLocalMessage(
-      copy.bucketRemove.successTransferredAndRemoved(
-        formatMoney(movedAmount),
-        destName,
-        removedName,
-      ),
-    );
     if (onRemoved) await onRemoved();
   }
 
@@ -245,13 +263,11 @@ export function BucketManager({
     setTransferSheetSourceId(sourceId);
   }
 
-  function handleViewActivity() {
-    setPendingRemove(null);
-    setRemoveError(null);
-    navigate('/notifications');
-  }
-
   function handleCreate() {
+    if (hasDuplicateBucketName(buckets, name)) {
+      setLocalMessage(copy.bucket.duplicateName(name.trim()));
+      return;
+    }
     if (createTargetOverCapacity) {
       setLocalMessage(copy.bucket.capacityError(formatMoney(remainingCapacity ?? 0)));
       return;
@@ -345,9 +361,7 @@ export function BucketManager({
         errorMessage={removeError}
         onClose={closeRemove}
         onArchive={handleArchive}
-        onTransferAndArchive={handleTransferAndArchive}
         onTransferFirst={handleTransferFirst}
-        onViewActivity={handleViewActivity}
       />
       <BucketTransferSheet
         open={transferSheetSourceId !== null}

@@ -4,11 +4,18 @@ import { notifyBucketAdded, notifyBucketUpdated } from '../lib/notifyEvents';
 import { useAuth } from './useAuth';
 import type { Bucket, BucketCategory, BucketDraft } from '../types';
 import { formatCurrency } from '../lib/format';
+import { findDuplicateBucketName } from '../lib/buckets';
+
+export interface SaveBucketsResult {
+  error?: string;
+  code?: 'duplicate_name';
+  duplicateName?: string;
+}
 
 export interface UseBucketsResult {
   buckets: Bucket[];
   loading: boolean;
-  saveBuckets: (next: BucketDraft[]) => Promise<{ error?: string }>;
+  saveBuckets: (next: BucketDraft[]) => Promise<SaveBucketsResult>;
   reviewBucketCategories: (updates: { id: string; category: BucketCategory }[]) => Promise<{ error?: string }>;
   /**
    * Refetch active buckets after server-side mutations the local cache
@@ -45,8 +52,17 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
     fetchBuckets();
   }, [fetchBuckets]);
 
-  async function saveBuckets(next: BucketDraft[]): Promise<{ error?: string }> {
+  async function saveBuckets(next: BucketDraft[]): Promise<SaveBucketsResult> {
     if (!user || !roomId) return { error: 'Not authenticated or no room' };
+
+    const duplicateName = findDuplicateBucketName(next);
+    if (duplicateName) {
+      return {
+        error: `You already have an active bucket named "${duplicateName}".`,
+        code: 'duplicate_name',
+        duplicateName,
+      };
+    }
 
     const { data: goal, error: goalErr } = await supabase
       .from('goals')
@@ -116,7 +132,12 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       const { error: upErr } = await supabase
         .from('buckets')
         .upsert(updates, { onConflict: 'id' });
-      if (upErr) return { error: upErr.message };
+      if (upErr) {
+        if (upErr.code === '23505') {
+          return { error: 'Bucket names must be unique.', code: 'duplicate_name' };
+        }
+        return { error: upErr.message };
+      }
     }
 
     // Execute inserts and capture the new ids so each added bucket
@@ -127,7 +148,12 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
         .from('buckets')
         .insert(inserts)
         .select('id');
-      if (insErr) return { error: insErr.message };
+      if (insErr) {
+        if (insErr.code === '23505') {
+          return { error: 'Bucket names must be unique.', code: 'duplicate_name' };
+        }
+        return { error: insErr.message };
+      }
       insertedIds = (insertedRows ?? []).map(row => row.id as string);
     }
 

@@ -20,6 +20,9 @@ create table if not exists public.bucket_intent_settings (
 alter table public.bucket_intent_settings enable row level security;
 
 -- Select: own rows where caller is a room member
+drop policy if exists "intent_settings_select_own"
+  on public.bucket_intent_settings;
+
 create policy "intent_settings_select_own"
   on public.bucket_intent_settings
   for select
@@ -35,6 +38,9 @@ create policy "intent_settings_select_own"
   );
 
 -- Insert: own rows, room member, optional bucket must be own+active+same room
+drop policy if exists "intent_settings_insert_own"
+  on public.bucket_intent_settings;
+
 create policy "intent_settings_insert_own"
   on public.bucket_intent_settings
   for insert
@@ -61,6 +67,9 @@ create policy "intent_settings_insert_own"
   );
 
 -- Update: own rows, room member, optional bucket must be own+active+same room
+drop policy if exists "intent_settings_update_own"
+  on public.bucket_intent_settings;
+
 create policy "intent_settings_update_own"
   on public.bucket_intent_settings
   for update
@@ -76,6 +85,12 @@ create policy "intent_settings_update_own"
   )
   with check (
     user_id = auth.uid()
+    and exists (
+      select 1
+        from public.room_members rm
+       where rm.room_id = bucket_intent_settings.room_id
+         and rm.user_id = auth.uid()
+    )
     and (
       manual_next_bucket_id is null
       or exists (
@@ -90,6 +105,9 @@ create policy "intent_settings_update_own"
   );
 
 -- Delete: own rows only
+drop policy if exists "intent_settings_delete_own"
+  on public.bucket_intent_settings;
+
 create policy "intent_settings_delete_own"
   on public.bucket_intent_settings
   for delete
@@ -119,6 +137,9 @@ create table if not exists public.bucket_intent_events (
 alter table public.bucket_intent_events enable row level security;
 
 -- Select: own events where caller is a room member
+drop policy if exists "intent_events_select_own"
+  on public.bucket_intent_events;
+
 create policy "intent_events_select_own"
   on public.bucket_intent_events
   for select
@@ -134,6 +155,9 @@ create policy "intent_events_select_own"
   );
 
 -- Insert: own events where caller is a room member
+drop policy if exists "intent_events_insert_own"
+  on public.bucket_intent_events;
+
 create policy "intent_events_insert_own"
   on public.bucket_intent_events
   for insert
@@ -152,6 +176,9 @@ create policy "intent_events_insert_own"
 
 
 -- 3. Constraints
+alter table public.bucket_intent_events
+  drop constraint if exists intent_events_event_key_check;
+
 alter table public.bucket_intent_events
   add constraint intent_events_event_key_check
   check (event_key in (

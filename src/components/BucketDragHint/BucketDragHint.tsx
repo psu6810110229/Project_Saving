@@ -40,6 +40,11 @@ export function BucketDragHint({
     onShown();
   }, [open, onShown]);
 
+  useEffect(() => {
+    if (!open) return;
+    const timeoutId = window.setTimeout(onDismiss, 6400);
+    return () => window.clearTimeout(timeoutId);
+  }, [open, onDismiss]);
 
   return (
     <AnimatePresence>

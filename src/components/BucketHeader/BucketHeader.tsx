@@ -19,17 +19,17 @@ interface BucketHeaderProps {
 export function BucketHeader({ icon, name, saved, target }: BucketHeaderProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   return (
-    <section className="rounded-xl bg-surface shadow-soft p-5">
+    <section className="rounded-[22px] border border-white/80 bg-surface p-5 shadow-[0_14px_34px_rgba(58,42,31,0.10),0_2px_6px_rgba(58,42,31,0.05)]">
       <div className="flex items-center gap-4">
-        <IconBubble tone="solid" size="xl">{icon}</IconBubble>
+        <IconBubble tone="solid" size="xl" className="shrink-0">{icon}</IconBubble>
         <div className="flex-1 min-w-0">
-          <h2 className="truncate font-mono text-lg font-bold leading-tight text-ink">{name}</h2>
-          <div className="mt-1 font-mono text-sm text-ink-muted">
+          <h2 className="truncate font-mono text-xl font-bold leading-tight text-ink">{name}</h2>
+          <div className="mt-2 font-mono text-sm font-medium text-ink-muted">
             {formatCurrency(saved)} <span className="text-ink-dim">/ {formatCurrency(target)}</span>
           </div>
         </div>
       </div>
-      <div className="mt-4">
+      <div className="mt-5">
         <ProgressBar value={pct} tone="primary" size="lg" animate />
       </div>
     </section>

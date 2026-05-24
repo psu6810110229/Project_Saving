@@ -1,9 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AddMoneyForm } from '../components/AddMoneyForm/AddMoneyForm';
-import { Button } from '../components/Button/Button';
+import { BucketHeader } from '../components/BucketHeader/BucketHeader';
+import { CompleteBucketLock } from '../components/CompleteBucketLock/CompleteBucketLock';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
-import { IconCheck } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
 import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
@@ -19,7 +20,7 @@ import { useRoom } from '../hooks/useRoom';
 import { useSharedData } from '../hooks/useSharedData';
 import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
-import { bucketSaved } from '../lib/buckets';
+import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName } from '../lib/buckets';
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { computeBucketIntent } from '../lib/bucketIntent';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
@@ -27,7 +28,10 @@ import { SHOW_ATTACHED_SLIP } from '../lib/flags';
 import { haptic } from '../lib/haptics';
 import type { BucketCategory } from '../types';
 
+const DEFAULT_BUCKET_CATEGORY = 'flight' as const;
+
 export function AddMoney() {
+  const navigate = useNavigate();
   const { copy, formatMoney } = useI18n();
   const { user, profile } = useAuth();
   const { activeRoom } = useRoom();
@@ -53,8 +57,8 @@ export function AddMoney() {
     bucketName: string;
     reachedBucket: boolean;
   } | null>(null);
-  const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
-  const [bucketName, setBucketName] = useState('Flights');
+  const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>(DEFAULT_BUCKET_CATEGORY);
+  const [bucketName, setBucketName] = useState(() => copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
   const [bucketTarget, setBucketTarget] = useState('30000');
   const [editingQuickAmounts, setEditingQuickAmounts] = useState(false);
   const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>([]);
@@ -96,21 +100,38 @@ export function AddMoney() {
   if (dataLoading) return null;
   if (logsError) return <StatusCard title={copy.addMoney.loadError} body={logsError} sectionLabel={copy.addMoney.sectionLabel} />;
 
+  function handleBucketCategoryChange(next: BucketCategory) {
+    setBucketCategory(next);
+    setBucketName(currentName =>
+      shouldAutofillBucketName(currentName, copy.bucket.defaultNames)
+        ? copy.bucket.defaultNames[next]
+        : currentName,
+    );
+  }
+
   async function handleCreateBucket() {
     const target = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || target <= 0) {
       setMessage(copy.bucket.validationNameAndTarget);
       return;
     }
+    if (hasDuplicateBucketName(buckets, bucketName)) {
+      setMessage(copy.bucket.duplicateName(bucketName.trim()));
+      return;
+    }
     const result = await saveBuckets([
       ...buckets,
       { id: undefined, name: bucketName.trim(), target_amount: target, category: bucketCategory },
     ]);
-    if (result.error) setMessage(result.error);
-    else {
+    if (result.error) {
+      setMessage(result.code === 'duplicate_name'
+        ? copy.bucket.duplicateName(result.duplicateName ?? bucketName.trim())
+        : result.error);
+    } else {
       haptic('success');
       setMessage(copy.bucket.createdAddMoney);
-      setBucketName('');
+      setBucketCategory(DEFAULT_BUCKET_CATEGORY);
+      setBucketName(copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
       setBucketTarget('');
     }
   }
@@ -198,7 +219,7 @@ export function AddMoney() {
           options={bucketOptions}
           name={bucketName}
           target={bucketTarget}
-          onCategoryChange={setBucketCategory}
+          onCategoryChange={handleBucketCategoryChange}
           onNameChange={setBucketName}
           onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
           onSubmit={handleCreateBucket}
@@ -235,48 +256,41 @@ export function AddMoney() {
         eyebrow={copy.addMoney.pageEyebrow}
         title={copy.addMoney.pageTitle}
       />
-      <BucketPicker buckets={buckets} selectedId={selectedBucket.id} onSelect={setSelectedBucketId} />
+      {!showAddMoneyDoneLock && (
+        <BucketPicker buckets={buckets} selectedId={selectedBucket.id} onSelect={setSelectedBucketId} />
+      )}
       {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       {showAddMoneyDoneLock ? (
-        <section className="flex flex-col items-center gap-3 rounded-xl bg-surface p-6 shadow-soft">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-            <IconCheck size={20} className="text-green-700" />
-          </div>
-          <p className="text-center font-mono text-sm font-bold text-ink">
-            {copy.addMoney.doneLock.title}
-          </p>
-          <p className="text-center font-mono text-xs text-ink-muted">
-            {copy.addMoney.doneLock.body(selectedBucket.name)}
-          </p>
-          {nextBucketForAddMoney && (
-            <p className="text-center font-mono text-xs text-accent-700">
-              {copy.addMoney.doneLock.nextBucket(nextBucketForAddMoney.name)}
-            </p>
-          )}
-          <div className="mt-1 flex w-full flex-col gap-2">
-            {nextBucketForAddMoney && (
-              <Button
-                variant="action"
-                fullWidth
-                onClick={() => {
-                  setSelectedBucketId(nextBucketForAddMoney.id);
-                }}
-              >
-                {copy.addMoney.doneLock.useNextBucket}
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              fullWidth
-              onClick={() => {
-                setDoneLockOverridden(true);
-                void logIntentEvent({ eventKey: 'done_lock_overridden', bucketId: selectedBucket.id });
-              }}
-            >
-              {copy.addMoney.doneLock.addAnyway}
-            </Button>
-          </div>
-        </section>
+        <div className="flex flex-col gap-6">
+          <BucketHeader
+            icon={bucketIcon(selectedBucket.category)}
+            name={selectedBucket.name}
+            saved={selectedBucketSaved}
+            target={selectedBucket.target_amount}
+          />
+          <CompleteBucketLock
+            title={copy.addMoney.doneLock.title}
+            body={copy.addMoney.doneLock.body(selectedBucket.name, nextBucketForAddMoney?.name ?? null)}
+            nextLine={nextBucketForAddMoney ? copy.addMoney.doneLock.nextBucket(nextBucketForAddMoney.name) : null}
+            backLabel={copy.common.back}
+            addAnywayLabel={copy.addMoney.doneLock.addAnyway}
+            onBack={() => navigate('/dashboard')}
+            onAddAnyway={() => {
+              setDoneLockOverridden(true);
+              void logIntentEvent({ eventKey: 'done_lock_overridden', bucketId: selectedBucket.id });
+            }}
+            primaryAction={
+              nextBucketForAddMoney
+                ? {
+                    label: copy.addMoney.doneLock.useNextBucket,
+                    onClick: () => {
+                      setSelectedBucketId(nextBucketForAddMoney.id);
+                    },
+                  }
+                : undefined
+            }
+          />
+        </div>
       ) : (
       <AddMoneyForm
         bucketIcon={bucketIcon(selectedBucket.category)}

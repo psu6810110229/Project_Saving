@@ -32,7 +32,7 @@ import { formatJoinedDate } from '../i18n/formatters';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
-import { sumTargets } from '../lib/buckets';
+import { hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { haptic } from '../lib/haptics';
 import type { Bucket, BucketCategory } from '../types';
 
@@ -56,6 +56,7 @@ type ManageModal =
   | null;
 
 const ROOM_NAME_MAX = 60;
+const DEFAULT_BUCKET_CATEGORY = 'flight' as const;
 
 
 export function ManageProject() {
@@ -83,12 +84,13 @@ export function ManageProject() {
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { logs } = data.logs;
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
+  const [bucketTransferSheetOpen, setBucketTransferSheetOpen] = useState(false);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>(quickAmounts.map(String));
-  const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
-  const [bucketName, setBucketName] = useState('Flights');
+  const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>(DEFAULT_BUCKET_CATEGORY);
+  const [bucketName, setBucketName] = useState(() => copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
   const [bucketTarget, setBucketTarget] = useState('30000');
   const [renameDraft, setRenameDraft] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
@@ -145,6 +147,7 @@ export function ManageProject() {
 
   function closeModal() {
     setActiveModal(null);
+    setBucketTransferSheetOpen(false);
     setMessage(null);
     setRenameError(null);
   }
@@ -247,10 +250,23 @@ export function ManageProject() {
     }
   }
 
+  function handleBucketCategoryChange(next: BucketCategory) {
+    setBucketCategory(next);
+    setBucketName(currentName =>
+      shouldAutofillBucketName(currentName, copy.bucket.defaultNames)
+        ? copy.bucket.defaultNames[next]
+        : currentName,
+    );
+  }
+
   async function handleCreateBucket() {
     const target = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || target <= 0) {
       setMessage(copy.bucket.validationNameAndTarget);
+      return;
+    }
+    if (hasDuplicateBucketName(buckets, bucketName)) {
+      setMessage(copy.bucket.duplicateName(bucketName.trim()));
       return;
     }
     if (goalTarget !== null && yourBucketTargetTotal + target > goalTarget) {
@@ -261,16 +277,25 @@ export function ManageProject() {
       ...buckets,
       { id: undefined, name: bucketName.trim(), target_amount: target, category: bucketCategory },
     ]);
-    if (result.error) setMessage(result.error);
-    else {
+    if (result.error) {
+      setMessage(result.code === 'duplicate_name'
+        ? copy.bucket.duplicateName(result.duplicateName ?? bucketName.trim())
+        : result.error);
+    } else {
       haptic('success');
       setMessage(copy.bucket.createdSuccess);
-      setBucketName('');
+      setBucketCategory(DEFAULT_BUCKET_CATEGORY);
+      setBucketName(copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
       setBucketTarget('');
     }
   }
 
   async function handleUpdateBucket(bucket: Bucket, next: { name: string; target_amount: number }) {
+    if (hasDuplicateBucketName(buckets, next.name, bucket.id)) {
+      const error = copy.bucket.duplicateName(next.name.trim());
+      setMessage(error);
+      return { error, code: 'duplicate_name' as const, duplicateName: next.name.trim() };
+    }
     if (goalTarget !== null) {
       const capacityForBucket = goalTarget - (yourBucketTargetTotal - bucket.target_amount);
       if (next.target_amount > capacityForBucket) {
@@ -287,8 +312,11 @@ export function ManageProject() {
     );
 
     if (result.error) {
-      setMessage(result.error);
-      return result;
+      const error = result.code === 'duplicate_name'
+        ? copy.bucket.duplicateName(result.duplicateName ?? next.name.trim())
+        : result.error;
+      setMessage(error);
+      return { ...result, error };
     }
 
     setMessage(copy.bucket.updatedSuccess);
@@ -362,6 +390,18 @@ export function ManageProject() {
         <span className="copy-allowed font-mono text-xs text-ink">{formatMoney(personalGoalTarget)}</span>
       ) : undefined,
       onClick: () => openModal('personal-goal'),
+    },
+    {
+      id: 'buckets',
+      icon: <IconPiggyBank size={18} />,
+      label: copy.manageProject.manageBucketsModalTitle,
+      description: copy.dashboard.bucketCount(buckets.length),
+      meta: (
+        <span className="copy-allowed font-mono text-xs text-ink">
+          {formatMoney(yourBucketTargetTotal)}
+        </span>
+      ),
+      onClick: () => openModal('buckets'),
     },
     {
       id: 'quick',
@@ -600,7 +640,12 @@ export function ManageProject() {
           onSave={handleQuickAmountsSave}
         />
       </Modal>
-      <Modal open={activeModal === 'buckets'} title={copy.manageProject.manageBucketsModalTitle} onClose={closeModal}>
+      <Modal
+        open={activeModal === 'buckets'}
+        title={copy.manageProject.manageBucketsModalTitle}
+        onClose={closeModal}
+        hidden={bucketTransferSheetOpen}
+      >
         <BucketManager
           buckets={buckets}
           logs={logs}
@@ -610,7 +655,7 @@ export function ManageProject() {
           options={bucketOptions}
           name={bucketName}
           target={bucketTarget}
-          onCategoryChange={setBucketCategory}
+          onCategoryChange={handleBucketCategoryChange}
           onNameChange={setBucketName}
           onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
           onCreate={handleCreateBucket}
@@ -628,6 +673,7 @@ export function ManageProject() {
             }
             return result;
           }}
+          onTransferSheetOpenChange={setBucketTransferSheetOpen}
           onRemoved={refetchBuckets}
           statusMessage={message}
         />

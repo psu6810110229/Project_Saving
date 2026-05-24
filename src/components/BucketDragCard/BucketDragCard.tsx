@@ -6,8 +6,13 @@ import { useReducedMotion } from 'framer-motion';
 interface BucketDragCardProps {
   id: string;
   children: ReactNode;
-  /** Show a subtle shimmer to hint that this card is draggable. */
-  showDragHint?: boolean;
+  /** Role this card plays in the one-time drag gesture hint. */
+  dragHintRole?: 'source' | 'target';
+  /** CSS translate target for the drag gesture hint. */
+  dragHintOffset?: {
+    x: string;
+    y: string;
+  };
 }
 
 interface DragBounds {
@@ -65,7 +70,7 @@ function readDragBounds(node: HTMLDivElement): DragBounds {
  * the parent DndContext: a quick tap still propagates the click to the
  * underlying Pressable, while a hold-and-drag enters drag mode.
  */
-export function BucketDragCard({ id, children, showDragHint }: BucketDragCardProps) {
+export function BucketDragCard({ id, children, dragHintRole, dragHintOffset }: BucketDragCardProps) {
   const reduceMotion = useReducedMotion();
   const [dragBounds, setDragBounds] = useState<DragBounds | null>(null);
   const {
@@ -90,11 +95,16 @@ export function BucketDragCard({ id, children, showDragHint }: BucketDragCardPro
   const constrainedTransform = transform
     ? clampTransformToBounds(transform, dragBounds, isDragging ? liftScale : 1)
     : null;
+  const showAnimatedDragHint = Boolean(dragHintRole === 'source' && dragHintOffset && !isDragging && !reduceMotion);
+  const showDropHint = Boolean(dragHintRole === 'target' && !isDragging && !reduceMotion);
   // Calm cubic-bezier eases the settle after a drag and the highlight
   // fade for valid targets. Matches the brand-soft motion language.
   const ease = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
-  const style: CSSProperties = {
+  const style: CSSProperties & {
+    '--bucket-drag-hint-x'?: string;
+    '--bucket-drag-hint-y'?: string;
+  } = {
     transform: constrainedTransform
       ? `translate3d(${constrainedTransform.x}px, ${constrainedTransform.y}px, 0) scale(${isDragging ? liftScale : 1})`
       : undefined,
@@ -106,6 +116,8 @@ export function BucketDragCard({ id, children, showDragHint }: BucketDragCardPro
         : `transform 180ms ${ease}, box-shadow 180ms ${ease}, opacity 180ms ${ease}`,
     touchAction: 'manipulation',
     cursor: isDragging ? 'grabbing' : 'grab',
+    '--bucket-drag-hint-x': showAnimatedDragHint ? dragHintOffset?.x : undefined,
+    '--bucket-drag-hint-y': showAnimatedDragHint ? dragHintOffset?.y : undefined,
   };
 
   // Reduced motion keeps the ring tighter (no offset) so the state
@@ -132,24 +144,13 @@ export function BucketDragCard({ id, children, showDragHint }: BucketDragCardPro
     <div
       ref={setBucketNodeRef}
       style={style}
-      className={`relative rounded-2xl ${liftClass} ${ringClass}`.trim()}
+      className={`relative rounded-2xl ${showAnimatedDragHint ? 'bucket-drag-demo' : ''} ${showDropHint ? 'bucket-drop-demo' : ''} ${liftClass} ${ringClass}`.trim()}
       onPointerDownCapture={handlePointerDownCapture}
       {...attributes}
       {...listeners}
     >
       {children}
-      {showDragHint && !isDragging && !reduceMotion && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-2xl"
-          style={{
-            background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.45) 50%, transparent 60%)',
-            backgroundSize: '200% 100%',
-            animation: 'bucketDragShimmer 2.4s ease-in-out infinite',
-          }}
-        />
-      )}
-      {showDragHint && !isDragging && reduceMotion && (
+      {dragHintRole && !isDragging && reduceMotion && (
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-brand-200"

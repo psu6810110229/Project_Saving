@@ -65,7 +65,7 @@ import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useI18n } from '../i18n/useI18n';
-import { bucketSaved, sumTargets } from '../lib/buckets';
+import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { cumulativeAmountSeries, dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
@@ -133,6 +133,15 @@ const restrictBucketDragToViewport: Modifier = ({ activeNodeRect, transform, win
 };
 
 const bucketDragModifiers: Modifiers = [restrictBucketDragToViewport];
+const DEFAULT_BUCKET_CATEGORY = 'flight' as const;
+
+function bucketDragHintDistance(delta: number) {
+  if (delta === 0) return '0px';
+
+  const abs = Math.abs(delta);
+  const distance = `calc(${abs * 100}% + ${abs}rem)`;
+  return delta > 0 ? distance : `calc(-${abs * 100}% - ${abs}rem)`;
+}
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -141,6 +150,9 @@ export function Dashboard() {
   const data = useSharedData();
   const {
     quickAmounts,
+    profile: dataProfile,
+    loading: profileLoading,
+    markBucketDragHintSeen,
   } = data.profile;
   const {
     personalGoalTarget,
@@ -204,12 +216,10 @@ export function Dashboard() {
   } | null>(null);
   // Local "dismissed this render" flag so the hint disappears
   // immediately once it auto-times-out, the user closes it, or a drag
-  // starts — without waiting for the optimistic profile update to
-  // round-trip. Account-level persistence still owns the "never show
-  // again" behavior across devices.
-  const [bucketDragHintDismissed, setBucketDragHintDismissed] = useState(
-    () => localStorage.getItem('bucket-drag-hint-seen') === '1',
-  );
+  // starts. Account-level persistence owns the "never show again"
+  // behavior across devices.
+  const [bucketDragHintDismissed, setBucketDragHintDismissed] = useState(false);
+  const [bucketDragHintMarkedThisSession, setBucketDragHintMarkedThisSession] = useState(false);
 
   // dnd-kit sensors for the bucket transfer drag shortcut (slice 40.6).
   // Activation thresholds follow plan §12: desktop ~150ms / touch ~250ms so
@@ -251,24 +261,31 @@ export function Dashboard() {
     setTransferIntent({ sourceId, destinationId, initialAmount, suggestionReason });
   }
 
+  const markBucketDragHintSeenForAccount = useCallback(() => {
+    setBucketDragHintMarkedThisSession(true);
+    void markBucketDragHintSeen();
+  }, [markBucketDragHintSeen]);
+
   // Once the user actually starts a drag the hint has served its
   // purpose — dismiss it locally and persist `seen_at` so it never
   // reopens on this account (plan §13).
-  function dismissBucketDragHint() {
+  const dismissBucketDragHint = useCallback(() => {
     setBucketDragHintDismissed(true);
-    localStorage.setItem('bucket-drag-hint-seen', '1');
-  }
+    markBucketDragHintSeenForAccount();
+  }, [markBucketDragHintSeenForAccount]);
 
   function handleBucketDragStart() {
     if (bucketDragHintDismissed) return;
     dismissBucketDragHint();
   }
 
-  const handleBucketDragHintShown = useCallback(() => {}, []);
+  const handleBucketDragHintShown = useCallback(() => {
+    markBucketDragHintSeenForAccount();
+  }, [markBucketDragHintSeenForAccount]);
 
   const handleBucketDragHintDismiss = useCallback(() => {
     dismissBucketDragHint();
-  }, []);
+  }, [dismissBucketDragHint]);
   const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
   const [vaultPreview, setVaultPreview] = useState<{
     prevSaved: number;
@@ -281,8 +298,8 @@ export function Dashboard() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [vbReminder, setVbReminder] = useState<{ open: boolean; days: number | null }>({ open: false, days: null });
   const vbReminderEvaluatedRef = useRef(false);
-  const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>('flight');
-  const [bucketName, setBucketName] = useState('Flights');
+  const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>(DEFAULT_BUCKET_CATEGORY);
+  const [bucketName, setBucketName] = useState(() => copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
   const [bucketTarget, setBucketTarget] = useState('30000');
   const [message, setMessage] = useState<string | null>(null);
   const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
@@ -421,9 +438,35 @@ export function Dashboard() {
   //   * the user hasn't already dismissed it this session.
   // Profile loading is treated as "not yet eligible" so we don't flash
   // the hint to a returning user whose profile row is still resolving.
+  const bucketDragHintSeenOnAccount = Boolean(dataProfile?.bucket_drag_hint_seen_at);
   const showBucketDragHint =
     bucketItems.length >= 2
-    && !bucketDragHintDismissed;
+    && !profileLoading
+    && !bucketDragHintDismissed
+    && (!bucketDragHintSeenOnAccount || bucketDragHintMarkedThisSession);
+  const bucketDragHintDemo = (() => {
+    if (!showBucketDragHint) return null;
+
+    const sourceIndex = 0;
+    const destinationIndex = 1;
+    const source = bucketItems[sourceIndex];
+    const destination = bucketItems[destinationIndex];
+    if (!source || !destination) return null;
+
+    const sourceCol = sourceIndex % 2;
+    const sourceRow = Math.floor(sourceIndex / 2);
+    const destinationCol = destinationIndex % 2;
+    const destinationRow = Math.floor(destinationIndex / 2);
+
+    return {
+      sourceId: source.id,
+      destinationId: destination.id,
+      offset: {
+        x: bucketDragHintDistance(destinationCol - sourceCol),
+        y: bucketDragHintDistance(destinationRow - sourceRow),
+      },
+    };
+  })();
 
   // Task 37: Manage Project is the only editing surface for both
   // the room goal and the personal sub-goal. Creators see an edit
@@ -727,10 +770,23 @@ export function Dashboard() {
 
   const chartLocale = language === 'th' ? 'th-TH' : 'en-US';
 
+  function handleBucketCategoryChange(next: BucketCategory) {
+    setBucketCategory(next);
+    setBucketName(currentName =>
+      shouldAutofillBucketName(currentName, copy.bucket.defaultNames)
+        ? copy.bucket.defaultNames[next]
+        : currentName,
+    );
+  }
+
   async function handleCreateBucket() {
     const nextTarget = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || nextTarget <= 0) {
       setMessage(copy.bucket.validationNameAndTarget);
+      return;
+    }
+    if (hasDuplicateBucketName(buckets, bucketName)) {
+      setMessage(copy.bucket.duplicateName(bucketName.trim()));
       return;
     }
     if (newBucketExceedsCapacity) {
@@ -741,10 +797,14 @@ export function Dashboard() {
       ...buckets,
       { id: undefined, name: bucketName.trim(), target_amount: nextTarget, category: bucketCategory },
     ]);
-    if (result.error) setMessage(result.error);
-    else {
+    if (result.error) {
+      setMessage(result.code === 'duplicate_name'
+        ? copy.bucket.duplicateName(result.duplicateName ?? bucketName.trim())
+        : result.error);
+    } else {
       setMessage(null);
-      setBucketName('');
+      setBucketCategory(DEFAULT_BUCKET_CATEGORY);
+      setBucketName(copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
       setBucketTarget('');
       setBucketModalOpen(false);
     }
@@ -941,7 +1001,17 @@ export function Dashboard() {
                 </div>
               }
               renderBucket={bucket => (
-                <BucketDragCard id={bucket.id} showDragHint={showBucketDragHint}>
+                <BucketDragCard
+                  id={bucket.id}
+                  dragHintRole={
+                    bucketDragHintDemo?.sourceId === bucket.id
+                      ? 'source'
+                      : bucketDragHintDemo?.destinationId === bucket.id
+                        ? 'target'
+                        : undefined
+                  }
+                  dragHintOffset={bucketDragHintDemo?.sourceId === bucket.id ? bucketDragHintDemo.offset : undefined}
+                >
                   <BucketRow
                     icon={bucket.icon}
                     name={bucket.name}
@@ -1076,7 +1146,7 @@ export function Dashboard() {
             target={bucketTarget}
             targetHelper={bucketTargetRemaining !== null ? copy.bucket.remainingForBuckets(formatMoney(bucketTargetRemaining)) : undefined}
             targetError={newBucketExceedsCapacity ? copy.bucket.capacityExceededBy(formatMoney(newBucketTargetAmount - (bucketTargetRemaining ?? 0))) : undefined}
-            onCategoryChange={setBucketCategory}
+            onCategoryChange={handleBucketCategoryChange}
             onNameChange={setBucketName}
             onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
             onSubmit={handleCreateBucket}

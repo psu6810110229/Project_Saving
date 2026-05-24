@@ -11,7 +11,7 @@ import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/moti
 import type { TransferBucketMoneyResult } from '../../types';
 import { Button } from '../Button/Button';
 import { FormField } from '../FormField/FormField';
-import { IconPiggyBank, IconSwap } from '../Icon/Icon';
+import { IconArrowRight, IconPiggyBank, IconSwap } from '../Icon/Icon';
 import { IconBubble } from '../IconBubble/IconBubble';
 import Pressable from '../Pressable/Pressable';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
@@ -161,6 +161,11 @@ function pickInitialSelections(
   return { sourceId, destinationId };
 }
 
+function formatAmountInputValue(amount: number): string {
+  const rounded = Math.round((amount + Number.EPSILON) * 100) / 100;
+  return rounded.toFixed(2).replace(/\.?0+$/, '');
+}
+
 function BucketTransferSheetInner({
   buckets,
   initialSourceId,
@@ -239,6 +244,12 @@ function BucketTransferSheetInner({
       ? `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}`
       : raw;
     setAmountValue(next);
+    clearInlineError();
+  }
+
+  function handleMoveAllAmount() {
+    if (!source || source.saved <= 0) return;
+    setAmountValue(formatAmountInputValue(source.saved));
     clearInlineError();
   }
 
@@ -437,6 +448,18 @@ function BucketTransferSheetInner({
                           error={insufficientLocal}
                         />
                       </FormField>
+                      <div className="mt-2 flex justify-start">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="border border-brand-100/70 bg-brand-50/60 px-3 py-2 text-brand-800 shadow-soft backdrop-blur-sm hover:bg-brand-100/60 hover:text-brand-900"
+                          disabled={source.saved <= 0}
+                          onClick={handleMoveAllAmount}
+                        >
+                          {buckCopy.moveAllButton(formatMoney(source.saved))}
+                        </Button>
+                      </div>
                     </motion.div>
 
                     <motion.div variants={itemVariants}>
@@ -480,7 +503,7 @@ function BucketTransferSheetInner({
                   <>
                     <motion.div variants={itemVariants}>
                       <h2 className="font-mono text-xl font-bold leading-tight text-ink">
-                        {buckCopy.reviewHeading(formatMoney(amountNumber))}
+                        {buckCopy.reviewHeading(source.name, destination.name)}
                       </h2>
                     </motion.div>
 
@@ -488,13 +511,11 @@ function BucketTransferSheetInner({
                       <div className="rounded-xl bg-surface p-4 shadow-soft">
                         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                           <ReviewBucketCard
-                            column={buckCopy.sourceColumnLabel}
                             bucket={source}
                             formatMoney={formatMoney}
                           />
-                          <IconSwap size={20} className="text-brand-500 shrink-0" />
+                          <TransferFlowArrow />
                           <ReviewBucketCard
-                            column={buckCopy.destinationColumnLabel}
                             bucket={destination}
                             formatMoney={formatMoney}
                           />
@@ -586,25 +607,21 @@ function BucketPickerRow({
   savedChipBuilder,
   formatMoney,
 }: BucketPickerRowProps) {
+  const visibleBuckets = buckets.filter(bucket => bucket.id !== disabledId);
+
   return (
     <div className="mt-2 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x">
-      {buckets.map((bucket) => {
+      {visibleBuckets.map((bucket) => {
         const selected = bucket.id === selectedId;
-        const disabled = bucket.id === disabledId;
         return (
           <Pressable
             key={bucket.id}
-            onClick={() => {
-              if (disabled) return;
-              onSelect(bucket.id);
-            }}
+            onClick={() => onSelect(bucket.id)}
             className={
               'flex shrink-0 snap-start flex-col items-start gap-1 rounded-2xl border px-3 py-2.5 text-left transition-all min-w-[150px] '
               + (selected
                 ? 'border-brand-500 bg-brand-50 shadow-soft'
-                : disabled
-                  ? 'border-brand-100 bg-surfaceAlt opacity-50 cursor-not-allowed'
-                  : 'border-brand-100 bg-surface hover:border-brand-300')
+                : 'border-brand-100 bg-surface hover:border-brand-300')
             }
           >
             <div className="flex w-full items-center gap-2">
@@ -624,15 +641,27 @@ function BucketPickerRow({
 }
 
 interface ReviewBucketCardProps {
-  column: string;
   bucket: TransferBucketOption;
   formatMoney: (amount: number) => string;
 }
 
-function ReviewBucketCard({ column, bucket, formatMoney }: ReviewBucketCardProps) {
+function TransferFlowArrow() {
+  return (
+    <div className="flex h-12 w-16 shrink-0 items-center justify-center text-brand-700">
+      <motion.div
+        className="flex items-center"
+        animate={{ x: [0, 5, 0], opacity: [0.72, 1, 0.72] }}
+        transition={{ duration: 1.7, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <IconArrowRight size={30} strokeWidth={2.35} />
+      </motion.div>
+    </div>
+  );
+}
+
+function ReviewBucketCard({ bucket, formatMoney }: ReviewBucketCardProps) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-1 text-center">
-      <SectionLabel tone="muted">{column}</SectionLabel>
       <IconBubble tone="peach" size="md">{bucket.icon}</IconBubble>
       <p className="w-full truncate font-mono text-sm font-bold text-ink" title={bucket.name}>
         {bucket.name}

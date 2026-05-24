@@ -1,7 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { AddMoneyForm } from '../components/AddMoneyForm/AddMoneyForm';
+import { Button } from '../components/Button/Button';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
+import { IconCheck } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
 import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
@@ -11,6 +13,7 @@ import { PageHeader } from '../components/PageHeader/PageHeader';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { useAuth } from '../hooks/useAuth';
+import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
 import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useRoom } from '../hooks/useRoom';
 import { useSharedData } from '../hooks/useSharedData';
@@ -18,6 +21,7 @@ import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved } from '../lib/buckets';
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
+import { computeBucketIntent } from '../lib/bucketIntent';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
 import { SHOW_ATTACHED_SLIP } from '../lib/flags';
 import { haptic } from '../lib/haptics';
@@ -56,6 +60,17 @@ export function AddMoney() {
   const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>([]);
   const [appliedBucketId, setAppliedBucketId] = useState<string | null>(null);
   const [smartDefaultActive, setSmartDefaultActive] = useState(false);
+  const [doneLockOverridden, setDoneLockOverridden] = useState(false);
+
+  const activeRoomId = activeRoom?.id ?? null;
+  const { settings: intentSettings, logIntentEvent } = useBucketIntentSettings(activeRoomId);
+  const intentResult = computeBucketIntent({
+    buckets,
+    logs,
+    transfers: bucketTransfers,
+    currentUserId: user?.id,
+    settings: intentSettings,
+  });
 
   const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
     id, icon: <BucketCategoryIcon category={id} size={22} />, label: copy.bucket.categoryLabels[id],
@@ -194,6 +209,7 @@ export function AddMoney() {
 
   if (appliedBucketId !== selectedBucket.id) {
     setAppliedBucketId(selectedBucket.id);
+    setDoneLockOverridden(false);
     if (smartDefault.value != null) {
       if (quickAmounts.includes(smartDefault.value)) {
         setSelectedQuickAmount(smartDefault.value);
@@ -208,6 +224,11 @@ export function AddMoney() {
     }
   }
 
+  const showAddMoneyDoneLock = selectedBucketAlreadyComplete && !doneLockOverridden;
+  const nextBucketForAddMoney = intentResult.nextBucketId
+    ? buckets.find(b => b.id === intentResult.nextBucketId)
+    : null;
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -216,6 +237,47 @@ export function AddMoney() {
       />
       <BucketPicker buckets={buckets} selectedId={selectedBucket.id} onSelect={setSelectedBucketId} />
       {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
+      {showAddMoneyDoneLock ? (
+        <section className="flex flex-col items-center gap-3 rounded-xl bg-surface p-6 shadow-soft">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+            <IconCheck size={20} className="text-green-700" />
+          </div>
+          <p className="text-center font-mono text-sm font-bold text-ink">
+            {copy.addMoney.doneLock.title}
+          </p>
+          <p className="text-center font-mono text-xs text-ink-muted">
+            {copy.addMoney.doneLock.body(selectedBucket.name)}
+          </p>
+          {nextBucketForAddMoney && (
+            <p className="text-center font-mono text-xs text-accent-700">
+              {copy.addMoney.doneLock.nextBucket(nextBucketForAddMoney.name)}
+            </p>
+          )}
+          <div className="mt-1 flex w-full flex-col gap-2">
+            {nextBucketForAddMoney && (
+              <Button
+                variant="action"
+                fullWidth
+                onClick={() => {
+                  setSelectedBucketId(nextBucketForAddMoney.id);
+                }}
+              >
+                {copy.addMoney.doneLock.useNextBucket}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              fullWidth
+              onClick={() => {
+                setDoneLockOverridden(true);
+                void logIntentEvent({ eventKey: 'done_lock_overridden', bucketId: selectedBucket.id });
+              }}
+            >
+              {copy.addMoney.doneLock.addAnyway}
+            </Button>
+          </div>
+        </section>
+      ) : (
       <AddMoneyForm
         bucketIcon={bucketIcon(selectedBucket.category)}
         bucketName={selectedBucket.name}
@@ -245,6 +307,7 @@ export function AddMoney() {
         theirSeries={cumulativeAmountSeries(logs, partner?.userId)}
         submitting={saving}
       />
+      )}
       <Modal
         open={editingQuickAmounts}
         title={copy.manageProject.quickAmountsModalTitle}

@@ -281,6 +281,14 @@ export const th: Messages = {
     slipRemoveAriaLabel: 'ลบสลิป',
     slipTapToAttach: 'แตะเพื่อแนบสลิปโอนเงิน',
     partnerLabel: 'คู่คุณ',
+    doneLock: {
+      title: 'ครบเป้าแล้ว',
+      body: (name: string) => `${name} ถึงเป้าหมายแล้ว`,
+      nextBucket: (name: string) => `ถัดไป: ${name}`,
+      moveExtra: 'ย้ายส่วนเกิน',
+      addAnyway: 'เพิ่มต่อ',
+      useNextBucket: 'ไปเป้าถัดไป',
+    },
   },
   milestoneCelebration: {
     title: (threshold: 25 | 50 | 75 | 90) => {

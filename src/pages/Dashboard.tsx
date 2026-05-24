@@ -1130,15 +1130,36 @@ export function Dashboard() {
       {/* Bucket deposit bottom sheet */}
       {(() => {
         const selectedBucketItem = bucketItems.find(b => b.id === expandedBucketId);
+        const isDone = selectedBucketItem?.status?.kind === 'done';
+        const extraAmt = isDone && selectedBucketItem
+          ? Math.max(0, selectedBucketItem.saved - selectedBucketItem.target)
+          : 0;
+        const nextBucket = intentResult.nextBucketId
+          ? bucketItems.find(b => b.id === intentResult.nextBucketId)
+          : null;
         return (
           <BucketSheet
             open={Boolean(expandedBucketId)}
             onClose={() => setExpandedBucketId(null)}
+            bucketId={expandedBucketId ?? ''}
             icon={selectedBucketItem?.icon ?? null}
             name={selectedBucketItem?.name ?? ''}
             saved={selectedBucketItem?.saved ?? 0}
             target={selectedBucketItem?.target ?? 0}
             quickAmounts={quickAmounts}
+            isComplete={isDone}
+            extraAmount={extraAmt}
+            nextBucketName={nextBucket?.name ?? null}
+            onRequestTransferExtra={(sourceBucketId) => {
+              setExpandedBucketId(null);
+              setTransferIntent({
+                sourceId: sourceBucketId,
+                destinationId: intentResult.nextBucketId ?? bucketItems.find(b => b.id !== sourceBucketId)?.id ?? '',
+              });
+            }}
+            onDoneLockOverride={(bId) => {
+              void logIntentEvent({ eventKey: 'done_lock_overridden', bucketId: bId });
+            }}
             trendPreview={{
               mineLabel: profile?.display_name ?? d.youLabel,
               theirLabel: firstOtherEntry?.displayName ?? copy.addMoney.partnerLabel,

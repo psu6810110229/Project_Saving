@@ -7,7 +7,7 @@ import { Button } from '../Button/Button';
 import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { FormField } from '../FormField/FormField';
-import { IconPiggyBank, IconTrash } from '../Icon/Icon';
+import { IconCheck, IconPiggyBank, IconTrash } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { TextInput } from '../TextInput/TextInput';
@@ -27,6 +27,7 @@ const itemVariants = {
 interface BucketSheetProps {
   open: boolean;
   onClose: () => void;
+  bucketId: string;
   icon: ReactNode;
   name: string;
   saved: number;
@@ -34,6 +35,11 @@ interface BucketSheetProps {
   quickAmounts: number[];
   onConfirm: (amount: number) => Promise<{ error?: string }>;
   onDelete?: () => void;
+  isComplete?: boolean;
+  extraAmount?: number;
+  nextBucketName?: string | null;
+  onRequestTransferExtra?: (sourceBucketId: string) => void;
+  onDoneLockOverride?: (bucketId: string) => void;
   trendPreview?: {
     mineLabel: string;
     theirLabel: string;
@@ -45,6 +51,7 @@ interface BucketSheetProps {
 export function BucketSheet({
   open,
   onClose,
+  bucketId,
   icon,
   name,
   saved,
@@ -52,6 +59,11 @@ export function BucketSheet({
   quickAmounts,
   onConfirm,
   onDelete,
+  isComplete,
+  extraAmount,
+  nextBucketName,
+  onRequestTransferExtra,
+  onDoneLockOverride,
   trendPreview,
 }: BucketSheetProps) {
   const { copy, formatMoney } = useI18n();
@@ -61,8 +73,10 @@ export function BucketSheet({
   const [saving, setSaving] = useState(false);
   const [confirmingAmount, setConfirmingAmount] = useState<number | null>(null);
   const [showRing, setShowRing] = useState(false);
+  const [doneLockOverridden, setDoneLockOverridden] = useState(false);
   const innerControls = useAnimation();
   const bucketAlreadyComplete = target > 0 && saved >= target;
+  const showDoneLock = isComplete && !doneLockOverridden;
 
   useBodyScrollLock(open);
 
@@ -88,6 +102,7 @@ export function BucketSheet({
       setSelectedPill(defaultPill);
       setConfirmingAmount(null);
       setShowRing(false);
+      setDoneLockOverridden(false);
       innerControls.set({ y: 0 });
     }, 350);
   }
@@ -169,77 +184,125 @@ export function BucketSheet({
                     <BucketHeader icon={icon} name={name} saved={saved} target={target} />
                   </motion.div>
 
-                  {/* Quick add */}
-                  <motion.div variants={itemVariants}>
-                    <QuickAddRow
-                      label={copy.addMoney.depositAmountLabel}
-                      amounts={quickAmounts}
-                      selected={selectedPill}
-                      onSelect={handlePillSelect}
-                    />
-                  </motion.div>
+                  {showDoneLock ? (
+                    <>
+                      <motion.div variants={itemVariants} className="flex flex-col items-center gap-2 py-2">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                          <IconCheck size={20} className="text-green-700" />
+                        </div>
+                        <p className="text-center font-mono text-sm font-bold text-ink">
+                          {copy.addMoney.doneLock.title}
+                        </p>
+                        <p className="text-center font-mono text-xs text-ink-muted">
+                          {copy.addMoney.doneLock.body(name)}
+                        </p>
+                        {nextBucketName && (
+                          <p className="text-center font-mono text-xs text-accent-700">
+                            {copy.addMoney.doneLock.nextBucket(nextBucketName)}
+                          </p>
+                        )}
+                      </motion.div>
 
-                  {/* Custom amount */}
-                  <motion.div variants={itemVariants}>
-                    <FormField label={copy.addMoney.customAmountLabel}>
-                      <TextInput
-                        value={customValue}
-                        inputMode="numeric"
-                        placeholder="1200"
-                        leadingIcon={<IconPiggyBank size={16} />}
-                        onChange={handleCustomChange}
-                      />
-                    </FormField>
-                  </motion.div>
+                      <motion.div variants={itemVariants} className="grid gap-2">
+                        {extraAmount != null && extraAmount > 0 && onRequestTransferExtra && (
+                          <Button
+                            variant="action"
+                            size="md"
+                            onClick={() => {
+                              handleClose();
+                              onRequestTransferExtra(bucketId);
+                            }}
+                          >
+                            {copy.addMoney.doneLock.moveExtra} ({formatMoney(extraAmount)})
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="md"
+                          onClick={() => {
+                            setDoneLockOverridden(true);
+                            onDoneLockOverride?.(bucketId);
+                          }}
+                        >
+                          {copy.addMoney.doneLock.addAnyway}
+                        </Button>
+                      </motion.div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Quick add */}
+                      <motion.div variants={itemVariants}>
+                        <QuickAddRow
+                          label={copy.addMoney.depositAmountLabel}
+                          amounts={quickAmounts}
+                          selected={selectedPill}
+                          onSelect={handlePillSelect}
+                        />
+                      </motion.div>
 
-                  {/* Projected progress */}
-                  <motion.div variants={itemVariants}>
-                    <ProjectedProgressCard
-                      bucketName={name}
-                      saved={saved}
-                      target={target}
-                      pendingDeposit={resolvedAmount}
-                    />
-                  </motion.div>
+                      {/* Custom amount */}
+                      <motion.div variants={itemVariants}>
+                        <FormField label={copy.addMoney.customAmountLabel}>
+                          <TextInput
+                            value={customValue}
+                            inputMode="numeric"
+                            placeholder="1200"
+                            leadingIcon={<IconPiggyBank size={16} />}
+                            onChange={handleCustomChange}
+                          />
+                        </FormField>
+                      </motion.div>
 
-                  {trendPreview && (
-                    <motion.div variants={itemVariants}>
-                      <ComparisonTrendChart
-                        mineLabel={trendPreview.mineLabel}
-                        theirLabel={trendPreview.theirLabel}
-                        mineSeries={trendPreview.mineSeries(resolvedAmount)}
-                        theirSeries={trendPreview.theirSeries}
-                      />
-                    </motion.div>
-                  )}
+                      {/* Projected progress */}
+                      <motion.div variants={itemVariants}>
+                        <ProjectedProgressCard
+                          bucketName={name}
+                          saved={saved}
+                          target={target}
+                          pendingDeposit={resolvedAmount}
+                        />
+                      </motion.div>
 
-                  {/* Actions */}
-                  <motion.div variants={itemVariants} className="grid grid-cols-2 gap-2">
-                    <Button variant="ghost" size="md" onClick={handleClose}>
-                      {copy.common.cancel}
-                    </Button>
-                    <Button
-                      variant="action"
-                      size="md"
-                      disabled={saving || resolvedAmount <= 0}
-                      onClick={requestConfirm}
-                    >
-                      {saving ? copy.savingPlan.savingButton : copy.common.confirm}
-                    </Button>
-                  </motion.div>
+                      {trendPreview && (
+                        <motion.div variants={itemVariants}>
+                          <ComparisonTrendChart
+                            mineLabel={trendPreview.mineLabel}
+                            theirLabel={trendPreview.theirLabel}
+                            mineSeries={trendPreview.mineSeries(resolvedAmount)}
+                            theirSeries={trendPreview.theirSeries}
+                          />
+                        </motion.div>
+                      )}
 
-                  {/* Delete */}
-                  {onDelete && (
-                    <motion.div variants={itemVariants} className="flex justify-center">
-                      <button
-                        type="button"
-                        onClick={onDelete}
-                        className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 font-mono text-xs font-bold text-danger hover:bg-danger-soft active:scale-[0.98] transition-all"
-                      >
-                        <IconTrash size={14} />
-                        {copy.bucket.deleteConfirmLabel}
-                      </button>
-                    </motion.div>
+                      {/* Actions */}
+                      <motion.div variants={itemVariants} className="grid grid-cols-2 gap-2">
+                        <Button variant="ghost" size="md" onClick={handleClose}>
+                          {copy.common.cancel}
+                        </Button>
+                        <Button
+                          variant="action"
+                          size="md"
+                          disabled={saving || resolvedAmount <= 0}
+                          onClick={requestConfirm}
+                        >
+                          {saving ? copy.savingPlan.savingButton : copy.common.confirm}
+                        </Button>
+                      </motion.div>
+
+                      {/* Delete */}
+                      {onDelete && (
+                        <motion.div variants={itemVariants} className="flex justify-center">
+                          <button
+                            type="button"
+                            onClick={onDelete}
+                            className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 font-mono text-xs font-bold text-danger hover:bg-danger-soft active:scale-[0.98] transition-all"
+                          >
+                            <IconTrash size={14} />
+                            {copy.bucket.deleteConfirmLabel}
+                          </button>
+                        </motion.div>
+                      )}
+                    </>
                   )}
                 </motion.div>
               </div>

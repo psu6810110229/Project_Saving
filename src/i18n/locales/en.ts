@@ -293,6 +293,14 @@ export const en = {
     slipRemoveAriaLabel: 'Remove slip',
     slipTapToAttach: 'Tap to attach a transfer slip',
     partnerLabel: 'Partner',
+    doneLock: {
+      title: 'Bucket complete',
+      body: (name: string) => `${name} has reached its target.`,
+      nextBucket: (name: string) => `Up next: ${name}`,
+      moveExtra: 'Move extra',
+      addAnyway: 'Add anyway',
+      useNextBucket: 'Use next bucket',
+    },
   },
   milestoneCelebration: {
     title: (threshold: 25 | 50 | 75 | 90): string => {

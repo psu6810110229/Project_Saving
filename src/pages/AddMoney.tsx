@@ -6,15 +6,7 @@ import { Modal } from '../components/Modal/Modal';
 import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
-import {
-  IconBed,
-  IconBriefcase,
-  IconFork,
-  IconHome,
-  IconPlane,
-  IconSmartphone,
-  IconTicket,
-} from '../components/Icon/Icon';
+import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
 import { PageHeader } from '../components/PageHeader/PageHeader';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
@@ -25,19 +17,11 @@ import { useSharedData } from '../hooks/useSharedData';
 import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved } from '../lib/buckets';
+import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
 import { SHOW_ATTACHED_SLIP } from '../lib/flags';
 import { haptic } from '../lib/haptics';
 import type { BucketCategory } from '../types';
-
-const BUCKET_OPTION_ICONS: { id: BucketCategory; icon: ReactNode }[] = [
-  { id: 'flight', icon: <IconPlane size={22} /> },
-  { id: 'accom', icon: <IconBed size={22} /> },
-  { id: 'dining', icon: <IconFork size={22} /> },
-  { id: 'activities', icon: <IconTicket size={22} /> },
-  { id: 'gear', icon: <IconSmartphone size={22} /> },
-  { id: 'home', icon: <IconHome size={22} /> },
-];
 
 export function AddMoney() {
   const { copy, formatMoney } = useI18n();
@@ -73,8 +57,8 @@ export function AddMoney() {
   const [appliedBucketId, setAppliedBucketId] = useState<string | null>(null);
   const [smartDefaultActive, setSmartDefaultActive] = useState(false);
 
-  const bucketOptions = BUCKET_OPTION_ICONS.map(({ id, icon }) => ({
-    id, icon, label: copy.bucket.categoryLabels[id],
+  const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
+    id, icon: <BucketCategoryIcon category={id} size={22} />, label: copy.bucket.categoryLabels[id],
   }));
 
   const selectedBucket = buckets.find(bucket => bucket.id === selectedBucketId) ?? buckets[0];
@@ -381,11 +365,5 @@ function AddMoneySkeleton() {
 }
 
 function bucketIcon(category: BucketCategory | undefined): ReactNode {
-  if (category === 'flight' || category === 'travel') return <IconPlane size={28} />;
-  if (category === 'accom') return <IconBed size={28} />;
-  if (category === 'dining') return <IconFork size={28} />;
-  if (category === 'activities' || category === 'transport') return <IconTicket size={28} />;
-  if (category === 'gear') return <IconSmartphone size={28} />;
-  if (category === 'home') return <IconHome size={28} />;
-  return <IconBriefcase size={28} />;
+  return <BucketCategoryIcon category={category} size={28} />;
 }

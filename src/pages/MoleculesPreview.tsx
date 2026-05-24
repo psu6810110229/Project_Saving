@@ -44,6 +44,8 @@ import {
   IconTrash,
   IconQrCode,
 } from '../components/Icon/Icon';
+import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
+import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 
 /**
  * Dev-only preview route at `/molecules`. Renders every molecule shipped
@@ -194,14 +196,11 @@ export function MoleculesPreview() {
             shape="circle"
             value={bucketCat}
             onChange={setBucketCat}
-            options={[
-              { id: 'flight',     label: 'Flight',   icon: <IconPlane size={22} /> },
-              { id: 'accom',      label: 'Stay',     icon: <IconBed size={22} /> },
-              { id: 'dining',     label: 'Dining',   icon: <IconFork size={22} /> },
-              { id: 'activities', label: 'Activity', icon: <IconTicket size={22} /> },
-              { id: 'gear',       label: 'Gear',     icon: <IconSmartphone size={22} /> },
-              { id: 'home',       label: 'Home',     icon: <IconHome size={22} /> },
-            ]}
+            options={BUCKET_CATEGORY_ORDER.map((id) => ({
+              id,
+              label: id.charAt(0).toUpperCase() + id.slice(1),
+              icon: <BucketCategoryIcon category={id} size={22} />,
+            }))}
           />
         </Group>
 

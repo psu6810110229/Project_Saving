@@ -35,6 +35,8 @@ import {
   IconTicket,
   IconTrash,
 } from '../components/Icon/Icon';
+import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
+import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 
 export function OrganismsPreview() {
   const [nav, setNav] = useState<BottomNavTab>('dashboard');
@@ -218,14 +220,11 @@ const projectOptions = [
   { id: 'other' as const, label: 'Other', icon: <IconBriefcase size={28} /> },
 ];
 
-const bucketOptions = [
-  { id: 'flight' as const, label: 'Flight', icon: <IconPlane size={22} /> },
-  { id: 'accom' as const, label: 'Stay', icon: <IconBed size={22} /> },
-  { id: 'dining' as const, label: 'Dining', icon: <IconFork size={22} /> },
-  { id: 'activities' as const, label: 'Activity', icon: <IconTicket size={22} /> },
-  { id: 'gear' as const, label: 'Gear', icon: <IconSmartphone size={22} /> },
-  { id: 'home' as const, label: 'Home', icon: <IconHome size={22} /> },
-];
+const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
+  id,
+  label: id.charAt(0).toUpperCase() + id.slice(1),
+  icon: <BucketCategoryIcon category={id} size={22} />,
+}));
 
 const joinPreview = {
   icon: <IconPlane size={32} />,

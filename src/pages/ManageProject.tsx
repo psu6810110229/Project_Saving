@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { Button } from '../components/Button/Button';
@@ -8,19 +8,14 @@ import { FormField } from '../components/FormField/FormField';
 import { TextInput } from '../components/TextInput/TextInput';
 import {
   IconArrowLeft,
-  IconBed,
-  IconBriefcase,
-  IconFork,
-  IconHome,
   IconPiggyBank,
-  IconPlane,
   IconQrCode,
-  IconSmartphone,
-  IconTicket,
   IconTrash,
   IconUserPlus,
   IconEdit,
 } from '../components/Icon/Icon';
+import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
+import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { Modal } from '../components/Modal/Modal';
 import { PageHeader } from '../components/PageHeader/PageHeader';
 import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
@@ -61,15 +56,6 @@ type ManageModal =
 
 const ROOM_NAME_MAX = 60;
 
-const BUCKET_OPTION_ICONS: { id: BucketCategory; icon: ReactNode }[] = [
-  { id: 'flight', icon: <IconPlane size={22} /> },
-  { id: 'accom', icon: <IconBed size={22} /> },
-  { id: 'dining', icon: <IconFork size={22} /> },
-  { id: 'activities', icon: <IconTicket size={22} /> },
-  { id: 'gear', icon: <IconSmartphone size={22} /> },
-  { id: 'home', icon: <IconHome size={22} /> },
-  { id: 'other', icon: <IconBriefcase size={22} /> },
-];
 
 export function ManageProject() {
   const navigate = useNavigate();
@@ -117,8 +103,8 @@ export function ManageProject() {
     minimumVisibleMs: 400,
   });
 
-  const bucketOptions = BUCKET_OPTION_ICONS.map(({ id, icon }) => ({
-    id, icon, label: copy.bucket.categoryLabels[id],
+  const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
+    id, icon: <BucketCategoryIcon category={id} size={22} />, label: copy.bucket.categoryLabels[id],
   }));
 
   if (!activeRoom) {

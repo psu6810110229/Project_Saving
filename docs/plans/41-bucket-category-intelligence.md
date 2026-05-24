@@ -892,4 +892,4 @@ Migration checks:
 
 ## Follow-up Findings
 
-- *(empty)*
+- `transport` category uses `IconTicket` (same as `activities`) because no dedicated transport icon exists. Add a distinct `IconBus` or `IconCar` to `Icon.tsx` and update `BucketCategoryIcon` mapping.

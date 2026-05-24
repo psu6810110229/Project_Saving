@@ -6,14 +6,8 @@ import { BucketRow } from '../components/BucketRow/BucketRow';
 import { Button } from '../components/Button/Button';
 import {
   IconArrowLeft,
-  IconBed,
-  IconBriefcase,
-  IconFork,
-  IconHome,
-  IconPlane,
-  IconSmartphone,
-  IconTicket,
 } from '../components/Icon/Icon';
+import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
 import { PageHeader } from '../components/PageHeader/PageHeader';
 import { ProgressBar } from '../components/ProgressBar/ProgressBar';
 import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
@@ -39,13 +33,7 @@ import { themeSwatches } from '../lib/theme';
 import type { BucketCategory, SavingPlanRevision } from '../types';
 
 function bucketIcon(category: BucketCategory | undefined): ReactNode {
-  if (category === 'flight' || category === 'travel') return <IconPlane size={22} />;
-  if (category === 'accom') return <IconBed size={22} />;
-  if (category === 'dining') return <IconFork size={22} />;
-  if (category === 'activities' || category === 'transport') return <IconTicket size={22} />;
-  if (category === 'gear') return <IconSmartphone size={22} />;
-  if (category === 'home') return <IconHome size={22} />;
-  return <IconBriefcase size={22} />;
+  return <BucketCategoryIcon category={category} size={22} />;
 }
 
 interface PlanSummaryMessages {

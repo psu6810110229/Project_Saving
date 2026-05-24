@@ -76,6 +76,9 @@ export interface Bucket {
   created_at: string;
   /** Visual / icon category for this bucket. Added in migration 0008. */
   category?: BucketCategory;
+  category_source?: BucketCategorySource;
+  category_confidence?: number;
+  category_reviewed_at?: string | null;
   /** Set when the bucket has been archived via `archive_bucket` (migration 0058). Active screens filter `archived_at IS NULL`. */
   archived_at?: string | null;
   /** Actor who archived the bucket. */
@@ -145,6 +148,9 @@ export interface BucketDraft {
   name: string;
   target_amount: number;
   category?: BucketCategory;
+  category_source?: BucketCategorySource;
+  category_confidence?: number;
+  category_reviewed_at?: string | null;
 }
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -157,15 +163,17 @@ export type ProjectCategory = 'travel' | 'gadget' | 'wedding' | 'home' | 'other'
 
 /** Smart Bucket sub-category — drives the icon on bucket tiles. */
 export type BucketCategory =
-  | 'travel'
   | 'flight'
-  | 'accom'
-  | 'dining'
+  | 'stay'
   | 'transport'
+  | 'food'
   | 'activities'
-  | 'gear'
+  | 'shopping'
+  | 'buffer'
   | 'home'
   | 'other';
+
+export type BucketCategorySource = 'user' | 'migration' | 'inferred';
 
 /** Personal theme swatch keys. Mirror `themeSwatches` keys in `lib/theme.ts`. */
 export type ProfileTheme = 'terracotta' | 'slate' | 'teal';

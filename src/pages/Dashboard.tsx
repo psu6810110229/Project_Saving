@@ -39,19 +39,14 @@ import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCoun
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
   IconArrowRight,
-  IconBed,
-  IconBriefcase,
   IconCheck,
-  IconFork,
-  IconHome,
-  IconPlane,
   IconRocket,
-  IconSmartphone,
-  IconTicket,
   IconTrash,
   IconUser,
   IconVault,
 } from '../components/Icon/Icon';
+import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
+import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { Modal } from '../components/Modal/Modal';
 import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
 import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
@@ -268,9 +263,9 @@ export function Dashboard() {
   const [bucketName, setBucketName] = useState('Flights');
   const [bucketTarget, setBucketTarget] = useState('30000');
   const [message, setMessage] = useState<string | null>(null);
-  const bucketOptions = bucketOptionIcons.map(({ id, icon }) => ({
+  const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
     id,
-    icon,
+    icon: <BucketCategoryIcon category={id} size={22} />,
     label: copy.bucket.categoryLabels[id],
   }));
   const loading = goalLoading || bucketsLoading || logsLoading || leaderboard.loading;
@@ -1345,13 +1340,7 @@ function bestMicroGoalBucket(
 }
 
 function bucketIcon(category: BucketCategory | undefined): ReactNode {
-  if (category === 'flight' || category === 'travel') return <IconPlane size={22} />;
-  if (category === 'accom') return <IconBed size={22} />;
-  if (category === 'dining') return <IconFork size={22} />;
-  if (category === 'activities' || category === 'transport') return <IconTicket size={22} />;
-  if (category === 'gear') return <IconSmartphone size={22} />;
-  if (category === 'home') return <IconHome size={22} />;
-  return <IconBriefcase size={22} />;
+  return <BucketCategoryIcon category={category} size={22} />;
 }
 
 interface BucketMemberPickerOption {
@@ -1644,14 +1633,6 @@ function CompareMemberChips({ ariaLabel, members, selectedId, onSelect }: Compar
   );
 }
 
-const bucketOptionIcons = [
-  { id: 'flight' as const, icon: <IconPlane size={22} /> },
-  { id: 'accom' as const, icon: <IconBed size={22} /> },
-  { id: 'dining' as const, icon: <IconFork size={22} /> },
-  { id: 'activities' as const, icon: <IconTicket size={22} /> },
-  { id: 'gear' as const, icon: <IconSmartphone size={22} /> },
-  { id: 'home' as const, icon: <IconHome size={22} /> },
-];
 
 interface SavingRaceSectionProps {
   logs: ReturnType<typeof useLogs>['logs'];

@@ -31,6 +31,7 @@ import { useI18n } from '../i18n/useI18n';
 import { formatJoinedDate } from '../i18n/formatters';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
+import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
 import { sumTargets } from '../lib/buckets';
 import { haptic } from '../lib/haptics';
 import type { Bucket, BucketCategory } from '../types';
@@ -76,6 +77,7 @@ export function ManageProject() {
     saveMemberGoal,
   } = data.goal;
   const { archiveRoom, leaveRoom, renameRoom, refetch: refetchRooms } = useRooms();
+  const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { quickAmounts, updateQuickAmounts } = data.profile;
   const { buckets, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers } = data.bucketTransfers;
@@ -613,7 +615,19 @@ export function ManageProject() {
           onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
           onCreate={handleCreateBucket}
           onUpdate={handleUpdateBucket}
-          onReviewCategories={reviewBucketCategories}
+          onReviewCategories={async (updates) => {
+            const result = await reviewBucketCategories(updates);
+            if (!result.error) {
+              for (const u of updates) {
+                logIntentEvent({
+                  eventKey: 'category_reviewed',
+                  bucketId: u.id,
+                  payload: { category: u.category },
+                });
+              }
+            }
+            return result;
+          }}
           onRemoved={refetchBuckets}
           statusMessage={message}
         />

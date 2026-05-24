@@ -175,6 +175,24 @@ export type BucketCategory =
 
 export type BucketCategorySource = 'user' | 'migration' | 'inferred';
 
+export type BucketIntentEventKey =
+  | 'category_reviewed'
+  | 'next_bucket_selected'
+  | 'next_bucket_cleared'
+  | 'done_lock_overridden'
+  | 'deposit_bucket_changed_from_default'
+  | 'transfer_suggested'
+  | 'transfer_completed';
+
+export interface BucketIntentSettings {
+  user_id: string;
+  room_id: string;
+  manual_next_bucket_id: string | null;
+  manual_next_set_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Personal theme swatch keys. Mirror `themeSwatches` keys in `lib/theme.ts`. */
 export type ProfileTheme = 'terracotta' | 'slate' | 'teal';
 

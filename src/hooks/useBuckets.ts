@@ -164,7 +164,6 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
     }
 
     await fetchBuckets();
-    // TODO: log category_reviewed intent events after Task 41.4
     return {};
   }
 

@@ -2,13 +2,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { notifyBucketAdded, notifyBucketUpdated } from '../lib/notifyEvents';
 import { useAuth } from './useAuth';
-import type { Bucket, BucketDraft } from '../types';
+import type { Bucket, BucketCategory, BucketDraft } from '../types';
 import { formatCurrency } from '../lib/format';
 
 export interface UseBucketsResult {
   buckets: Bucket[];
   loading: boolean;
   saveBuckets: (next: BucketDraft[]) => Promise<{ error?: string }>;
+  reviewBucketCategories: (updates: { id: string; category: BucketCategory }[]) => Promise<{ error?: string }>;
   /**
    * Refetch active buckets after server-side mutations the local cache
    * cannot observe directly (e.g. `archive_bucket` /
@@ -140,5 +141,32 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
     return {};
   }
 
-  return { buckets, loading, saveBuckets, refetch: fetchBuckets };
+  async function reviewBucketCategories(
+    updates: { id: string; category: BucketCategory }[],
+  ): Promise<{ error?: string }> {
+    if (!user || !roomId) return { error: 'Not authenticated or no room' };
+    if (updates.length === 0) return {};
+
+    const now = new Date().toISOString();
+    for (const u of updates) {
+      const { error } = await supabase
+        .from('buckets')
+        .update({
+          category: u.category,
+          category_source: 'user',
+          category_confidence: 100,
+          category_reviewed_at: now,
+        })
+        .eq('id', u.id)
+        .eq('user_id', user.id)
+        .eq('room_id', roomId);
+      if (error) return { error: error.message };
+    }
+
+    await fetchBuckets();
+    // TODO: log category_reviewed intent events after Task 41.4
+    return {};
+  }
+
+  return { buckets, loading, saveBuckets, reviewBucketCategories, refetch: fetchBuckets };
 }

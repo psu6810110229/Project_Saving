@@ -440,6 +440,14 @@ export const en = {
     updatedSuccess: 'Bucket updated.',
     deletedSuccess: 'Bucket removed.',
     deleteConfirmLabel: 'Remove',
+    categoryReview: {
+      title: 'Review bucket categories',
+      body: 'A quick check helps future suggestions understand your plan.',
+      cta: 'Review',
+      save: 'Save',
+      skip: 'Skip',
+      reviewedSuccess: 'Categories updated.',
+    },
   },
   bucketRemove: {
     emptyTitle: (name: string) => `Remove ${name}?`,

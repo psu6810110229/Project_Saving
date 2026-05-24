@@ -1,8 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { bucketSaved, sumTargets } from '../../lib/buckets';
+import { isLowConfidenceCategory } from '../../lib/bucketCategories';
 import { type ArchiveErrorHint, useArchiveBucket } from '../../hooks/useArchiveBucket';
 import type { Bucket, BucketCategory, BucketTransfer, SavingsLog } from '../../types';
+import { BucketCategoryReviewModal } from '../BucketCategoryReviewModal/BucketCategoryReviewModal';
 import { BucketTransferSheet, type TransferBucketOption } from '../BucketTransferSheet/BucketTransferSheet';
 import { Button } from '../Button/Button';
 import { CreateBucketForm } from '../CreateBucketForm/CreateBucketForm';
@@ -36,6 +38,7 @@ interface BucketManagerProps {
   onTargetChange: (value: string) => void;
   onCreate: () => void;
   onUpdate: (bucket: Bucket, next: { name: string; target_amount: number }) => Promise<{ error?: string }>;
+  onReviewCategories?: (updates: { id: string; category: BucketCategory }[]) => Promise<{ error?: string }>;
   /**
    * Called after a bucket is archived (with or without a balance
    * transfer) so the parent can refresh server-side state the local
@@ -84,12 +87,14 @@ export function BucketManager({
   onTargetChange,
   onCreate,
   onUpdate,
+  onReviewCategories,
   onRemoved,
 }: BucketManagerProps) {
   const { copy, formatMoney } = useI18n();
   const navigate = useNavigate();
   const { archive, transferAndArchive, pending: removePending } = useArchiveBucket();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [draftTarget, setDraftTarget] = useState('');
   const [pendingRemove, setPendingRemove] = useState<Bucket | null>(null);
@@ -254,12 +259,43 @@ export function BucketManager({
     onCreate();
   }
 
+  const hasReviewable = onReviewCategories && buckets.some(isLowConfidenceCategory);
+
+  async function handleReviewSave(updates: { id: string; category: BucketCategory }[]) {
+    if (!onReviewCategories) return { error: 'No handler' };
+    const result = await onReviewCategories(updates);
+    if (!result.error) {
+      setLocalMessage(copy.bucket.categoryReview.reviewedSuccess);
+    }
+    return result;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {(statusMessage || localMessage) && (
         <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">
           {localMessage ?? statusMessage}
         </p>
+      )}
+      {hasReviewable && (
+        <div className="flex items-center justify-between rounded-lg bg-brand-50 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-xs font-bold text-ink">
+              {copy.bucket.categoryReview.title}
+            </p>
+            <p className="mt-0.5 font-mono text-xs text-ink-muted">
+              {copy.bucket.categoryReview.body}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => setReviewOpen(true)}
+          >
+            {copy.bucket.categoryReview.cta}
+          </Button>
+        </div>
       )}
       <BucketSummary
         buckets={buckets}
@@ -323,6 +359,14 @@ export function BucketManager({
           if (onRemoved) await onRemoved();
         }}
       />
+      {onReviewCategories && (
+        <BucketCategoryReviewModal
+          open={reviewOpen}
+          buckets={buckets}
+          onClose={() => setReviewOpen(false)}
+          onSave={handleReviewSave}
+        />
+      )}
     </div>
   );
 }

@@ -428,6 +428,14 @@ export const th: Messages = {
     updatedSuccess: 'แก้ไขเป้าหมายย่อยแล้ว',
     deletedSuccess: 'นำเป้าหมายย่อยออกแล้ว',
     deleteConfirmLabel: 'นำออก',
+    categoryReview: {
+      title: 'ตรวจหมวดหมู่เป้าหมายย่อย',
+      body: 'เช็กสั้น ๆ เพื่อให้คำแนะนำเข้าใจแผนของคุณมากขึ้น',
+      cta: 'ตรวจ',
+      save: 'บันทึก',
+      skip: 'ข้าม',
+      reviewedSuccess: 'อัปเดตหมวดหมู่แล้ว',
+    },
   },
   bucketRemove: {
     emptyTitle: (name: string) => `นำ ${name} ออก?`,

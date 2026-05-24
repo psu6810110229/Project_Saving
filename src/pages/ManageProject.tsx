@@ -77,7 +77,7 @@ export function ManageProject() {
   } = data.goal;
   const { archiveRoom, leaveRoom, renameRoom, refetch: refetchRooms } = useRooms();
   const { quickAmounts, updateQuickAmounts } = data.profile;
-  const { buckets, saveBuckets, refetch: refetchBuckets } = data.buckets;
+  const { buckets, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { logs } = data.logs;
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
@@ -613,6 +613,7 @@ export function ManageProject() {
           onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
           onCreate={handleCreateBucket}
           onUpdate={handleUpdateBucket}
+          onReviewCategories={reviewBucketCategories}
           onRemoved={refetchBuckets}
           statusMessage={message}
         />

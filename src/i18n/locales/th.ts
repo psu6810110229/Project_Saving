@@ -532,6 +532,17 @@ export const th: Messages = {
     message: 'ลากเป้าหมายหนึ่งไปวางบนอีกอันเพื่อย้ายเงิน',
     dismissAriaLabel: 'ซ่อนคำแนะนำการลาก',
   },
+  bucketIntent: {
+    status: {
+      focus: 'ตอนนี้',
+      next: 'ถัดไป',
+      done: 'ครบแล้ว',
+    },
+    nextStrip: (name: string) => `ถัดไป: ${name}`,
+    changeNext: 'เปลี่ยน',
+    nextPickerTitle: 'เลือกเป้าหมายถัดไป',
+    clearNext: 'ล้างการเลือก',
+  },
   manageProject: {
     pageEyebrow: 'โปรเจกต์',
     pageTitle: 'จัดการโปรเจกต์',

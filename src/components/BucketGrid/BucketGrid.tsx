@@ -8,6 +8,10 @@ export interface BucketGridItem {
   name: string;
   saved: number;
   target: number;
+  status?: {
+    kind: 'focus' | 'next' | 'done';
+    label: string;
+  };
 }
 
 interface BucketGridProps {

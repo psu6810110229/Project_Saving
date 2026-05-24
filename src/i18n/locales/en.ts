@@ -543,6 +543,17 @@ export const en = {
     message: 'Drag a bucket onto another to move money.',
     dismissAriaLabel: 'Hide drag hint',
   },
+  bucketIntent: {
+    status: {
+      focus: 'Focus now',
+      next: 'Next',
+      done: 'Done',
+    },
+    nextStrip: (name: string) => `Next: ${name}`,
+    changeNext: 'Change',
+    nextPickerTitle: 'Choose next bucket',
+    clearNext: 'Clear selection',
+  },
   manageProject: {
     pageEyebrow: 'Project',
     pageTitle: 'Manage Project',

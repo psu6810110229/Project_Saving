@@ -46,7 +46,9 @@ import {
   IconVault,
 } from '../components/Icon/Icon';
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
+import { BucketNextPickerModal } from '../components/BucketNextPickerModal/BucketNextPickerModal';
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
+import { computeBucketIntent } from '../lib/bucketIntent';
 import { Modal } from '../components/Modal/Modal';
 import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
 import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
@@ -58,6 +60,7 @@ import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useSharedData } from '../hooks/useSharedData';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
+import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
@@ -149,6 +152,7 @@ export function Dashboard() {
     error: goalError,
   } = data.goal;
   useRooms();
+  const { settings: intentSettings, setManualNextBucket, logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
@@ -194,6 +198,7 @@ export function Dashboard() {
   const [compareMemberId, setCompareMemberId] = useState<string | null>(null);
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [nextPickerOpen, setNextPickerOpen] = useState(false);
   const [transferIntent, setTransferIntent] = useState<{ sourceId: string; destinationId: string } | null>(null);
   // Local "dismissed this render" flag so the hint disappears
   // immediately once it auto-times-out, the user closes it, or a drag
@@ -359,13 +364,33 @@ export function Dashboard() {
     && Number.isFinite(newBucketTargetAmount)
     && newBucketTargetAmount > bucketTargetRemaining;
   const selectedBucket = bestMicroGoalBucket(buckets, logs, bucketTransfers, d, formatMoney);
-  const bucketItems = buckets.map(bucket => ({
-    id: bucket.id,
-    icon: bucketIcon(bucket.category),
-    name: bucket.name,
-    saved: bucketSaved(bucket.id, logs, bucketTransfers),
-    target: bucket.target_amount,
-  })).sort((a, b) => {
+  const intentResult = computeBucketIntent({
+    buckets,
+    logs,
+    transfers: bucketTransfers,
+    currentUserId: user?.id,
+    settings: intentSettings,
+  });
+  const bucketItems = buckets.map(bucket => {
+    const saved = bucketSaved(bucket.id, logs, bucketTransfers);
+    let status: { kind: 'focus' | 'next' | 'done'; label: string } | undefined;
+    if (intentResult.doneBucketIds.has(bucket.id)) {
+      status = { kind: 'done', label: copy.bucketIntent.status.done };
+    } else if (intentResult.focusBucketId === bucket.id) {
+      status = { kind: 'focus', label: copy.bucketIntent.status.focus };
+    } else if (intentResult.nextBucketId === bucket.id) {
+      status = { kind: 'next', label: copy.bucketIntent.status.next };
+    }
+    return {
+      id: bucket.id,
+      icon: bucketIcon(bucket.category),
+      name: bucket.name,
+      saved,
+      target: bucket.target_amount,
+      category: bucket.category,
+      status,
+    };
+  }).sort((a, b) => {
     const pctA = a.target > 0 ? a.saved / a.target : 0;
     const pctB = b.target > 0 ? b.saved / b.target : 0;
     return pctB - pctA;
@@ -405,6 +430,7 @@ export function Dashboard() {
       name: string;
       saved: number;
       target: number;
+      status?: { kind: 'focus' | 'next' | 'done'; label: string };
     }[];
   }
   const otherMemberBucketGroups: OtherMemberBucketGroup[] = otherMemberIds
@@ -412,13 +438,18 @@ export function Dashboard() {
       const memberBuckets = roomMembersBucketsByUser[userId] ?? [];
       const entry = leaderboard.entries.find(e => e.userId === userId);
       const name = entry?.displayName ?? d.partnerLabel;
-      const items = memberBuckets.map(bucket => ({
-        id: bucket.id,
-        icon: bucketIcon(bucket.category),
-        name: bucket.name,
-        saved: bucketSaved(bucket.id, logs),
-        target: bucket.target_amount,
-      }));
+      const items = memberBuckets.map(bucket => {
+        const saved = bucketSaved(bucket.id, logs);
+        const isDone = bucket.target_amount > 0 && saved >= bucket.target_amount;
+        return {
+          id: bucket.id,
+          icon: bucketIcon(bucket.category),
+          name: bucket.name,
+          saved,
+          target: bucket.target_amount,
+          status: isDone ? { kind: 'done' as const, label: copy.bucketIntent.status.done } : undefined,
+        };
+      });
       return { userId, name, items };
     })
     .filter(group => group.items.length > 0);
@@ -848,6 +879,7 @@ export function Dashboard() {
                 name={bucket.name}
                 saved={bucket.saved}
                 target={bucket.target}
+                status={bucket.status}
               />
             )}
           />
@@ -867,6 +899,24 @@ export function Dashboard() {
               belowHeader={
                 <div className="flex flex-col gap-3">
                   {memberPicker}
+                  {intentResult.nextBucketId && (() => {
+                    const nextBucket = bucketItems.find(b => b.id === intentResult.nextBucketId);
+                    if (!nextBucket) return null;
+                    return (
+                      <div className="flex items-center gap-2 rounded-lg bg-surfaceAlt px-3 py-2">
+                        <span className="min-w-0 flex-1 truncate font-mono text-xs font-bold text-ink-muted">
+                          {copy.bucketIntent.nextStrip(nextBucket.name)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setNextPickerOpen(true)}
+                          className="shrink-0 font-mono text-xs font-bold text-brand-500 transition-colors hover:text-brand-700 active:scale-[0.98]"
+                        >
+                          {copy.bucketIntent.changeNext}
+                        </button>
+                      </div>
+                    );
+                  })()}
                   <BucketDragHint
                     open={showBucketDragHint}
                     message={copy.bucketDragHint.message}
@@ -883,6 +933,7 @@ export function Dashboard() {
                     name={bucket.name}
                     saved={bucket.saved}
                     target={bucket.target}
+                    status={bucket.status}
                     onClick={() => setExpandedBucketId(bucket.id)}
                   />
                 </BucketDragCard>
@@ -1018,6 +1069,27 @@ export function Dashboard() {
           />
         </div>
       </Modal>
+
+      <BucketNextPickerModal
+        open={nextPickerOpen}
+        buckets={bucketItems
+          .filter(b => !intentResult.doneBucketIds.has(b.id) && b.id !== intentResult.focusBucketId)
+          .map(b => ({ id: b.id, name: b.name, category: b.category, saved: b.saved, target: b.target }))}
+        currentNextBucketId={intentResult.nextBucketId}
+        onSelect={async (bucketId) => {
+          const result = await setManualNextBucket(bucketId);
+          if (!result.error) {
+            void logIntentEvent({ eventKey: 'next_bucket_selected', bucketId });
+          }
+        }}
+        onClear={async () => {
+          const result = await setManualNextBucket(null);
+          if (!result.error) {
+            void logIntentEvent({ eventKey: 'next_bucket_cleared' });
+          }
+        }}
+        onClose={() => setNextPickerOpen(false)}
+      />
 
       <VerifiedBalanceReminderModal
         open={vbReminder.open}

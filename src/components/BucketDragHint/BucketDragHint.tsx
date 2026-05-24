@@ -16,9 +16,6 @@ interface BucketDragHintProps {
   onShown: () => void;
   /** Called when the user explicitly dismisses the hint. */
   onDismiss: () => void;
-  /** Auto-dismiss timeout in ms. Defaults to 6s — long enough to read
-   *  one sentence, short enough to never feel like a tutorial modal. */
-  autoDismissMs?: number;
 }
 
 /**
@@ -35,7 +32,6 @@ export function BucketDragHint({
   dismissAriaLabel,
   onShown,
   onDismiss,
-  autoDismissMs = 6000,
 }: BucketDragHintProps) {
   const reduceMotion = useReducedMotion();
 
@@ -44,11 +40,6 @@ export function BucketDragHint({
     onShown();
   }, [open, onShown]);
 
-  useEffect(() => {
-    if (!open) return;
-    const timer = window.setTimeout(onDismiss, autoDismissMs);
-    return () => window.clearTimeout(timer);
-  }, [open, autoDismissMs, onDismiss]);
 
   return (
     <AnimatePresence>

@@ -6,6 +6,8 @@ import { useReducedMotion } from 'framer-motion';
 interface BucketDragCardProps {
   id: string;
   children: ReactNode;
+  /** Show a subtle shimmer to hint that this card is draggable. */
+  showDragHint?: boolean;
 }
 
 interface DragBounds {
@@ -63,7 +65,7 @@ function readDragBounds(node: HTMLDivElement): DragBounds {
  * the parent DndContext: a quick tap still propagates the click to the
  * underlying Pressable, while a hold-and-drag enters drag mode.
  */
-export function BucketDragCard({ id, children }: BucketDragCardProps) {
+export function BucketDragCard({ id, children, showDragHint }: BucketDragCardProps) {
   const reduceMotion = useReducedMotion();
   const [dragBounds, setDragBounds] = useState<DragBounds | null>(null);
   const {
@@ -136,6 +138,23 @@ export function BucketDragCard({ id, children }: BucketDragCardProps) {
       {...listeners}
     >
       {children}
+      {showDragHint && !isDragging && !reduceMotion && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-2xl"
+          style={{
+            background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.45) 50%, transparent 60%)',
+            backgroundSize: '200% 100%',
+            animation: 'bucketDragShimmer 2.4s ease-in-out infinite',
+          }}
+        />
+      )}
+      {showDragHint && !isDragging && reduceMotion && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-brand-200"
+        />
+      )}
     </div>
   );
 }

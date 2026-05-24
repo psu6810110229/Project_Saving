@@ -141,9 +141,6 @@ export function Dashboard() {
   const data = useSharedData();
   const {
     quickAmounts,
-    profile: fullProfile,
-    loading: profileLoading,
-    markBucketDragHintSeen,
   } = data.profile;
   const {
     personalGoalTarget,
@@ -210,7 +207,9 @@ export function Dashboard() {
   // starts — without waiting for the optimistic profile update to
   // round-trip. Account-level persistence still owns the "never show
   // again" behavior across devices.
-  const [bucketDragHintDismissed, setBucketDragHintDismissed] = useState(false);
+  const [bucketDragHintDismissed, setBucketDragHintDismissed] = useState(
+    () => localStorage.getItem('bucket-drag-hint-seen') === '1',
+  );
 
   // dnd-kit sensors for the bucket transfer drag shortcut (slice 40.6).
   // Activation thresholds follow plan §12: desktop ~150ms / touch ~250ms so
@@ -255,29 +254,21 @@ export function Dashboard() {
   // Once the user actually starts a drag the hint has served its
   // purpose — dismiss it locally and persist `seen_at` so it never
   // reopens on this account (plan §13).
-  function handleBucketDragStart() {
-    if (bucketDragHintDismissed) return;
+  function dismissBucketDragHint() {
     setBucketDragHintDismissed(true);
-    if (!fullProfile?.bucket_drag_hint_seen_at) {
-      void markBucketDragHintSeen();
-    }
+    localStorage.setItem('bucket-drag-hint-seen', '1');
   }
 
-  // Persist the seen flag once the hint actually renders so it never
-  // reopens on another device (plan §13 account-level persistence).
-  // Memoised so BucketDragHint's internal effects don't re-fire each
-  // parent render.
-  const handleBucketDragHintShown = useCallback(() => {
-    if (fullProfile?.bucket_drag_hint_seen_at) return;
-    void markBucketDragHintSeen();
-  }, [fullProfile?.bucket_drag_hint_seen_at, markBucketDragHintSeen]);
+  function handleBucketDragStart() {
+    if (bucketDragHintDismissed) return;
+    dismissBucketDragHint();
+  }
+
+  const handleBucketDragHintShown = useCallback(() => {}, []);
 
   const handleBucketDragHintDismiss = useCallback(() => {
-    setBucketDragHintDismissed(true);
-    if (!fullProfile?.bucket_drag_hint_seen_at) {
-      void markBucketDragHintSeen();
-    }
-  }, [fullProfile?.bucket_drag_hint_seen_at, markBucketDragHintSeen]);
+    dismissBucketDragHint();
+  }, []);
   const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
   const [vaultPreview, setVaultPreview] = useState<{
     prevSaved: number;
@@ -432,10 +423,7 @@ export function Dashboard() {
   // the hint to a returning user whose profile row is still resolving.
   const showBucketDragHint =
     bucketItems.length >= 2
-    && !bucketDragHintDismissed
-    && !profileLoading
-    && fullProfile !== null
-    && !fullProfile.bucket_drag_hint_seen_at;
+    && !bucketDragHintDismissed;
 
   // Task 37: Manage Project is the only editing surface for both
   // the room goal and the personal sub-goal. Creators see an edit
@@ -953,7 +941,7 @@ export function Dashboard() {
                 </div>
               }
               renderBucket={bucket => (
-                <BucketDragCard id={bucket.id}>
+                <BucketDragCard id={bucket.id} showDragHint={showBucketDragHint}>
                   <BucketRow
                     icon={bucket.icon}
                     name={bucket.name}

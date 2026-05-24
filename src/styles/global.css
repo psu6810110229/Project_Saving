@@ -300,6 +300,12 @@
   100% { background-position: 300% 0; }
 }
 
+@keyframes bucketDragShimmer {
+  0%   { background-position: 200% 0; }
+  40%  { background-position: -200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 @keyframes ambient-highlight {
   0% {
     background-position: -200% 0;

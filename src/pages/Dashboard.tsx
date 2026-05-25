@@ -153,7 +153,7 @@ export function Dashboard() {
   const { user, profile } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const data = useSharedData();
-  const { refreshAll } = data;
+  const { refreshAll, isRefreshing } = data;
   const {
     quickAmounts,
     profile: dataProfile,
@@ -908,8 +908,8 @@ export function Dashboard() {
     }
   }
 
-  if (loading && shouldShowSkeleton) return <DashboardSkeleton />;
-  if (loading) return null;
+  if (!isRefreshing && loading && shouldShowSkeleton) return <DashboardSkeleton />;
+  if (!isRefreshing && loading) return null;
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
   return (

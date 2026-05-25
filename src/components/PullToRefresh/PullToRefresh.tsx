@@ -9,6 +9,8 @@ interface PullToRefreshProps {
 }
 
 const THRESHOLD = 80;
+const SPRING_DURATION_MS = 300;
+const SPRING_EASING = 'cubic-bezier(0.2, 0, 0, 1)';
 
 function PullArrow({ rotated }: { rotated: boolean }) {
   return (
@@ -36,34 +38,41 @@ export function PullToRefresh({ onRefresh, children, className = '' }: PullToRef
     threshold: THRESHOLD,
   });
 
-  const indicatorOpacity = state === 'idle'
-    ? 0
-    : state === 'refreshing'
-      ? 1
+  const showIndicator = state !== 'idle';
+  const indicatorOpacity = state === 'refreshing'
+    ? 1
+    : state === 'releasing'
+      ? 0
       : Math.min(pullDistance / THRESHOLD, 1);
+
+  const needsTransition = state === 'refreshing' || state === 'releasing';
+  const indicatorTransition = needsTransition
+    ? `height ${SPRING_DURATION_MS}ms ${SPRING_EASING}, opacity 0.2s`
+    : 'none';
 
   return (
     <div
       ref={scrollRef}
       className={`relative h-full overflow-y-auto overscroll-y-contain ${className}`}
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center"
-        style={{
-          height: `${THRESHOLD}px`,
-          transform: `translateY(${pullDistance - THRESHOLD}px)`,
-          opacity: indicatorOpacity,
-          transition: state === 'pulling' ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s',
-        }}
-      >
-        <div className="flex items-center justify-center rounded-full bg-surface p-2 shadow-neuRaised text-ink-muted">
-          {state === 'refreshing'
-            ? <Spinner size="sm" tone="brand" />
-            : <PullArrow rotated={state === 'triggered'} />
-          }
+      {showIndicator && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center overflow-hidden"
+          style={{
+            height: `${pullDistance}px`,
+            opacity: indicatorOpacity,
+            transition: indicatorTransition,
+          }}
+        >
+          <div className="flex items-center justify-center rounded-full bg-surface p-2 shadow-neuRaised text-ink-muted">
+            {state === 'refreshing'
+              ? <Spinner size="sm" tone="brand" />
+              : <PullArrow rotated={state === 'triggered'} />
+            }
+          </div>
         </div>
-      </div>
+      )}
 
       <div style={contentStyle}>
         {children}

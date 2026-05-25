@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useBuckets } from '../../hooks/useBuckets';
 import { useBucketActivityEvents } from '../../hooks/useBucketActivityEvents';
@@ -69,7 +69,10 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     };
   });
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const refreshAll = useCallback(async () => {
+    setIsRefreshing(true);
     const r = refetchRef.current;
     await Promise.allSettled([
       r.logs(),
@@ -80,6 +83,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       r.savingPlan(),
       r.streakFreeze(),
     ]);
+    setIsRefreshing(false);
   }, []);
 
   const value = useMemo<DataContextValue>(
@@ -100,6 +104,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       roomMembersBuckets,
       roomMembersSavingPlans,
       refreshAll,
+      isRefreshing,
     }),
     [
       profile,
@@ -118,6 +123,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       roomMembersBuckets,
       roomMembersSavingPlans,
       refreshAll,
+      isRefreshing,
     ],
   );
 

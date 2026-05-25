@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { haptic } from '../lib/haptics';
 
-type PullState = 'idle' | 'pulling' | 'triggered' | 'refreshing';
+type PullState = 'idle' | 'pulling' | 'triggered' | 'refreshing' | 'releasing';
 
 interface UsePullToRefreshOptions {
   onRefresh: () => Promise<void>;
@@ -21,6 +21,8 @@ const DEFAULT_THRESHOLD = 80;
 const DEFAULT_MAX_PULL = 128;
 const DEFAULT_MIN_DURATION = 600;
 const RESISTANCE = 0.45;
+const SPRING_DURATION_MS = 300;
+const SPRING_EASING = 'cubic-bezier(0.2, 0, 0, 1)';
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined'
@@ -45,9 +47,17 @@ export function usePullToRefresh({
   const onRefreshRef = useRef(onRefresh);
   useEffect(() => { onRefreshRef.current = onRefresh; });
 
-  const reset = useCallback(() => {
-    setPullDistance(0);
-    setState('idle');
+  const animateToZero = useCallback(() => {
+    setState('releasing');
+    requestAnimationFrame(() => {
+      setPullDistance(0);
+      setTimeout(() => {
+        setState('idle');
+      }, SPRING_DURATION_MS);
+    });
+  }, []);
+
+  const cleanupGesture = useCallback(() => {
     active.current = false;
     directionLocked.current = false;
     crossedThreshold.current = false;
@@ -58,7 +68,7 @@ export function usePullToRefresh({
     if (!el) return;
 
     function onTouchStart(e: TouchEvent) {
-      if (state === 'refreshing') return;
+      if (state === 'refreshing' || state === 'releasing') return;
       if (el!.scrollTop > 0) return;
       const touch = e.touches[0];
       startY.current = touch.clientY;
@@ -69,7 +79,7 @@ export function usePullToRefresh({
     }
 
     function onTouchMove(e: TouchEvent) {
-      if (!active.current || state === 'refreshing') return;
+      if (!active.current || state === 'refreshing' || state === 'releasing') return;
 
       const touch = e.touches[0];
       const rawDeltaY = touch.clientY - startY.current;
@@ -114,6 +124,8 @@ export function usePullToRefresh({
     function onTouchEnd() {
       if (!active.current && state !== 'pulling' && state !== 'triggered') return;
 
+      cleanupGesture();
+
       if (pullDistance >= threshold) {
         setState('refreshing');
         setPullDistance(threshold * 0.6);
@@ -124,15 +136,12 @@ export function usePullToRefresh({
           const remaining = Math.max(0, minimumDuration - elapsed);
           setTimeout(() => {
             haptic('success');
-            reset();
+            animateToZero();
           }, remaining);
         });
       } else {
-        reset();
+        animateToZero();
       }
-
-      active.current = false;
-      directionLocked.current = false;
     }
 
     el.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -144,20 +153,18 @@ export function usePullToRefresh({
       el.removeEventListener('touchmove', onTouchMove);
       el.removeEventListener('touchend', onTouchEnd);
     };
-  }, [state, pullDistance, threshold, maxPull, minimumDuration, reset]);
+  }, [state, pullDistance, threshold, maxPull, minimumDuration, animateToZero, cleanupGesture]);
 
   const reducedMotion = prefersReducedMotion();
-  const contentStyle: CSSProperties = pullDistance > 0
-    ? {
-        transform: `translateY(${pullDistance}px)`,
-        transition: state === 'idle' || state === 'pulling'
-          ? 'none'
-          : reducedMotion ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0, 0, 1)',
-      }
-    : {
-        transform: 'translateY(0)',
-        transition: reducedMotion ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0, 0, 1)',
-      };
+  const needsTransition = state === 'refreshing' || state === 'releasing';
+  const transition = needsTransition && !reducedMotion
+    ? `transform ${SPRING_DURATION_MS}ms ${SPRING_EASING}`
+    : 'none';
+
+  const contentStyle: CSSProperties = {
+    transform: `translateY(${pullDistance}px)`,
+    transition,
+  };
 
   return { scrollRef, pullDistance, state, contentStyle };
 }

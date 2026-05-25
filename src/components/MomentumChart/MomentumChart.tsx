@@ -318,7 +318,7 @@ export const MomentumChart = memo(function MomentumChart({
   const gridFractions = [0.25, 0.5, 0.75, 1];
 
   return (
-    <section className="relative overflow-visible rounded-[2rem] bg-surface px-4 pt-4 pb-4 text-ink shadow-soft">
+    <section className="relative isolate overflow-visible rounded-[2rem] bg-surface px-4 pt-4 pb-4 text-ink shadow-soft">
       {/* Header — fully stacked on mobile so the legend never overlaps
           the title/amount block. Order: title → amount + last7Days →
           mode control → compare avatar chips → compact legend → chart.
@@ -345,7 +345,7 @@ export const MomentumChart = memo(function MomentumChart({
           <div className="flex min-w-0 flex-wrap items-start gap-1.5">
             <div className="min-w-0 shrink-0">{modeControl}</div>
             <div
-              className="min-w-0 overflow-hidden transition-[max-width,opacity] duration-[520ms] ease-[cubic-bezier(0.16,1,0.2,1)]"
+              className={`min-w-0 transition-[max-width,opacity] duration-[520ms] ease-[cubic-bezier(0.16,1,0.2,1)] ${compareChips ? 'overflow-visible' : 'overflow-hidden'}`}
               style={{
                 maxWidth: compareChips ? '20rem' : '0px',
                 opacity: compareChips ? 1 : 0,

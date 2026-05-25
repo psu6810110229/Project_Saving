@@ -48,6 +48,7 @@ import {
 } from '../components/Icon/Icon';
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
 import { MomentumPurposePicker } from '../components/MomentumPurposePicker/MomentumPurposePicker';
+import { PullToRefresh } from '../components/PullToRefresh/PullToRefresh';
 import { ScrollFadeContainer } from '../components/ScrollFadeContainer/ScrollFadeContainer';
 import { BucketNextPickerModal } from '../components/BucketNextPickerModal/BucketNextPickerModal';
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
@@ -152,6 +153,7 @@ export function Dashboard() {
   const { user, profile } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const data = useSharedData();
+  const { refreshAll } = data;
   const {
     quickAmounts,
     profile: dataProfile,
@@ -911,12 +913,12 @@ export function Dashboard() {
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
   return (
-    <>
+    <PullToRefresh onRefresh={refreshAll}>
       {createPortal(
         <div aria-hidden className="dashboard-mesh-bg pointer-events-none fixed inset-0 -z-10" />,
         document.body,
       )}
-    <motion.div className="flex flex-col gap-6 pt-8" variants={containerVariants} initial="hidden" animate="visible">
+    <motion.div className="flex flex-col gap-6 pt-8 pb-6" variants={containerVariants} initial="hidden" animate="visible">
       {/* Project header. Compact, no heavy card. */}
       <motion.header
         className="flex items-start justify-between gap-3"
@@ -1429,7 +1431,7 @@ export function Dashboard() {
         </Button>
       </OutcomeModal>
     </motion.div>
-    </>
+    </PullToRefresh>
   );
 }
 

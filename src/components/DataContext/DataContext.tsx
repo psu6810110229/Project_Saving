@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useBuckets } from '../../hooks/useBuckets';
 import { useBucketActivityEvents } from '../../hooks/useBucketActivityEvents';
@@ -47,6 +47,41 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const partnerSavingPlan = usePartnerSavingPlan(roomId, partnerEntry?.userId ?? null);
   const reconcile = useReconcile(roomId);
 
+  // Ref holds the latest refetch functions so refreshAll stays stable.
+  const refetchRef = useRef({
+    logs: logs.refetch,
+    buckets: buckets.refetch,
+    goal: goal.refetch,
+    profile: profile.refetch,
+    reconcile: reconcile.refetch,
+    savingPlan: savingPlan.refetch,
+    streakFreeze: streakFreeze.refresh,
+  });
+  useEffect(() => {
+    refetchRef.current = {
+      logs: logs.refetch,
+      buckets: buckets.refetch,
+      goal: goal.refetch,
+      profile: profile.refetch,
+      reconcile: reconcile.refetch,
+      savingPlan: savingPlan.refetch,
+      streakFreeze: streakFreeze.refresh,
+    };
+  });
+
+  const refreshAll = useCallback(async () => {
+    const r = refetchRef.current;
+    await Promise.allSettled([
+      r.logs(),
+      r.buckets(),
+      r.goal(),
+      r.profile(),
+      r.reconcile(),
+      r.savingPlan(),
+      r.streakFreeze(),
+    ]);
+  }, []);
+
   const value = useMemo<DataContextValue>(
     () => ({
       profile,
@@ -64,6 +99,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       otherMemberIds,
       roomMembersBuckets,
       roomMembersSavingPlans,
+      refreshAll,
     }),
     [
       profile,
@@ -81,6 +117,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       otherMemberIds,
       roomMembersBuckets,
       roomMembersSavingPlans,
+      refreshAll,
     ],
   );
 

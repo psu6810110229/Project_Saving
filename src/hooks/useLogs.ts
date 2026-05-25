@@ -129,5 +129,5 @@ export function useLogs(limit = 30, roomId: string | null = null) {
     return {};
   }
 
-  return { logs: logs.slice(0, limit), setLogs, loading, error, insert };
+  return { logs: logs.slice(0, limit), setLogs, loading, error, insert, refetch: fetchLogs };
 }

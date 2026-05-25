@@ -31,6 +31,7 @@ export interface DataContextValue {
   otherMemberIds: ReturnType<typeof useRoomOtherMemberIds>;
   roomMembersBuckets: ReturnType<typeof useRoomMembersBuckets>;
   roomMembersSavingPlans: ReturnType<typeof useRoomMembersSavingPlans>;
+  refreshAll: () => Promise<void>;
 }
 
 export const DataContext = createContext<DataContextValue | null>(null);

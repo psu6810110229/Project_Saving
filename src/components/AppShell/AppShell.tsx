@@ -17,7 +17,7 @@ export function AppShell({ activeTab, onTabChange, children }: AppShellProps) {
         className="pointer-events-none fixed inset-x-0 top-0 z-20 h-[calc(env(safe-area-inset-top)+2.75rem)] bg-gradient-to-b from-bg/95 via-bg/55 to-transparent"
       />
       <div className="app-shell-side-fade mx-auto w-full max-w-md flex-1 min-h-0">
-        <main className="h-full px-4 pt-[env(safe-area-inset-top)]">
+        <main className="h-full px-4 pt-0">
           {children}
         </main>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { CalendarPicker } from '../components/CalendarPicker/CalendarPicker';
@@ -647,32 +647,13 @@ export function SavingPlan() {
       {/* Plan type + Plan fields — 2-col on md+ */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-[auto_1fr]">
 
-      {/* Plan type selector */}
-      <section className="rounded-xl bg-surface p-5 shadow-soft md:self-start">
-        <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
-          {sp.planTypeLabel}
-        </p>
-        <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-1">
-          {PRESETS.map(preset => {
-            const selected = ruleType === preset.id;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => handleRuleTypeChange(preset.id)}
-                className={
-                  'rounded-lg px-4 py-3 text-center font-mono text-sm font-bold transition-colors ' +
-                  (selected
-                    ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
-                    : 'bg-brand-50 text-ink hover:bg-brand-100')
-                }
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      {/* Plan type picker */}
+      <PlanTypePicker
+        presets={PRESETS}
+        value={ruleType}
+        onChange={handleRuleTypeChange}
+        label={sp.planTypeLabel}
+      />
 
       {/* Plan fields */}
       <section className="rounded-xl bg-surface p-5 shadow-soft">
@@ -937,6 +918,81 @@ function BigLabelField({
         <span className="mt-3 block font-mono text-sm text-ink-muted">{helper}</span>
       )}
     </label>
+  );
+}
+
+function PlanTypePicker({
+  presets,
+  value,
+  onChange,
+  label,
+}: {
+  presets: { id: SavingPlanRuleType; label: string }[];
+  value: SavingPlanRuleType;
+  onChange: (id: SavingPlanRuleType) => void;
+  label: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  const selected = presets.find(p => p.id === value);
+
+  return (
+    <section className="rounded-xl bg-surface p-5 shadow-soft md:self-start" ref={ref}>
+      <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
+        {label}
+      </p>
+      <div className="relative mt-3">
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          className="flex w-full items-center justify-between rounded-lg bg-brand-500 px-4 py-3 font-mono text-sm font-bold text-ink-inverse shadow-haloOrange transition-all active:scale-[0.97]"
+        >
+          {selected?.label}
+          <span className={'ml-2 text-xs transition-transform ' + (open ? 'rotate-180' : '')}>▾</span>
+        </button>
+
+        {open && (
+          <div
+            role="listbox"
+            className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-lg bg-surface shadow-lg ring-1 ring-black/5"
+          >
+            {presets.map(preset => {
+              const active = value === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onClick={() => { onChange(preset.id); setOpen(false); }}
+                  className={
+                    'flex w-full items-center px-4 py-3 font-mono text-sm font-bold transition-colors ' +
+                    (active
+                      ? 'bg-brand-100 text-brand-800'
+                      : 'text-ink hover:bg-well')
+                  }
+                >
+                  {active && <span className="mr-2 text-brand-500">✓</span>}
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 

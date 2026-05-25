@@ -1043,6 +1043,18 @@ export const th: Messages = {
     restoreConfirmLabel: 'กู้คืน',
     restoreSuccess: 'กู้คืนโปรเจกต์แล้ว',
   },
+  calendar: {
+    monthNames: [
+      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+    ],
+    dayLabels: ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'],
+    tapStartDate: 'แตะเพื่อเลือกวันเริ่มต้น',
+    tapEndDate: 'แตะเพื่อเลือกวันสิ้นสุด',
+    tapChangeStart: 'แตะเพื่อเปลี่ยนวันเริ่มต้น',
+    prevMonthAria: 'เดือนก่อนหน้า',
+    nextMonthAria: 'เดือนถัดไป',
+  },
   memberDetail: {
     pageEyebrow: 'สมาชิก',
     pageTitle: 'สมาชิก',

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { IconArrowLeft, IconArrowRight } from '../Icon/Icon';
+import { useI18n } from '../../i18n/useI18n';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -24,12 +25,6 @@ type CalendarPickerProps = CalendarPickerSingleProps | CalendarPickerRangeProps;
 
 // ── Helpers ───────────────────────────────────────────────────
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
 function parseYMD(s: string) {
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
@@ -49,6 +44,8 @@ function fmtShortAmount(v: number): string {
 // ── Component ─────────────────────────────────────────────────
 
 export function CalendarPicker(props: CalendarPickerProps) {
+  const { copy } = useI18n();
+  const cal = copy.calendar;
   const isRange = props.mode === 'range';
 
   // Resolve initial view month from value/rangeStart
@@ -152,18 +149,18 @@ export function CalendarPicker(props: CalendarPickerProps) {
           type="button"
           onClick={prevMonth}
           className="p-1.5 rounded-lg hover:bg-well active:scale-95 transition-all"
-          aria-label="Previous month"
+          aria-label={cal.prevMonthAria}
         >
           <IconArrowLeft size={16} className="text-ink" />
         </button>
         <span className="font-mono text-sm font-bold text-ink">
-          {MONTH_NAMES[viewMonth - 1]} {viewYear}
+          {cal.monthNames[viewMonth - 1]} {viewYear}
         </span>
         <button
           type="button"
           onClick={nextMonth}
           className="p-1.5 rounded-lg hover:bg-well active:scale-95 transition-all"
-          aria-label="Next month"
+          aria-label={cal.nextMonthAria}
         >
           <IconArrowRight size={16} className="text-ink" />
         </button>
@@ -171,8 +168,8 @@ export function CalendarPicker(props: CalendarPickerProps) {
 
       {/* Day-of-week header */}
       <div className="grid grid-cols-7 mb-1">
-        {DAY_LABELS.map(day => (
-          <div key={day} className="text-center font-mono text-[10px] text-ink-dim py-1">
+        {cal.dayLabels.map((day, i) => (
+          <div key={i} className="text-center font-mono text-[10px] text-ink-dim py-1">
             {day}
           </div>
         ))}
@@ -223,10 +220,10 @@ export function CalendarPicker(props: CalendarPickerProps) {
       {isRange && (
         <p className="mt-3 text-center font-mono text-[10px] text-ink-dim">
           {picking === 'start' || !(props as CalendarPickerRangeProps).rangeStart
-            ? 'Tap to set start date'
+            ? cal.tapStartDate
             : !(props as CalendarPickerRangeProps).rangeEnd
-            ? 'Tap to set end date'
-            : 'Tap to change start date'}
+            ? cal.tapEndDate
+            : cal.tapChangeStart}
         </p>
       )}
     </div>

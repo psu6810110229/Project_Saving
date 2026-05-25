@@ -1056,6 +1056,18 @@ export const en = {
     restoreConfirmLabel: 'Restore',
     restoreSuccess: 'Project restored.',
   },
+  calendar: {
+    monthNames: [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ] as readonly string[],
+    dayLabels: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as readonly string[],
+    tapStartDate: 'Tap to set start date',
+    tapEndDate: 'Tap to set end date',
+    tapChangeStart: 'Tap to change start date',
+    prevMonthAria: 'Previous month',
+    nextMonthAria: 'Next month',
+  },
   memberDetail: {
     pageEyebrow: 'Member',
     pageTitle: 'Member',

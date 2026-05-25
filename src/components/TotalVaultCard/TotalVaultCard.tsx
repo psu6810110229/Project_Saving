@@ -1,8 +1,9 @@
+import { memo } from 'react';
 import { IconEdit, IconPiggyBank, IconTrendingUp } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { useI18n } from '../../i18n/useI18n';
 import Pressable from '../Pressable/Pressable';
-import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
+import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 
 interface TotalVaultCardProps {
   saved: number;
@@ -20,12 +21,10 @@ function formatValidThru(date?: string | null): string | null {
   return `${m[2]}/${m[1].slice(2)}`;
 }
 
-export function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholderNames, validThru }: TotalVaultCardProps) {
+export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholderNames, validThru }: TotalVaultCardProps) {
   const { copy } = useI18n();
   const pct = target > 0 ? (saved / target) * 100 : 0;
-  const animSaved = useAnimatedNumber(saved);
-  const animTarget = useAnimatedNumber(target);
-  const animPct = useAnimatedNumber(pct);
+  const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
   const pctRounded = Math.round(animPct);
   const clamped = Math.max(0, Math.min(100, animPct));
 
@@ -134,4 +133,4 @@ export function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholde
   }
 
   return card;
-}
+});

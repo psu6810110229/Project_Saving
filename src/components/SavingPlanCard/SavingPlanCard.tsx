@@ -20,7 +20,7 @@ import {
   type MoneyBehindSeverity,
 } from '../../lib/savingPlan';
 import { useI18n } from '../../i18n/useI18n';
-import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
+import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import type { BalanceAdjustmentReason, SavingPlanRuleType } from '../../types';
 
 interface VerifiedBalanceSlot {
@@ -106,10 +106,12 @@ export function SavingPlanCard({
   const [vbError, setVbError] = useState<string | null>(null);
   const [vbDone, setVbDone] = useState<{ matched: boolean } | null>(null);
   const clientIdRef = useRef<string | null>(null);
-  const animProgressPct = useAnimatedNumber(progressPct);
-  const animExpectedToday = useAnimatedNumber(money?.expectedToday ?? 0);
-  const animDelta = useAnimatedNumber(money?.delta ?? 0);
-  const animVerified = useAnimatedNumber(verifiedBalance?.amount ?? 0);
+  const [animProgressPct, animExpectedToday, animDelta, animVerified] = useAnimatedNumbers([
+    progressPct,
+    money?.expectedToday ?? 0,
+    money?.delta ?? 0,
+    verifiedBalance?.amount ?? 0,
+  ]);
 
   function handleVbToggle() {
     if (vbExpanded) {

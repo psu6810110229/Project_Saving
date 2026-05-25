@@ -1,6 +1,7 @@
+import { memo } from 'react';
 import { ProjectedProgressBar } from '../ProjectedProgressBar/ProjectedProgressBar';
 import { useI18n } from '../../i18n/useI18n';
-import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
+import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 
 interface ProjectedProgressCardProps {
   bucketName: string;
@@ -9,7 +10,7 @@ interface ProjectedProgressCardProps {
   pendingDeposit: number;
 }
 
-export function ProjectedProgressCard({
+export const ProjectedProgressCard = memo(function ProjectedProgressCard({
   bucketName,
   saved,
   target,
@@ -18,10 +19,7 @@ export function ProjectedProgressCard({
   const { copy, formatMoney } = useI18n();
   const currentPct = target > 0 ? (saved / target) * 100 : 0;
   const projectedPct = target > 0 ? Math.min(100, ((saved + pendingDeposit) / target) * 100) : 0;
-  const animCurrent = useAnimatedNumber(currentPct);
-  const animProjected = useAnimatedNumber(projectedPct);
-  const animSaved = useAnimatedNumber(saved);
-  const animPending = useAnimatedNumber(pendingDeposit);
+  const [animCurrent, animProjected, animSaved, animPending] = useAnimatedNumbers([currentPct, projectedPct, saved, pendingDeposit]);
   const projectedPctRounded = Math.round(animProjected);
 
   return (
@@ -49,4 +47,4 @@ export function ProjectedProgressCard({
       </div>
     </section>
   );
-}
+});

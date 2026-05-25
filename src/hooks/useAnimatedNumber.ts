@@ -1,52 +1,138 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  acquireAnimationSlot,
+  releaseAnimationSlot,
+  isPageTransitioning,
+} from '../lib/animationBudget';
 
-/**
- * Tween a single numeric value toward `target` whenever it changes.
- * Mirrors the RAF + ease-out-cubic approach used by `MomentumChart`'s
- * `useAnimatedSeries` so data updates on cards morph instead of snapping.
- *
- * - First mount initialises the displayed value to `target` (no
- *   count-up-from-zero on entry).
- * - Subsequent target changes start a fresh tween from the *currently
- *   displayed* value, so rapid updates remain smooth.
- * - Respects `prefers-reduced-motion` by returning `target` directly.
- */
+const REDUCED_MOTION =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const SNAP_THRESHOLD = 1;
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
 export function useAnimatedNumber(target: number, duration = 600): number {
-  const prefersReducedMotion = typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  const [value, setValue] = useState<number>(Number.isFinite(target) ? target : 0);
-  const fromRef = useRef<number>(Number.isFinite(target) ? target : 0);
-  const targetRef = useRef<number>(Number.isFinite(target) ? target : 0);
+  const safe = Number.isFinite(target) ? target : 0;
+  const [value, setValue] = useState(safe);
+  const fromRef = useRef(safe);
+  const targetRef = useRef(safe);
   const rafRef = useRef<number | null>(null);
+  const slotRef = useRef(false);
 
   useEffect(() => {
-    if (!Number.isFinite(target)) return;
-    if (target === targetRef.current) return;
-    targetRef.current = target;
-
-    if (prefersReducedMotion) {
-      fromRef.current = target;
-      const id = requestAnimationFrame(() => setValue(target));
-      return () => cancelAnimationFrame(id);
-    }
+    if (safe === targetRef.current) return;
+    targetRef.current = safe;
 
     const from = fromRef.current;
+    const delta = Math.abs(safe - from);
+
+    if (REDUCED_MOTION || delta < SNAP_THRESHOLD || isPageTransitioning() || !acquireAnimationSlot()) {
+      fromRef.current = safe;
+      setValue(safe);
+      return;
+    }
+    slotRef.current = true;
+
+    const start = performance.now();
+    const to = safe;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const v = from + (to - from) * easeOutCubic(t);
+      fromRef.current = v;
+      setValue(v);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else if (slotRef.current) {
+        releaseAnimationSlot();
+        slotRef.current = false;
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (slotRef.current) {
+        releaseAnimationSlot();
+        slotRef.current = false;
+      }
+    };
+  }, [safe, duration]);
+
+  return value;
+}
+
+export function useAnimatedNumbers(targets: number[], duration = 600): number[] {
+  const safeTargets = targets.map(t => (Number.isFinite(t) ? t : 0));
+  const targetKey = safeTargets.join('|');
+
+  const [values, setValues] = useState<number[]>(() => safeTargets.slice());
+  const fromsRef = useRef<number[]>(safeTargets.slice());
+  const targetsRef = useRef<number[]>(safeTargets.slice());
+  const rafRef = useRef<number | null>(null);
+  const slotRef = useRef(false);
+
+  useEffect(() => {
+    const newTargets = targetKey.split('|').map(Number);
+    const prev = targetsRef.current;
+
+    let anyChanged = false;
+    for (let i = 0; i < newTargets.length; i++) {
+      if (newTargets[i] !== prev[i]) {
+        anyChanged = true;
+        break;
+      }
+    }
+    if (!anyChanged) return;
+
+    const froms = fromsRef.current;
+    targetsRef.current = newTargets;
+
+    const maxDelta = Math.max(
+      ...newTargets.map((t, i) => Math.abs(t - (froms[i] ?? 0))),
+    );
+
+    if (REDUCED_MOTION || maxDelta < SNAP_THRESHOLD || isPageTransitioning() || !acquireAnimationSlot()) {
+      fromsRef.current = newTargets.slice();
+      setValues(newTargets.slice());
+      return;
+    }
+    slotRef.current = true;
+
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+
+    const animFroms = froms.slice();
     const start = performance.now();
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
-      const e = 1 - Math.pow(1 - t, 3);
-      const v = from + (target - from) * e;
-      fromRef.current = v;
-      setValue(v);
-      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+      const e = easeOutCubic(t);
+      const next = newTargets.map((target, i) => {
+        const f = animFroms[i] ?? 0;
+        return f + (target - f) * e;
+      });
+      fromsRef.current = next;
+      setValues(next);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else if (slotRef.current) {
+        releaseAnimationSlot();
+        slotRef.current = false;
+      }
     };
     rafRef.current = requestAnimationFrame(tick);
+
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (slotRef.current) {
+        releaseAnimationSlot();
+        slotRef.current = false;
+      }
     };
-  }, [target, duration, prefersReducedMotion]);
+  }, [targetKey, duration]);
 
-  return value;
+  return values;
 }

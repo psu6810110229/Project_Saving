@@ -1,9 +1,9 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { memo, useEffect, useRef, type ReactNode } from 'react';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
 import Pressable from '../Pressable/Pressable';
-import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
+import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 
 interface BucketRowProps {
   icon: ReactNode;
@@ -24,11 +24,9 @@ const STATUS_STYLES: Record<'focus' | 'next' | 'done', string> = {
   done: 'bg-green-100 text-green-700',
 };
 
-export function BucketRow({ icon, name, saved, target, onClick, status }: BucketRowProps) {
+export const BucketRow = memo(function BucketRow({ icon, name, saved, target, onClick, status }: BucketRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
-  const animSaved = useAnimatedNumber(saved);
-  const animTarget = useAnimatedNumber(target);
-  const animPct = useAnimatedNumber(pct);
+  const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
   const wasComplete = useRef(target > 0 && saved >= target);
 
   useEffect(() => {
@@ -68,4 +66,4 @@ export function BucketRow({ icon, name, saved, target, onClick, status }: Bucket
       </div>
     </Pressable>
   );
-}
+});

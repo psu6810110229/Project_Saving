@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { PAGE_TRANSITION, REDUCED_MOTION_TRANSITION } from '../../lib/motion';
+import { setPageTransitioning } from '../../lib/animationBudget';
 
 interface PageTransitionProps {
   transitionKey: string;
@@ -56,14 +57,16 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
     const direction = idx >= nav.idx ? 1 : -1;
     activeNav = { key: transitionKey, idx, direction };
     setNav(activeNav);
+    setPageTransitioning(true);
   }
 
   const reduceMotion = useReducedMotion();
   const pageRef = useRef<HTMLDivElement>(null);
 
   const clearWillChange = useCallback((definition: string) => {
-    if (definition === 'center' && pageRef.current) {
-      pageRef.current.style.willChange = 'auto';
+    if (definition === 'center') {
+      if (pageRef.current) pageRef.current.style.willChange = 'auto';
+      setPageTransitioning(false);
     }
   }, []);
 

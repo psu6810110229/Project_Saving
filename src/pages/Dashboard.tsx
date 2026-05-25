@@ -72,7 +72,7 @@ import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTarge
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
-import { activeBucketIdsInWindow, availablePurposeCategories, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
+import { availablePurposeCategories, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
@@ -214,10 +214,6 @@ export function Dashboard() {
   const visibleBucketsById = useMemo(() => new Map<string, Bucket>(
     allVisibleBuckets.map(b => [b.id, b]),
   ), [allVisibleBuckets]);
-  const momentumActiveBucketIds = useMemo(
-    () => activeBucketIdsInWindow(logs),
-    [logs],
-  );
   // Selected compare member for Compare mode. Always represents one
   // other member — Compare must never render more than current user +
   // one selected member.
@@ -1085,11 +1081,11 @@ export function Dashboard() {
           purposePicker={purposeCategories.length > 0 ? (
             <MomentumPurposePicker
               categories={purposeCategories}
-              buckets={allVisibleBuckets}
+              buckets={buckets}
               value={purposeScope}
               onChange={setPurposeScope}
-              activeBucketIds={momentumActiveBucketIds}
-            />
+              hideBucketRow={trendMode !== 'me'}
+/>
           ) : undefined}
           modeControl={hasOtherMembers ? (
             <DailyTrendModeControl

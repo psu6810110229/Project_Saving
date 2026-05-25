@@ -15,8 +15,7 @@ interface MomentumPurposePickerProps {
   buckets: Bucket[];
   value: MomentumPurposeScope;
   onChange: (next: MomentumPurposeScope) => void;
-  /** Bucket IDs that have at least one deposit in the momentum window. */
-  activeBucketIds?: Set<string>;
+  hideBucketRow?: boolean;
 }
 
 export function MomentumPurposePicker({
@@ -24,7 +23,7 @@ export function MomentumPurposePicker({
   buckets,
   value,
   onChange,
-  activeBucketIds,
+  hideBucketRow,
 }: MomentumPurposePickerProps) {
   const { copy } = useI18n();
   const d = copy.dashboard;
@@ -82,7 +81,7 @@ export function MomentumPurposePicker({
 
       {/* Bucket sub-pill row */}
       <AnimatePresence mode="popLayout">
-        {subPills.length > 0 && (
+        {subPills.length > 0 && !hideBucketRow && (
           <motion.div
             key="bucket-row"
             initial={{ height: 0, opacity: 0 }}
@@ -97,15 +96,12 @@ export function MomentumPurposePicker({
               fadeWidth={28}
             >
               <div className="flex gap-1.5">
-                {subPills.map((bucket, i) => {
-                  const hasDeposits = !activeBucketIds || activeBucketIds.has(bucket.id);
-                  return (
+                {subPills.map((bucket, i) => (
                     <BucketSubPill
                       key={bucket.id}
                       name={bucket.name}
                       active={value.kind === 'bucket' && value.bucketId === bucket.id}
                       index={i}
-                      hasDeposits={hasDeposits}
                       reduceMotion={!!reduceMotion}
                       onClick={() => {
                         onChange({
@@ -116,8 +112,7 @@ export function MomentumPurposePicker({
                         haptic('success');
                       }}
                     />
-                  );
-                })}
+                ))}
               </div>
             </ScrollFadeContainer>
           </motion.div>
@@ -162,12 +157,11 @@ interface BucketSubPillProps {
   name: string;
   active: boolean;
   index: number;
-  hasDeposits: boolean;
   reduceMotion: boolean;
   onClick: () => void;
 }
 
-function BucketSubPill({ name, active, index, hasDeposits, reduceMotion, onClick }: BucketSubPillProps) {
+function BucketSubPill({ name, active, index, reduceMotion, onClick }: BucketSubPillProps) {
   return (
     <motion.button
       type="button"
@@ -175,8 +169,8 @@ function BucketSubPill({ name, active, index, hasDeposits, reduceMotion, onClick
       aria-selected={active}
       initial={reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 0 }}
       animate={reduceMotion
-        ? { opacity: hasDeposits ? 1 : 0.5 }
-        : { scale: 1, opacity: hasDeposits ? 1 : 0.5 }
+        ? { opacity: 1 }
+        : { scale: 1, opacity: 1 }
       }
       exit={reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 0 }}
       transition={reduceMotion

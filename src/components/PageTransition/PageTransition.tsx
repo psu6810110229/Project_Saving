@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useCallback, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { PAGE_TRANSITION, REDUCED_MOTION_TRANSITION } from '../../lib/motion';
 
@@ -7,31 +7,22 @@ interface PageTransitionProps {
   children: ReactNode;
 }
 
-const EDGE_SHADOW = '0 0 44px rgba(42, 26, 14, 0.16)';
-
-// Native-style push: the new page travels over the old page while the old page
-// drifts slightly away, creating a small depth/parallax cue without moving the app chrome.
 const variants = {
   enter: (dir: number) => ({
-    x: dir > 0 ? '96%' : '-96%',
-    opacity: 0.98,
-    scale: 0.995,
-    boxShadow: EDGE_SHADOW,
+    x: dir > 0 ? 28 : -28,
+    opacity: 0,
     zIndex: 2,
     pointerEvents: 'auto' as const,
   }),
   center: {
     x: 0,
     opacity: 1,
-    scale: 1,
-    boxShadow: '0 0 0 rgba(42, 26, 14, 0)',
     zIndex: 2,
     pointerEvents: 'auto' as const,
   },
   exit: (dir: number) => ({
-    x: dir > 0 ? '-14%' : '14%',
-    opacity: 0.82,
-    scale: 0.99,
+    x: dir > 0 ? -12 : 12,
+    opacity: 0.7,
     zIndex: 1,
     pointerEvents: 'none' as const,
   }),
@@ -68,24 +59,30 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
   }
 
   const reduceMotion = useReducedMotion();
+  const pageRef = useRef<HTMLDivElement>(null);
 
-  // Each motion.div is its own scroll container (overflow-y: auto) so pages
-  // scroll independently — like native iOS view controllers. New pages always
-  // start at scrollTop=0 naturally, and the exiting page keeps its scroll
-  // position during the exit animation. No window.scrollTo hacks needed.
+  const clearWillChange = useCallback((definition: string) => {
+    if (definition === 'center' && pageRef.current) {
+      pageRef.current.style.willChange = 'auto';
+    }
+  }, []);
+
   return (
     <div className="relative isolate overflow-hidden bg-bg h-full">
       <AnimatePresence initial={false} mode="popLayout" custom={activeNav.direction}>
         <motion.div
           key={transitionKey}
+          ref={pageRef}
           custom={activeNav.direction}
           variants={reduceMotion ? reducedVariants : variants}
           initial="enter"
           animate="center"
           exit="exit"
           transition={reduceMotion ? REDUCED_MOTION_TRANSITION : PAGE_TRANSITION}
+          onAnimationComplete={clearWillChange}
           data-page-scroll
-          className="relative w-full min-w-full h-full overflow-y-auto overscroll-contain bg-bg will-change-[transform,opacity]"
+          className="relative w-full min-w-full h-full overflow-y-auto overscroll-contain bg-bg"
+          style={{ willChange: 'transform, opacity' }}
         >
           {children}
         </motion.div>

@@ -251,7 +251,7 @@
         transparent 100%);
     background-size: 300% 100%;
     background-position: -200% 0;
-    animation: ambient-highlight 8s ease-in-out infinite;
+    animation: none;
     pointer-events: none;
   }
 
@@ -309,7 +309,7 @@
     );
     background-size: 300% 100%;
     background-position: -200% 0;
-    animation: vault-card-sweep 14s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+    animation: none;
     mix-blend-mode: screen;
     pointer-events: none;
   }
@@ -336,18 +336,18 @@
   0%,
   12%,
   100% {
-    filter: none;
+    opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
   }
 
   18% {
-    filter: drop-shadow(0 18px 28px rgba(95, 36, 23, 0.18));
+    opacity: 0.92;
     transform: translate3d(0, -4px, 0) scale(1.02);
   }
 
   42%,
   54% {
-    filter: drop-shadow(0 22px 32px rgba(95, 36, 23, 0.22));
+    opacity: 0.88;
     transform: translate3d(
       var(--bucket-drag-hint-x, 0),
       var(--bucket-drag-hint-y, 0),
@@ -356,7 +356,7 @@
   }
 
   72% {
-    filter: drop-shadow(0 12px 20px rgba(95, 36, 23, 0.14));
+    opacity: 0.95;
     transform: translate3d(0, 0, 0) scale(1);
   }
 }

@@ -381,6 +381,14 @@ export function Dashboard() {
     }
   }, [purposeScope, purposeCategories, visibleBucketsById]);
 
+  // Member mode guard: bucket-level comparison is asymmetric (the partner
+  // likely doesn't have the same bucket), so force solo view.
+  useEffect(() => {
+    if (purposeScope.kind === 'bucket' && trendMode !== 'me') {
+      setTrendMode('me');
+    }
+  }, [purposeScope, trendMode]);
+
   // Verified balance reminder: open once per session when the last
   // check is ≥ 3 days old (or there has never been one). The session
   // flag survives in-tab navigation so the popup never respawns after
@@ -1089,6 +1097,7 @@ export function Dashboard() {
               options={trendModeOptions}
               value={trendMode}
               onChange={setTrendMode}
+              disabledValues={purposeScope.kind === 'bucket' ? ['room', 'compare'] : undefined}
             />
           ) : undefined}
           compareChips={hasOtherMembers && trendMode === 'compare' ? (
@@ -1706,6 +1715,7 @@ interface DailyTrendModeControlProps {
   options: Array<{ value: DailyTrendMode; label: string }>;
   value: DailyTrendMode;
   onChange: (next: DailyTrendMode) => void;
+  disabledValues?: DailyTrendMode[];
 }
 
 /** Custom `Room | Me | Compare` segmented control for the Daily Deposit
@@ -1714,7 +1724,7 @@ interface DailyTrendModeControlProps {
  *  browser-default select/dropdown, no emoji. */
 const TREND_MODE_HINT_STORAGE_KEY = 'daily-trend-mode-hint-seen-v1';
 
-function DailyTrendModeControl({ ariaLabel, options, value, onChange }: DailyTrendModeControlProps) {
+function DailyTrendModeControl({ ariaLabel, options, value, onChange, disabledValues }: DailyTrendModeControlProps) {
   // First-visit shimmer: sweep a soft sheen across the toggle once
   // *after the card scrolls into view*, so users who never reach the
   // Daily Trend section don't burn their one-time hint. Stored per
@@ -1780,16 +1790,19 @@ function DailyTrendModeControl({ ariaLabel, options, value, onChange }: DailyTre
         )}
         {options.map(option => {
           const active = option.value === value;
+          const disabled = disabledValues?.includes(option.value) ?? false;
           return (
             <button
               key={option.value}
               type="button"
               role="tab"
               aria-selected={active}
+              aria-disabled={disabled || undefined}
+              disabled={disabled}
               onClick={() => onChange(option.value)}
               className={
                 'relative inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-2.5 font-mono text-[11px] font-bold transition-colors '
-                + (active ? 'text-ink-inverse' : 'text-ink-muted')
+                + (disabled ? 'text-ink-dim opacity-40 cursor-not-allowed' : active ? 'text-ink-inverse' : 'text-ink-muted')
               }
             >
               {active && (

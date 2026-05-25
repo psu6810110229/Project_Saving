@@ -344,23 +344,16 @@ export function MomentumChart({
         {modeControl && (
           <div className="flex min-w-0 flex-wrap items-start gap-1.5">
             <div className="min-w-0 shrink-0">{modeControl}</div>
-            {/* Compare avatar chips — sits inline to the right of the
-                mode toggle so the chip column reads as a direct
-                extension of the Compare option. Animates both
-                grid-template-rows and grid-template-columns so the
-                card eases open/closed in both axes instead of
-                snapping when Compare is toggled. */}
             <div
-              className="grid min-w-0 transition-[grid-template-rows,grid-template-columns,opacity] duration-[520ms] ease-[cubic-bezier(0.16,1,0.2,1)]"
+              className="min-w-0 overflow-hidden transition-[max-width,opacity] duration-[520ms] ease-[cubic-bezier(0.16,1,0.2,1)]"
               style={{
-                gridTemplateRows: compareChips ? '1fr' : '0fr',
-                gridTemplateColumns: compareChips ? '1fr' : '0fr',
+                maxWidth: compareChips ? '20rem' : '0px',
                 opacity: compareChips ? 1 : 0,
                 pointerEvents: compareChips ? undefined : 'none',
               }}
               aria-hidden={!compareChips}
             >
-              <div className="min-w-0 overflow-visible">{lingeringChips}</div>
+              {lingeringChips}
             </div>
           </div>
         )}
@@ -372,27 +365,20 @@ export function MomentumChart({
             name={resolvedYourName}
             total={yourTotal}
           />
-          {/* Partner legend chip — always rendered while a partner
-              value is known, then collapsed via a grid-template-columns
-              transition so the legend row eases between 1-chip and
-              2-chip layouts (matching the chips-row resize) instead of
-              snapping when switching from Compare back to Room / Me. */}
           <div
-            className="grid min-w-0 transition-[grid-template-columns,opacity] duration-300 ease-out"
+            className="min-w-0 overflow-hidden transition-[max-width,opacity] duration-300 ease-out"
             style={{
-              gridTemplateColumns: hasPartner ? '1fr' : '0fr',
+              maxWidth: hasPartner ? '14rem' : '0px',
               opacity: hasPartner ? 1 : 0,
             }}
             aria-hidden={!hasPartner}
           >
-            <div className="min-w-0 overflow-hidden">
-              <LegendChip
-                color={COLOR_PARTNER}
-                glow="rgba(79,99,130,0.4)"
-                name={resolvedPartnerName}
-                total={animPartner ? animPartner.reduce((s, v) => s + v, 0) : partnerTotal}
-              />
-            </div>
+            <LegendChip
+              color={COLOR_PARTNER}
+              glow="rgba(79,99,130,0.4)"
+              name={resolvedPartnerName}
+              total={animPartner ? animPartner.reduce((s, v) => s + v, 0) : partnerTotal}
+            />
           </div>
         </div>
       </div>
@@ -504,19 +490,12 @@ export function MomentumChart({
           const partnerCenterX = partnerBarX !== null ? partnerBarX + barW / 2 : 0;
           const dimmed = selectedIndex !== null && selectedIndex !== i;
           const barOpacity = dimmed ? 0.4 : 1;
-          const delayBase = `${i * 60}ms`;
 
           return (
             <g key={i}>
               {/* Partner bar — left of the pair */}
               {hasPartner && (
-                <g
-                  className="animate-bar-grow"
-                  style={{
-                    transformOrigin: `${partnerCenterX}px ${baselineY}px`,
-                    animationDelay: delayBase,
-                  }}
-                >
+                <g>
                   <path
                     d={roundedTopBar(partnerBarX!, partnerY, barW, Math.max(partnerH, 2), barW / 2)}
                     fill="url(#momPartnerFill)"
@@ -541,13 +520,7 @@ export function MomentumChart({
               )}
 
               {/* You bar — right of the pair, or the only bar */}
-              <g
-                className="animate-bar-grow"
-                style={{
-                  transformOrigin: `${yourCenterX}px ${baselineY}px`,
-                  animationDelay: `${i * 60 + 30}ms`,
-                }}
-              >
+              <g>
                 <path
                   d={roundedTopBar(yourBarX, yourY, barW, Math.max(yourH, 2), barW / 2)}
                   fill="url(#momYouFill)"

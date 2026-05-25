@@ -195,22 +195,8 @@
   .dashboard-mesh-bg {
     background-color: #F6DEC8;
     background-image:
-      radial-gradient(1150px 850px at 12% 0%, rgba(255, 165, 92, 0.55), transparent 62%),
-      radial-gradient(900px 720px at 92% 18%, rgba(226, 91, 55, 0.32), transparent 58%),
-      radial-gradient(1300px 1000px at 64% 86%, rgba(196, 132, 62, 0.42), transparent 68%),
-      radial-gradient(760px 640px at 0% 58%, rgba(255, 219, 176, 0.58), transparent 62%),
-      radial-gradient(720px 580px at 96% 96%, rgba(132, 108, 164, 0.26), transparent 58%),
-      radial-gradient(560px 500px at 42% 40%, rgba(255, 244, 224, 0.50), transparent 58%);
-  }
-
-  .dashboard-mesh-bg::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.04;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      radial-gradient(1100px 800px at 12% 0%, rgba(255, 165, 92, 0.45), transparent 60%),
+      radial-gradient(1200px 900px at 80% 85%, rgba(196, 132, 62, 0.35), transparent 65%);
   }
 
   .liquid-glass-dark {

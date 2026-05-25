@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
 import { Avatar } from '../Avatar/Avatar';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
 import { useI18n } from '../../i18n/useI18n';
+import { SPRING } from '../../lib/motion';
 
 /**
  * One player's row inside the Progress Race card. Renders the
@@ -126,6 +128,7 @@ export function PlayerProgressRow({
   clickAriaLabel,
 }: PlayerProgressRowProps) {
   const { copy } = useI18n();
+  const reduceMotion = useReducedMotion();
   const pct = target > 0 ? (saved / target) * 100 : 0;
 
   const displayName = isYou ? `${copy.dashboard.youLabel} - ${name}` : name;
@@ -156,11 +159,13 @@ export function PlayerProgressRow({
   if (onClick) {
     return (
       <div className={cardClasses}>
-        <button
+        <motion.button
           type="button"
           onClick={onClick}
           aria-label={clickAriaLabel}
           className="flex flex-1 min-w-0 items-center gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          whileTap={reduceMotion ? { opacity: 0.85 } : { scale: 0.97, y: 2 }}
+          transition={SPRING.press}
         >
           {avatar}
           <div className="flex-1 min-w-0">
@@ -171,7 +176,7 @@ export function PlayerProgressRow({
             </div>
             <ProgressLine pct={pct} themeColor={themeColor} />
           </div>
-        </button>
+        </motion.button>
         {trailing && <div className="shrink-0">{trailing}</div>}
       </div>
     );

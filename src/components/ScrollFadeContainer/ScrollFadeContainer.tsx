@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { IconChevronRight } from '../Icon/Icon';
 
 interface ScrollFadeContainerProps {
   children: ReactNode;
@@ -10,6 +11,8 @@ interface ScrollFadeContainerProps {
   wrapperClassName?: string;
   /** Fade gradient width in pixels. */
   fadeWidth?: number;
+  /** Overlay chevrons on active fade edges as an affordance. */
+  showArrows?: boolean;
   /**
    * Colour stop for the opaque edge of the gradient.
    * Must match the parent background so the fade blends seamlessly.
@@ -23,11 +26,13 @@ export function ScrollFadeContainer({
   className = '',
   wrapperClassName = '',
   fadeWidth = 24,
+  showArrows = false,
   fadeColor = '#FFFFFF',
 }: ScrollFadeContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   const check = useCallback(() => {
     const el = scrollRef.current;
@@ -35,6 +40,10 @@ export function ScrollFadeContainer({
     setCanScrollLeft(el.scrollLeft > 2);
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
   }, []);
+
+  const hideArrowHint = useCallback(() => {
+    if (showArrows) setHasInteracted(true);
+  }, [showArrows]);
 
   useEffect(() => {
     check();
@@ -73,7 +82,23 @@ export function ScrollFadeContainer({
           opacity: canScrollRight ? 1 : 0,
         }}
       />
-      <div ref={scrollRef} className={className}>
+      {showArrows && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute right-1 top-0 z-20 grid h-9 place-items-center text-ink-muted transition-opacity duration-200"
+          style={{ opacity: canScrollRight && !hasInteracted ? 1 : 0 }}
+        >
+          <IconChevronRight size={18} />
+        </div>
+      )}
+      <div
+        ref={scrollRef}
+        className={className}
+        onPointerDown={hideArrowHint}
+        onScroll={hideArrowHint}
+        onTouchMove={hideArrowHint}
+        onWheel={hideArrowHint}
+      >
         {children}
       </div>
     </div>

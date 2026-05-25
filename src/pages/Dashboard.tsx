@@ -72,7 +72,7 @@ import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTarge
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
-import { availablePurposeCategories, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
+import { availablePurposeCategoriesForMode, purposeDailyMarkers, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
@@ -210,7 +210,6 @@ export function Dashboard() {
     () => [...buckets, ...data.roomMembersBuckets.allBuckets],
     [buckets, data.roomMembersBuckets.allBuckets],
   );
-  const purposeCategories = availablePurposeCategories(allVisibleBuckets);
   const visibleBucketsById = useMemo(() => new Map<string, Bucket>(
     allVisibleBuckets.map(b => [b.id, b]),
   ), [allVisibleBuckets]);
@@ -218,6 +217,20 @@ export function Dashboard() {
   // other member — Compare must never render more than current user +
   // one selected member.
   const [compareMemberId, setCompareMemberId] = useState<string | null>(null);
+  const effectiveTrendMode: DailyTrendMode = purposeScope.kind === 'bucket' ? 'me' : trendMode;
+  const purposeCategories = useMemo(
+    () => availablePurposeCategoriesForMode(
+      effectiveTrendMode,
+      buckets,
+      allVisibleBuckets,
+      logs,
+      visibleBucketsById,
+      compareMemberId,
+      user?.id,
+    ),
+    [effectiveTrendMode, buckets, allVisibleBuckets, logs, visibleBucketsById, compareMemberId, user?.id],
+  );
+  const purposePickerBuckets = effectiveTrendMode === 'me' ? buckets : allVisibleBuckets;
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [nextPickerOpen, setNextPickerOpen] = useState(false);
@@ -369,21 +382,19 @@ export function Dashboard() {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setPurposeScope({ kind: 'all' });
       }
+    } else if (purposeScope.kind === 'categories') {
+      if (purposeScope.categories.some(category => !purposeCategories.includes(category))) {
+        setPurposeScope({ kind: 'all' });
+      }
     } else if (purposeScope.kind === 'bucket') {
-      if (!visibleBucketsById.has(purposeScope.bucketId)) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (
+        !visibleBucketsById.has(purposeScope.bucketId)
+        || !purposeCategories.includes(purposeScope.parentCategory)
+      ) {
         setPurposeScope({ kind: 'all' });
       }
     }
   }, [purposeScope, purposeCategories, visibleBucketsById]);
-
-  // Member mode guard: bucket-level comparison is asymmetric (the partner
-  // likely doesn't have the same bucket), so force solo view.
-  useEffect(() => {
-    if (purposeScope.kind === 'bucket' && trendMode !== 'me') {
-      setTrendMode('me');
-    }
-  }, [purposeScope, trendMode]);
 
   // Verified balance reminder: open once per session when the last
   // check is ≥ 3 days old (or there has never been one). The session
@@ -703,8 +714,27 @@ export function Dashboard() {
   // - `Compare` is current user vs ONE selected other member.
   // Purpose is applied first (filter by category/bucket), then member.
   const meDailySeries = purposeFilteredDailySeries(logs, purposeScope, visibleBucketsById, user?.id);
+  const meDailyMarkers = purposeDailyMarkers(
+    logs,
+    purposeScope,
+    visibleBucketsById,
+    user?.id,
+    undefined,
+    { revealBucketNamesForUserId: user?.id ?? null },
+  );
   const otherDailySeriesByUserId = otherMemberIds.reduce<Record<string, number[]>>((acc, id) => {
     acc[id] = purposeFilteredDailySeries(logs, purposeScope, visibleBucketsById, id);
+    return acc;
+  }, {});
+  const otherDailyMarkersByUserId = otherMemberIds.reduce<Record<string, ReturnType<typeof purposeDailyMarkers>>>((acc, id) => {
+    acc[id] = purposeDailyMarkers(
+      logs,
+      purposeScope,
+      visibleBucketsById,
+      id,
+      undefined,
+      { revealBucketNamesForUserId: null },
+    );
     return acc;
   }, {});
   const roomDailySeries = otherMemberIds.reduce<number[]>(
@@ -714,8 +744,19 @@ export function Dashboard() {
     },
     meDailySeries.slice(),
   );
+  const roomDailyMarkers = purposeDailyMarkers(
+    logs,
+    purposeScope,
+    visibleBucketsById,
+    undefined,
+    undefined,
+    { revealBucketNamesForUserId: user?.id ?? null },
+  );
   const compareSelectedSeries = compareMemberId
     ? otherDailySeriesByUserId[compareMemberId] ?? null
+    : null;
+  const compareSelectedMarkers = compareMemberId
+    ? otherDailyMarkersByUserId[compareMemberId] ?? null
     : null;
   const weekRecordedTotal = meDailySeries.reduce((sum, v) => sum + v, 0);
   const roomWeekTotal = roomDailySeries.reduce((sum, v) => sum + v, 0);
@@ -738,25 +779,40 @@ export function Dashboard() {
   let chartPrimaryLabel: string;
   let chartSecondaryLabel: string | undefined;
   let chartDisplayedTotal: number;
-  if (trendMode === 'room') {
+  let chartBarMarkers: typeof roomDailyMarkers;
+  let chartPartnerBarMarkers: typeof roomDailyMarkers | undefined;
+  if (effectiveTrendMode === 'room') {
     chartSeries = roomDailySeries;
     chartPartnerSeries = undefined;
     chartPrimaryLabel = d.dailyDepositModeRoom;
     chartSecondaryLabel = undefined;
     chartDisplayedTotal = roomWeekTotal;
-  } else if (trendMode === 'me') {
+    chartBarMarkers = roomDailyMarkers;
+    chartPartnerBarMarkers = undefined;
+  } else if (effectiveTrendMode === 'me') {
     chartSeries = meDailySeries;
     chartPartnerSeries = undefined;
     chartPrimaryLabel = d.dailyDepositModeMe;
     chartSecondaryLabel = undefined;
     chartDisplayedTotal = weekRecordedTotal;
+    chartBarMarkers = meDailyMarkers;
+    chartPartnerBarMarkers = undefined;
   } else {
     chartSeries = meDailySeries;
     chartPartnerSeries = compareSelectedSeries ?? undefined;
     chartPrimaryLabel = d.dailyDepositModeMe;
     chartSecondaryLabel = compareSelectedEntry?.displayName ?? d.partnerLabel;
     chartDisplayedTotal = weekRecordedTotal + compareSelectedTotal;
+    chartBarMarkers = meDailyMarkers;
+    chartPartnerBarMarkers = compareSelectedMarkers ?? undefined;
   }
+  const selectedPurposeEmptyMessage = purposeScope.kind === 'all' || chartDisplayedTotal > 0
+    ? undefined
+    : purposeScope.kind === 'bucket'
+      ? `No deposits for ${visibleBucketsById.get(purposeScope.bucketId)?.name ?? d.savingsFallback} in ${d.last7Days}.`
+      : purposeScope.kind === 'categories'
+        ? `No deposits for ${purposeScope.categories.map(category => copy.bucket.categoryLabels[category]).join(', ')} buckets in ${d.last7Days}.`
+        : `No deposits for ${copy.bucket.categoryLabels[purposeScope.category]} buckets in ${d.last7Days}.`;
   const weekExpectedTotal = expectedDailySeries
     ? expectedDailySeries.reduce((sum, v) => sum + v, 0)
     : undefined;
@@ -1073,30 +1129,33 @@ export function Dashboard() {
           series={chartSeries}
           partnerSeries={chartPartnerSeries}
           labels={lastSevenDayLabels(undefined, chartLocale)}
+          barMarkers={chartBarMarkers}
+          partnerBarMarkers={chartPartnerBarMarkers}
           yourName={profile?.display_name ?? d.youLabel}
           partnerName={chartSecondaryLabel}
           primaryLabel={chartPrimaryLabel}
           secondaryLabel={chartSecondaryLabel}
           displayedTotal={chartDisplayedTotal}
+          emptyStateMessage={selectedPurposeEmptyMessage}
           purposePicker={purposeCategories.length > 0 ? (
             <MomentumPurposePicker
               categories={purposeCategories}
-              buckets={buckets}
+              buckets={purposePickerBuckets}
               value={purposeScope}
               onChange={setPurposeScope}
-              hideBucketRow={trendMode !== 'me'}
+              hideBucketRow={effectiveTrendMode !== 'me'}
 />
           ) : undefined}
           modeControl={hasOtherMembers ? (
             <DailyTrendModeControl
               ariaLabel={d.dailyDepositModeAria}
               options={trendModeOptions}
-              value={trendMode}
+              value={effectiveTrendMode}
               onChange={setTrendMode}
               disabledValues={purposeScope.kind === 'bucket' ? ['room', 'compare'] : undefined}
             />
           ) : undefined}
-          compareChips={hasOtherMembers && trendMode === 'compare' ? (
+          compareChips={hasOtherMembers && effectiveTrendMode === 'compare' ? (
             <CompareMemberDropdown
               ariaLabel={d.dailyDepositCompareAria}
               members={otherMemberIds.map(id => {

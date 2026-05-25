@@ -5,7 +5,8 @@ import { localDateKey } from './streak';
 
 export type MomentumPurposeScope =
   | { kind: 'all' }
-  | { kind: 'category'; category: BucketCategory };
+  | { kind: 'category'; category: BucketCategory }
+  | { kind: 'bucket'; bucketId: string; parentCategory: BucketCategory };
 
 export function purposeFilteredDailySeries(
   logs: SavingsLog[],
@@ -29,6 +30,9 @@ function filterLogsByPurpose(
   visibleBucketsById: Map<string, Bucket>,
 ): SavingsLog[] {
   if (scope.kind === 'all') return logs;
+  if (scope.kind === 'bucket') {
+    return logs.filter(log => log.bucket_id === scope.bucketId);
+  }
   return logs.filter(log => {
     if (!log.bucket_id) return false;
     const bucket = visibleBucketsById.get(log.bucket_id);
@@ -46,4 +50,13 @@ export function availablePurposeCategories(
     seen.add(normalizeBucketCategory(bucket.category));
   }
   return BUCKET_CATEGORY_ORDER.filter(cat => seen.has(cat));
+}
+
+export function bucketsForCategory(
+  visibleBuckets: Bucket[],
+  category: BucketCategory,
+): Bucket[] {
+  return visibleBuckets
+    .filter(b => !b.archived_at && normalizeBucketCategory(b.category) === category)
+    .sort((a, b) => a.position - b.position);
 }

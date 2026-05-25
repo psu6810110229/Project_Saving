@@ -363,12 +363,18 @@ export function Dashboard() {
   }, [otherMemberIds, compareMemberId, trendMode]);
 
   useEffect(() => {
-    if (purposeScope.kind !== 'category') return;
-    if (!purposeCategories.includes(purposeScope.category)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPurposeScope({ kind: 'all' });
+    if (purposeScope.kind === 'category') {
+      if (!purposeCategories.includes(purposeScope.category)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPurposeScope({ kind: 'all' });
+      }
+    } else if (purposeScope.kind === 'bucket') {
+      if (!visibleBucketsById.has(purposeScope.bucketId)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPurposeScope({ kind: 'all' });
+      }
     }
-  }, [purposeScope, purposeCategories]);
+  }, [purposeScope, purposeCategories, visibleBucketsById]);
 
   // Verified balance reminder: open once per session when the last
   // check is ≥ 3 days old (or there has never been one). The session

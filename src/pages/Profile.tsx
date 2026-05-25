@@ -9,9 +9,7 @@ import {
   IconBell,
   IconBriefcase,
   IconCalendar,
-  IconCheck,
   IconEdit,
-  IconGear,
   IconHeart,
   IconHome,
   IconPlane,
@@ -36,13 +34,12 @@ import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useI18n } from '../i18n/useI18n';
-import { LANGUAGE_NATIVE_LABEL, SUPPORTED_LANGUAGES, type Language } from '../i18n/languages';
 import { fallbackInitial } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
 import type { ThemeSwatch } from '../lib/theme';
 import type { ProjectCategory } from '../types';
 
-type ProfileModal = 'profile' | 'create-project' | 'join-project' | 'language' | null;
+type ProfileModal = 'profile' | 'create-project' | 'join-project' | null;
 
 export function Profile() {
   const navigate = useNavigate();
@@ -50,8 +47,8 @@ export function Profile() {
   const { user, signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const { createRoom, joinRoomByCode, leaveRoom } = useRooms();
-  const { profile, loading, error, themeColor, updateProfile, uploadAvatar, updateLanguage } = useProfile();
-  const { copy, language, setLanguage } = useI18n();
+  const { profile, loading, error, themeColor, updateProfile, uploadAvatar } = useProfile();
+  const { copy } = useI18n();
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
@@ -90,15 +87,6 @@ export function Profile() {
   if (loading && shouldShowSkeleton) return <ProfileSkeleton ariaLabel={copy.common.loadingProfile} />;
   if (loading) return null;
   if (error) return <StatusCard title={copy.profile.errorTitle} body={error} />;
-
-  async function handleLanguageChange(next: Language) {
-    if (next !== language) setLanguage(next);
-    closeModal();
-    if (user) {
-      const result = await updateLanguage(next);
-      if (result.error) setMessage(result.error);
-    }
-  }
 
   const displayName = displayNameDraft ?? profile?.display_name ?? '';
   const theme = themeDraft ?? themeColor;
@@ -197,14 +185,6 @@ export function Profile() {
       {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList
         items={[
-          {
-            id: 'language',
-            icon: <IconGear size={18} />,
-            label: copy.profile.languageLabel,
-            description: copy.profile.languageDescription,
-            meta: LANGUAGE_NATIVE_LABEL[language],
-            onClick: () => openModal('language'),
-          },
           { id: 'notifications', icon: <IconBell size={18} />, label: copy.profile.notificationSettingsLabel, description: copy.profile.notificationSettingsDescription, onClick: () => navigate('/notifications/settings') },
           { id: 'manage-project', icon: <IconCalendar size={18} />, label: copy.profile.manageProjectLabel, description: copy.profile.manageProjectDescription(activeRoom?.name ?? copy.profile.noActiveProject), onClick: () => navigate('/manage-project') },
           { id: 'archived-projects', icon: <IconBriefcase size={18} />, label: copy.profile.archivedProjectsLabel, description: copy.profile.archivedProjectsDescription, onClick: () => navigate('/archived-projects') },
@@ -247,25 +227,6 @@ export function Profile() {
           onEndDateChange={setProjectEndDate}
           onSubmit={handleCreateProject}
         />
-      </Modal>
-      <Modal open={activeModal === 'language'} title={copy.profile.languageModalTitle} onClose={closeModal}>
-        <div className="flex flex-col gap-2">
-          {SUPPORTED_LANGUAGES.map(option => {
-            const isActive = option === language;
-            return (
-              <button
-                key={option}
-                type="button"
-                onClick={() => handleLanguageChange(option)}
-                className="w-full flex items-center justify-between gap-3 rounded-lg bg-surface shadow-soft p-3 active:scale-[0.99] transition-transform text-left"
-                aria-pressed={isActive}
-              >
-                <span className="font-mono text-sm font-bold text-ink">{LANGUAGE_NATIVE_LABEL[option]}</span>
-                {isActive && <IconCheck size={18} className="text-brand-600" />}
-              </button>
-            );
-          })}
-        </div>
       </Modal>
       <Modal open={activeModal === 'join-project'} title={copy.joinProject.modalTitle} onClose={closeModal}>
         <JoinProjectFlow

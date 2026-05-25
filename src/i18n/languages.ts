@@ -1,7 +1,7 @@
 export const SUPPORTED_LANGUAGES = ['en', 'th'] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 
-export const DEFAULT_LANGUAGE: Language = 'en';
+export const DEFAULT_LANGUAGE: Language = 'th';
 
 export const LANGUAGE_STORAGE_KEY = 'goout:ui-language';
 

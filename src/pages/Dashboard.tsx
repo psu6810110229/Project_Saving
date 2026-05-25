@@ -48,6 +48,7 @@ import {
 } from '../components/Icon/Icon';
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
 import { MomentumPurposePicker } from '../components/MomentumPurposePicker/MomentumPurposePicker';
+import { ScrollFadeContainer } from '../components/ScrollFadeContainer/ScrollFadeContainer';
 import { BucketNextPickerModal } from '../components/BucketNextPickerModal/BucketNextPickerModal';
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { computeBucketIntent } from '../lib/bucketIntent';
@@ -1642,40 +1643,46 @@ function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMembe
             }}
           />
         )}
-      <div
-        role="tablist"
-        aria-label={ariaLabel}
+      <ScrollFadeContainer
         className="inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-pill bg-well p-1 shadow-neuPressed"
+        fadeColor="#F1E7DC"
+        fadeWidth={20}
       >
-        {options.map(option => {
-          const active = option.value === value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              title={option.label}
-              onClick={() => onChange(option.value)}
-              className={
-                'relative inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-3.5 py-1.5 font-mono text-xs font-bold transition-colors '
-                + (active ? 'text-ink-inverse' : 'text-ink-muted')
-              }
-            >
-              {active && (
-                <motion.span
-                  layoutId="bucket-member-active-pill"
-                  className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                />
-              )}
-              <span className="relative z-10 whitespace-nowrap">
-                {option.label.length > 11 ? `${option.label.slice(0, 11)}…` : option.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+        <div
+          role="tablist"
+          aria-label={ariaLabel}
+          className="inline-flex items-center gap-1"
+        >
+          {options.map(option => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                title={option.label}
+                onClick={() => onChange(option.value)}
+                className={
+                  'relative inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-3.5 py-1.5 font-mono text-xs font-bold transition-colors '
+                  + (active ? 'text-ink-inverse' : 'text-ink-muted')
+                }
+              >
+                {active && (
+                  <motion.span
+                    layoutId="bucket-member-active-pill"
+                    className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
+                    transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  />
+                )}
+                <span className="relative z-10 whitespace-nowrap">
+                  {option.label.length > 11 ? `${option.label.slice(0, 11)}…` : option.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </ScrollFadeContainer>
       </div>
     </LayoutGroup>
   );

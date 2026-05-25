@@ -1,6 +1,7 @@
 import type { BucketCategory } from '../../types';
 import type { MomentumPurposeScope } from '../../lib/momentumPurpose';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
+import { ScrollFadeContainer } from '../ScrollFadeContainer/ScrollFadeContainer';
 import { haptic } from '../../lib/haptics';
 import { useI18n } from '../../i18n/useI18n';
 
@@ -18,32 +19,38 @@ export function MomentumPurposePicker({ categories, value, onChange }: MomentumP
   const isAll = value.kind === 'all';
 
   return (
-    <div
-      role="tablist"
-      aria-label={d.dailyDepositPurposeAria}
-      className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1.5"
+    <ScrollFadeContainer
+      wrapperClassName="-mx-4"
+      className="flex gap-1.5 overflow-x-auto px-4 pb-1.5"
+      fadeWidth={28}
     >
-      <PurposeChip
-        active={isAll}
-        label={d.dailyDepositPurposeAll}
-        onClick={() => {
-          onChange({ kind: 'all' });
-          haptic('success');
-        }}
-      />
-      {categories.map(cat => (
+      <div
+        role="tablist"
+        aria-label={d.dailyDepositPurposeAria}
+        className="flex gap-1.5"
+      >
         <PurposeChip
-          key={cat}
-          active={value.kind === 'category' && value.category === cat}
-          label={catLabels[cat]}
-          icon={<BucketCategoryIcon category={cat} size={14} />}
+          active={isAll}
+          label={d.dailyDepositPurposeAll}
           onClick={() => {
-            onChange({ kind: 'category', category: cat });
+            onChange({ kind: 'all' });
             haptic('success');
           }}
         />
-      ))}
-    </div>
+        {categories.map(cat => (
+          <PurposeChip
+            key={cat}
+            active={value.kind === 'category' && value.category === cat}
+            label={catLabels[cat]}
+            icon={<BucketCategoryIcon category={cat} size={14} />}
+            onClick={() => {
+              onChange({ kind: 'category', category: cat });
+              haptic('success');
+            }}
+          />
+        ))}
+      </div>
+    </ScrollFadeContainer>
   );
 }
 

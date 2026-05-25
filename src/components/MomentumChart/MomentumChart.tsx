@@ -3,6 +3,8 @@ import { palette } from '../../lib/theme';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
+import type { BucketCategory } from '../../types';
+import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 
 /**
  * Dashboard 7-day deposit trend chart. SVG bar chart with one bar per
@@ -25,6 +27,8 @@ interface MomentumChartProps {
   series: number[];
   partnerSeries?: number[];
   labels?: string[];
+  barMarkers?: MomentumBarMarker[];
+  partnerBarMarkers?: MomentumBarMarker[];
   yourName?: string;
   partnerName?: string;
   /** Short legend/tooltip label for the primary series. Overrides the
@@ -40,6 +44,9 @@ interface MomentumChartProps {
    *  weekTotal-based sum so each mode (`Room` / `Me` / `Compare`) can
    *  drive its own visible total. */
   displayedTotal?: number;
+  /** Optional purpose chip picker rendered between the title/amount
+   *  block and the member mode control. */
+  purposePicker?: ReactNode;
   /** Optional mode segmented control rendered inside the chart card,
    *  between the title/amount block and the legend. Dashboard passes
    *  the custom `Room | Me | Compare` control here. */
@@ -47,10 +54,18 @@ interface MomentumChartProps {
   /** Optional compare-member avatar chip row rendered between the mode
    *  control and the legend. Only mounted while Compare is active. */
   compareChips?: ReactNode;
+  /** Message rendered inside the plot when the selected bucket/category
+   *  has no recorded deposits in the visible 7-day window. */
+  emptyStateMessage?: string;
   expectedSeries?: number[];
   todayIndex?: number;
   weekTotal?: number;
   weekExpected?: number;
+}
+
+export interface MomentumBarMarker {
+  categories: BucketCategory[];
+  bucketNames?: string[];
 }
 
 /** Local colour overrides — match the reference chart only.
@@ -183,13 +198,17 @@ export function MomentumChart({
   series,
   partnerSeries,
   labels,
+  barMarkers,
+  partnerBarMarkers,
   yourName,
   partnerName,
   primaryLabel,
   secondaryLabel,
   displayedTotal,
+  purposePicker,
   modeControl,
   compareChips,
+  emptyStateMessage,
   expectedSeries,
   todayIndex,
   weekTotal,
@@ -197,6 +216,7 @@ export function MomentumChart({
 }: MomentumChartProps) {
   const { copy } = useI18n();
   const d = copy.dashboard;
+  const catLabels = copy.bucket.categoryLabels;
   // Primary/secondary labels in the legend prefer the caller-controlled
   // short label (`Room` / `Me` / selected member short). They fall back
   // to the legacy "You" / partnerName copy so 2-user code paths keep
@@ -281,6 +301,7 @@ export function MomentumChart({
     : typeof weekTotal === 'number'
       ? weekTotal + (hasPartner ? partnerTotal : 0)
       : yourTotal + partnerTotal;
+  const showEmptyState = !!emptyStateMessage && headerTotal <= 0;
 
   // Overlay polyline coordinates — through the top-centre of every
   // "you" bar so the trend line traces the primary series. Uses the
@@ -297,13 +318,13 @@ export function MomentumChart({
   const gridFractions = [0.25, 0.5, 0.75, 1];
 
   return (
-    <section className="overflow-hidden rounded-[2rem] bg-surface px-6 pt-6 pb-5 text-ink shadow-soft">
+    <section className="relative overflow-visible rounded-[2rem] bg-surface px-4 pt-4 pb-4 text-ink shadow-soft">
       {/* Header — fully stacked on mobile so the legend never overlaps
           the title/amount block. Order: title → amount + last7Days →
           mode control → compare avatar chips → compact legend → chart.
           Long member names are not allowed inline; the legend uses the
           short caller-controlled labels (`Room` / `Me` / short member). */}
-      <div className="mb-3 flex min-w-0 flex-col gap-3">
+      <div className="relative z-20 mb-3 flex min-w-0 flex-col gap-3">
         <div className="min-w-0">
           <h2 className="mb-2 font-mono text-lg font-bold leading-tight text-ink">
             {d.dailyDepositTrend}
@@ -318,9 +339,11 @@ export function MomentumChart({
           </div>
         </div>
 
+        {purposePicker}
+
         {modeControl && (
-          <div className="flex min-w-0 flex-nowrap items-start gap-2">
-            <div className="min-w-0">{modeControl}</div>
+          <div className="flex min-w-0 flex-wrap items-start gap-1.5">
+            <div className="min-w-0 shrink-0">{modeControl}</div>
             {/* Compare avatar chips — sits inline to the right of the
                 mode toggle so the chip column reads as a direct
                 extension of the Compare option. Animates both
@@ -328,15 +351,16 @@ export function MomentumChart({
                 card eases open/closed in both axes instead of
                 snapping when Compare is toggled. */}
             <div
-              className="grid min-w-0 transition-[grid-template-rows,grid-template-columns,opacity] duration-[600ms] ease-[cubic-bezier(0.16,1,0.2,1)]"
+              className="grid min-w-0 transition-[grid-template-rows,grid-template-columns,opacity] duration-[520ms] ease-[cubic-bezier(0.16,1,0.2,1)]"
               style={{
                 gridTemplateRows: compareChips ? '1fr' : '0fr',
                 gridTemplateColumns: compareChips ? '1fr' : '0fr',
                 opacity: compareChips ? 1 : 0,
+                pointerEvents: compareChips ? undefined : 'none',
               }}
               aria-hidden={!compareChips}
             >
-              <div className="min-w-0 overflow-hidden">{lingeringChips}</div>
+              <div className="min-w-0 overflow-visible">{lingeringChips}</div>
             </div>
           </div>
         )}
@@ -377,7 +401,7 @@ export function MomentumChart({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="mt-0 h-[200px] w-full"
+        className="relative z-0 mt-0 h-[200px] w-full"
         role="img"
         aria-label={d.chartAriaLabel}
       >
@@ -546,6 +570,29 @@ export function MomentumChart({
                 </text>
               )}
 
+              {hasPartner && (
+                <BarIconCluster
+                  marker={partnerBarMarkers?.[i]}
+                  centerX={partnerCenterX}
+                  y={partnerY}
+                  h={partnerH}
+                  barW={barW}
+                  baselineY={baselineY}
+                  categoryLabels={catLabels}
+                  opacity={barOpacity}
+                />
+              )}
+              <BarIconCluster
+                marker={barMarkers?.[i]}
+                centerX={yourCenterX}
+                y={yourY}
+                h={yourH}
+                barW={barW}
+                baselineY={baselineY}
+                categoryLabels={catLabels}
+                opacity={barOpacity}
+              />
+
               {/* X-axis label */}
               {labels?.[i] && (
                 <text
@@ -580,6 +627,20 @@ export function MomentumChart({
         })}
 
         {/* Overlay trend line — a soft curve through every "you" bar top */}
+        {showEmptyState && (
+          <foreignObject
+            x={PAD_LEFT + 6}
+            y={PAD_TOP + chartH * 0.36}
+            width={W - PAD_LEFT - PAD_RIGHT - 12}
+            height={48}
+            style={{ pointerEvents: 'none' }}
+          >
+            <div className="flex h-full items-center justify-center rounded-lg bg-white/80 px-2 text-center font-mono text-[10px] font-bold leading-tight text-ink-muted">
+              {emptyStateMessage}
+            </div>
+          </foreignObject>
+        )}
+
         <path
           d={trendCurveD}
           fill="none"
@@ -636,9 +697,14 @@ export function MomentumChart({
           const rawLines = hasPartner
             ? [
               `${resolvedYourName} ${formatCurrency(v)}`,
+              ...markerTooltipLines(barMarkers?.[i], catLabels),
               `${resolvedPartnerName} ${formatCurrency(partnerVal)}`,
+              ...markerTooltipLines(partnerBarMarkers?.[i], catLabels),
             ]
-            : [`${resolvedYourName} ${formatCurrency(v)}`];
+            : [
+              `${resolvedYourName} ${formatCurrency(v)}`,
+              ...markerTooltipLines(barMarkers?.[i], catLabels),
+            ];
 
           const fontSize = 9;
           const charW = 5.2;
@@ -704,6 +770,99 @@ export function MomentumChart({
         })()}
       </svg>
     </section>
+  );
+}
+
+function markerTooltipLines(
+  marker: MomentumBarMarker | undefined,
+  categoryLabels: Record<BucketCategory, string>,
+): string[] {
+  if (!marker || marker.categories.length === 0) return [];
+  const categoryText = marker.categories.map(cat => categoryLabels[cat]).join(', ');
+  if (!marker.bucketNames || marker.bucketNames.length === 0) {
+    return [`- ${categoryText}`];
+  }
+  const bucketText = marker.bucketNames.slice(0, 3).join(', ');
+  const extra = marker.bucketNames.length > 3 ? ` +${marker.bucketNames.length - 3}` : '';
+  return [`- ${categoryText}: ${bucketText}${extra}`];
+}
+
+interface BarIconClusterProps {
+  marker: MomentumBarMarker | undefined;
+  centerX: number;
+  y: number;
+  h: number;
+  barW: number;
+  baselineY: number;
+  categoryLabels: Record<BucketCategory, string>;
+  opacity: number;
+}
+
+function BarIconCluster({
+  marker,
+  centerX,
+  y,
+  h,
+  barW,
+  baselineY,
+  categoryLabels,
+  opacity,
+}: BarIconClusterProps) {
+  if (!marker || marker.categories.length === 0 || h <= 0) return null;
+
+  const visible = marker.categories.slice(0, 2);
+  const extra = marker.categories.length - visible.length;
+  const iconSize = 13;
+  const iconBox = 14;
+  const chipGap = 2;
+  const extraH = extra > 0 ? 10 : 0;
+  const clusterW = Math.min(
+    Math.max(barW + 8, extra > 0 ? 20 : iconBox),
+    34,
+  );
+  const clusterH = visible.length * iconBox + Math.max(0, visible.length - 1) * chipGap + extraH;
+  const insideBar = h >= clusterH + 12;
+  const topY = insideBar
+    ? Math.min(baselineY - clusterH - 2, y + 6)
+    : Math.max(PAD_TOP + 1, y - clusterH - 2);
+  const label = marker.categories.map(cat => categoryLabels[cat]).join(', ');
+
+  return (
+    <foreignObject
+      x={centerX - clusterW / 2}
+      y={topY}
+      width={clusterW}
+      height={clusterH}
+      opacity={opacity}
+      style={{ pointerEvents: 'none' }}
+    >
+      <div
+        title={label}
+        className="flex h-full items-center justify-center text-white"
+      >
+        <div className="inline-flex flex-col items-center justify-center gap-0.5">
+          {visible.map(cat => (
+            <span
+              key={cat}
+              className="grid place-items-center"
+              style={{
+                width: iconBox,
+                height: iconBox,
+              }}
+            >
+              <BucketCategoryIcon category={cat} size={iconSize} />
+            </span>
+          ))}
+          {extra > 0 && (
+            <span
+              className="grid h-[10px] min-w-[18px] place-items-center px-0.5 font-mono text-[7px] font-bold leading-none text-white"
+            >
+              +{extra}
+            </span>
+          )}
+        </div>
+      </div>
+    </foreignObject>
   );
 }
 

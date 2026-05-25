@@ -35,7 +35,30 @@
       "Bash(supabase --version)",
       "Bash(supabase projects *)",
       "Bash(supabase status *)",
-      "Bash(grep *)"
+      "Bash(grep *)",
+      "Bash(cp \"src/pages/Dashboard.tsx\" \"/tmp/Dashboard.final.tsx\")",
+      "Bash(cp \"src/components/MomentumChart/MomentumChart.tsx\" \"/tmp/MomentumChart.final.tsx\")",
+      "Bash(cp \"/tmp/Dashboard.final.tsx\" \"/d/Fran's Folder/Project/src/pages/Dashboard.tsx\")",
+      "Bash(cp \"/tmp/MomentumChart.final.tsx\" \"/d/Fran's Folder/Project/src/components/MomentumChart/MomentumChart.tsx\")",
+      "Bash(findstr /I \"icon\\\\\\\\icon\")",
+      "Bash(git --no-pager log -5 --oneline)",
+      "Bash(git --no-pager diff --cached src/i18n/locales/en.ts)",
+      "Bash(git --no-pager diff src/i18n/locales/en.ts)",
+      "Bash(git --no-pager diff src/i18n/locales/th.ts)",
+      "Bash(git apply *)",
+      "Bash(git --no-pager diff --cached --stat)",
+      "Bash(git --no-pager log -3 --oneline)",
+      "Bash(kill %1)",
+      "Bash(git *)",
+      "Bash(Select-Object -Last 5)",
+      "PowerShell(New-Item *)",
+      "PowerShell(git merge *)",
+      "PowerShell(git push *)",
+      "PowerShell(git checkout *)",
+      "PowerShell(npm run *)",
+      "PowerShell(git add *)",
+      "PowerShell(npx playwright install chromium 2>&1 | Select-Object -Last 3)",
+      "PowerShell(npm ls *)"
     ]
   }
 }

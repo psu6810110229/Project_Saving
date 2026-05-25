@@ -157,6 +157,22 @@ export function IconChevronDown(p: IconProps) {
   );
 }
 
+export function IconChevronLeft(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+export function IconChevronRight(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 export function IconArrowLeft(p: IconProps) {
   return (
     <svg {...svgProps(p)} aria-hidden>

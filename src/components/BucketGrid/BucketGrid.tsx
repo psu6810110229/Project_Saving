@@ -20,6 +20,8 @@ interface BucketGridProps {
   buckets: BucketGridItem[];
   ctaLabel?: string;
   onAddBucket?: () => void;
+  manageLabel?: string;
+  onManageBuckets?: () => void;
   onBucketClick?: (id: string) => void;
   renderBucket?: (bucket: BucketGridItem) => ReactNode;
   belowHeader?: ReactNode;
@@ -31,6 +33,8 @@ export function BucketGrid({
   buckets,
   ctaLabel,
   onAddBucket,
+  manageLabel,
+  onManageBuckets,
   onBucketClick,
   renderBucket,
   belowHeader,
@@ -51,17 +55,30 @@ export function BucketGrid({
             </p>
           )}
         </div>
-        {onAddBucket && (
-          <button
-            type="button"
-            onClick={onAddBucket}
-            aria-label={ctaLabel}
-            title={ctaLabel}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-all duration-200 hover:bg-brand-400 active:scale-[0.98]"
-          >
-            <IconPlus size={20} />
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {onManageBuckets && (
+            <button
+              type="button"
+              onClick={onManageBuckets}
+              aria-label={manageLabel}
+              title={manageLabel}
+              className="inline-flex items-center rounded-pill bg-well px-3 py-1.5 font-mono text-xs font-bold text-ink-muted shadow-neuPressed transition-colors hover:text-ink active:scale-[0.98]"
+            >
+              {manageLabel}
+            </button>
+          )}
+          {onAddBucket && (
+            <button
+              type="button"
+              onClick={onAddBucket}
+              aria-label={ctaLabel}
+              title={ctaLabel}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-all duration-200 hover:bg-brand-400 active:scale-[0.98]"
+            >
+              <IconPlus size={20} />
+            </button>
+          )}
+        </div>
       </div>
       {belowHeader}
       <div className="grid grid-cols-2 gap-4 p-1" data-bucket-drag-boundary="true">

@@ -190,6 +190,8 @@ export const en = {
     createBucket: 'Create Bucket',
     createFirstBucket: 'Create First Bucket',
     addBucketModalTitle: 'Add Bucket',
+    manageBuckets: 'Manage',
+    manageBucketsAria: 'Manage buckets',
     youLabel: 'You',
     partnerLabel: 'Partner',
     othersLabel: (count: number) => `Others (${count})`,

@@ -181,6 +181,8 @@ export const th: Messages = {
     createBucket: 'สร้างเป้าหมายย่อย',
     createFirstBucket: 'สร้างเป้าหมายย่อยแรก',
     addBucketModalTitle: 'เพิ่มเป้าหมายย่อย',
+    manageBuckets: 'จัดการ',
+    manageBucketsAria: 'จัดการเป้าหมายย่อย',
     youLabel: 'คุณ',
     partnerLabel: 'คู่ของคุณ',
     othersLabel: (count: number) => `อื่นๆ (${count})`,

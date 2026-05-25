@@ -209,6 +209,8 @@ export const en = {
     dailyDepositModeMe: 'Me',
     dailyDepositModeCompare: 'Compare',
     dailyDepositModeAria: 'Daily Deposit Trend mode',
+    dailyDepositPurposeAria: 'Daily Deposit Trend purpose',
+    dailyDepositPurposeAll: 'All',
     dailyDepositCompareAria: 'Choose a member to compare with',
     thisWeek: 'This week',
     yourPlan: 'Your plan',

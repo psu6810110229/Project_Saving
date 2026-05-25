@@ -40,6 +40,9 @@ interface MomentumChartProps {
    *  weekTotal-based sum so each mode (`Room` / `Me` / `Compare`) can
    *  drive its own visible total. */
   displayedTotal?: number;
+  /** Optional purpose chip picker rendered between the title/amount
+   *  block and the member mode control. */
+  purposePicker?: ReactNode;
   /** Optional mode segmented control rendered inside the chart card,
    *  between the title/amount block and the legend. Dashboard passes
    *  the custom `Room | Me | Compare` control here. */
@@ -188,6 +191,7 @@ export function MomentumChart({
   primaryLabel,
   secondaryLabel,
   displayedTotal,
+  purposePicker,
   modeControl,
   compareChips,
   expectedSeries,
@@ -297,13 +301,13 @@ export function MomentumChart({
   const gridFractions = [0.25, 0.5, 0.75, 1];
 
   return (
-    <section className="overflow-hidden rounded-[2rem] bg-surface px-6 pt-6 pb-5 text-ink shadow-soft">
+    <section className="relative overflow-visible rounded-[2rem] bg-surface px-4 pt-4 pb-4 text-ink shadow-soft">
       {/* Header — fully stacked on mobile so the legend never overlaps
           the title/amount block. Order: title → amount + last7Days →
           mode control → compare avatar chips → compact legend → chart.
           Long member names are not allowed inline; the legend uses the
           short caller-controlled labels (`Room` / `Me` / short member). */}
-      <div className="mb-3 flex min-w-0 flex-col gap-3">
+      <div className="relative z-20 mb-3 flex min-w-0 flex-col gap-3">
         <div className="min-w-0">
           <h2 className="mb-2 font-mono text-lg font-bold leading-tight text-ink">
             {d.dailyDepositTrend}
@@ -318,9 +322,11 @@ export function MomentumChart({
           </div>
         </div>
 
+        {purposePicker}
+
         {modeControl && (
-          <div className="flex min-w-0 flex-nowrap items-start gap-2">
-            <div className="min-w-0">{modeControl}</div>
+          <div className="flex min-w-0 flex-wrap items-start gap-1.5">
+            <div className="min-w-0 shrink-0">{modeControl}</div>
             {/* Compare avatar chips — sits inline to the right of the
                 mode toggle so the chip column reads as a direct
                 extension of the Compare option. Animates both
@@ -328,7 +334,7 @@ export function MomentumChart({
                 card eases open/closed in both axes instead of
                 snapping when Compare is toggled. */}
             <div
-              className="grid min-w-0 transition-[grid-template-rows,grid-template-columns,opacity] duration-[600ms] ease-[cubic-bezier(0.16,1,0.2,1)]"
+              className="grid min-w-0 transition-[grid-template-rows,grid-template-columns,opacity] duration-[520ms] ease-[cubic-bezier(0.16,1,0.2,1)]"
               style={{
                 gridTemplateRows: compareChips ? '1fr' : '0fr',
                 gridTemplateColumns: compareChips ? '1fr' : '0fr',
@@ -336,7 +342,7 @@ export function MomentumChart({
               }}
               aria-hidden={!compareChips}
             >
-              <div className="min-w-0 overflow-hidden">{lingeringChips}</div>
+              <div className="min-w-0 overflow-visible">{lingeringChips}</div>
             </div>
           </div>
         )}
@@ -377,7 +383,7 @@ export function MomentumChart({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="mt-0 h-[200px] w-full"
+        className="relative z-0 mt-0 h-[200px] w-full"
         role="img"
         aria-label={d.chartAriaLabel}
       >

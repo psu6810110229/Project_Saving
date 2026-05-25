@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { LayoutGroup, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
@@ -40,12 +40,14 @@ import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
   IconArrowRight,
   IconCheck,
+  IconChevronDown,
   IconRocket,
   IconTrash,
   IconUser,
   IconVault,
 } from '../components/Icon/Icon';
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
+import { MomentumPurposePicker } from '../components/MomentumPurposePicker/MomentumPurposePicker';
 import { BucketNextPickerModal } from '../components/BucketNextPickerModal/BucketNextPickerModal';
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { computeBucketIntent } from '../lib/bucketIntent';
@@ -69,6 +71,7 @@ import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTarge
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { cumulativeAmountSeries, dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
+import { availablePurposeCategories, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
@@ -201,6 +204,11 @@ export function Dashboard() {
   // member rooms read as a room total instead of "You vs Others (N)";
   // 2-user rooms still show a clear room/me/compare experience.
   const [trendMode, setTrendMode] = useState<DailyTrendMode>('room');
+  const [purposeScope, setPurposeScope] = useState<MomentumPurposeScope>({ kind: 'all' });
+  const purposeCategories = availablePurposeCategories([
+    ...buckets,
+    ...data.roomMembersBuckets.allBuckets,
+  ]);
   // Selected compare member for Compare mode. Always represents one
   // other member — Compare must never render more than current user +
   // one selected member.
@@ -349,6 +357,14 @@ export function Dashboard() {
       setCompareMemberId(otherMemberIds[0]);
     }
   }, [otherMemberIds, compareMemberId, trendMode]);
+
+  useEffect(() => {
+    if (purposeScope.kind !== 'category') return;
+    if (!purposeCategories.includes(purposeScope.category)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPurposeScope({ kind: 'all' });
+    }
+  }, [purposeScope, purposeCategories]);
 
   // Verified balance reminder: open once per session when the last
   // check is ≥ 3 days old (or there has never been one). The session
@@ -1045,6 +1061,13 @@ export function Dashboard() {
           primaryLabel={chartPrimaryLabel}
           secondaryLabel={chartSecondaryLabel}
           displayedTotal={chartDisplayedTotal}
+          purposePicker={purposeCategories.length > 0 ? (
+            <MomentumPurposePicker
+              categories={purposeCategories}
+              value={purposeScope}
+              onChange={setPurposeScope}
+            />
+          ) : undefined}
           modeControl={hasOtherMembers ? (
             <DailyTrendModeControl
               ariaLabel={d.dailyDepositModeAria}
@@ -1054,7 +1077,7 @@ export function Dashboard() {
             />
           ) : undefined}
           compareChips={hasOtherMembers && trendMode === 'compare' ? (
-            <CompareMemberChips
+            <CompareMemberDropdown
               ariaLabel={d.dailyDepositCompareAria}
               members={otherMemberIds.map(id => {
                 const entry = leaderboard.entries.find(e => e.userId === id);
@@ -1713,7 +1736,7 @@ function DailyTrendModeControl({ ariaLabel, options, value, onChange }: DailyTre
         ref={trackRef}
         role="tablist"
         aria-label={ariaLabel}
-        className="relative inline-flex w-fit items-center gap-1 self-start overflow-hidden rounded-pill bg-well p-1 shadow-neuPressed"
+        className="relative inline-flex h-10 w-fit items-center gap-1 self-start overflow-hidden rounded-pill bg-well p-1 shadow-[inset_2px_2px_5px_rgba(120,89,61,0.16),inset_-2px_-2px_5px_rgba(255,255,255,0.62)]"
       >
         {showHint && (
           <motion.span
@@ -1744,14 +1767,14 @@ function DailyTrendModeControl({ ariaLabel, options, value, onChange }: DailyTre
               aria-selected={active}
               onClick={() => onChange(option.value)}
               className={
-                'relative inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-3.5 py-1.5 font-mono text-xs font-bold transition-colors '
+                'relative inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-2.5 font-mono text-[11px] font-bold transition-colors '
                 + (active ? 'text-ink-inverse' : 'text-ink-muted')
               }
             >
               {active && (
                 <motion.span
                   layoutId="trend-mode-active-pill"
-                  className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
+                  className="absolute inset-0 rounded-pill bg-brand-500 shadow-[0_4px_12px_rgba(242,107,26,0.28)]"
                   transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                 />
               )}
@@ -1771,64 +1794,153 @@ interface CompareMember {
   themeColor?: ProfileTheme;
 }
 
-interface CompareMemberChipsProps {
+interface CompareMemberDropdownProps {
   ariaLabel: string;
   members: CompareMember[];
   selectedId: string | null;
   onSelect: (next: string) => void;
 }
 
-/** Horizontal avatar chip row for choosing the Compare-mode member.
- *  Single-line, horizontally scrollable, never wraps. Long English /
- *  Thai names truncate inside a bounded width so the chip never steals
- *  width from neighbours on 320-390 px screens. */
-function CompareMemberChips({ ariaLabel, members, selectedId, onSelect }: CompareMemberChipsProps) {
+/** Compact dropdown for choosing the Compare-mode member inside the
+ *  Daily Deposit Trend card. The menu expands in-place so the chart
+ *  card can grow/shrink smoothly without an overlay clipping against
+ *  the card's rounded, overflow-hidden shell. */
+function CompareMemberDropdown({ ariaLabel, members, selectedId, onSelect }: CompareMemberDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const selected = members.find(member => member.userId === selectedId) ?? members[0] ?? null;
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-compare-member-dropdown]')) return;
+      setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  if (!selected) return null;
+
   return (
-    <LayoutGroup id="compare-member-pill">
-      <div
-        role="tablist"
-        aria-label={ariaLabel}
-        className="inline-flex w-fit max-w-full flex-col items-stretch gap-1 rounded-xl bg-well p-1 shadow-neuPressed"
-      >
-        {members.map(member => {
-          const active = member.userId === selectedId;
-          return (
-            <button
-              key={member.userId}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              aria-label={member.displayName}
-              title={member.displayName}
-              onClick={() => onSelect(member.userId)}
-              className={
-                'relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-pill py-1 pl-1 pr-3 font-mono text-xs font-bold transition-colors '
-                + (active ? 'text-ink-inverse' : 'text-ink-muted')
-              }
-            >
-              {active && (
-                <motion.span
-                  layoutId="compare-member-active-pill"
-                  className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                />
-              )}
-              <span className="relative z-10 inline-flex shrink-0 [&_.rounded-full]:!h-6 [&_.rounded-full]:!w-6">
-                <Avatar
-                  size="sm"
-                  imageUrl={member.avatarUrl ?? undefined}
-                  fallback={fallbackInitial(member.displayName)}
-                  themeColor={member.themeColor}
-                />
-              </span>
-              <span className="relative z-10 max-w-[6rem] truncate whitespace-nowrap">
-                {member.displayName}
-              </span>
-            </button>
-          );
-        })}
+    <motion.div
+      data-compare-member-dropdown
+      className="relative z-30 w-[7.75rem] max-w-[34vw] min-w-[7rem]"
+    >
+      <div className="h-10 rounded-pill bg-well p-1 shadow-[inset_2px_2px_5px_rgba(120,89,61,0.16),inset_-2px_-2px_5px_rgba(255,255,255,0.62)]">
+        <button
+          type="button"
+          aria-label={ariaLabel}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => {
+            setOpen(prev => !prev);
+            haptic('success');
+          }}
+          className="relative flex h-8 w-full min-w-0 items-center gap-1.5 rounded-pill bg-surface px-1 pr-1.5 font-mono text-[11px] font-bold text-ink shadow-[0_1px_3px_rgba(58,42,31,0.08)] transition-transform active:scale-[0.98]"
+        >
+          <span className="inline-flex shrink-0 [&_.rounded-full]:!h-5 [&_.rounded-full]:!w-5">
+            <Avatar
+              size="sm"
+              imageUrl={selected.avatarUrl ?? undefined}
+              fallback={fallbackInitial(selected.displayName)}
+              themeColor={selected.themeColor}
+            />
+          </span>
+          <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left">
+            {selected.displayName}
+          </span>
+          <motion.span
+            aria-hidden
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ type: 'spring', stiffness: 520, damping: 34 }}
+            className="shrink-0 text-ink-muted"
+          >
+            <IconChevronDown size={14} />
+          </motion.span>
+        </button>
       </div>
-    </LayoutGroup>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="compare-member-options"
+            initial={{ opacity: 0, scaleY: 0.86, y: -4 }}
+            animate={{ opacity: 1, scaleY: 1, y: 0 }}
+            exit={{ opacity: 0, scaleY: 0.9, y: -3 }}
+            transition={{ duration: 0.34, ease: [0.16, 1, 0.2, 1] }}
+            className="absolute left-0 top-full mt-1 w-full origin-top overflow-hidden"
+          >
+            <motion.div
+              role="listbox"
+              aria-label={ariaLabel}
+              className="mt-1 flex max-h-44 flex-col gap-1 overflow-y-auto rounded-[1rem] bg-well p-1 shadow-[inset_1px_1px_3px_rgba(120,89,61,0.12),inset_-1px_-1px_3px_rgba(255,255,255,0.5)]"
+              initial="closed"
+              animate="open"
+              exit="closed"
+              variants={{
+                open: { transition: { staggerChildren: 0.035, delayChildren: 0.03 } },
+                closed: { transition: { staggerChildren: 0.02, staggerDirection: -1 } },
+              }}
+            >
+              {members.map(member => {
+                const active = member.userId === selectedId;
+                return (
+                  <motion.button
+                    key={member.userId}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    title={member.displayName}
+                    onClick={() => {
+                      onSelect(member.userId);
+                      setOpen(false);
+                      haptic('success');
+                    }}
+                    variants={{
+                      open: { opacity: 1, x: 0 },
+                      closed: { opacity: 0, x: -6 },
+                    }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className={
+                      'relative flex h-9 w-full min-w-0 items-center gap-1.5 rounded-xl px-1.5 pr-2 font-mono text-[11px] font-bold transition-colors '
+                      + (active ? 'text-ink-inverse' : 'text-ink-muted hover:bg-surface/70')
+                    }
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="compare-member-dropdown-active"
+                        className="absolute inset-0 rounded-xl bg-brand-500"
+                        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                      />
+                    )}
+                    <span className="relative z-10 inline-flex shrink-0 [&_.rounded-full]:!h-5 [&_.rounded-full]:!w-5">
+                      <Avatar
+                        size="sm"
+                        imageUrl={member.avatarUrl ?? undefined}
+                        fallback={fallbackInitial(member.displayName)}
+                        themeColor={member.themeColor}
+                      />
+                    </span>
+                    <span className="relative z-10 min-w-0 flex-1 truncate whitespace-nowrap text-left">
+                      {member.displayName}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 

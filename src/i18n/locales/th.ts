@@ -199,6 +199,8 @@ export const th: Messages = {
     dailyDepositModeMe: 'ฉัน',
     dailyDepositModeCompare: 'เทียบ',
     dailyDepositModeAria: 'โหมดกราฟยอดฝากรายวัน',
+    dailyDepositPurposeAria: 'ขอบเขตเป้าหมายของกราฟยอดฝากรายวัน',
+    dailyDepositPurposeAll: 'ทั้งหมด',
     dailyDepositCompareAria: 'เลือกสมาชิกเพื่อเปรียบเทียบ',
     thisWeek: 'สัปดาห์นี้',
     yourPlan: 'แผนของคุณ',

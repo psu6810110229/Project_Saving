@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import Pressable from '../Pressable/Pressable';
 import { IconBubble } from '../IconBubble/IconBubble';
 import {
@@ -80,7 +80,7 @@ const behindSeverityColor: Record<MoneyBehindSeverity, string> = {
   tremendous: 'text-danger',
 };
 
-export function SavingPlanCard({
+export const SavingPlanCard = memo(function SavingPlanCard({
   ruleType,
   money,
   habit,
@@ -483,4 +483,4 @@ export function SavingPlanCard({
     </section>
     </Pressable>
   );
-}
+});

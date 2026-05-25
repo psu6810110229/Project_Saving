@@ -1,6 +1,6 @@
 let _activeCount = 0;
 let _transitioning = false;
-const MAX_CONCURRENT = 8;
+const MAX_CONCURRENT = 4;
 
 export function acquireAnimationSlot(): boolean {
   if (_transitioning || _activeCount >= MAX_CONCURRENT) return false;

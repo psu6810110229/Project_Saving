@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { BucketRow } from '../BucketRow/BucketRow';
 import { IconPlus } from '../Icon/Icon';
 
@@ -27,7 +27,7 @@ interface BucketGridProps {
   belowHeader?: ReactNode;
 }
 
-export function BucketGrid({
+export const BucketGrid = memo(function BucketGrid({
   title,
   subtitle,
   buckets,
@@ -99,4 +99,4 @@ export function BucketGrid({
       </div>
     </section>
   );
-}
+});

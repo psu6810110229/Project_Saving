@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { formatCurrency } from '../../lib/format';
 import type { ThemeSwatch } from '../../lib/theme';
 import { PlayerProgressRow } from '../PlayerProgressRow/PlayerProgressRow';
@@ -57,7 +57,7 @@ interface RoomLeaderboardListProps {
  * Rows become tappable only when `onRowClick` is supplied — otherwise
  * they render as before (non-interactive div).
  */
-export function RoomLeaderboardList({
+export const RoomLeaderboardList = memo(function RoomLeaderboardList({
   entries,
   renderRowTrailing,
   title,
@@ -117,4 +117,4 @@ export function RoomLeaderboardList({
       )}
     </section>
   );
-}
+});

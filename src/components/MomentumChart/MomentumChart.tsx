@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { palette } from '../../lib/theme';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
@@ -194,7 +194,7 @@ function roundedTopBar(x: number, y: number, w: number, h: number, r: number): s
   ].join(' ');
 }
 
-export function MomentumChart({
+export const MomentumChart = memo(function MomentumChart({
   series,
   partnerSeries,
   labels,
@@ -744,7 +744,7 @@ export function MomentumChart({
       </svg>
     </section>
   );
-}
+});
 
 function markerTooltipLines(
   marker: MomentumBarMarker | undefined,

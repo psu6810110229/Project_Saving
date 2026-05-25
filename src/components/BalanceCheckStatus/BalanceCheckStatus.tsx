@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Chip } from '../Chip/Chip';
 import { IconVault } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
@@ -15,7 +16,7 @@ interface BalanceCheckStatusProps {
  * Lightweight Check Balance status row shown above the Dashboard
  * hero. Stays visually secondary to the Saving Plan card.
  */
-export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheckStatusProps) {
+export const BalanceCheckStatus = memo(function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheckStatusProps) {
   const { copy } = useI18n();
   const d = copy.dashboard;
   const c = copy.common;
@@ -59,4 +60,4 @@ export function BalanceCheckStatus({ latest, appBalance, onCheck }: BalanceCheck
       </button>
     </section>
   );
-}
+});

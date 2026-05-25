@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Avatar } from '../Avatar/Avatar';
 import { Chip } from '../Chip/Chip';
 import { IconSlip } from '../Icon/Icon';
@@ -24,7 +25,7 @@ interface ActivityTimelineRowProps {
   onViewSlip?: () => void;
 }
 
-export function ActivityTimelineRow({
+export const ActivityTimelineRow = memo(function ActivityTimelineRow({
   actorName,
   actorFallback,
   actorAvatarUrl,
@@ -61,4 +62,4 @@ export function ActivityTimelineRow({
       </div>
     </div>
   );
-}
+});

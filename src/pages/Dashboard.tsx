@@ -275,7 +275,7 @@ export function Dashboard() {
     let suggestionReason: string | null = null;
     if (sourceIsDone && extraAmt > 0) {
       initialAmount = extraAmt;
-      if (destBucket && destBucket.id === intentResult.nextBucketId) {
+      if (destBucket && destBucket.id === nextBucketId) {
         suggestionReason = copy.bucketTransfer.suggestion.completedToNext(
           sourceBucket!.name, destBucket.name,
         );
@@ -421,10 +421,6 @@ export function Dashboard() {
     setVbReminder(prev => ({ ...prev, open: false }));
   }
 
-  if (loading && shouldShowSkeleton) return <DashboardSkeleton />;
-  if (loading) return null;
-  if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
-
   const you = leaderboard.entries.find(entry => entry.isYou);
   // Personal sub-goal drives this member's bucket capacity and member-row denominator.
   const target = personalGoalTarget ?? you?.personalGoalTarget ?? 0;
@@ -451,30 +447,36 @@ export function Dashboard() {
     currentUserId: user?.id,
     settings: intentSettings,
   });
-  const bucketItems = buckets.map(bucket => {
-    const saved = bucketSaved(bucket.id, logs, bucketTransfers);
-    let status: { kind: 'focus' | 'next' | 'done'; label: string } | undefined;
-    if (intentResult.doneBucketIds.has(bucket.id)) {
-      status = { kind: 'done', label: copy.bucketIntent.status.done };
-    } else if (intentResult.focusBucketId === bucket.id) {
-      status = { kind: 'focus', label: copy.bucketIntent.status.focus };
-    } else if (intentResult.nextBucketId === bucket.id) {
-      status = { kind: 'next', label: copy.bucketIntent.status.next };
-    }
-    return {
-      id: bucket.id,
-      icon: bucketIcon(bucket.category),
-      name: bucket.name,
-      saved,
-      target: bucket.target_amount,
-      category: bucket.category,
-      status,
-    };
-  }).sort((a, b) => {
-    const pctA = a.target > 0 ? a.saved / a.target : 0;
-    const pctB = b.target > 0 ? b.saved / b.target : 0;
-    return pctB - pctA;
-  });
+  const { doneBucketIds, focusBucketId, nextBucketId } = intentResult;
+  /* eslint-disable react-hooks/preserve-manual-memoization */
+  const bucketItems = useMemo(() => {
+    const statusLabels = copy.bucketIntent.status;
+    return buckets.map(bucket => {
+      const saved = bucketSaved(bucket.id, logs, bucketTransfers);
+      let status: { kind: 'focus' | 'next' | 'done'; label: string } | undefined;
+      if (intentResult.doneBucketIds.has(bucket.id)) {
+        status = { kind: 'done', label: statusLabels.done };
+      } else if (intentResult.focusBucketId === bucket.id) {
+        status = { kind: 'focus', label: statusLabels.focus };
+      } else if (intentResult.nextBucketId === bucket.id) {
+        status = { kind: 'next', label: statusLabels.next };
+      }
+      return {
+        id: bucket.id,
+        icon: bucketIcon(bucket.category),
+        name: bucket.name,
+        saved,
+        target: bucket.target_amount,
+        category: bucket.category,
+        status,
+      };
+    }).sort((a, b) => {
+      const pctA = a.target > 0 ? a.saved / a.target : 0;
+      const pctB = b.target > 0 ? b.saved / b.target : 0;
+      return pctB - pctA;
+    });
+  }, [buckets, logs, bucketTransfers, intentResult, copy.bucketIntent.status]);
+  /* eslint-enable react-hooks/preserve-manual-memoization */
   // One-time bucket drag hint (Sprint 40.9). The hint is purely
   // teaching the drag shortcut, so it only makes sense when:
   //   * the user is on their own active buckets (caller already
@@ -559,7 +561,7 @@ export function Dashboard() {
   const activeOtherGroup = bucketView === 'mine'
     ? null
     : otherMemberBucketGroups.find(group => group.userId === bucketView) ?? null;
-  const activityItems = logs.map(log => ({
+  const activityItems = useMemo(() => logs.map(log => ({
     id: log.id,
     actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? d.youLabel : d.partnerLabel),
     actorFallback: fallbackInitial(log.display_name),
@@ -568,7 +570,7 @@ export function Dashboard() {
     occurredAt: log.created_at,
     hasSlip: Boolean(log.slip_url),
     slipUrl: log.slip_url,
-  }));
+  })), [logs, user?.id, profile?.display_name, d.youLabel, d.partnerLabel, d.savingsFallback]);
   const hasOtherBuckets = otherMemberBucketGroups.length > 0;
 
   // Saving Plan status — computed once for the primary insight card.
@@ -646,19 +648,20 @@ export function Dashboard() {
     : checkpointDays === 0
       ? c.today
       : c.daysAgoShort(checkpointDays);
-  const verifiedBalanceSlot = reconciledAppBalance !== null
+  const handleVbSubmitCb = useCallback(async (actualAmount: number, reason?: Parameters<typeof createCheckpoint>[0]['reason']) => {
+    const result = await createCheckpoint({ actualAmount, reason });
+    if (!result.error) haptic(result.differenceAmount === 0 ? 'success' : 'milestone');
+    return result;
+  }, [createCheckpoint]);
+  const verifiedBalanceSlot = useMemo(() => reconciledAppBalance !== null
     ? {
         amount: reconciledAppBalance,
         sinceLabel: verifiedSinceLabel,
         matched: latestCheckpoint ? latestCheckpoint.difference_amount === 0 : false,
         diff: latestCheckpoint?.difference_amount ?? 0,
-        onSubmit: async (actualAmount: number, reason?: Parameters<typeof createCheckpoint>[0]['reason']) => {
-          const result = await createCheckpoint({ actualAmount, reason });
-          if (!result.error) haptic(result.differenceAmount === 0 ? 'success' : 'milestone');
-          return result;
-        },
+        onSubmit: handleVbSubmitCb,
       }
-    : null;
+    : null, [reconciledAppBalance, verifiedSinceLabel, latestCheckpoint, handleVbSubmitCb]);
 
   // Merged activity feed: top 3 most-recent items across deposits,
   // balance checks, and bucket transfer / remove events from
@@ -666,37 +669,25 @@ export function Dashboard() {
   // can match (deposit timeline row vs sanitized balance-check row vs
   // bucket-event row). Actor names resolve through the leaderboard so
   // "You" labelling stays consistent with the rest of the dashboard.
-  function actorDisplayNameFor(actorUserId: string | null): string {
-    if (!actorUserId) return d.partnerLabel;
-    if (actorUserId === user?.id) return profile?.display_name ?? d.youLabel;
-    const entry = leaderboard.entries.find(e => e.userId === actorUserId);
-    return entry?.displayName ?? d.partnerLabel;
-  }
-  function actorFallbackFor(actorUserId: string | null): string {
-    if (!actorUserId) return fallbackInitial(undefined);
-    if (actorUserId === user?.id) return fallbackInitial(profile?.display_name);
-    const entry = leaderboard.entries.find(e => e.userId === actorUserId);
-    return fallbackInitial(entry?.displayName);
-  }
-  function actorAvatarFor(actorUserId: string | null): string | null | undefined {
-    if (!actorUserId) return null;
-    if (actorUserId === user?.id) return profile?.avatar_url;
-    const entry = leaderboard.entries.find(e => e.userId === actorUserId);
-    return entry?.avatarUrl;
-  }
-  const bucketEventItems = bucketActivityEvents.map(event => ({
-    event,
-    actorName: actorDisplayNameFor(event.actor_user_id),
-    actorFallback: actorFallbackFor(event.actor_user_id),
-    actorAvatarUrl: actorAvatarFor(event.actor_user_id),
-  }));
-  const mergedActivity = buildMergedActivity(
+  const bucketEventItems = useMemo(() => {
+    const resolveActor = (actorUserId: string | null) => {
+      if (!actorUserId) return { name: d.partnerLabel, fallback: fallbackInitial(undefined), avatar: null as string | null | undefined };
+      if (actorUserId === user?.id) return { name: profile?.display_name ?? d.youLabel, fallback: fallbackInitial(profile?.display_name), avatar: profile?.avatar_url };
+      const entry = leaderboard.entries.find(e => e.userId === actorUserId);
+      return { name: entry?.displayName ?? d.partnerLabel, fallback: fallbackInitial(entry?.displayName), avatar: entry?.avatarUrl };
+    };
+    return bucketActivityEvents.map(event => {
+      const actor = resolveActor(event.actor_user_id);
+      return { event, actorName: actor.name, actorFallback: actor.fallback, actorAvatarUrl: actor.avatar };
+    });
+  }, [bucketActivityEvents, leaderboard.entries, user?.id, profile?.display_name, profile?.avatar_url, d.youLabel, d.partnerLabel]);
+  const mergedActivity = useMemo(() => buildMergedActivity(
     activityItems,
     balanceActivity,
     bucketEventItems,
     3,
     user?.id,
-  );
+  ), [activityItems, balanceActivity, bucketEventItems, user?.id]);
 
   // Saving Plan chart overlays: per-day Expected Progress aligned to
   // the same 7-day window the deposit charts use. We deliberately do
@@ -774,38 +765,39 @@ export function Dashboard() {
   ];
   const hasOtherMembers = otherMemberIds.length > 0;
 
-  let chartSeries: number[];
-  let chartPartnerSeries: number[] | undefined;
-  let chartPrimaryLabel: string;
-  let chartSecondaryLabel: string | undefined;
-  let chartDisplayedTotal: number;
-  let chartBarMarkers: typeof roomDailyMarkers;
-  let chartPartnerBarMarkers: typeof roomDailyMarkers | undefined;
-  if (effectiveTrendMode === 'room') {
-    chartSeries = roomDailySeries;
-    chartPartnerSeries = undefined;
-    chartPrimaryLabel = d.dailyDepositModeRoom;
-    chartSecondaryLabel = undefined;
-    chartDisplayedTotal = roomWeekTotal;
-    chartBarMarkers = roomDailyMarkers;
-    chartPartnerBarMarkers = undefined;
-  } else if (effectiveTrendMode === 'me') {
-    chartSeries = meDailySeries;
-    chartPartnerSeries = undefined;
-    chartPrimaryLabel = d.dailyDepositModeMe;
-    chartSecondaryLabel = undefined;
-    chartDisplayedTotal = weekRecordedTotal;
-    chartBarMarkers = meDailyMarkers;
-    chartPartnerBarMarkers = undefined;
-  } else {
-    chartSeries = meDailySeries;
-    chartPartnerSeries = compareSelectedSeries ?? undefined;
-    chartPrimaryLabel = d.dailyDepositModeMe;
-    chartSecondaryLabel = compareSelectedEntry?.displayName ?? d.partnerLabel;
-    chartDisplayedTotal = weekRecordedTotal + compareSelectedTotal;
-    chartBarMarkers = meDailyMarkers;
-    chartPartnerBarMarkers = compareSelectedMarkers ?? undefined;
-  }
+  const { chartSeries, chartPartnerSeries, chartPrimaryLabel, chartSecondaryLabel, chartDisplayedTotal, chartBarMarkers, chartPartnerBarMarkers } = useMemo(() => {
+    if (effectiveTrendMode === 'room') {
+      return {
+        chartSeries: roomDailySeries,
+        chartPartnerSeries: undefined as number[] | undefined,
+        chartPrimaryLabel: d.dailyDepositModeRoom,
+        chartSecondaryLabel: undefined as string | undefined,
+        chartDisplayedTotal: roomWeekTotal,
+        chartBarMarkers: roomDailyMarkers,
+        chartPartnerBarMarkers: undefined as typeof roomDailyMarkers | undefined,
+      };
+    } else if (effectiveTrendMode === 'me') {
+      return {
+        chartSeries: meDailySeries,
+        chartPartnerSeries: undefined as number[] | undefined,
+        chartPrimaryLabel: d.dailyDepositModeMe,
+        chartSecondaryLabel: undefined as string | undefined,
+        chartDisplayedTotal: weekRecordedTotal,
+        chartBarMarkers: meDailyMarkers,
+        chartPartnerBarMarkers: undefined as typeof roomDailyMarkers | undefined,
+      };
+    } else {
+      return {
+        chartSeries: meDailySeries,
+        chartPartnerSeries: compareSelectedSeries ?? undefined,
+        chartPrimaryLabel: d.dailyDepositModeMe,
+        chartSecondaryLabel: compareSelectedEntry?.displayName ?? d.partnerLabel,
+        chartDisplayedTotal: weekRecordedTotal + compareSelectedTotal,
+        chartBarMarkers: meDailyMarkers,
+        chartPartnerBarMarkers: compareSelectedMarkers ?? undefined,
+      };
+    }
+  }, [effectiveTrendMode, roomDailySeries, roomWeekTotal, roomDailyMarkers, meDailySeries, weekRecordedTotal, meDailyMarkers, compareSelectedSeries, compareSelectedEntry?.displayName, d.partnerLabel, compareSelectedTotal, compareSelectedMarkers, d.dailyDepositModeRoom, d.dailyDepositModeMe]);
   const selectedPurposeEmptyMessage = purposeScope.kind === 'all' || chartDisplayedTotal > 0
     ? undefined
     : purposeScope.kind === 'bucket'
@@ -830,18 +822,13 @@ export function Dashboard() {
   // Leader-first list for the N-aware Progress Race. When the caller
   // is the only member, we synthesise their row from profile/total so
   // the section still renders before any partner has joined.
-  const leaderboardEntries: PlayerProgressEntry[] = leaderboard.entries.length > 0
+  const leaderboardEntries: PlayerProgressEntry[] = useMemo(() => leaderboard.entries.length > 0
     ? leaderboard.entries.map(entry => ({
         userId: entry.userId,
         name: entry.isYou ? youName : (entry.displayName ?? d.partnerLabel),
         fallback: fallbackInitial(entry.displayName ?? (entry.isYou ? profile?.display_name : d.partnerLabel)),
         imageUrl: entry.avatarUrl,
         saved: entry.saved,
-        // Task 37: each row's denominator is that member's personal
-        // sub-goal. Only the current user's row falls back to the
-        // resolved personal target — other members with a missing
-        // personal goal row render with 0 rather than borrowing this
-        // user's target.
         target: entry.target ?? (entry.isYou ? target : 0),
         themeColor: entry.themeColor,
         isYou: entry.isYou,
@@ -855,7 +842,7 @@ export function Dashboard() {
         target,
         themeColor: profile?.theme_color,
         isYou: true,
-      }] : []);
+      }] : []), [leaderboard.entries, youName, d.partnerLabel, profile?.display_name, profile?.avatar_url, profile?.theme_color, user, total, target]);
 
   const chartLocale = language === 'th' ? 'th-TH' : 'en-US';
 
@@ -867,6 +854,26 @@ export function Dashboard() {
         : currentName,
     );
   }
+
+  const renderLeaderboardTrailing = useCallback((entry: PlayerProgressEntry) => (
+    <NudgeButton
+      partnerUserId={entry.userId}
+      roomId={activeRoomId}
+      partnerName={entry.name}
+    />
+  ), [activeRoomId]);
+
+  const handleLeaderboardRowClick = useCallback((entry: PlayerProgressEntry) => {
+    if (entry.isYou) {
+      navigate('/profile');
+      return;
+    }
+    navigate(`/members/${entry.userId}`);
+  }, [navigate]);
+
+  const handleCheckBalance = useCallback(() => navigate('/check-balance'), [navigate]);
+  const handleConfigurePlan = useCallback(() => navigate('/saving-plan'), [navigate]);
+  const handleManageProject = useCallback(() => navigate('/manage-project'), [navigate]);
 
   async function handleCreateBucket() {
     const nextTarget = Number(bucketTarget);
@@ -898,6 +905,10 @@ export function Dashboard() {
       setBucketModalOpen(false);
     }
   }
+
+  if (loading && shouldShowSkeleton) return <DashboardSkeleton />;
+  if (loading) return null;
+  if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
   return (
     <>
@@ -937,7 +948,7 @@ export function Dashboard() {
         <TotalVaultCard
           saved={totalSaved}
           target={totalTarget}
-          onEdit={isCreator ? () => navigate('/manage-project') : undefined}
+          onEdit={isCreator ? handleManageProject : undefined}
           editAriaLabel={isCreator ? d.goalEditAria : undefined}
           cardholderNames={leaderboardEntries.map(e => e.name)}
           validThru={activeRoom?.end_date ?? null}
@@ -949,20 +960,8 @@ export function Dashboard() {
         <RoomLeaderboardList
           entries={leaderboardEntries}
           emptyBody={d.invitePartnerHint}
-          renderRowTrailing={entry => (
-            <NudgeButton
-              partnerUserId={entry.userId}
-              roomId={activeRoomId}
-              partnerName={entry.name}
-            />
-          )}
-          onRowClick={entry => {
-            if (entry.isYou) {
-              navigate('/profile');
-              return;
-            }
-            navigate(`/members/${entry.userId}`);
-          }}
+          renderRowTrailing={renderLeaderboardTrailing}
+          onRowClick={handleLeaderboardRowClick}
         />
       </motion.div>
 
@@ -976,7 +975,7 @@ export function Dashboard() {
             <BalanceCheckStatus
               latest={latestCheckpoint}
               appBalance={0}
-              onCheck={() => navigate('/check-balance')}
+              onCheck={handleCheckBalance}
             />
           </div>
         )}
@@ -984,7 +983,7 @@ export function Dashboard() {
           ruleType={displayRevision?.rule_type ?? null}
           money={moneyStatus}
           habit={habitStatus}
-          onConfigure={() => navigate('/saving-plan')}
+          onConfigure={handleConfigurePlan}
           verifiedBalance={verifiedBalanceSlot}
           isPaused={isPausedToday}
           pausedSince={pausedSince}
@@ -1066,8 +1065,8 @@ export function Dashboard() {
               belowHeader={
                 <div className="flex flex-col gap-3">
                   {memberPicker}
-                  {intentResult.nextBucketId && (() => {
-                    const nextBucket = bucketItems.find(b => b.id === intentResult.nextBucketId);
+                  {nextBucketId && (() => {
+                    const nextBucket = bucketItems.find(b => b.id === nextBucketId);
                     if (!nextBucket) return null;
                     return (
                       <div className="flex items-center gap-2 rounded-lg bg-surfaceAlt px-3 py-2">
@@ -1263,9 +1262,9 @@ export function Dashboard() {
       <BucketNextPickerModal
         open={nextPickerOpen}
         buckets={bucketItems
-          .filter(b => !intentResult.doneBucketIds.has(b.id) && b.id !== intentResult.focusBucketId)
+          .filter(b => !doneBucketIds.has(b.id) && b.id !== focusBucketId)
           .map(b => ({ id: b.id, name: b.name, category: b.category, saved: b.saved, target: b.target }))}
-        currentNextBucketId={intentResult.nextBucketId}
+        currentNextBucketId={nextBucketId}
         onSelect={async (bucketId) => {
           const result = await setManualNextBucket(bucketId);
           if (!result.error) {
@@ -1337,8 +1336,8 @@ export function Dashboard() {
         const extraAmt = isDone && selectedBucketItem
           ? Math.max(0, selectedBucketItem.saved - selectedBucketItem.target)
           : 0;
-        const nextBucket = intentResult.nextBucketId
-          ? bucketItems.find(b => b.id === intentResult.nextBucketId)
+        const nextBucket = nextBucketId
+          ? bucketItems.find(b => b.id === nextBucketId)
           : null;
         return (
           <BucketSheet
@@ -1356,10 +1355,10 @@ export function Dashboard() {
             onRequestTransferExtra={(sourceBucketId) => {
               setExpandedBucketId(null);
               const srcBkt = bucketItems.find(b => b.id === sourceBucketId);
-              const destId = intentResult.nextBucketId ?? bucketItems.find(b => b.id !== sourceBucketId)?.id ?? null;
+              const destId = nextBucketId ?? bucketItems.find(b => b.id !== sourceBucketId)?.id ?? null;
               const destBkt = destId ? bucketItems.find(b => b.id === destId) : null;
               const extra = srcBkt ? Math.max(0, srcBkt.saved - srcBkt.target) : 0;
-              const reason = destBkt && destBkt.id === intentResult.nextBucketId
+              const reason = destBkt && destBkt.id === nextBucketId
                 ? copy.bucketTransfer.suggestion.completedToNext(srcBkt?.name ?? '', destBkt.name)
                 : copy.bucketTransfer.suggestion.completedExtra(srcBkt?.name ?? '');
               setTransferIntent({

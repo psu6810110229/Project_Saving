@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { Button } from '../components/Button/Button';
 import { Chip } from '../components/Chip/Chip';
@@ -69,6 +69,7 @@ export function ManageProject() {
     loading: membersLoading,
     error: membersError,
   } = useRoomMembers(activeRoomId);
+  const [searchParams, setSearchParams] = useSearchParams();
   const data = useSharedData();
   const {
     personalGoalTarget,
@@ -110,6 +111,18 @@ export function ManageProject() {
   const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
     id, icon: <BucketCategoryIcon category={id} size={22} />, label: copy.bucket.categoryLabels[id],
   }));
+
+  // Dashboard's "Manage" bucket link deep-links here with ?modal=buckets.
+  // Open the buckets modal and strip the param so a refresh doesn't keep
+  // re-opening it. Matches the Profile page's ?intent=create-project pattern.
+  useEffect(() => {
+    if (searchParams.get('modal') !== 'buckets') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveModal('buckets');
+    const next = new URLSearchParams(searchParams);
+    next.delete('modal');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   if (!activeRoom) {
     return (

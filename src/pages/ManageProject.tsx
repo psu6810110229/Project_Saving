@@ -14,8 +14,6 @@ import {
   IconUserPlus,
   IconEdit,
 } from '../components/Icon/Icon';
-import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
-import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { Modal } from '../components/Modal/Modal';
 import { PageHeader } from '../components/PageHeader/PageHeader';
 import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
@@ -32,9 +30,9 @@ import { formatJoinedDate } from '../i18n/formatters';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
-import { hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
+import { hasDuplicateBucketName, sumTargets } from '../lib/buckets';
 import { haptic } from '../lib/haptics';
-import type { Bucket, BucketCategory } from '../types';
+import type { Bucket } from '../types';
 
 function firstGrapheme(value: string): string {
   if (!value) return '?';
@@ -56,7 +54,6 @@ type ManageModal =
   | null;
 
 const ROOM_NAME_MAX = 60;
-const DEFAULT_BUCKET_CATEGORY = 'flight' as const;
 
 
 export function ManageProject() {
@@ -90,9 +87,6 @@ export function ManageProject() {
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>(quickAmounts.map(String));
-  const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>(DEFAULT_BUCKET_CATEGORY);
-  const [bucketName, setBucketName] = useState(() => copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
-  const [bucketTarget, setBucketTarget] = useState('30000');
   const [renameDraft, setRenameDraft] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -107,10 +101,6 @@ export function ManageProject() {
     showAfterMs: 120,
     minimumVisibleMs: 400,
   });
-
-  const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
-    id, icon: <BucketCategoryIcon category={id} size={22} />, label: copy.bucket.categoryLabels[id],
-  }));
 
   // Dashboard's "Manage" bucket link deep-links here with ?modal=buckets.
   // Open the buckets modal and strip the param so a refresh doesn't keep
@@ -163,6 +153,15 @@ export function ManageProject() {
     setBucketTransferSheetOpen(false);
     setMessage(null);
     setRenameError(null);
+  }
+
+  // Closing the Manage Buckets modal sends the user back to the dashboard with
+  // a full page refresh so any bucket edits/archives applied inside the modal
+  // are reflected by the freshly-loaded dashboard data.
+  function closeBucketsModal() {
+    setActiveModal(null);
+    setBucketTransferSheetOpen(false);
+    window.location.assign('/dashboard');
   }
 
   function mapRenameError(raw: string): string {
@@ -260,46 +259,6 @@ export function ManageProject() {
     else {
       setMessage(copy.manageProject.quickAmountsSuccess);
       closeModal();
-    }
-  }
-
-  function handleBucketCategoryChange(next: BucketCategory) {
-    setBucketCategory(next);
-    setBucketName(currentName =>
-      shouldAutofillBucketName(currentName, copy.bucket.defaultNames)
-        ? copy.bucket.defaultNames[next]
-        : currentName,
-    );
-  }
-
-  async function handleCreateBucket() {
-    const target = Number(bucketTarget);
-    if (!bucketCategory || !bucketName.trim() || target <= 0) {
-      setMessage(copy.bucket.validationNameAndTarget);
-      return;
-    }
-    if (hasDuplicateBucketName(buckets, bucketName)) {
-      setMessage(copy.bucket.duplicateName(bucketName.trim()));
-      return;
-    }
-    if (goalTarget !== null && yourBucketTargetTotal + target > goalTarget) {
-      setMessage(copy.bucket.capacityError(formatMoney(Math.max(0, goalTarget - yourBucketTargetTotal))));
-      return;
-    }
-    const result = await saveBuckets([
-      ...buckets,
-      { id: undefined, name: bucketName.trim(), target_amount: target, category: bucketCategory },
-    ]);
-    if (result.error) {
-      setMessage(result.code === 'duplicate_name'
-        ? copy.bucket.duplicateName(result.duplicateName ?? bucketName.trim())
-        : result.error);
-    } else {
-      haptic('success');
-      setMessage(copy.bucket.createdSuccess);
-      setBucketCategory(DEFAULT_BUCKET_CATEGORY);
-      setBucketName(copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
-      setBucketTarget('');
     }
   }
 
@@ -656,7 +615,7 @@ export function ManageProject() {
       <Modal
         open={activeModal === 'buckets'}
         title={copy.manageProject.manageBucketsModalTitle}
-        onClose={closeModal}
+        onClose={closeBucketsModal}
         hidden={bucketTransferSheetOpen}
       >
         <BucketManager
@@ -664,14 +623,6 @@ export function ManageProject() {
           logs={logs}
           transfers={bucketTransfers}
           goalTarget={goalTarget}
-          category={bucketCategory}
-          options={bucketOptions}
-          name={bucketName}
-          target={bucketTarget}
-          onCategoryChange={handleBucketCategoryChange}
-          onNameChange={setBucketName}
-          onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
-          onCreate={handleCreateBucket}
           onUpdate={handleUpdateBucket}
           onReviewCategories={async (updates) => {
             const result = await reviewBucketCategories(updates);

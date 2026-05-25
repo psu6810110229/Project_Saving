@@ -31,6 +31,7 @@ export const en = {
     loadingTitle: 'Loading your project',
     loadingBody: 'Pulling the latest savings room.',
     errorTitle: 'Could not load projects',
+    connectionError: 'Check your connection, then try again.',
   },
   profile: {
     pageEyebrow: 'Profile',

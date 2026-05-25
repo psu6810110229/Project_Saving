@@ -6,6 +6,7 @@ import { Button } from '../components/Button/Button';
 import { CreateProjectForm } from '../components/CreateProjectForm/CreateProjectForm';
 import { DataProvider } from '../components/DataContext/DataContext';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
+import { LoadingState } from '../components/LoadingState/LoadingState';
 import { MilestoneCelebrationModal } from '../components/MilestoneCelebrationModal/MilestoneCelebrationModal';
 import { PageTransition } from '../components/PageTransition/PageTransition';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
@@ -17,6 +18,7 @@ import {
   IconSmartphone,
 } from '../components/Icon/Icon';
 import { useAuth } from '../hooks/useAuth';
+import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useMilestoneCrossings } from '../hooks/useMilestoneCrossings';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
@@ -54,9 +56,13 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { activeRoom } = useRoom();
-  const { loading, error, createRoom, joinRoomByCode } = useRooms();
+  const { loading, error, refetch, createRoom, joinRoomByCode } = useRooms();
   const { copy } = useI18n();
   const al = copy.appLayout;
+  const { shouldShowLoader, fakeLoadingExpired } = useLoadingGate({
+    loading,
+    showAfterMs: 900,
+  });
   const activeTab = tabFromPath(location.pathname);
   const outlet = useOutlet();
   const roomlessAllowed = isRoomlessRoute(location.pathname);
@@ -72,7 +78,27 @@ export function AppLayout() {
       }}
     >
       <ProfileLanguageSync />
-      {!loading && error && <StatusCard title={al.errorTitle} body={error} />}
+      {loading && shouldShowLoader && (
+        <div className="flex h-full items-center justify-center px-2 pb-16 pt-8">
+          <LoadingState
+            variant="card"
+            label={al.loadingTitle}
+            title={al.loadingTitle}
+            body={al.loadingBody}
+            messages={copy.common.loadingMessages}
+            slow={fakeLoadingExpired}
+            slowMessage={copy.common.loadingSlow}
+          />
+        </div>
+      )}
+      {!loading && error && (
+        <StatusCard
+          title={al.errorTitle}
+          body={error}
+          actionLabel={copy.common.retry}
+          onAction={() => void refetch({ showLoading: true })}
+        />
+      )}
       {!loading && !error && !activeRoom && !roomlessAllowed && (
         <PageTransition transitionKey="project-setup">
           <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />
@@ -249,13 +275,33 @@ function ProjectSetup({
   );
 }
 
-function StatusCard({ title, body }: { title: string; body: string }) {
+function StatusCard({
+  title,
+  body,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  body: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
-    <section className="mt-8 rounded-xl bg-surface p-5 shadow-soft">
-      <SectionLabel tone="brand">GO-OUT</SectionLabel>
-      <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
-      <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>
-    </section>
+    <div className="flex h-full items-center justify-center px-2 pb-16 pt-8">
+      <section
+        aria-live="assertive"
+        className="w-full max-w-sm rounded-xl bg-surface p-5 text-center shadow-soft"
+      >
+        <SectionLabel tone="brand">GO-OUT</SectionLabel>
+        <h1 className="mt-2 font-mono text-2xl font-bold leading-tight text-ink">{title}</h1>
+        <p className="mt-2 font-mono text-xs leading-5 text-ink-muted">{body}</p>
+        {actionLabel && onAction && (
+          <Button className="mt-5" fullWidth onClick={onAction}>
+            {actionLabel}
+          </Button>
+        )}
+      </section>
+    </div>
   );
 }
 

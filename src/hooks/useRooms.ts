@@ -54,6 +54,13 @@ export function useRooms() {
     const showLoading = options.showLoading ?? currentRooms.length === 0;
     if (showLoading) setLoading(true);
     setError(null);
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setError(copy.appLayout.connectionError);
+      setLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), ROOM_FETCH_TIMEOUT_MS);
 
@@ -67,7 +74,7 @@ export function useRooms() {
     window.clearTimeout(timeoutId);
 
     if (err) {
-      setError(err.name === 'AbortError' ? 'Could not load projects. Check your connection and refresh.' : err.message);
+      setError(err.name === 'AbortError' ? copy.appLayout.connectionError : err.message);
       setLoading(false);
       return;
     }

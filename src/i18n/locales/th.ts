@@ -33,6 +33,7 @@ export const th: Messages = {
     loadingTitle: 'โปรดรอสักครู่',
     loadingBody: 'เรากำลังดึงข้อมูลให้คุณ',
     errorTitle: 'ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
+    connectionError: 'ตรวจสอบการเชื่อมต่อ แล้วลองใหม่อีกครั้ง',
   },
   profile: {
     pageEyebrow: 'โปรไฟล์',

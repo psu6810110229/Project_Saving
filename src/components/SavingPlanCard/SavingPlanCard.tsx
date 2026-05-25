@@ -12,6 +12,7 @@ import {
 } from '../Icon/Icon';
 import { TextInput } from '../TextInput/TextInput';
 import { Button } from '../Button/Button';
+import { IconButton } from '../IconButton/IconButton';
 import { formatCurrency } from '../../lib/format';
 import { formatSignedCurrency, RECONCILE_REASONS } from '../../lib/reconcile';
 import {
@@ -264,14 +265,15 @@ export const SavingPlanCard = memo(function SavingPlanCard({
           </p>
         </div>
         {onConfigure && (
-          <button
-            type="button"
+          <IconButton
+            variant="solid"
+            size="lg"
+            ariaLabel={d.changePlan}
             onClick={onConfigure}
-            aria-label={d.changePlan}
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-transform active:scale-[0.96]"
+            className="shrink-0"
           >
             <IconEdit size={18} />
-          </button>
+          </IconButton>
         )}
       </div>
       {isPaused ? (

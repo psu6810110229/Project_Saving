@@ -60,3 +60,17 @@ export function bucketsForCategory(
     .filter(b => !b.archived_at && normalizeBucketCategory(b.category) === category)
     .sort((a, b) => a.position - b.position);
 }
+
+export function activeBucketIdsInWindow(
+  logs: SavingsLog[],
+  today?: Date,
+): Set<string> {
+  const keys = new Set(lastSevenDateKeys(today));
+  const ids = new Set<string>();
+  for (const log of logs) {
+    if (log.bucket_id && keys.has(localDateKey(log.created_at))) {
+      ids.add(log.bucket_id);
+    }
+  }
+  return ids;
+}

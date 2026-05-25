@@ -1,58 +1,133 @@
-import type { BucketCategory } from '../../types';
+import { useMemo } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import type { Bucket, BucketCategory } from '../../types';
 import type { MomentumPurposeScope } from '../../lib/momentumPurpose';
+import { bucketsForCategory } from '../../lib/momentumPurpose';
+import { normalizeBucketCategory } from '../../lib/bucketCategories';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { ScrollFadeContainer } from '../ScrollFadeContainer/ScrollFadeContainer';
 import { haptic } from '../../lib/haptics';
+import { SPRING, REDUCED_MOTION_TRANSITION } from '../../lib/motion';
 import { useI18n } from '../../i18n/useI18n';
 
 interface MomentumPurposePickerProps {
   categories: BucketCategory[];
+  buckets: Bucket[];
   value: MomentumPurposeScope;
   onChange: (next: MomentumPurposeScope) => void;
+  /** Bucket IDs that have at least one deposit in the momentum window. */
+  activeBucketIds?: Set<string>;
 }
 
-export function MomentumPurposePicker({ categories, value, onChange }: MomentumPurposePickerProps) {
+export function MomentumPurposePicker({
+  categories,
+  buckets,
+  value,
+  onChange,
+  activeBucketIds,
+}: MomentumPurposePickerProps) {
   const { copy } = useI18n();
   const d = copy.dashboard;
   const catLabels = copy.bucket.categoryLabels;
+  const reduceMotion = useReducedMotion();
 
   const isAll = value.kind === 'all';
 
+  const activeCategory = value.kind === 'category'
+    ? value.category
+    : value.kind === 'bucket'
+      ? value.parentCategory
+      : null;
+
+  const subPills = useMemo(() => {
+    if (!activeCategory) return [];
+    return bucketsForCategory(buckets, activeCategory);
+  }, [buckets, activeCategory]);
+
   return (
-    <ScrollFadeContainer
-      wrapperClassName="-mx-4"
-      className="flex gap-1.5 overflow-x-auto px-4 pb-1.5"
-      fadeWidth={28}
-    >
-      <div
-        role="tablist"
-        aria-label={d.dailyDepositPurposeAria}
-        className="flex gap-1.5"
+    <div className="flex flex-col gap-1">
+      {/* Category row */}
+      <ScrollFadeContainer
+        wrapperClassName="-mx-4"
+        className="flex gap-1.5 overflow-x-auto px-4 pb-1.5"
+        fadeWidth={28}
       >
-        <PurposeChip
-          active={isAll}
-          label={d.dailyDepositPurposeAll}
-          onClick={() => {
-            onChange({ kind: 'all' });
-            haptic('success');
-          }}
-        />
-        {categories.map(cat => (
+        <div
+          role="tablist"
+          aria-label={d.dailyDepositPurposeAria}
+          className="flex gap-1.5"
+        >
           <PurposeChip
-            key={cat}
-            active={value.kind === 'category' && value.category === cat}
-            label={catLabels[cat]}
-            icon={<BucketCategoryIcon category={cat} size={14} />}
+            active={isAll}
+            label={d.dailyDepositPurposeAll}
             onClick={() => {
-              onChange({ kind: 'category', category: cat });
+              onChange({ kind: 'all' });
               haptic('success');
             }}
           />
-        ))}
-      </div>
-    </ScrollFadeContainer>
+          {categories.map(cat => (
+            <PurposeChip
+              key={cat}
+              active={activeCategory === cat}
+              label={catLabels[cat]}
+              icon={<BucketCategoryIcon category={cat} size={14} />}
+              onClick={() => {
+                onChange({ kind: 'category', category: cat });
+                haptic('success');
+              }}
+            />
+          ))}
+        </div>
+      </ScrollFadeContainer>
+
+      {/* Bucket sub-pill row */}
+      <AnimatePresence mode="popLayout">
+        {subPills.length > 0 && (
+          <motion.div
+            key="bucket-row"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={reduceMotion ? REDUCED_MOTION_TRANSITION : SPRING.content}
+            className="overflow-hidden"
+          >
+            <ScrollFadeContainer
+              wrapperClassName="-mx-4"
+              className="flex gap-1.5 overflow-x-auto px-4 pb-1"
+              fadeWidth={28}
+            >
+              <div className="flex gap-1.5">
+                {subPills.map((bucket, i) => {
+                  const hasDeposits = !activeBucketIds || activeBucketIds.has(bucket.id);
+                  return (
+                    <BucketSubPill
+                      key={bucket.id}
+                      name={bucket.name}
+                      active={value.kind === 'bucket' && value.bucketId === bucket.id}
+                      index={i}
+                      hasDeposits={hasDeposits}
+                      reduceMotion={!!reduceMotion}
+                      onClick={() => {
+                        onChange({
+                          kind: 'bucket',
+                          bucketId: bucket.id,
+                          parentCategory: normalizeBucketCategory(bucket.category),
+                        });
+                        haptic('success');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </ScrollFadeContainer>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
+
+/* ── Category chip ──────────────────────────────────────────────────── */
 
 interface PurposeChipProps {
   active: boolean;
@@ -78,5 +153,45 @@ function PurposeChip({ active, label, icon, onClick }: PurposeChipProps) {
       {icon && <span className={active ? 'text-ink-inverse' : 'text-ink-muted'}>{icon}</span>}
       <span className="truncate">{label}</span>
     </button>
+  );
+}
+
+/* ── Bucket sub-pill ────────────────────────────────────────────────── */
+
+interface BucketSubPillProps {
+  name: string;
+  active: boolean;
+  index: number;
+  hasDeposits: boolean;
+  reduceMotion: boolean;
+  onClick: () => void;
+}
+
+function BucketSubPill({ name, active, index, hasDeposits, reduceMotion, onClick }: BucketSubPillProps) {
+  return (
+    <motion.button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      initial={reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+      animate={reduceMotion
+        ? { opacity: hasDeposits ? 1 : 0.5 }
+        : { scale: 1, opacity: hasDeposits ? 1 : 0.5 }
+      }
+      exit={reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+      transition={reduceMotion
+        ? REDUCED_MOTION_TRANSITION
+        : { ...SPRING.content, delay: index * 0.04 }
+      }
+      onClick={onClick}
+      className={
+        'inline-flex max-w-[140px] shrink-0 items-center whitespace-nowrap rounded-pill px-2 py-1 font-mono text-[10px] font-semibold transition-colors '
+        + (active
+          ? 'bg-brand-400 text-ink-inverse shadow-[0_2px_8px_rgba(242,107,26,0.22)]'
+          : 'bg-well text-ink-muted shadow-[inset_1px_1px_3px_rgba(120,89,61,0.10),inset_-1px_-1px_3px_rgba(255,255,255,0.4)]')
+      }
+    >
+      <span className="truncate">{name}</span>
+    </motion.button>
   );
 }

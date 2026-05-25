@@ -72,7 +72,7 @@ import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTarge
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
-import { availablePurposeCategories, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
+import { activeBucketIdsInWindow, availablePurposeCategories, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
@@ -206,13 +206,18 @@ export function Dashboard() {
   // 2-user rooms still show a clear room/me/compare experience.
   const [trendMode, setTrendMode] = useState<DailyTrendMode>('room');
   const [purposeScope, setPurposeScope] = useState<MomentumPurposeScope>({ kind: 'all' });
-  const purposeCategories = availablePurposeCategories([
-    ...buckets,
-    ...data.roomMembersBuckets.allBuckets,
-  ]);
+  const allVisibleBuckets = useMemo(
+    () => [...buckets, ...data.roomMembersBuckets.allBuckets],
+    [buckets, data.roomMembersBuckets.allBuckets],
+  );
+  const purposeCategories = availablePurposeCategories(allVisibleBuckets);
   const visibleBucketsById = useMemo(() => new Map<string, Bucket>(
-    [...buckets, ...data.roomMembersBuckets.allBuckets].map(b => [b.id, b]),
-  ), [buckets, data.roomMembersBuckets.allBuckets]);
+    allVisibleBuckets.map(b => [b.id, b]),
+  ), [allVisibleBuckets]);
+  const momentumActiveBucketIds = useMemo(
+    () => activeBucketIdsInWindow(logs),
+    [logs],
+  );
   // Selected compare member for Compare mode. Always represents one
   // other member — Compare must never render more than current user +
   // one selected member.
@@ -1072,8 +1077,10 @@ export function Dashboard() {
           purposePicker={purposeCategories.length > 0 ? (
             <MomentumPurposePicker
               categories={purposeCategories}
+              buckets={allVisibleBuckets}
               value={purposeScope}
               onChange={setPurposeScope}
+              activeBucketIds={momentumActiveBucketIds}
             />
           ) : undefined}
           modeControl={hasOtherMembers ? (

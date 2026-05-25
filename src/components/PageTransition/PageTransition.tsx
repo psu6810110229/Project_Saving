@@ -75,7 +75,7 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
   // position during the exit animation. No window.scrollTo hacks needed.
   return (
     <div className="relative isolate overflow-hidden bg-bg h-full">
-      <AnimatePresence mode="popLayout" custom={activeNav.direction}>
+      <AnimatePresence initial={false} mode="popLayout" custom={activeNav.direction}>
         <motion.div
           key={transitionKey}
           custom={activeNav.direction}

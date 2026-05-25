@@ -1,4 +1,5 @@
 import { memo, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import Pressable from '../Pressable/Pressable';
 import { IconBubble } from '../IconBubble/IconBubble';
 import {
@@ -21,6 +22,7 @@ import {
 } from '../../lib/savingPlan';
 import { useI18n } from '../../i18n/useI18n';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
+import { SPRING } from '../../lib/motion';
 import type { BalanceAdjustmentReason, SavingPlanRuleType } from '../../types';
 
 interface VerifiedBalanceSlot {
@@ -98,6 +100,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
   const { copy, formatShortDateKey } = useI18n();
   const d = copy.dashboard;
   const r = copy.reconcile;
+  const reduceMotion = useReducedMotion();
   const [vbExpanded, setVbExpanded] = useState(false);
   const [vbActualValue, setVbActualValue] = useState('');
   const [vbStep, setVbStep] = useState<'enter' | 'reason'>('enter');
@@ -249,7 +252,6 @@ export const SavingPlanCard = memo(function SavingPlanCard({
   const progressPctRounded = Math.max(0, Math.min(100, Math.round(animProgressPct)));
 
   return (
-    <Pressable onClick={onConfigure}>
     <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
       {/* Header — eyebrow + status title + halo edit FAB */}
       <div className="flex items-start justify-between gap-3">
@@ -264,9 +266,9 @@ export const SavingPlanCard = memo(function SavingPlanCard({
         {onConfigure && (
           <button
             type="button"
-            onClick={e => { e.stopPropagation(); onConfigure(); }}
+            onClick={onConfigure}
             aria-label={d.changePlan}
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-transform"
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-transform active:scale-[0.96]"
           >
             <IconEdit size={18} />
           </button>
@@ -357,10 +359,12 @@ export const SavingPlanCard = memo(function SavingPlanCard({
       {/* Verified Balance — expandable inline form */}
       {verifiedBalance && (
         <div className="mt-4 border-t border-well pt-4" onClick={e => e.stopPropagation()}>
-          <button
+          <motion.button
             type="button"
             onClick={handleVbToggle}
             className="flex w-full items-center gap-3 text-left"
+            whileTap={reduceMotion ? { opacity: 0.85 } : { scale: 0.97, y: 2 }}
+            transition={SPRING.press}
           >
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-800">
               <IconVault size={16} />
@@ -384,7 +388,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
               size={18}
               className={`shrink-0 text-ink-muted transition-transform duration-300 ${vbExpanded ? 'rotate-180' : ''}`}
             />
-          </button>
+          </motion.button>
 
           {/* Slide-down panel — inline VB form strings deferred to 24.4 */}
           <div
@@ -481,6 +485,5 @@ export const SavingPlanCard = memo(function SavingPlanCard({
         </div>
       )}
     </section>
-    </Pressable>
   );
 });

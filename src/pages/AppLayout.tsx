@@ -74,7 +74,7 @@ export function AppLayout() {
       onTabChange={tab => {
         const nextPath = pathFromTab(tab);
         if (nextPath === location.pathname) return;
-        navigate(nextPath);
+        navigate(nextPath, { replace: true });
       }}
     >
       <ProfileLanguageSync />

@@ -93,12 +93,16 @@
 
 @layer utilities {
 
+  .app-shell-status-seam {
+    background: #FBF6F0;
+  }
+
   .app-shell-top-fade {
     background: linear-gradient(
       to bottom,
       #FBF6F0 0,
-      #FBF6F0 calc(env(safe-area-inset-top) + 1px),
-      rgba(251, 246, 240, 0.95) calc(env(safe-area-inset-top) + 0.25rem),
+      #FBF6F0 calc(env(safe-area-inset-top) + 0.75rem),
+      rgba(251, 246, 240, 0.95) calc(env(safe-area-inset-top) + 0.875rem),
       rgba(251, 246, 240, 0.55) calc(env(safe-area-inset-top) + 1.25rem),
       rgba(251, 246, 240, 0) 100%
     );

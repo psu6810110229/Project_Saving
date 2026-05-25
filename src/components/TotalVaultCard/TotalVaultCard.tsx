@@ -62,7 +62,7 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
           <span className="font-mono text-sm font-semibold tabular-nums text-white/80">/ {formatCurrency(Math.round(animTarget))}</span>
         </div>
 
-        <div className="relative z-10 mt-3 h-2.5 w-full overflow-hidden rounded-pill bg-white/[0.35] shadow-[inset_0_1px_2px_rgba(92,40,7,0.35)]">
+        <div className="relative z-10 mt-3 h-1.5 w-full overflow-hidden rounded-pill bg-white/[0.35] shadow-[inset_0_1px_2px_rgba(92,40,7,0.35)]">
           <div
             className="h-full rounded-pill bg-white shadow-[0_0_14px_rgba(255,255,255,0.58)] transition-[width] duration-500"
             style={{ width: `${clamped}%` }}

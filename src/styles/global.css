@@ -181,7 +181,6 @@
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    aspect-ratio: 1.586 / 1;
     background:
       radial-gradient(120% 80% at 100% 0%, rgba(255, 178, 120, 0.45) 0%, transparent 60%),
       radial-gradient(120% 90% at 0% 100%, rgba(64, 18, 24, 0.55) 0%, transparent 65%),

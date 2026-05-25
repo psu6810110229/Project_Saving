@@ -1059,6 +1059,8 @@ export function Dashboard() {
               buckets={bucketItems}
               ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
               onAddBucket={() => setBucketModalOpen(true)}
+              manageLabel={buckets.length > 0 ? d.manageBuckets : undefined}
+              onManageBuckets={buckets.length > 0 ? () => navigate('/manage-project?modal=buckets') : undefined}
               belowHeader={
                 <div className="flex flex-col gap-3">
                   {memberPicker}

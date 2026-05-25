@@ -377,7 +377,7 @@ export function SavingPlan() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-5" aria-label={sp.loadingAriaLabel}>
+      <div className="flex flex-col gap-5 pt-8" aria-label={sp.loadingAriaLabel}>
         {/* Back-button placeholder */}
         <div className="flex items-center justify-between gap-2">
           <Skeleton className="h-10 w-10 rounded-full" />
@@ -592,7 +592,7 @@ export function SavingPlan() {
 
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pt-8">
       {/* Top bar */}
       <div className="flex items-center justify-between gap-2">
         <IconButton ariaLabel={sp.goBackAriaLabel} size="md" onClick={() => navigate(-1)}>

@@ -137,7 +137,7 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
   const themeColor = member?.themeColor ?? undefined;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pt-8">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -406,7 +406,7 @@ function MemberBucketsSection({
 
 function LoadingShell({ md }: { md: ReturnType<typeof useI18n>['copy']['memberDetail'] }) {
   return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label={md.loadingAriaLabel}>
+    <div className="flex flex-col gap-6 pt-8" aria-busy="true" aria-label={md.loadingAriaLabel}>
       <section className="flex items-center gap-4 rounded-xl bg-surface p-5 shadow-soft">
         <Skeleton className="h-24 w-24 rounded-full" />
         <div className="min-w-0 flex-1 flex flex-col gap-2">

@@ -24,7 +24,7 @@ export function BottomNav({ activeTab, onChange }: BottomNavProps) {
   return (
     <nav
       ref={navRef}
-      className="shrink-0 bg-surface border-t border-ink/10 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1"
+      className="shrink-0 border-t border-ink/10 bg-surface/90 px-[max(env(safe-area-inset-left),env(safe-area-inset-right),0px)] pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-1 backdrop-blur-xl"
     >
       <div
         ref={pillRef}

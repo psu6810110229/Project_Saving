@@ -7,6 +7,7 @@ import { IconCalendar, IconEdit, IconPiggyBank } from '../Icon/Icon';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
+import { ROOM_NAME_MAX_LENGTH } from '../../lib/roomName';
 
 interface ProjectCategoryOption {
   id: ProjectCategory;
@@ -43,7 +44,7 @@ export function CreateProjectForm(props: CreateProjectFormProps) {
       </div>
       <CategoryRow label={c.typeLabel} shape="square" options={props.options} value={props.category} onChange={props.onCategoryChange} />
       <FormField label={c.nameLabel}>
-        <TextInput value={props.name} placeholder="Japan 2027" leadingIcon={<IconEdit size={16} />} onChange={(event: ChangeEvent<HTMLInputElement>) => props.onNameChange(event.target.value)} />
+        <TextInput value={props.name} maxLength={ROOM_NAME_MAX_LENGTH} placeholder="Japan 2027" leadingIcon={<IconEdit size={16} />} onChange={(event: ChangeEvent<HTMLInputElement>) => props.onNameChange(event.target.value)} />
       </FormField>
       <FormField label={c.targetLabel}>
         <TextInput value={props.target} inputMode="numeric" placeholder="100000" leadingIcon={<IconPiggyBank size={16} />} onChange={(event: ChangeEvent<HTMLInputElement>) => props.onTargetChange(event.target.value)} />

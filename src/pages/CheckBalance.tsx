@@ -95,7 +95,7 @@ export function CheckBalance() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pt-8">
       {/* Back button stays at the top; the rest of the page is lowered. */}
       <div>
         <IconButton ariaLabel={r.goBackAriaLabel} size="md" onClick={() => navigate(-1)}>
@@ -225,7 +225,7 @@ function SummaryStat({ label, value, emphasized }: { label: string; value: strin
 
 function CheckBalanceSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
-    <div className="flex flex-col gap-5" aria-label={loadingLabel}>
+    <div className="flex flex-col gap-5 pt-8" aria-label={loadingLabel}>
       {/* Back button placeholder */}
       <div>
         <Skeleton className="h-10 w-10 rounded-full" />

@@ -37,7 +37,7 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
           </h2>
           <div className="flex items-center gap-2">
             <span
-              className="rounded-full border border-white/25 bg-white/25 px-3 py-1.5 font-mono text-xs font-bold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]"
+              className="rounded-full border border-white/25 bg-white/40 px-3 py-1.5 font-mono text-sm font-bold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-sm"
               aria-label={`${pctRounded}%`}
             >
               {pctRounded}%

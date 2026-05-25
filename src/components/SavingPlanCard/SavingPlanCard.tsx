@@ -256,10 +256,10 @@ export const SavingPlanCard = memo(function SavingPlanCard({
       {/* Header — eyebrow + status title + halo edit FAB */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="font-mono text-lg font-bold leading-tight text-ink">
+          <h2 className="font-mono text-base font-bold leading-tight text-ink">
             {d.savingPlanLabel}
           </h2>
-          <p className={`mt-1 font-mono text-base font-bold ${moneyHeadlineColor}`}>
+          <p className={`mt-1 font-mono text-sm font-bold ${moneyHeadlineColor}`}>
             {moneyHeadline}
           </p>
         </div>
@@ -292,24 +292,24 @@ export const SavingPlanCard = memo(function SavingPlanCard({
       )}
 
       {/* 3-col meta row — today's plan / days left / progress */}
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500">
-            <IconPiggyBank size={16} />
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500">
+            <IconPiggyBank size={14} />
           </span>
           <div className="min-w-0">
-            <p className="font-mono text-[10px] leading-tight text-ink-muted">{d.todaysPlan}</p>
+            <p className="font-mono text-[11px] leading-tight text-ink-muted">{d.todaysPlan}</p>
             <p className="font-mono text-sm font-bold text-ink truncate">
               {formatCurrency(Math.round(animExpectedToday))}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500">
-            <IconCalendar size={16} />
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500">
+            <IconCalendar size={14} />
           </span>
           <div className="min-w-0">
-            <p className="font-mono text-[10px] leading-tight text-ink-muted">{d.daysLeftLabel}</p>
+            <p className="font-mono text-[11px] leading-tight text-ink-muted">{d.daysLeftLabel}</p>
             <p className="font-mono text-sm font-bold text-ink truncate">
               {daysRemaining === null || daysRemaining < 0
                 ? d.noEndDate
@@ -317,12 +317,12 @@ export const SavingPlanCard = memo(function SavingPlanCard({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500">
-            <IconTrendingUp size={16} />
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500">
+            <IconTrendingUp size={14} />
           </span>
           <div className="min-w-0">
-            <p className="font-mono text-[10px] leading-tight text-ink-muted">{d.progressLabel}</p>
+            <p className="font-mono text-[11px] leading-tight text-ink-muted">{d.progressLabel}</p>
             <p className="font-mono text-sm font-bold text-ink truncate">
               {progressPctRounded}%
             </p>

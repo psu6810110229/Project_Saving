@@ -627,7 +627,7 @@ export const th: Messages = {
     renameNonCreatorHint: 'เฉพาะผู้สร้างโปรเจกต์เท่านั้นที่เปลี่ยนชื่อได้',
     renameCharCounter: (used: number, max: number) => `${used}/${max}`,
     renameErrorEmpty: 'กรุณากรอกชื่อโปรเจกต์',
-    renameErrorTooLong: 'ชื่อต้องไม่เกิน 60 ตัวอักษร',
+    renameErrorTooLong: 'ชื่อต้องไม่เกิน 20 ตัวอักษร',
     renameErrorControlChars: 'ชื่อห้ามมีอักขระควบคุมหรือขึ้นบรรทัดใหม่',
     renameErrorUnchanged: 'ชื่อใหม่เหมือนชื่อเดิม',
     renameErrorNotCreator: 'เฉพาะผู้สร้างโปรเจกต์เท่านั้นที่เปลี่ยนชื่อโปรเจกต์ได้',

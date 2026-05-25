@@ -905,21 +905,23 @@ export function Dashboard() {
         <div aria-hidden className="dashboard-mesh-bg pointer-events-none fixed inset-0 -z-10" />,
         document.body,
       )}
-    <motion.div className="flex flex-col gap-6" variants={containerVariants} initial="hidden" animate="visible">
+    <motion.div className="flex flex-col gap-6 pt-8" variants={containerVariants} initial="hidden" animate="visible">
       {/* Project header. Compact, no heavy card. */}
       <motion.header
         className="flex items-start justify-between gap-3"
         variants={sectionVariants}
       >
         <div className="min-w-0 flex-1">
-          <h1 className="max-w-full break-words font-mono text-2xl font-bold leading-tight text-ink line-clamp-2">
-            {activeRoom?.name ?? 'Japan 2027'}
-          </h1>
-          <div className="mt-1 flex items-center gap-1.5 text-ink-muted">
-            <IconUser size={14} />
-            <span className="font-mono text-xs">
-              {d.membersInRoom(leaderboard.entries.length)}
-            </span>
+          <div className="flex max-w-full flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="min-w-0 break-words font-mono text-2xl font-bold leading-tight text-ink">
+              {activeRoom?.name ?? 'Japan 2027'}
+            </h1>
+            <div className="flex shrink-0 items-center gap-1.5 text-ink-muted" aria-label={d.membersInRoom(leaderboard.entries.length)}>
+              <IconUser size={14} />
+              <span className="font-mono text-xs">
+                {leaderboard.entries.length}
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -1584,7 +1586,7 @@ function DashboardStatusCard({ title, body }: { title: string; body: string }) {
 function DashboardSkeleton() {
   const { copy } = useI18n();
   return (
-    <div className="flex flex-col gap-6 animate-fade-in" aria-label={copy.common.loadingDashboard}>
+    <div className="flex flex-col gap-6 pt-8 animate-fade-in" aria-label={copy.common.loadingDashboard}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3 w-20 rounded-pill" />

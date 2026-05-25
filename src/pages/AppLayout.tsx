@@ -221,7 +221,7 @@ function ProjectSetup({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pt-8">
       <header>
         <SectionLabel tone="brand">GO-OUT</SectionLabel>
         <h1 className="mt-2 font-mono text-3xl font-bold text-ink">{ps.title}</h1>
@@ -264,7 +264,7 @@ function ProjectSetup({
 
 function StatusCard({ title, body }: { title: string; body: string }) {
   return (
-    <section className="rounded-xl bg-surface p-5 shadow-soft">
+    <section className="mt-8 rounded-xl bg-surface p-5 shadow-soft">
       <SectionLabel tone="brand">GO-OUT</SectionLabel>
       <h1 className="mt-2 font-mono text-2xl font-bold text-ink">{title}</h1>
       <p className="mt-2 font-mono text-xs text-ink-muted">{body}</p>

@@ -172,7 +172,7 @@ export function Profile() {
 
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pt-8">
       <PageHeader eyebrow={copy.profile.pageEyebrow} title={copy.profile.pageTitle} subtitle={activeRoom?.name ?? copy.profile.pageSubtitleFallback} />
       <ProfileHeader
         name={profile?.display_name ?? copy.profile.youFallback}
@@ -283,7 +283,7 @@ function StatusCard({ title, body }: { title: string; body: string }) {
 
 function ProfileSkeleton({ ariaLabel }: { ariaLabel: string }) {
   return (
-    <div className="flex flex-col gap-6" aria-label={ariaLabel}>
+    <div className="flex flex-col gap-6 pt-8" aria-label={ariaLabel}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3 w-16 rounded-pill" />

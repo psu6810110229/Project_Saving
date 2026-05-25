@@ -6,6 +6,7 @@ import { generateInviteCode } from '../lib/inviteCode';
 import { notifyRoomJoined, notifyRoomLeft } from '../lib/notifyEvents';
 import { useI18n } from '../i18n/useI18n';
 import type { ProjectCategory, Room } from '../types';
+import { ROOM_NAME_MAX_LENGTH } from '../lib/roomName';
 
 interface CreateRoomValues {
   name: string;
@@ -104,6 +105,10 @@ export function useRooms() {
 
   async function createRoom(values: CreateRoomValues, options: { archiveExisting?: boolean } = {}): Promise<ActionResult> {
     if (!userId) return { error: 'Not authenticated' };
+    const trimmedName = values.name.trim();
+    if (trimmedName === '') return { error: 'name required' };
+    if (trimmedName.length > ROOM_NAME_MAX_LENGTH) return { error: 'name too long' };
+    if (/[\p{Cc}]/u.test(values.name)) return { error: 'name contains control characters' };
 
     if (!options.archiveExisting) {
       const existing = await fetchActiveRoomForCreator();
@@ -116,7 +121,7 @@ export function useRooms() {
     const startDate = new Date().toISOString().slice(0, 10);
     const room: Room = {
       id: roomId,
-      name: values.name.trim(),
+      name: trimmedName,
       invite_code: generateInviteCode(),
       end_date: values.end_date,
       created_by: userId,
@@ -276,7 +281,7 @@ export function useRooms() {
     if (!userId) return { error: 'Not authenticated' };
     const trimmed = name.trim();
     if (trimmed === '') return { error: 'name required' };
-    if (trimmed.length > 60) return { error: 'name too long' };
+    if (trimmed.length > ROOM_NAME_MAX_LENGTH) return { error: 'name too long' };
     if (/[\p{Cc}]/u.test(name)) return { error: 'name contains control characters' };
 
     const { data, error: rpcError } = await supabase

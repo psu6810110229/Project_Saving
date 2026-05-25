@@ -207,7 +207,7 @@ export function AddMoney() {
 
   if (!selectedBucket) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 pt-8">
         <StatusCard
           title={copy.addMoney.createFirstTitle}
           body={copy.addMoney.createFirstBody}
@@ -251,7 +251,7 @@ export function AddMoney() {
     : null;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pt-8">
       <PageHeader
         eyebrow={copy.addMoney.pageEyebrow}
         title={copy.addMoney.pageTitle}
@@ -418,7 +418,7 @@ function StatusCard({ title, body, sectionLabel }: { title: string; body: string
 function AddMoneySkeleton() {
   const { copy } = useI18n();
   return (
-    <div className="flex flex-col gap-5" aria-label={copy.addMoney.loadingAriaLabel}>
+    <div className="flex flex-col gap-5 pt-8" aria-label={copy.addMoney.loadingAriaLabel}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3 w-20 rounded-pill" />

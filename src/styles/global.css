@@ -93,6 +93,23 @@
 
 @layer utilities {
 
+  .app-shell-side-fade {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 1.25rem,
+      #000 calc(100% - 1.25rem),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 1.25rem,
+      #000 calc(100% - 1.25rem),
+      transparent 100%
+    );
+  }
+
   /* Neumorphic surface helpers — composed from tokens, not bespoke colors */
   .surface-raised {
     @apply bg-surface shadow-neuRaised;

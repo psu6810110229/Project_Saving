@@ -32,6 +32,7 @@ import { useRooms } from '../hooks/useRooms';
 import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
 import { hasDuplicateBucketName, sumTargets } from '../lib/buckets';
 import { haptic } from '../lib/haptics';
+import { ROOM_NAME_MAX_LENGTH } from '../lib/roomName';
 import type { Bucket } from '../types';
 
 function firstGrapheme(value: string): string {
@@ -52,9 +53,6 @@ type ManageModal =
   | 'room-goal'
   | 'personal-goal'
   | null;
-
-const ROOM_NAME_MAX = 60;
-
 
 export function ManageProject() {
   const navigate = useNavigate();
@@ -116,7 +114,7 @@ export function ManageProject() {
 
   if (!activeRoom) {
     return (
-      <section className="rounded-xl bg-surface p-5 shadow-soft">
+      <section className="mt-8 rounded-xl bg-surface p-5 shadow-soft">
         <SectionLabel tone="brand">{copy.manageProject.noProjectLabel}</SectionLabel>
         <p className="mt-2 font-mono text-xs text-ink-muted">{copy.manageProject.noProjectBody}</p>
       </section>
@@ -179,7 +177,7 @@ export function ManageProject() {
     const trimmed = renameDraft.trim();
     const currentTrimmed = (activeRoom.name ?? '').trim();
     if (trimmed === '') { setRenameError(copy.manageProject.renameErrorEmpty); return; }
-    if (trimmed.length > ROOM_NAME_MAX) { setRenameError(copy.manageProject.renameErrorTooLong); return; }
+    if (trimmed.length > ROOM_NAME_MAX_LENGTH) { setRenameError(copy.manageProject.renameErrorTooLong); return; }
     if (/[\p{Cc}]/u.test(renameDraft)) { setRenameError(copy.manageProject.renameErrorControlChars); return; }
     if (trimmed === currentTrimmed) { setRenameError(copy.manageProject.renameErrorUnchanged); return; }
 
@@ -405,7 +403,7 @@ export function ManageProject() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pt-8">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -493,7 +491,7 @@ export function ManageProject() {
           const disabled =
             renaming ||
             trimmed === '' ||
-            trimmed.length > ROOM_NAME_MAX ||
+            trimmed.length > ROOM_NAME_MAX_LENGTH ||
             hasControl ||
             trimmed === currentTrimmed;
           return (
@@ -503,14 +501,14 @@ export function ManageProject() {
                 <input
                   type="text"
                   value={renameDraft}
-                  maxLength={ROOM_NAME_MAX}
+                  maxLength={ROOM_NAME_MAX_LENGTH}
                   placeholder={copy.manageProject.renamePlaceholder}
                   onChange={e => { setRenameDraft(e.target.value); setRenameError(null); }}
                   className="rounded-lg bg-well px-3 py-2 font-mono text-sm text-ink shadow-neuPressed outline-none focus:ring-2 focus:ring-brand-500"
                   autoFocus
                 />
                 <span className="self-end font-mono text-[11px] text-ink-dim">
-                  {copy.manageProject.renameCharCounter(trimmed.length, ROOM_NAME_MAX)}
+                  {copy.manageProject.renameCharCounter(trimmed.length, ROOM_NAME_MAX_LENGTH)}
                 </span>
               </label>
               {renameError && (

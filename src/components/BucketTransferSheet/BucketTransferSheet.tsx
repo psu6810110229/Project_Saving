@@ -453,7 +453,7 @@ function BucketTransferSheetInner({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="border border-brand-100/70 bg-brand-50/60 px-3 py-2 text-brand-800 shadow-soft backdrop-blur-sm hover:bg-brand-100/60 hover:text-brand-900"
+                          className="border border-brand-100/70 bg-brand-50/80 px-3 py-2 text-brand-800 shadow-soft hover:bg-brand-100/60 hover:text-brand-900"
                           disabled={source.saved <= 0}
                           onClick={handleMoveAllAmount}
                         >

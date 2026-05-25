@@ -31,15 +31,13 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
   const card = (
     <div className="vault-card-frame">
       <section className="vault-credit-card flex flex-col rounded-2xl px-4 py-3 text-white min-[390px]:px-5 min-[390px]:py-4">
-        <div className="pointer-events-none absolute -left-16 -top-14 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -right-12 bottom-0 h-28 w-28 rounded-full bg-orange-100/14 blur-2xl" />
         <div className="relative z-10 flex items-center justify-between gap-2">
           <h2 className="block font-mono text-sm font-bold leading-tight text-white drop-shadow-[0_1px_8px_rgba(95,36,23,0.28)]">
             {copy.dashboard.recordedVault}
           </h2>
           <div className="flex items-center gap-2">
             <span
-              className="rounded-full border border-white/25 bg-white/[0.18] px-3 py-1.5 font-mono text-xs font-bold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-md"
+              className="rounded-full border border-white/25 bg-white/25 px-3 py-1.5 font-mono text-xs font-bold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]"
               aria-label={`${pctRounded}%`}
             >
               {pctRounded}%
@@ -49,7 +47,7 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
                 type="button"
                 onClick={e => { e.stopPropagation(); onEdit?.(); }}
                 aria-label={editAriaLabel}
-                className="grid h-7 w-7 place-items-center rounded-full border border-white/25 bg-white/[0.18] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-md transition-transform hover:bg-white/30 active:scale-95"
+                className="grid h-7 w-7 place-items-center rounded-full border border-white/25 bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] transition-transform hover:bg-white/30 active:scale-95"
               >
                 <IconEdit size={16} />
               </button>
@@ -71,7 +69,7 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
 
         <div className="relative z-10 mt-3 grid grid-cols-2 gap-0">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/[0.16] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-md">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
               <IconPiggyBank size={18} />
             </span>
             <div className="min-w-0">
@@ -84,7 +82,7 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
             </div>
           </div>
           <div className="flex min-w-0 items-center gap-2">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/[0.16] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-md">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
               <IconTrendingUp size={18} />
             </span>
             <div className="min-w-0">

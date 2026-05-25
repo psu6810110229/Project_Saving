@@ -150,48 +150,6 @@
     animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  /* ── iOS 26 Liquid Glass surfaces ──────────────────────────────
-     Translucent material cards with backdrop-blur, subtle edge
-     highlights, and depth shadows. Three tints: neutral (white),
-     warm (cream/terracotta), and dark (cocoa). All set
-     `position: relative` so child pseudo-elements (e.g. ambient
-     highlight in 26.8) can overlay without extra wrappers. */
-
-  .liquid-glass {
-    position: relative;
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(10px) saturate(180%);
-    -webkit-backdrop-filter: blur(10px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 20px;
-    box-shadow:
-      0 8px 32px rgba(42, 26, 14, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.5);
-    transition:
-      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.28s ease;
-  }
-
-  .liquid-glass-warm {
-    position: relative;
-    background: rgba(255, 255, 255, 0.45);
-    backdrop-filter: blur(8px) saturate(170%);
-    -webkit-backdrop-filter: blur(8px) saturate(170%);
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    border-radius: 20px;
-    box-shadow:
-      0 8px 32px rgba(42, 26, 14, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.7);
-    transition:
-      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.28s ease;
-  }
-
-  /* Warm mesh background for the Dashboard. Three large radial blobs in
-     brand peach/orange/gold over the cream canvas give the liquid-glass
-     cards enough color variation behind them to actually refract. Mounted
-     as a fixed layer in Dashboard.tsx so cards pick up different hues as
-     the user scrolls. Faint noise overlay kills banding from the blur. */
   .dashboard-mesh-bg {
     background-color: #F6DEC8;
     background-image:
@@ -199,47 +157,6 @@
       radial-gradient(1200px 900px at 80% 85%, rgba(196, 132, 62, 0.35), transparent 65%);
   }
 
-  .liquid-glass-dark {
-    position: relative;
-    background: rgba(42, 26, 14, 0.35);
-    backdrop-filter: blur(28px) saturate(170%);
-    -webkit-backdrop-filter: blur(28px) saturate(170%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 20px;
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
-    transition:
-      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.28s ease;
-  }
-
-  /* ── Ambient Material Highlight ──────────────────────────────────
-     A slow drifting specular band that sweeps across liquid-glass
-     cards, suggesting a light-responsive material surface.
-     Applied via ::after so it overlays content non-destructively.
-     The parent must have `position: relative` (liquid-glass classes
-     already set this).
-     Under reduced-motion the global guard kills the animation and
-     the pseudo-element starts at -200% off-canvas → invisible. */
-
-  .ambient-glass::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background:
-      linear-gradient(105deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.08) 30%,
-        rgba(255, 255, 255, 0.15) 50%,
-        rgba(255, 255, 255, 0.08) 70%,
-        transparent 100%);
-    background-size: 300% 100%;
-    background-position: -200% 0;
-    animation: none;
-    pointer-events: none;
-  }
 
   .vault-card-frame {
     position: relative;

@@ -26,10 +26,7 @@ export function BottomTabItem({ label, icon, active = false, onClick }: BottomTa
             scale: active ? 1.08 : 1,
           }}
           transition={{ type: 'spring', stiffness: 520, damping: 34, mass: 0.7 }}
-          className={
-            'relative z-10 drop-shadow-[0_1px_0_rgba(255,255,255,0.5)] ' +
-            (active ? 'filter drop-shadow-[0_6px_10px_rgba(142,63,13,0.22)]' : '')
-          }
+          className="relative z-10"
         >
           {icon}
         </motion.span>

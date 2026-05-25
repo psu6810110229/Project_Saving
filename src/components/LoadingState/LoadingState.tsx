@@ -70,7 +70,7 @@ export function LoadingState({
     <section
       aria-busy="true"
       aria-live="polite"
-      className="w-full max-w-sm rounded-xl border border-white/70 bg-surface/85 p-5 text-center shadow-soft backdrop-blur-xl"
+      className="w-full max-w-sm rounded-xl border border-white/70 bg-surface p-5 text-center shadow-soft"
     >
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 shadow-neuPressed">
         <Spinner size="sm" tone="brand" label={label} />

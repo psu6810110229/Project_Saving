@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { IconEdit, IconPiggyBank, IconTrendingUp } from '../Icon/Icon';
+import { IconButton } from '../IconButton/IconButton';
 import { formatCurrency } from '../../lib/format';
 import { useI18n } from '../../i18n/useI18n';
 import Pressable from '../Pressable/Pressable';
@@ -43,14 +44,15 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
               {pctRounded}%
             </span>
             {onEdit && (
-              <button
-                type="button"
+              <IconButton
+                variant="glass"
+                size="sm"
+                ariaLabel={editAriaLabel ?? 'Edit'}
                 onClick={e => { e.stopPropagation(); onEdit?.(); }}
-                aria-label={editAriaLabel}
-                className="grid h-7 w-7 place-items-center rounded-full border border-white/25 bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] transition-transform hover:bg-white/30 active:scale-95"
+                className="h-7 w-7"
               >
                 <IconEdit size={16} />
-              </button>
+              </IconButton>
             )}
           </div>
         </div>
@@ -60,7 +62,7 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
           <span className="font-mono text-sm font-semibold tabular-nums text-white/80">/ {formatCurrency(Math.round(animTarget))}</span>
         </div>
 
-        <div className="relative z-10 mt-3 h-2 w-full overflow-hidden rounded-pill bg-white/[0.35] shadow-[inset_0_1px_2px_rgba(92,40,7,0.35)]">
+        <div className="relative z-10 mt-3 h-2.5 w-full overflow-hidden rounded-pill bg-white/[0.35] shadow-[inset_0_1px_2px_rgba(92,40,7,0.35)]">
           <div
             className="h-full rounded-pill bg-white shadow-[0_0_14px_rgba(255,255,255,0.58)] transition-[width] duration-500"
             style={{ width: `${clamped}%` }}

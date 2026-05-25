@@ -600,31 +600,33 @@ export function SavingPlan() {
         </IconButton>
       </div>
 
-      {/* Lowered content. */}
-      <div className="mt-10 flex flex-col gap-5">
+      {/* Content */}
+      <div className="mt-2 flex flex-col gap-5">
         <header className="min-w-0">
           <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
             {sp.pageEyebrow}
           </p>
-          <h1 className="mt-2 truncate font-mono text-3xl font-bold text-ink">
-            {isChange ? sp.changeTitle : sp.setUpTitle}
-          </h1>
-          {isChange && (
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={isPaused ? () => setConfirmingResume(true) : () => setConfirmingPause(true)}
-              className={
-                'mt-4 inline-flex items-center gap-2 rounded-pill px-5 py-2.5 font-mono text-sm font-bold transition-all active:scale-95 ' +
-                (isPaused
-                  ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
-                  : 'bg-well text-ink hover:bg-brand-100 hover:text-brand-800')
-              }
-            >
-              <span className="text-base leading-none">{isPaused ? '▶' : '⏸'}</span>
-              {submitting ? '...' : isPaused ? sp.resumeButton : sp.pausePlanButton}
-            </button>
-          )}
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <h1 className="truncate font-mono text-3xl font-bold text-ink">
+              {isChange ? sp.changeTitle : sp.setUpTitle}
+            </h1>
+            {isChange && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={isPaused ? () => setConfirmingResume(true) : () => setConfirmingPause(true)}
+                className={
+                  'inline-flex shrink-0 items-center gap-1.5 rounded-pill px-3 py-1.5 font-mono text-xs font-bold transition-all active:scale-95 ' +
+                  (isPaused
+                    ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
+                    : 'bg-well text-ink hover:bg-brand-100 hover:text-brand-800')
+                }
+              >
+                <span className="text-sm leading-none">{isPaused ? '▶' : '⏸'}</span>
+                {submitting ? '...' : isPaused ? sp.resumeButton : sp.pausePlanButton}
+              </button>
+            )}
+          </div>
         </header>
 
       {/* Paused state: hide all form fields, show resume prompt */}
@@ -642,12 +644,15 @@ export function SavingPlan() {
       {/* Form sections — only shown when plan is active */}
       <div className={isChange && isPaused ? 'hidden' : 'flex flex-col gap-5'}>
 
+      {/* Plan type + Plan fields — 2-col on md+ */}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[auto_1fr]">
+
       {/* Plan type selector */}
-      <section className="rounded-xl bg-surface p-5 shadow-soft">
+      <section className="rounded-xl bg-surface p-5 shadow-soft md:self-start">
         <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
           {sp.planTypeLabel}
         </p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-1">
           {PRESETS.map(preset => {
             const selected = ruleType === preset.id;
             return (
@@ -807,6 +812,8 @@ export function SavingPlan() {
           )}
         </div>
       </section>
+
+      </div>{/* end 2-col grid */}
 
       {/* Preview card */}
       {preview && (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -47,6 +47,8 @@ import {
   IconVault,
 } from '../components/Icon/Icon';
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
+import { MomentumPurposePicker } from '../components/MomentumPurposePicker/MomentumPurposePicker';
+import { ScrollFadeContainer } from '../components/ScrollFadeContainer/ScrollFadeContainer';
 import { BucketNextPickerModal } from '../components/BucketNextPickerModal/BucketNextPickerModal';
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { computeBucketIntent } from '../lib/bucketIntent';
@@ -68,8 +70,9 @@ import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
-import { cumulativeAmountSeries, dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
+import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
+import { availablePurposeCategoriesForMode, purposeDailyMarkers, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
@@ -202,10 +205,32 @@ export function Dashboard() {
   // member rooms read as a room total instead of "You vs Others (N)";
   // 2-user rooms still show a clear room/me/compare experience.
   const [trendMode, setTrendMode] = useState<DailyTrendMode>('room');
+  const [purposeScope, setPurposeScope] = useState<MomentumPurposeScope>({ kind: 'all' });
+  const allVisibleBuckets = useMemo(
+    () => [...buckets, ...data.roomMembersBuckets.allBuckets],
+    [buckets, data.roomMembersBuckets.allBuckets],
+  );
+  const visibleBucketsById = useMemo(() => new Map<string, Bucket>(
+    allVisibleBuckets.map(b => [b.id, b]),
+  ), [allVisibleBuckets]);
   // Selected compare member for Compare mode. Always represents one
   // other member — Compare must never render more than current user +
   // one selected member.
   const [compareMemberId, setCompareMemberId] = useState<string | null>(null);
+  const effectiveTrendMode: DailyTrendMode = purposeScope.kind === 'bucket' ? 'me' : trendMode;
+  const purposeCategories = useMemo(
+    () => availablePurposeCategoriesForMode(
+      effectiveTrendMode,
+      buckets,
+      allVisibleBuckets,
+      logs,
+      visibleBucketsById,
+      compareMemberId,
+      user?.id,
+    ),
+    [effectiveTrendMode, buckets, allVisibleBuckets, logs, visibleBucketsById, compareMemberId, user?.id],
+  );
+  const purposePickerBuckets = effectiveTrendMode === 'me' ? buckets : allVisibleBuckets;
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [nextPickerOpen, setNextPickerOpen] = useState(false);
@@ -350,6 +375,26 @@ export function Dashboard() {
       setCompareMemberId(otherMemberIds[0]);
     }
   }, [otherMemberIds, compareMemberId, trendMode]);
+
+  useEffect(() => {
+    if (purposeScope.kind === 'category') {
+      if (!purposeCategories.includes(purposeScope.category)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPurposeScope({ kind: 'all' });
+      }
+    } else if (purposeScope.kind === 'categories') {
+      if (purposeScope.categories.some(category => !purposeCategories.includes(category))) {
+        setPurposeScope({ kind: 'all' });
+      }
+    } else if (purposeScope.kind === 'bucket') {
+      if (
+        !visibleBucketsById.has(purposeScope.bucketId)
+        || !purposeCategories.includes(purposeScope.parentCategory)
+      ) {
+        setPurposeScope({ kind: 'all' });
+      }
+    }
+  }, [purposeScope, purposeCategories, visibleBucketsById]);
 
   // Verified balance reminder: open once per session when the last
   // check is ≥ 3 days old (or there has never been one). The session
@@ -663,16 +708,33 @@ export function Dashboard() {
     ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
   // Daily Deposit Trend series (Task 38.1).
-  // - `Room` aggregates every visible room member's daily totals into a
-  //   single primary bar so 3-7 member rooms don't need to render N
-  //   full names inline.
+  // Purpose-filtered daily series per member axis:
+  // - `Total` aggregates every visible room member's daily totals.
   // - `Me` is the current user's daily series only.
   // - `Compare` is current user vs ONE selected other member.
-  // None of these change deposit writes, log queries, balance checks,
-  // or Saving Plan math — they only drive chart display.
-  const meDailySeries = dailyAmountSeries(logs, user?.id);
+  // Purpose is applied first (filter by category/bucket), then member.
+  const meDailySeries = purposeFilteredDailySeries(logs, purposeScope, visibleBucketsById, user?.id);
+  const meDailyMarkers = purposeDailyMarkers(
+    logs,
+    purposeScope,
+    visibleBucketsById,
+    user?.id,
+    undefined,
+    { revealBucketNamesForUserId: user?.id ?? null },
+  );
   const otherDailySeriesByUserId = otherMemberIds.reduce<Record<string, number[]>>((acc, id) => {
-    acc[id] = dailyAmountSeries(logs, id);
+    acc[id] = purposeFilteredDailySeries(logs, purposeScope, visibleBucketsById, id);
+    return acc;
+  }, {});
+  const otherDailyMarkersByUserId = otherMemberIds.reduce<Record<string, ReturnType<typeof purposeDailyMarkers>>>((acc, id) => {
+    acc[id] = purposeDailyMarkers(
+      logs,
+      purposeScope,
+      visibleBucketsById,
+      id,
+      undefined,
+      { revealBucketNamesForUserId: null },
+    );
     return acc;
   }, {});
   const roomDailySeries = otherMemberIds.reduce<number[]>(
@@ -682,8 +744,19 @@ export function Dashboard() {
     },
     meDailySeries.slice(),
   );
+  const roomDailyMarkers = purposeDailyMarkers(
+    logs,
+    purposeScope,
+    visibleBucketsById,
+    undefined,
+    undefined,
+    { revealBucketNamesForUserId: user?.id ?? null },
+  );
   const compareSelectedSeries = compareMemberId
     ? otherDailySeriesByUserId[compareMemberId] ?? null
+    : null;
+  const compareSelectedMarkers = compareMemberId
+    ? otherDailyMarkersByUserId[compareMemberId] ?? null
     : null;
   const weekRecordedTotal = meDailySeries.reduce((sum, v) => sum + v, 0);
   const roomWeekTotal = roomDailySeries.reduce((sum, v) => sum + v, 0);
@@ -706,25 +779,40 @@ export function Dashboard() {
   let chartPrimaryLabel: string;
   let chartSecondaryLabel: string | undefined;
   let chartDisplayedTotal: number;
-  if (trendMode === 'room') {
+  let chartBarMarkers: typeof roomDailyMarkers;
+  let chartPartnerBarMarkers: typeof roomDailyMarkers | undefined;
+  if (effectiveTrendMode === 'room') {
     chartSeries = roomDailySeries;
     chartPartnerSeries = undefined;
     chartPrimaryLabel = d.dailyDepositModeRoom;
     chartSecondaryLabel = undefined;
     chartDisplayedTotal = roomWeekTotal;
-  } else if (trendMode === 'me') {
+    chartBarMarkers = roomDailyMarkers;
+    chartPartnerBarMarkers = undefined;
+  } else if (effectiveTrendMode === 'me') {
     chartSeries = meDailySeries;
     chartPartnerSeries = undefined;
     chartPrimaryLabel = d.dailyDepositModeMe;
     chartSecondaryLabel = undefined;
     chartDisplayedTotal = weekRecordedTotal;
+    chartBarMarkers = meDailyMarkers;
+    chartPartnerBarMarkers = undefined;
   } else {
     chartSeries = meDailySeries;
     chartPartnerSeries = compareSelectedSeries ?? undefined;
     chartPrimaryLabel = d.dailyDepositModeMe;
     chartSecondaryLabel = compareSelectedEntry?.displayName ?? d.partnerLabel;
     chartDisplayedTotal = weekRecordedTotal + compareSelectedTotal;
+    chartBarMarkers = meDailyMarkers;
+    chartPartnerBarMarkers = compareSelectedMarkers ?? undefined;
   }
+  const selectedPurposeEmptyMessage = purposeScope.kind === 'all' || chartDisplayedTotal > 0
+    ? undefined
+    : purposeScope.kind === 'bucket'
+      ? `No deposits for ${visibleBucketsById.get(purposeScope.bucketId)?.name ?? d.savingsFallback} in ${d.last7Days}.`
+      : purposeScope.kind === 'categories'
+        ? `No deposits for ${purposeScope.categories.map(category => copy.bucket.categoryLabels[category]).join(', ')} buckets in ${d.last7Days}.`
+        : `No deposits for ${copy.bucket.categoryLabels[purposeScope.category]} buckets in ${d.last7Days}.`;
   const weekExpectedTotal = expectedDailySeries
     ? expectedDailySeries.reduce((sum, v) => sum + v, 0)
     : undefined;
@@ -1041,20 +1129,33 @@ export function Dashboard() {
           series={chartSeries}
           partnerSeries={chartPartnerSeries}
           labels={lastSevenDayLabels(undefined, chartLocale)}
+          barMarkers={chartBarMarkers}
+          partnerBarMarkers={chartPartnerBarMarkers}
           yourName={profile?.display_name ?? d.youLabel}
           partnerName={chartSecondaryLabel}
           primaryLabel={chartPrimaryLabel}
           secondaryLabel={chartSecondaryLabel}
           displayedTotal={chartDisplayedTotal}
+          emptyStateMessage={selectedPurposeEmptyMessage}
+          purposePicker={purposeCategories.length > 0 ? (
+            <MomentumPurposePicker
+              categories={purposeCategories}
+              buckets={purposePickerBuckets}
+              value={purposeScope}
+              onChange={setPurposeScope}
+              hideBucketRow={effectiveTrendMode !== 'me'}
+/>
+          ) : undefined}
           modeControl={hasOtherMembers ? (
             <DailyTrendModeControl
               ariaLabel={d.dailyDepositModeAria}
               options={trendModeOptions}
-              value={trendMode}
+              value={effectiveTrendMode}
               onChange={setTrendMode}
+              disabledValues={purposeScope.kind === 'bucket' ? ['room', 'compare'] : undefined}
             />
           ) : undefined}
-          compareChips={hasOtherMembers && trendMode === 'compare' ? (
+          compareChips={hasOtherMembers && effectiveTrendMode === 'compare' ? (
             <CompareMemberDropdown
               ariaLabel={d.dailyDepositCompareAria}
               members={otherMemberIds.map(id => {
@@ -1619,40 +1720,46 @@ function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMembe
             }}
           />
         )}
-      <div
-        role="tablist"
-        aria-label={ariaLabel}
+      <ScrollFadeContainer
         className="inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-pill bg-well p-1 shadow-neuPressed"
+        fadeColor="#F1E7DC"
+        fadeWidth={20}
       >
-        {options.map(option => {
-          const active = option.value === value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              title={option.label}
-              onClick={() => onChange(option.value)}
-              className={
-                'relative inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-3.5 py-1.5 font-mono text-xs font-bold transition-colors '
-                + (active ? 'text-ink-inverse' : 'text-ink-muted')
-              }
-            >
-              {active && (
-                <motion.span
-                  layoutId="bucket-member-active-pill"
-                  className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                />
-              )}
-              <span className="relative z-10 whitespace-nowrap">
-                {option.label.length > 11 ? `${option.label.slice(0, 11)}…` : option.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+        <div
+          role="tablist"
+          aria-label={ariaLabel}
+          className="inline-flex items-center gap-1"
+        >
+          {options.map(option => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                title={option.label}
+                onClick={() => onChange(option.value)}
+                className={
+                  'relative inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-3.5 py-1.5 font-mono text-xs font-bold transition-colors '
+                  + (active ? 'text-ink-inverse' : 'text-ink-muted')
+                }
+              >
+                {active && (
+                  <motion.span
+                    layoutId="bucket-member-active-pill"
+                    className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
+                    transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  />
+                )}
+                <span className="relative z-10 whitespace-nowrap">
+                  {option.label.length > 11 ? `${option.label.slice(0, 11)}…` : option.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </ScrollFadeContainer>
       </div>
     </LayoutGroup>
   );
@@ -1663,6 +1770,7 @@ interface DailyTrendModeControlProps {
   options: Array<{ value: DailyTrendMode; label: string }>;
   value: DailyTrendMode;
   onChange: (next: DailyTrendMode) => void;
+  disabledValues?: DailyTrendMode[];
 }
 
 /** Custom `Room | Me | Compare` segmented control for the Daily Deposit
@@ -1671,7 +1779,7 @@ interface DailyTrendModeControlProps {
  *  browser-default select/dropdown, no emoji. */
 const TREND_MODE_HINT_STORAGE_KEY = 'daily-trend-mode-hint-seen-v1';
 
-function DailyTrendModeControl({ ariaLabel, options, value, onChange }: DailyTrendModeControlProps) {
+function DailyTrendModeControl({ ariaLabel, options, value, onChange, disabledValues }: DailyTrendModeControlProps) {
   // First-visit shimmer: sweep a soft sheen across the toggle once
   // *after the card scrolls into view*, so users who never reach the
   // Daily Trend section don't burn their one-time hint. Stored per
@@ -1737,16 +1845,19 @@ function DailyTrendModeControl({ ariaLabel, options, value, onChange }: DailyTre
         )}
         {options.map(option => {
           const active = option.value === value;
+          const disabled = disabledValues?.includes(option.value) ?? false;
           return (
             <button
               key={option.value}
               type="button"
               role="tab"
               aria-selected={active}
+              aria-disabled={disabled || undefined}
+              disabled={disabled}
               onClick={() => onChange(option.value)}
               className={
                 'relative inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-2.5 font-mono text-[11px] font-bold transition-colors '
-                + (active ? 'text-ink-inverse' : 'text-ink-muted')
+                + (disabled ? 'text-ink-dim opacity-40 cursor-not-allowed' : active ? 'text-ink-inverse' : 'text-ink-muted')
               }
             >
               {active && (

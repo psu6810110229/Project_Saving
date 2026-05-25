@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -69,9 +69,9 @@ import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
-import { cumulativeAmountSeries, dailyAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
+import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
-import { availablePurposeCategories, type MomentumPurposeScope } from '../lib/momentumPurpose';
+import { availablePurposeCategories, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
 import { daysSince, formatSignedCurrency } from '../lib/reconcile';
 import {
@@ -209,6 +209,9 @@ export function Dashboard() {
     ...buckets,
     ...data.roomMembersBuckets.allBuckets,
   ]);
+  const visibleBucketsById = useMemo(() => new Map<string, Bucket>(
+    [...buckets, ...data.roomMembersBuckets.allBuckets].map(b => [b.id, b]),
+  ), [buckets, data.roomMembersBuckets.allBuckets]);
   // Selected compare member for Compare mode. Always represents one
   // other member — Compare must never render more than current user +
   // one selected member.
@@ -678,16 +681,14 @@ export function Dashboard() {
     ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
   // Daily Deposit Trend series (Task 38.1).
-  // - `Room` aggregates every visible room member's daily totals into a
-  //   single primary bar so 3-7 member rooms don't need to render N
-  //   full names inline.
+  // Purpose-filtered daily series per member axis:
+  // - `Total` aggregates every visible room member's daily totals.
   // - `Me` is the current user's daily series only.
   // - `Compare` is current user vs ONE selected other member.
-  // None of these change deposit writes, log queries, balance checks,
-  // or Saving Plan math — they only drive chart display.
-  const meDailySeries = dailyAmountSeries(logs, user?.id);
+  // Purpose is applied first (filter by category/bucket), then member.
+  const meDailySeries = purposeFilteredDailySeries(logs, purposeScope, visibleBucketsById, user?.id);
   const otherDailySeriesByUserId = otherMemberIds.reduce<Record<string, number[]>>((acc, id) => {
-    acc[id] = dailyAmountSeries(logs, id);
+    acc[id] = purposeFilteredDailySeries(logs, purposeScope, visibleBucketsById, id);
     return acc;
   }, {});
   const roomDailySeries = otherMemberIds.reduce<number[]>(

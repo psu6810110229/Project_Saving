@@ -1834,7 +1834,7 @@ function CompareMemberDropdown({ ariaLabel, members, selectedId, onSelect }: Com
   return (
     <motion.div
       data-compare-member-dropdown
-      className="relative z-30 w-[7.75rem] max-w-[34vw] min-w-[7rem]"
+      className="relative z-30 w-[7.75rem] max-w-[34vw] min-w-[6rem]"
     >
       <div className="h-10 rounded-pill bg-well p-1 shadow-[inset_2px_2px_5px_rgba(120,89,61,0.16),inset_-2px_-2px_5px_rgba(255,255,255,0.62)]">
         <button

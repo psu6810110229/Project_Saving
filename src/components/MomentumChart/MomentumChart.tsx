@@ -339,6 +339,7 @@ export function MomentumChart({
                 gridTemplateRows: compareChips ? '1fr' : '0fr',
                 gridTemplateColumns: compareChips ? '1fr' : '0fr',
                 opacity: compareChips ? 1 : 0,
+                pointerEvents: compareChips ? undefined : 'none',
               }}
               aria-hidden={!compareChips}
             >

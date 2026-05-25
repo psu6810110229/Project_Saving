@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { bucketSaved, hasDuplicateBucketName, sumTargets } from '../../lib/buckets';
 import { isLowConfidenceCategory } from '../../lib/bucketCategories';
 import { type ArchiveErrorHint, useArchiveBucket } from '../../hooks/useArchiveBucket';
@@ -7,7 +7,6 @@ import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { BucketCategoryReviewModal } from '../BucketCategoryReviewModal/BucketCategoryReviewModal';
 import { BucketTransferSheet, type TransferBucketOption } from '../BucketTransferSheet/BucketTransferSheet';
 import { Button } from '../Button/Button';
-import { CreateBucketForm } from '../CreateBucketForm/CreateBucketForm';
 import { FormField } from '../FormField/FormField';
 import { IconCheck, IconEdit, IconPiggyBank, IconTrash, IconX } from '../Icon/Icon';
 import { IconButton } from '../IconButton/IconButton';
@@ -16,27 +15,13 @@ import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
 
-interface BucketCategoryOption {
-  id: BucketCategory;
-  label: string;
-  icon: ReactNode;
-}
-
 interface BucketManagerProps {
   buckets: Bucket[];
   logs: SavingsLog[];
   /** Caller's own bucket transfers, for transfer-aware balance display. */
   transfers?: BucketTransfer[];
-  category: BucketCategory | null;
-  options: BucketCategoryOption[];
-  name: string;
-  target: string;
   goalTarget?: number | null;
   statusMessage?: string | null;
-  onCategoryChange: (next: BucketCategory) => void;
-  onNameChange: (value: string) => void;
-  onTargetChange: (value: string) => void;
-  onCreate: () => void;
   onUpdate: (bucket: Bucket, next: { name: string; target_amount: number }) => Promise<{ error?: string; code?: string; duplicateName?: string }>;
   onReviewCategories?: (updates: { id: string; category: BucketCategory }[]) => Promise<{ error?: string }>;
   onTransferSheetOpenChange?: (open: boolean) => void;
@@ -94,16 +79,8 @@ export function BucketManager({
   buckets,
   logs,
   transfers,
-  category,
-  options,
-  name,
-  target,
   goalTarget,
   statusMessage,
-  onCategoryChange,
-  onNameChange,
-  onTargetChange,
-  onCreate,
   onUpdate,
   onReviewCategories,
   onTransferSheetOpenChange,
@@ -122,13 +99,6 @@ export function BucketManager({
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const totalBucketTargets = sumTargets(buckets);
-  const remainingCapacity = typeof goalTarget === 'number'
-    ? Math.max(0, goalTarget - totalBucketTargets)
-    : null;
-  const createTargetAmount = Number(target);
-  const createTargetOverCapacity = typeof remainingCapacity === 'number'
-    && Number.isFinite(createTargetAmount)
-    && createTargetAmount > remainingCapacity;
 
   const pendingRemoveSaved = pendingRemove
     ? balanceOverrides[pendingRemove.id] ?? bucketSaved(pendingRemove.id, logs, transfers)
@@ -263,18 +233,6 @@ export function BucketManager({
     setTransferSheetSourceId(sourceId);
   }
 
-  function handleCreate() {
-    if (hasDuplicateBucketName(buckets, name)) {
-      setLocalMessage(copy.bucket.duplicateName(name.trim()));
-      return;
-    }
-    if (createTargetOverCapacity) {
-      setLocalMessage(copy.bucket.capacityError(formatMoney(remainingCapacity ?? 0)));
-      return;
-    }
-    onCreate();
-  }
-
   const hasReviewable = onReviewCategories && buckets.some(isLowConfidenceCategory);
 
   async function handleReviewSave(updates: { id: string; category: BucketCategory }[]) {
@@ -336,22 +294,6 @@ export function BucketManager({
           allocated={totalBucketTargets}
         />
       )}
-      <CreateBucketForm
-        category={category}
-        options={options}
-        name={name}
-        target={target}
-        targetHelper={typeof remainingCapacity === 'number'
-          ? copy.bucket.remainingForBuckets(formatMoney(remainingCapacity))
-          : undefined}
-        targetError={createTargetOverCapacity
-          ? copy.bucket.capacityExceededBy(formatMoney(createTargetAmount - (remainingCapacity ?? 0)))
-          : undefined}
-        onCategoryChange={onCategoryChange}
-        onNameChange={onNameChange}
-        onTargetChange={onTargetChange}
-        onSubmit={handleCreate}
-      />
       <RemoveBucketModal
         open={pendingRemove !== null}
         bucketName={pendingRemove?.name ?? null}

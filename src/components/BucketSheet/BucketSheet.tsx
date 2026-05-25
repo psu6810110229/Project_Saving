@@ -139,7 +139,7 @@ export function BucketSheet({
           {/* Backdrop */}
           <motion.div
             key="bucket-sheet-backdrop"
-            className="fixed inset-0 z-40 bg-ink/25 backdrop-blur-[3px]"
+            className="fixed inset-0 z-40 bg-ink/28"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

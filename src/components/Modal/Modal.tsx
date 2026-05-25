@@ -7,16 +7,6 @@ import { IconX } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { FADE_TRANSITION, SPRING } from '../../lib/motion';
 
-const contentVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.055, delayChildren: 0.08 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: SPRING.content },
-};
-
 interface ModalProps {
   open: boolean;
   title: string;
@@ -48,7 +38,7 @@ export function Modal({ open, title, children, onClose, hidden = false }: ModalP
           <motion.div
             key="modal-backdrop"
             className={[
-              'fixed inset-0 z-50 bg-ink/40 backdrop-blur-[2px]',
+              'fixed inset-0 z-50 bg-ink/40',
               hidden ? 'pointer-events-none opacity-0' : '',
             ].join(' ')}
             initial={{ opacity: 0 }}
@@ -77,21 +67,15 @@ export function Modal({ open, title, children, onClose, hidden = false }: ModalP
               exit={{ opacity: 0, y: 14, scale: 0.97 }}
               transition={SPRING.modal}
             >
-              <motion.div
-                variants={contentVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                <motion.header variants={itemVariants} className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <header className="mb-4 flex items-center justify-between gap-3">
                   <h2 id="modal-title" className="font-mono text-xl font-bold text-ink">{title}</h2>
                   <IconButton ariaLabel={copy.common.close} size="sm" onClick={onClose}>
                     <IconX size={18} />
                   </IconButton>
-                </motion.header>
-                <motion.div variants={itemVariants}>
-                  {children}
-                </motion.div>
-              </motion.div>
+                </header>
+                <div>{children}</div>
+              </div>
             </motion.section>
           </motion.div>
         </>

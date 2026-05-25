@@ -88,9 +88,9 @@ export default {
           '100%': { transform: 'translateX(100%)' },
         },
         'success-ring': {
-          '0%':   { boxShadow: '0 0 0 0 rgba(242,107,26,0.3)' },
-          '70%':  { boxShadow: '0 0 0 16px rgba(242,107,26,0)' },
-          '100%': { boxShadow: '0 0 0 0 rgba(242,107,26,0)' },
+          '0%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.98', transform: 'scale(1.01)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
         },
         'bar-grow': {
           '0%': { transform: 'scaleY(0)' },

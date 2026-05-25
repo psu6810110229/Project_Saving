@@ -38,7 +38,7 @@ export function VaultUpdatePreviewModal({
       {open && (
         <motion.div
           key="vault-update-preview"
-          className="fixed inset-0 z-50 min-h-[100dvh] bg-bg/90 backdrop-blur-sm px-4 py-8 flex items-center justify-center"
+          className="fixed inset-0 z-50 min-h-[100dvh] bg-bg/95 px-4 py-8 flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

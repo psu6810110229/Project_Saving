@@ -32,7 +32,7 @@ export function AppUpdateAvailableModal() {
         <>
           <motion.div
             key="app-update-backdrop"
-            className="fixed inset-0 z-[60] bg-ink/50 backdrop-blur-[2px]"
+            className="fixed inset-0 z-[60] bg-ink/50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

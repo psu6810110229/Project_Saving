@@ -287,7 +287,7 @@
 
 .bucket-drag-demo {
   animation: bucketDragDemo 3.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-  will-change: transform, filter;
+  will-change: transform, opacity;
   z-index: 20;
 }
 
@@ -307,7 +307,6 @@
     radial-gradient(circle at 50% 50%, rgba(255, 145, 77, 0.28), transparent 64%),
     radial-gradient(circle at 24% 28%, rgba(255, 211, 130, 0.34), transparent 38%);
   animation: bucketDragAura 3.4s ease-in-out infinite;
-  filter: blur(4px);
 }
 
 @keyframes bucketDropPulse {

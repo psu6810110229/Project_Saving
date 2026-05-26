@@ -81,7 +81,10 @@ export function AppUpdateAvailableModal() {
     } catch {
       // storage may be unavailable
     }
-    void applyAppUpdate();
+    setOpen(false);
+    applyAppUpdate().then(() => {
+      setTimeout(() => window.location.reload(), 800);
+    });
   }
 
   return createPortal(

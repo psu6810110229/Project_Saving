@@ -5,8 +5,6 @@ import { BucketHeader } from '../components/BucketHeader/BucketHeader';
 import { CompleteBucketLock } from '../components/CompleteBucketLock/CompleteBucketLock';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
-import { Modal } from '../components/Modal/Modal';
-import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
@@ -36,14 +34,13 @@ export function AddMoney() {
   const { user, profile } = useAuth();
   const { activeRoom } = useRoom();
   const data = useSharedData();
-  const { quickAmounts, updateQuickAmounts } = data.profile;
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const leaderboard = data.leaderboard;
   const { roomGoalTarget } = data.goal;
   const [selectedBucketId, setSelectedBucketId] = useState<string | null>(null);
-  const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(500);
+  const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(null);
   const [amountValue, setAmountValue] = useState('');
   const [slip, setSlip] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -60,8 +57,6 @@ export function AddMoney() {
   const [bucketCategory, setBucketCategory] = useState<BucketCategory | null>(DEFAULT_BUCKET_CATEGORY);
   const [bucketName, setBucketName] = useState(() => copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
   const [bucketTarget, setBucketTarget] = useState('30000');
-  const [editingQuickAmounts, setEditingQuickAmounts] = useState(false);
-  const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>([]);
   const [appliedBucketId, setAppliedBucketId] = useState<string | null>(null);
   const [smartDefaultActive, setSmartDefaultActive] = useState(false);
   const [doneLockOverridden, setDoneLockOverridden] = useState(false);
@@ -136,26 +131,6 @@ export function AddMoney() {
     }
   }
 
-  function openQuickAmountsEditor() {
-    setQuickAmountDrafts(quickAmounts.map(String));
-    setEditingQuickAmounts(true);
-  }
-
-  async function handleQuickAmountsSave() {
-    const parsed = quickAmountDrafts
-      .map(value => Number(value))
-      .filter(value => Number.isFinite(value) && value > 0);
-    if (parsed.length === 0) {
-      setMessage(copy.addMoney.validationNoBucket);
-      return;
-    }
-    const result = await updateQuickAmounts(parsed);
-    if (result.error) setMessage(result.error);
-    else {
-      setEditingQuickAmounts(false);
-      setMessage(copy.manageProject.quickAmountsSuccess);
-    }
-  }
 
   function requestConfirmDeposit() {
     if (!selectedBucket || amount <= 0) {
@@ -198,7 +173,7 @@ export function AddMoney() {
         reachedBucket,
       });
       setAmountValue('');
-      setSelectedQuickAmount(500);
+      setSelectedQuickAmount(null);
       setSlip(null);
       setMessage(null);
       setAppliedBucketId(null);
@@ -232,13 +207,8 @@ export function AddMoney() {
     setAppliedBucketId(selectedBucket.id);
     setDoneLockOverridden(false);
     if (smartDefault.value != null) {
-      if (quickAmounts.includes(smartDefault.value)) {
-        setSelectedQuickAmount(smartDefault.value);
-        setAmountValue('');
-      } else {
-        setSelectedQuickAmount(null);
-        setAmountValue(String(smartDefault.value));
-      }
+      setSelectedQuickAmount(null);
+      setAmountValue(String(smartDefault.value));
       setSmartDefaultActive(true);
     } else {
       setSmartDefaultActive(false);
@@ -297,15 +267,11 @@ export function AddMoney() {
         bucketName={selectedBucket.name}
         saved={selectedBucketSaved}
         target={selectedBucket.target_amount}
-        quickAmounts={quickAmounts}
-        selectedQuickAmount={selectedQuickAmount}
+        quickAmounts={[]}
+        selectedQuickAmount={null}
         amountValue={amountValue}
         slip={slip}
-        onQuickAmountSelect={next => {
-          if (next !== selectedQuickAmount) setSmartDefaultActive(false);
-          setSelectedQuickAmount(next);
-          setAmountValue('');
-        }}
+        onQuickAmountSelect={() => {}}
         onAmountChange={value => {
           setSmartDefaultActive(false);
           setAmountValue(value.replace(/[^0-9]/g, ''));
@@ -313,7 +279,6 @@ export function AddMoney() {
         }}
         onSlipChange={setSlip}
         onSubmit={requestConfirmDeposit}
-        onEditQuickAmounts={openQuickAmountsEditor}
         smartDefaultHint={smartDefaultActive ? copy.addMoney.smartDefaultHint : null}
         mineLabel={profile?.display_name ?? copy.dashboard.youLabel}
         theirLabel={partner?.displayName ?? copy.addMoney.partnerLabel}
@@ -322,17 +287,7 @@ export function AddMoney() {
         submitting={saving}
       />
       )}
-      <Modal
-        open={editingQuickAmounts}
-        title={copy.manageProject.quickAmountsModalTitle}
-        onClose={() => setEditingQuickAmounts(false)}
-      >
-        <QuickAmountsEditor
-          amounts={quickAmountDrafts}
-          onChange={setQuickAmountDrafts}
-          onSave={handleQuickAmountsSave}
-        />
-      </Modal>
+      {/* Quick amounts editor hidden for now */}
       <ConfirmModal
         open={confirmingDeposit}
         title={

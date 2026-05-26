@@ -10,7 +10,6 @@ import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { FormField } from '../FormField/FormField';
 import { IconPiggyBank, IconTrash } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
-import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
 import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/motion';
@@ -57,7 +56,7 @@ export function BucketSheet({
   name,
   saved,
   target,
-  quickAmounts,
+  quickAmounts: _quickAmounts,
   onConfirm,
   onDelete,
   isComplete,
@@ -68,8 +67,7 @@ export function BucketSheet({
   trendPreview,
 }: BucketSheetProps) {
   const { copy, formatMoney } = useI18n();
-  const defaultPill = quickAmounts[1] ?? quickAmounts[0] ?? 100;
-  const [selectedPill, setSelectedPill] = useState<number | null>(defaultPill);
+  const [selectedPill, setSelectedPill] = useState<number | null>(null);
   const [customValue, setCustomValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmingAmount, setConfirmingAmount] = useState<number | null>(null);
@@ -85,11 +83,6 @@ export function BucketSheet({
   const resolvedAmount =
     customValue.trim() !== '' && customAmount > 0 ? customAmount : (selectedPill ?? 0);
 
-  function handlePillSelect(amount: number) {
-    setSelectedPill(amount);
-    if (customValue.trim() !== '') setCustomValue('');
-  }
-
   function handleCustomChange(event: ChangeEvent<HTMLInputElement>) {
     const next = event.target.value;
     setCustomValue(next);
@@ -100,7 +93,7 @@ export function BucketSheet({
     onClose();
     setTimeout(() => {
       setCustomValue('');
-      setSelectedPill(defaultPill);
+      setSelectedPill(null);
       setConfirmingAmount(null);
       setShowRing(false);
       setDoneLockOverridden(false);
@@ -215,16 +208,6 @@ export function BucketSheet({
                     </>
                   ) : (
                     <>
-                      {/* Quick add */}
-                      <motion.div variants={itemVariants}>
-                        <QuickAddRow
-                          label={copy.addMoney.depositAmountLabel}
-                          amounts={quickAmounts}
-                          selected={selectedPill}
-                          onSelect={handlePillSelect}
-                        />
-                      </motion.div>
-
                       {/* Custom amount */}
                       <motion.div variants={itemVariants}>
                         <FormField label={copy.addMoney.customAmountLabel}>

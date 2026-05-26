@@ -3,9 +3,8 @@ import { BucketHeader } from '../BucketHeader/BucketHeader';
 import { Button } from '../Button/Button';
 import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { FormField } from '../FormField/FormField';
-import { IconEdit, IconPiggyBank } from '../Icon/Icon';
+import { IconPiggyBank } from '../Icon/Icon';
 import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
-import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { SlipAttachField } from '../SlipAttachField/SlipAttachField';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
@@ -38,15 +37,15 @@ export function AddMoneyForm({
   bucketName,
   saved,
   target,
-  quickAmounts,
-  selectedQuickAmount,
+  quickAmounts: _quickAmounts,
+  selectedQuickAmount: _selectedQuickAmount,
   amountValue,
   slip,
-  onQuickAmountSelect,
+  onQuickAmountSelect: _onQuickAmountSelect,
   onAmountChange,
   onSlipChange,
   onSubmit,
-  onEditQuickAmounts,
+  onEditQuickAmounts: _onEditQuickAmounts,
   smartDefaultHint,
   mineLabel,
   theirLabel,
@@ -55,7 +54,7 @@ export function AddMoneyForm({
   submitting = false,
 }: AddMoneyFormProps) {
   const { copy } = useI18n();
-  const amount = Number(amountValue) || selectedQuickAmount || 0;
+  const amount = Number(amountValue) || 0;
   const showTrendPreview = mineLabel && theirLabel && mineSeries && theirSeries;
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -66,26 +65,9 @@ export function AddMoneyForm({
     <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <BucketHeader icon={bucketIcon} name={bucketName} saved={saved} target={target} />
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="font-mono text-lg font-bold leading-tight text-ink">
-            {copy.addMoney.depositAmountLabel}
-          </h2>
-          {onEditQuickAmounts && (
-            <button
-              type="button"
-              onClick={onEditQuickAmounts}
-              className="inline-flex items-center gap-1 font-mono text-xs font-bold text-ink-muted hover:text-ink"
-            >
-              <IconEdit size={14} />
-              {copy.addMoney.editQuickAmountsLabel}
-            </button>
-          )}
-        </div>
-        <QuickAddRow
-          amounts={quickAmounts}
-          selected={selectedQuickAmount}
-          onSelect={onQuickAmountSelect}
-        />
+        <h2 className="font-mono text-lg font-bold leading-tight text-ink">
+          {copy.addMoney.depositAmountLabel}
+        </h2>
       </div>
       <FormField label={copy.addMoney.customAmountLabel}>
         <TextInput

@@ -16,7 +16,6 @@ import {
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
 import { PageHeader } from '../components/PageHeader/PageHeader';
-import { QuickAmountsEditor } from '../components/QuickAmountsEditor/QuickAmountsEditor';
 import { RoomMemberRow } from '../components/RoomMemberRow/RoomMemberRow';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { SettingsList } from '../components/SettingsList/SettingsList';
@@ -75,7 +74,6 @@ export function ManageProject() {
   } = data.goal;
   const { archiveRoom, leaveRoom, renameRoom, refetch: refetchRooms } = useRooms();
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
-  const { quickAmounts, updateQuickAmounts } = data.profile;
   const { buckets, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { logs } = data.logs;
@@ -84,7 +82,6 @@ export function ManageProject() {
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [quickAmountDrafts, setQuickAmountDrafts] = useState<string[]>(quickAmounts.map(String));
   const [renameDraft, setRenameDraft] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -126,7 +123,6 @@ export function ManageProject() {
   const yourBucketTargetTotal = sumTargets(buckets);
 
   function openModal(next: ManageModal) {
-    if (next === 'quick-amounts') setQuickAmountDrafts(quickAmounts.map(String));
     if (next === 'rename-room') {
       if (!isCreator) return;
       setRenameDraft(activeRoom?.name ?? '');
@@ -251,15 +247,6 @@ export function ManageProject() {
     setMessage(copy.manageProject.personalGoalSuccess);
   }
 
-  async function handleQuickAmountsSave() {
-    const result = await updateQuickAmounts(quickAmountDrafts.map(Number));
-    if (result.error) setMessage(result.error);
-    else {
-      setMessage(copy.manageProject.quickAmountsSuccess);
-      closeModal();
-    }
-  }
-
   async function handleUpdateBucket(bucket: Bucket, next: { name: string; target_amount: number }) {
     if (hasDuplicateBucketName(buckets, next.name, bucket.id)) {
       const error = copy.bucket.duplicateName(next.name.trim());
@@ -373,13 +360,14 @@ export function ManageProject() {
       ),
       onClick: () => openModal('buckets'),
     },
-    {
-      id: 'quick',
-      icon: <IconPiggyBank size={18} />,
-      label: copy.manageProject.quickAmountsLabel,
-      description: quickAmounts.map(formatMoney).join(' / '),
-      onClick: () => openModal('quick-amounts'),
-    },
+    // Quick amounts feature hidden for now
+    // {
+    //   id: 'quick',
+    //   icon: <IconPiggyBank size={18} />,
+    //   label: copy.manageProject.quickAmountsLabel,
+    //   description: quickAmounts.map(formatMoney).join(' / '),
+    //   onClick: () => openModal('quick-amounts'),
+    // },
   ];
 
   const roomActionItems = [
@@ -603,13 +591,7 @@ export function ManageProject() {
           </Button>
         </div>
       </Modal>
-      <Modal open={activeModal === 'quick-amounts'} title={copy.manageProject.quickAmountsModalTitle} onClose={closeModal}>
-        <QuickAmountsEditor
-          amounts={quickAmountDrafts}
-          onChange={setQuickAmountDrafts}
-          onSave={handleQuickAmountsSave}
-        />
-      </Modal>
+      {/* Quick amounts editor hidden for now */}
       <Modal
         open={activeModal === 'buckets'}
         title={copy.manageProject.manageBucketsModalTitle}

@@ -9,6 +9,7 @@ import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceChec
 import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
+import { BucketManager } from '../components/BucketManager/BucketManager';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
 import { BucketDragHint } from '../components/BucketDragHint/BucketDragHint';
@@ -168,7 +169,7 @@ export function Dashboard() {
   } = data.goal;
   useRooms();
   const { settings: intentSettings, setManualNextBucket, logIntentEvent } = useBucketIntentSettings(activeRoomId);
-  const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
+  const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
@@ -235,6 +236,8 @@ export function Dashboard() {
   const purposePickerBuckets = effectiveTrendMode === 'me' ? buckets : allVisibleBuckets;
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
+  const [manageBucketTransferSheetOpen, setManageBucketTransferSheetOpen] = useState(false);
   const [nextPickerOpen, setNextPickerOpen] = useState(false);
   const [transferIntent, setTransferIntent] = useState<{
     sourceId: string;
@@ -908,6 +911,35 @@ export function Dashboard() {
     }
   }
 
+  async function handleManageBucketUpdate(bucket: Bucket, next: { name: string; target_amount: number }) {
+    if (hasDuplicateBucketName(buckets, next.name, bucket.id)) {
+      const error = copy.bucket.duplicateName(next.name.trim());
+      return { error, code: 'duplicate_name' as const, duplicateName: next.name.trim() };
+    }
+    if (target > 0) {
+      const capacityForBucket = target - (bucketTargetTotal - bucket.target_amount);
+      if (next.target_amount > capacityForBucket) {
+        const error = copy.bucket.capacityErrorForEdit(formatMoney(Math.max(0, capacityForBucket)));
+        return { error };
+      }
+    }
+    const result = await saveBuckets(
+      buckets.map(item => item.id === bucket.id
+        ? { id: item.id, name: next.name, target_amount: next.target_amount, category: item.category }
+        : { id: item.id, name: item.name, target_amount: item.target_amount, category: item.category }),
+    );
+    if (result.error) {
+      return {
+        ...result,
+        error: result.code === 'duplicate_name'
+          ? copy.bucket.duplicateName(result.duplicateName ?? next.name.trim())
+          : result.error,
+      };
+    }
+    haptic('success');
+    return result;
+  }
+
   if (!isRefreshing && loading && shouldShowSkeleton) return <DashboardSkeleton />;
   if (!isRefreshing && loading) return null;
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
@@ -1063,7 +1095,7 @@ export function Dashboard() {
               ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
               onAddBucket={() => setBucketModalOpen(true)}
               manageLabel={buckets.length > 0 ? d.manageBuckets : undefined}
-              onManageBuckets={buckets.length > 0 ? () => navigate('/manage-project?modal=buckets') : undefined}
+              onManageBuckets={buckets.length > 0 ? () => setManageBucketsOpen(true) : undefined}
               belowHeader={
                 <div className="flex flex-col gap-3">
                   {memberPicker}
@@ -1251,6 +1283,36 @@ export function Dashboard() {
             onSubmit={handleCreateBucket}
           />
         </div>
+      </Modal>
+
+      <Modal
+        open={manageBucketsOpen}
+        title={copy.manageProject.manageBucketsModalTitle}
+        onClose={() => { setManageBucketsOpen(false); setManageBucketTransferSheetOpen(false); }}
+        hidden={manageBucketTransferSheetOpen}
+      >
+        <BucketManager
+          buckets={buckets}
+          logs={logs}
+          transfers={bucketTransfers}
+          goalTarget={target > 0 ? target : null}
+          onUpdate={handleManageBucketUpdate}
+          onReviewCategories={async (updates) => {
+            const result = await reviewBucketCategories(updates);
+            if (!result.error) {
+              for (const u of updates) {
+                logIntentEvent({
+                  eventKey: 'category_reviewed',
+                  bucketId: u.id,
+                  payload: { category: u.category },
+                });
+              }
+            }
+            return result;
+          }}
+          onTransferSheetOpenChange={setManageBucketTransferSheetOpen}
+          onRemoved={refetchBuckets}
+        />
       </Modal>
 
       <BucketNextPickerModal

@@ -15,6 +15,10 @@ dist-ssr
 .playwright-mcp/
 supabase/.temp/
 
+# Temporary test/debug artifacts
+/tmp/
+/test-results/
+
 # Separate local projects that live beside this repo's source files.
 /portfolio/
 /fran_portfolio/

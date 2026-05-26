@@ -2,7 +2,7 @@
 
 ## Project Summary
 
-GO-OUT is a mobile-first shared savings tracker for 2 people. Users create or join a project room, manage personal buckets, manually log deposits, compare progress with a partner, check real-money balances, and manage saving plans.
+GO-OUT is a mobile-first shared savings tracker for groups of up to 7 members. Users create or join a project room, manage personal buckets, manually log deposits, compare progress with all room members, check real-money balances, and manage saving plans.
 
 Product boundary:
 - The app does not connect to banks or hold real money.
@@ -93,17 +93,21 @@ Active tokens live in `tailwind.config.js`. Common tokens: `bg`, `surface`, `sur
 
 ## Current Feature Areas
 
-- Auth: Supabase login/callback.
-- Rooms: create, join, archive, restore, switch, leave projects.
-- Goals: shared room target/date via `update_room_goal`.
-- Buckets: owner-managed personal buckets; partner buckets read-only.
-- Deposits: `/add` is fast, positive-only, bucket-based, and must stay fast.
-- Manage Project: shared goal, quick amounts, buckets, archive/leave, project settings.
-- Profile: lighter account/profile area; do not re-add standalone bucket/quick amount management unless requested.
-- Dashboard: progress, comparisons, buckets, charts, activity, balance and saving-plan insights.
-- Reconcile: Check Balance compares app records with real money.
-- Saving Plan: planned progress is separate from verified balance.
-- PWA/Nudges: release popup, install support, service worker, existing nudge infrastructure.
+- Auth: Supabase email/OAuth login + `/auth/callback` code exchange.
+- Rooms: create, join, archive, restore, switch, leave, rename projects. Up to 7 members per room enforced by DB trigger (`enforce_room_capacity`). Join via invite code with row-level locking to prevent race conditions.
+- Goals: room-level goal (`rooms.target_amount` + `rooms.end_date`, canonical) via `update_room_goal` (creator only) + per-member personal sub-goals (`goals.target_amount`) via `update_member_goal`. Bucket targets must not exceed the member's personal goal.
+- Buckets: owner-managed personal buckets (max 10 per user/room); other members' buckets read-only. Features include: category system (`flight`, `stay`, `transport`, `food`, `activities`, `shopping`, `buffer`, `home`, `other`) with source/confidence metadata, intent system (`focus`/`next`/`done` computed from progress), drag-to-reorder, same-user bucket-to-bucket transfers (append-only ledger with idempotency), and bucket archiving (zero-balance only, preserves last active bucket).
+- Deposits: `/add` is fast, positive-only, bucket-based with slip upload, and must stay fast. Quick amount buttons (user-editable presets, 1–6 amounts, stored on `profiles.quick_add_amounts`).
+- Manage Project: room goal, personal sub-goal, quick amounts, bucket management, room rename, archive/leave.
+- Profile: avatar, display name, theme picker (`terracotta`/`slate`/`teal`), language (`en`/`th`), create/join project, leave project, app version badge.
+- Dashboard: Vault card (room total vs room goal), Saving Plan card (money status + habit status), Balance Check status (days since last check), Leaderboard (all N members ranked by savings with streaks), Bucket grid (own + view other members', with intent badges), Momentum chart (room/me/compare modes, purpose filter by category), Activity feed (recent deposits).
+- Reconcile: Check Balance compares app records (`current_reconciled_balance` RPC) with real money; checkpoint + signed adjustment on mismatch with reason codes. Partner sees sanitized activity only via `balance_activity_for_room` RPC.
+- Saving Plan: per-user per-room, append-only revisions (never rewrite history). Rule types: `fixed_daily`, `fixed_weekly`, `fixed_monthly`, `increasing_daily`, `increasing_daily_capped`. Pause/resume with append-only audit trail. Bangkok date logic for all calculations. Planned progress is separate from verified balance.
+- Notifications: multi-category system (`nudge`, `saving_reminder`, `partner_activity`, `product`) with 50+ event keys. In-app notification center + push via FCM. Per-user preference toggles. Multi-recipient fan-out on deposits and room events.
+- Nudges: room-scoped, throttled, sends to all other room members.
+- Streak Freezes: monthly grace-day budget (default 2) for missed saving plan days. Append-only usage audit.
+- Milestones: one-shot celebration modals at 25/50/75/90% room progress thresholds.
+- PWA: service worker with precaching (Workbox), NetworkOnly for Supabase, push notification handler, app update modal with skip-waiting flow, iOS splash screens.
 
 ## Money-State Guardrails
 
@@ -135,8 +139,8 @@ Rules:
 - Deposit flow must remain unchanged and fast.
 - Ask reason only when balances differ.
 - Optional storage split stays secondary/collapsed.
-- Partner may see sanitized activity summary only.
-- Do not expose private notes or storage details to partner.
+- Other members may see sanitized activity summary only.
+- Do not expose private notes or storage details to other members.
 - Do not allocate Reconcile differences into buckets unless an approved task implements safe double-count prevention.
 
 ## Saving Plan Rules
@@ -152,24 +156,35 @@ Rules:
 ## Supabase / RLS Lessons
 
 Room-member visibility:
-- If a partner cannot see profiles/goals/logs/leaderboard rows, check room-member visibility first.
+- If a member cannot see profiles/goals/logs/leaderboard rows, check room-member visibility first.
 - Avoid recursive `room_members` policies; use the helper pattern from `0012_fix_room_members_visibility.sql`.
 
 Security-definer RPCs:
 - Must validate `auth.uid()`, room membership, ownership when relevant, and safe `search_path`.
 - `active_room_for_creator()` should be no-argument; legacy `active_room_for_creator(p_user_id)` must reject `p_user_id <> auth.uid()`.
+- RPCs with side effects (transfers, archive, reconcile) must use `client_request_id` for idempotency where implemented.
 
 Profiles:
 - Do not sync `profiles` on every auth-state change. Use explicit update flows.
 
 Buckets:
-- Bucket targets must not exceed the user’s goal target.
+- Bucket targets must not exceed the user’s personal goal target.
 - Keep client validation and DB trigger enforcement.
 - When corrections exist, do not use net saved amount alone to decide whether a bucket has history.
+- Bucket archiving restricted to zero-balance buckets; last active bucket cannot be archived.
+- Bucket transfers are same-user, same-room only; append-only ledger.
+
+Room capacity:
+- Room member cap is 7, enforced by `enforce_room_capacity()` trigger (migration 0056).
+- `join_room_by_code()` uses `FOR UPDATE` row locking to prevent race conditions at capacity.
 
 Financial policies:
 - Before adding financial-history tables, verify old broad `savings_logs` policies are not unsafe.
 - Prefer room-member read, owner-only insert, no direct client update/delete of meaningful financial history, and RPCs for sensitive writes.
+
+Notifications:
+- Fan-out pattern (migration 0055): events fan out to all eligible room members, gated by per-user preferences.
+- Push delivery via edge function + `push_subscriptions` table with FCM tokens.
 
 ## Git Rules
 

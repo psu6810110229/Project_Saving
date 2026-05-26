@@ -1,4 +1,4 @@
-import { type ChangeEvent, type ReactNode, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
@@ -39,6 +39,7 @@ interface BucketSheetProps {
   nextBucketName?: string | null;
   onRequestTransferExtra?: (sourceBucketId: string) => void;
   onDoneLockOverride?: (bucketId: string) => void;
+  smartDefaultAmount?: number | null;
   trendPreview?: {
     mineLabel: string;
     theirLabel: string;
@@ -63,6 +64,7 @@ export function BucketSheet({
   nextBucketName,
   onRequestTransferExtra,
   onDoneLockOverride,
+  smartDefaultAmount,
   trendPreview,
 }: BucketSheetProps) {
   const { copy, formatMoney } = useI18n();
@@ -77,6 +79,18 @@ export function BucketSheet({
   const showDoneLock = isComplete && !doneLockOverridden;
 
   useBodyScrollLock(open);
+
+  const prevBucketRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (open && bucketId && bucketId !== prevBucketRef.current) {
+      prevBucketRef.current = bucketId;
+      if (smartDefaultAmount != null && smartDefaultAmount > 0) {
+        setCustomValue(String(smartDefaultAmount));
+        setSelectedPill(null);
+      }
+    }
+    if (!open) prevBucketRef.current = null;
+  }, [open, bucketId, smartDefaultAmount]);
 
   const customAmount = Number(customValue);
   const resolvedAmount =

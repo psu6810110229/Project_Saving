@@ -69,6 +69,7 @@ import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
+import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
@@ -235,6 +236,7 @@ export function Dashboard() {
   );
   const purposePickerBuckets = effectiveTrendMode === 'me' ? buckets : allVisibleBuckets;
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
+  const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
   const [manageBucketTransferSheetOpen, setManageBucketTransferSheetOpen] = useState(false);
@@ -1405,6 +1407,7 @@ export function Dashboard() {
             saved={selectedBucketItem?.saved ?? 0}
             target={selectedBucketItem?.target ?? 0}
             quickAmounts={quickAmounts}
+            smartDefaultAmount={smartDefault.value}
             isComplete={isDone}
             extraAmount={extraAmt}
             nextBucketName={nextBucket?.name ?? null}

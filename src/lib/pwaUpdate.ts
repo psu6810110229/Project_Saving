@@ -69,11 +69,18 @@ export async function applyAppUpdate(): Promise<void> {
     window.location.reload();
     return;
   }
+  const fallbackReload = window.setTimeout(() => {
+    window.location.reload();
+  }, 1500);
+
   try {
     // updateSWFn(true) triggers SKIP_WAITING + reload once the new
     // service worker takes control (clients.claim in sw.ts).
     await updateSWFn(true);
+    window.clearTimeout(fallbackReload);
+    window.location.reload();
   } catch (error) {
+    window.clearTimeout(fallbackReload);
     console.warn('[pwa] update failed, falling back to reload', error);
     window.location.reload();
   }

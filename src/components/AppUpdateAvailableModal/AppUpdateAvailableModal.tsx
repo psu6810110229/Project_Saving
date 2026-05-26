@@ -96,6 +96,9 @@ export function AppUpdateAvailableModal() {
   }, []);
 
   function handleDone() {
+    setOpen(false);
+    setPhase('idle');
+    setProgress(0);
     try {
       window.localStorage.removeItem(RELEASE_UNDERSTOOD_KEY);
       window.sessionStorage.removeItem(RELEASE_DISMISSED_KEY);
@@ -170,7 +173,7 @@ export function AppUpdateAvailableModal() {
                   </h2>
 
                   <div className="mt-5 w-full">
-                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-brand-100">
+                    <div className="relative h-2 w-full overflow-hidden rounded-full bg-brand-100">
                       <motion.div
                         className="absolute inset-y-0 left-0 rounded-full bg-brand-600"
                         initial={{ width: '0%' }}
@@ -199,7 +202,7 @@ export function AppUpdateAvailableModal() {
                   </h2>
 
                   <div className="mt-5 w-full">
-                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-brand-100">
+                    <div className="relative h-2 w-full overflow-hidden rounded-full bg-brand-100">
                       <div className="absolute inset-y-0 left-0 w-full rounded-full bg-green-500" />
                     </div>
                     <p className="mt-2 font-mono text-sm font-bold tabular-nums text-green-700">

@@ -4,7 +4,6 @@ import { Button } from '../Button/Button';
 import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { FormField } from '../FormField/FormField';
 import { IconPiggyBank } from '../Icon/Icon';
-import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
 import { SlipAttachField } from '../SlipAttachField/SlipAttachField';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
@@ -24,7 +23,6 @@ interface AddMoneyFormProps {
   onSlipChange: (file: File | null) => void;
   onSubmit: () => void | Promise<void>;
   onEditQuickAmounts?: () => void;
-  smartDefaultHint?: string | null;
   mineLabel?: string;
   theirLabel?: string;
   mineSeries?: number[];
@@ -46,7 +44,6 @@ export function AddMoneyForm({
   onSlipChange,
   onSubmit,
   onEditQuickAmounts: _onEditQuickAmounts,
-  smartDefaultHint,
   mineLabel,
   theirLabel,
   mineSeries,
@@ -63,12 +60,7 @@ export function AddMoneyForm({
 
   return (
     <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-      <BucketHeader icon={bucketIcon} name={bucketName} saved={saved} target={target} />
-      <div className="flex flex-col gap-2">
-        <h2 className="font-mono text-lg font-bold leading-tight text-ink">
-          {copy.addMoney.depositAmountLabel}
-        </h2>
-      </div>
+      <BucketHeader icon={bucketIcon} name={bucketName} saved={saved} target={target} pendingDeposit={amount} />
       <FormField label={copy.addMoney.customAmountLabel}>
         <TextInput
           value={amountValue}
@@ -78,10 +70,6 @@ export function AddMoneyForm({
           onChange={(event: ChangeEvent<HTMLInputElement>) => onAmountChange(event.target.value)}
         />
       </FormField>
-      {smartDefaultHint && (
-        <p className="-mt-2 font-mono text-xs text-ink-muted">{smartDefaultHint}</p>
-      )}
-      <ProjectedProgressCard bucketName={bucketName} saved={saved} target={target} pendingDeposit={amount} />
       {showTrendPreview && (
         <ComparisonTrendChart
           mineLabel={mineLabel}

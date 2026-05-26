@@ -279,7 +279,6 @@ export function AddMoney() {
         }}
         onSlipChange={setSlip}
         onSubmit={requestConfirmDeposit}
-        smartDefaultHint={smartDefaultActive ? copy.addMoney.smartDefaultHint : null}
         mineLabel={profile?.display_name ?? copy.dashboard.youLabel}
         theirLabel={partner?.displayName ?? copy.addMoney.partnerLabel}
         mineSeries={cumulativeAmountSeries(logs, user?.id, amount)}

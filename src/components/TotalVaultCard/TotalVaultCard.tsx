@@ -1,6 +1,5 @@
 import { memo } from 'react';
-import { IconEdit, IconPiggyBank, IconTrendingUp } from '../Icon/Icon';
-import { IconButton } from '../IconButton/IconButton';
+import { IconEdit } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { useI18n } from '../../i18n/useI18n';
 import Pressable from '../Pressable/Pressable';
@@ -13,6 +12,26 @@ interface TotalVaultCardProps {
   editAriaLabel?: string;
   cardholderNames?: string[];
   validThru?: string | null;
+  deadlineDate?: string | null;
+}
+
+
+
+function monthsUntil(deadline?: string | null): number | null {
+  if (!deadline) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(deadline);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const due = new Date(year, month - 1, day);
+  if (Number.isNaN(due.getTime()) || due < startOfToday) return 0;
+
+  const monthDiff = (year - now.getFullYear()) * 12 + (month - (now.getMonth() + 1));
+  const needsExtraMonth = day > now.getDate() ? 1 : 0;
+  return Math.max(1, monthDiff + needsExtraMonth);
 }
 
 function formatValidThru(date?: string | null): string | null {
@@ -22,12 +41,15 @@ function formatValidThru(date?: string | null): string | null {
   return `${m[2]}/${m[1].slice(2)}`;
 }
 
-export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholderNames, validThru }: TotalVaultCardProps) {
+export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEdit, editAriaLabel, cardholderNames, validThru, deadlineDate }: TotalVaultCardProps) {
   const { copy } = useI18n();
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
   const pctRounded = Math.round(animPct);
   const clamped = Math.max(0, Math.min(100, animPct));
+  const remaining = Math.max(target - saved, 0);
+  const monthsLeft = monthsUntil(deadlineDate);
+  const requiredPerMonth = monthsLeft && monthsLeft > 0 ? remaining / monthsLeft : null;
 
   const card = (
     <div className="vault-card-frame">
@@ -38,21 +60,20 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
           </h2>
           <div className="flex items-center gap-2">
             <span
-              className="rounded-full border border-white/25 bg-white/40 px-3 py-1.5 font-mono text-sm font-bold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-sm"
+              className="font-mono text-sm font-bold tabular-nums text-white/90 drop-shadow-[0_1px_8px_rgba(95,36,23,0.4)]"
               aria-label={`${pctRounded}%`}
             >
               {pctRounded}%
             </span>
             {onEdit && (
-              <IconButton
-                variant="glass"
-                size="sm"
-                ariaLabel={editAriaLabel ?? 'Edit'}
+              <button
+                type="button"
+                aria-label={editAriaLabel ?? 'Edit'}
                 onClick={e => { e.stopPropagation(); onEdit?.(); }}
-                className="h-7 w-7"
+                className="grid h-7 w-7 place-items-center text-white/75 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
               >
                 <IconEdit size={16} />
-              </IconButton>
+              </button>
             )}
           </div>
         </div>
@@ -69,33 +90,12 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
           />
         </div>
 
-        <div className="relative z-10 mt-3 grid grid-cols-2 gap-0">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-              <IconPiggyBank size={18} />
-            </span>
-            <div className="min-w-0">
-              <p className="font-mono text-[12px] uppercase tracking-wider text-white/68">
-                {copy.dashboard.vaultSaved}
-              </p>
-              <p className="truncate font-mono text-base font-medium tabular-nums text-white/80">
-                {formatCurrency(Math.round(animSaved))}
-              </p>
-            </div>
-          </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-              <IconTrendingUp size={18} />
-            </span>
-            <div className="min-w-0">
-              <p className="font-mono text-[12px] uppercase tracking-wider text-white/68">
-                {copy.dashboard.vaultTarget}
-              </p>
-              <p className="truncate font-mono text-base font-medium tabular-nums text-white/80">
-                {formatCurrency(Math.round(animTarget))}
-              </p>
-            </div>
-          </div>
+        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-white/85">
+          <span>{copy.dashboard.vaultInsightRemaining(formatCurrency(Math.round(remaining)))}</span>
+          <span className="text-white/50">•</span>
+          <span>{monthsLeft === null ? copy.dashboard.vaultInsightNoDeadline : copy.dashboard.vaultInsightTimeLeft(monthsLeft)}</span>
+          <span className="text-white/50">•</span>
+          <span>{requiredPerMonth === null ? copy.dashboard.vaultInsightMonthlyNeeded('—') : copy.dashboard.vaultInsightMonthlyNeeded(formatCurrency(Math.ceil(requiredPerMonth)))}</span>
         </div>
 
         {(cardholderNames?.length || validThru) && (
@@ -107,8 +107,7 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
               <p className="mt-1.5 truncate font-mono text-[11px] font-semibold uppercase leading-none tracking-wide text-white/85 min-[390px]:mt-2">
                 {(() => {
                   const names = cardholderNames ?? [];
-                  if (names.length <= 3) return names.join(' • ');
-                  return `${names.slice(0, 3).join(' • ')} +${names.length - 3}`;
+                  return names.join(' • ');
                 })()}
               </p>
             </div>

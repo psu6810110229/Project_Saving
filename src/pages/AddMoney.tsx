@@ -58,7 +58,6 @@ export function AddMoney() {
   const [bucketName, setBucketName] = useState(() => copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
   const [bucketTarget, setBucketTarget] = useState('30000');
   const [appliedBucketId, setAppliedBucketId] = useState<string | null>(null);
-  const [smartDefaultActive, setSmartDefaultActive] = useState(false);
   const [doneLockOverridden, setDoneLockOverridden] = useState(false);
 
   const activeRoomId = activeRoom?.id ?? null;
@@ -209,9 +208,6 @@ export function AddMoney() {
     if (smartDefault.value != null) {
       setSelectedQuickAmount(null);
       setAmountValue(String(smartDefault.value));
-      setSmartDefaultActive(true);
-    } else {
-      setSmartDefaultActive(false);
     }
   }
 
@@ -273,7 +269,6 @@ export function AddMoney() {
         slip={slip}
         onQuickAmountSelect={() => {}}
         onAmountChange={value => {
-          setSmartDefaultActive(false);
           setAmountValue(value.replace(/[^0-9]/g, ''));
           setSelectedQuickAmount(null);
         }}

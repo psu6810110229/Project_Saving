@@ -69,16 +69,14 @@ export async function applyAppUpdate(): Promise<void> {
     window.location.reload();
     return;
   }
-  // Wait for SKIP_WAITING to be acknowledged, but cap at 3s so an
-  // unresponsive worker can't strand the user on a disabled button.
-  // Always reload afterwards — vite-plugin-pwa's auto-reload only
-  // fires on controllerchange, which doesn't happen for SWs that
-  // don't clients.claim().
-  await Promise.race([
-    updateSWFn(true),
-    new Promise<void>(resolve => window.setTimeout(resolve, 3000)),
-  ]);
-  window.location.reload();
+  try {
+    // updateSWFn(true) triggers SKIP_WAITING + reload once the new
+    // service worker takes control (clients.claim in sw.ts).
+    await updateSWFn(true);
+  } catch (error) {
+    console.warn('[pwa] update failed, falling back to reload', error);
+    window.location.reload();
+  }
 }
 
 function notifyUpdateListeners(): void {

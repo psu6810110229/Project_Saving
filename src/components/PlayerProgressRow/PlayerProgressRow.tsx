@@ -137,7 +137,7 @@ export function PlayerProgressRow({
     <div className="relative shrink-0">
       {isLeader && <CrownBadge />}
       <Avatar
-        size="lg"
+        size="xl"
         imageUrl={imageUrl}
         fallback={fallback}
         ring={isLeader ? 'leader' : themeColor ? 'theme' : 'none'}
@@ -171,7 +171,7 @@ export function PlayerProgressRow({
           <div className="flex-1 min-w-0">
             <NameLine displayName={displayName} gapLabel={gapLabel} />
             <div className="mt-1 flex items-baseline gap-2 font-mono">
-              <span className="text-lg font-bold text-brand-500">{formatCurrency(saved)}</span>
+              <span className="text-2xl font-bold text-brand-500">{formatCurrency(saved)}</span>
               <span className="text-xs text-ink-muted shrink-0">/ {formatCurrency(target)}</span>
             </div>
             <ProgressLine pct={pct} themeColor={themeColor} />
@@ -191,7 +191,7 @@ export function PlayerProgressRow({
           {trailing && <div className="shrink-0">{trailing}</div>}
         </div>
         <div className="mt-1 flex items-baseline gap-2 font-mono">
-          <span className="text-lg font-bold text-brand-500">{formatCurrency(saved)}</span>
+          <span className="text-2xl font-bold text-brand-500">{formatCurrency(saved)}</span>
           <span className="text-xs text-ink-muted shrink-0">/ {formatCurrency(target)}</span>
         </div>
         <ProgressLine pct={pct} themeColor={themeColor} />

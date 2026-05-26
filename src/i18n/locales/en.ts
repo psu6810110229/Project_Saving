@@ -419,9 +419,7 @@ export const en = {
     progressMessages: [
       'Downloading update...',
       'Installing...',
-      'Please wait...',
-      'Almost there...',
-      'Finishing up...',
+      'Almost done...',
     ] as const,
     updateComplete: 'Update complete!',
     done: 'Done',

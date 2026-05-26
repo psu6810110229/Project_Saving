@@ -9,7 +9,6 @@ import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendCha
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { FormField } from '../FormField/FormField';
 import { IconPiggyBank, IconTrash } from '../Icon/Icon';
-import { ProjectedProgressCard } from '../ProjectedProgressCard/ProjectedProgressCard';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
 import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/motion';
@@ -175,7 +174,7 @@ export function BucketSheet({
                 >
                   {/* Bucket header */}
                   <motion.div variants={itemVariants}>
-                    <BucketHeader icon={icon} name={name} saved={saved} target={target} />
+                    <BucketHeader icon={icon} name={name} saved={saved} target={target} pendingDeposit={showDoneLock ? 0 : resolvedAmount} />
                   </motion.div>
 
                   {showDoneLock ? (
@@ -219,16 +218,6 @@ export function BucketSheet({
                             onChange={handleCustomChange}
                           />
                         </FormField>
-                      </motion.div>
-
-                      {/* Projected progress */}
-                      <motion.div variants={itemVariants}>
-                        <ProjectedProgressCard
-                          bucketName={name}
-                          saved={saved}
-                          target={target}
-                          pendingDeposit={resolvedAmount}
-                        />
                       </motion.div>
 
                       {trendPreview && (

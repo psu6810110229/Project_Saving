@@ -1,4 +1,5 @@
 ﻿import type { CSSProperties } from 'react';
+import { useI18n } from '../../i18n/useI18n';
 import { palette } from '../../lib/theme';
 
 /**
@@ -52,6 +53,7 @@ export function ComparisonTrendChart({
   mineLabel,
   theirLabel,
 }: ComparisonTrendChartProps) {
+  const { copy } = useI18n();
   const max = Math.max(1, ...mineSeries, ...theirSeries);
   const minePath = pathFor(mineSeries, max);
   const theirPath = pathFor(theirSeries, max);
@@ -85,7 +87,7 @@ export function ComparisonTrendChart({
     <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
       <div className="flex items-center justify-between">
         <h3 className="min-w-0 truncate font-mono text-sm font-bold leading-tight text-ink">
-          Trend vs {theirLabel}
+          {copy.addMoney.trendVsTitle(theirLabel)}
         </h3>
         <div className="flex items-center gap-3 font-mono text-[11px]">
           <span className="inline-flex items-center gap-1.5 text-brand-800">

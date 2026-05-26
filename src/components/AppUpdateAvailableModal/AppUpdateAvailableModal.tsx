@@ -13,6 +13,34 @@ const RELEASE_DISMISSED_KEY = 'releaseDismissedSessionVersion';
 
 type Phase = 'idle' | 'loading' | 'done';
 
+type Keyframe = { t: number; v: number };
+
+function buildProgressKeyframes(): Keyframe[] {
+  const r = () => Math.random();
+  return [
+    { t: 0, v: 0 },
+    { t: 0.08 + r() * 0.04, v: 0.12 + r() * 0.06 },
+    { t: 0.22 + r() * 0.04, v: 0.25 + r() * 0.05 },
+    { t: 0.35 + r() * 0.05, v: 0.28 + r() * 0.04 },
+    { t: 0.50 + r() * 0.05, v: 0.50 + r() * 0.08 },
+    { t: 0.65 + r() * 0.04, v: 0.55 + r() * 0.05 },
+    { t: 0.78 + r() * 0.04, v: 0.75 + r() * 0.08 },
+    { t: 0.90 + r() * 0.03, v: 0.88 + r() * 0.05 },
+    { t: 1, v: 1 },
+  ];
+}
+
+function interpolateKeyframes(kf: Keyframe[], t: number): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  let i = 0;
+  while (i < kf.length - 1 && kf[i + 1].t <= t) i++;
+  const a = kf[i];
+  const b = kf[i + 1];
+  const local = (t - a.t) / (b.t - a.t);
+  return a.v + (b.v - a.v) * local;
+}
+
 export function AppUpdateAvailableModal() {
   const { copy } = useI18n();
   const [open, setOpen] = useState(false);
@@ -34,29 +62,22 @@ export function AppUpdateAvailableModal() {
     setProgress(0);
     setMessageIndex(0);
 
-    const duration = (3 + Math.random() * 7) * 1000;
-    durationRef.current = duration;
+    const DURATION = 5000;
+    durationRef.current = DURATION;
     startTimeRef.current = performance.now();
 
-    const totalMessages = messages.length;
+    const keyframes = buildProgressKeyframes();
 
     function tick(now: number) {
       const elapsed = now - startTimeRef.current;
-      const ratio = Math.min(elapsed / durationRef.current, 1);
+      const ratio = Math.min(elapsed / DURATION, 1);
 
-      const eased = ratio < 0.3
-        ? ratio * 1.5
-        : ratio < 0.8
-          ? 0.45 + (ratio - 0.3) * 0.8
-          : 0.85 + (ratio - 0.8) * 0.75;
-      const pct = Math.min(Math.round(eased * 100), 100);
+      const pct = Math.min(Math.round(interpolateKeyframes(keyframes, ratio) * 100), 100);
       setProgress(pct);
 
-      const msgIdx = Math.min(
-        Math.floor(ratio * totalMessages),
-        totalMessages - 1,
-      );
-      setMessageIndex(msgIdx);
+      if (pct < 40) setMessageIndex(0);
+      else if (pct < 80) setMessageIndex(Math.min(1, messages.length - 1));
+      else setMessageIndex(Math.min(2, messages.length - 1));
 
       if (ratio < 1) {
         rafRef.current = requestAnimationFrame(tick);

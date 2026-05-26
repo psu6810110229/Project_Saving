@@ -407,8 +407,6 @@ export const th: Messages = {
     progressMessages: [
       'กำลังดาวน์โหลด...',
       'กำลังติดตั้ง...',
-      'รอสักครู่...',
-      'ใกล้แล้ว...',
       'เกือบเสร็จแล้ว...',
     ] as const,
     updateComplete: 'อัปเดตสำเร็จ!',

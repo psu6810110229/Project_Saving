@@ -110,6 +110,11 @@ export const en = {
     vaultInsightRemaining: (amount: string) => `Remaining ${amount}`,
     vaultInsightTimeLeft: (months: number) => `${months} month${months === 1 ? '' : 's'} left`,
     vaultInsightMonthlyNeeded: (amount: string) => `Need/mo ${amount}`,
+    vaultInsightGoalGap: (amount: string) => `${amount} to goal`,
+    vaultInsightDaysLeft: (days: number) => `${days} day${days === 1 ? '' : 's'} left`,
+    vaultInsightMonthsLeft: (months: number) => `${months} month${months === 1 ? '' : 's'} left`,
+    vaultInsightYearsMonthsLeft: (years: number, months: number) =>
+      `${years} year${years === 1 ? '' : 's'}${months > 0 ? ` ${months} month${months === 1 ? '' : 's'}` : ''} left`,
     vaultInsightNoDeadline: 'No deadline',
     // Header
     projectLabel: 'Project',

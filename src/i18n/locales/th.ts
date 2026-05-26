@@ -111,6 +111,11 @@ export const th: Messages = {
     vaultInsightRemaining: (amount: string) => `เหลืออีก ${amount}`,
     vaultInsightTimeLeft: (months: number) => `เหลือเวลา ${months} เดือน`,
     vaultInsightMonthlyNeeded: (amount: string) => `ต้องเก็บ/เดือน ${amount}`,
+    vaultInsightGoalGap: (amount: string) => `ขาดอีก ${amount} ถึงเป้าหมาย`,
+    vaultInsightDaysLeft: (days: number) => `เหลือเวลา ${days} วัน`,
+    vaultInsightMonthsLeft: (months: number) => `เหลือเวลา ${months} เดือน`,
+    vaultInsightYearsMonthsLeft: (years: number, months: number) =>
+      `เหลือเวลา ${years} ปี${months > 0 ? ` ${months} เดือน` : ''}`,
     vaultInsightNoDeadline: 'ไม่มีกำหนดเวลา',
     projectLabel: '',
     membersInRoom: (count: number) => `${count} คนในห้องนี้`,

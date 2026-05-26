@@ -2,7 +2,6 @@ import { memo } from 'react';
 import { IconEdit } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { useI18n } from '../../i18n/useI18n';
-import Pressable from '../Pressable/Pressable';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 
 interface TotalVaultCardProps {
@@ -17,21 +16,55 @@ interface TotalVaultCardProps {
 
 
 
-function monthsUntil(deadline?: string | null): number | null {
-  if (!deadline) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(deadline);
+type VaultTimeLeft =
+  | { kind: 'days'; days: number }
+  | { kind: 'months'; months: number }
+  | { kind: 'yearsMonths'; years: number; months: number };
+
+function parseLocalDate(date?: string | null): Date | null {
+  if (!date) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   if (!m) return null;
   const year = Number(m[1]);
   const month = Number(m[2]);
   const day = Number(m[3]);
+  const parsed = new Date(year, month - 1, day);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function monthsUntilDate(due: Date, today: Date): number {
+  const monthDiff = (due.getFullYear() - today.getFullYear()) * 12 + (due.getMonth() - today.getMonth());
+  const needsExtraMonth = due.getDate() > today.getDate() ? 1 : 0;
+  return Math.max(1, monthDiff + needsExtraMonth);
+}
+
+function addMonthsClamped(date: Date, months: number): Date {
+  const targetMonthIndex = date.getMonth() + months;
+  const targetYear = date.getFullYear() + Math.floor(targetMonthIndex / 12);
+  const targetMonth = ((targetMonthIndex % 12) + 12) % 12;
+  const lastDayOfTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  return new Date(targetYear, targetMonth, Math.min(date.getDate(), lastDayOfTargetMonth));
+}
+
+function getVaultTimeLeft(deadline?: string | null): VaultTimeLeft | null {
+  const due = parseLocalDate(deadline);
+  if (!due) return null;
+
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const due = new Date(year, month - 1, day);
-  if (Number.isNaN(due.getTime()) || due < startOfToday) return 0;
+  const msPerDay = 24 * 60 * 60 * 1000;
+  if (due < startOfToday) return { kind: 'days', days: 0 };
 
-  const monthDiff = (year - now.getFullYear()) * 12 + (month - (now.getMonth() + 1));
-  const needsExtraMonth = day > now.getDate() ? 1 : 0;
-  return Math.max(1, monthDiff + needsExtraMonth);
+  const oneMonthFromToday = addMonthsClamped(startOfToday, 1);
+  if (due < oneMonthFromToday) {
+    return { kind: 'days', days: Math.ceil((due.getTime() - startOfToday.getTime()) / msPerDay) };
+  }
+
+  const months = monthsUntilDate(due, startOfToday);
+  if (months > 12) {
+    return { kind: 'yearsMonths', years: Math.floor(months / 12), months: months % 12 };
+  }
+  return { kind: 'months', months };
 }
 
 function formatValidThru(date?: string | null): string | null {
@@ -48,8 +81,15 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
   const pctRounded = Math.round(animPct);
   const clamped = Math.max(0, Math.min(100, animPct));
   const remaining = Math.max(target - saved, 0);
-  const monthsLeft = monthsUntil(deadlineDate);
-  const requiredPerMonth = monthsLeft && monthsLeft > 0 ? remaining / monthsLeft : null;
+  const timeLeft = getVaultTimeLeft(deadlineDate);
+  const timeLeftLabel =
+    timeLeft === null
+      ? copy.dashboard.vaultInsightNoDeadline
+      : timeLeft.kind === 'days'
+        ? copy.dashboard.vaultInsightDaysLeft(timeLeft.days)
+        : timeLeft.kind === 'months'
+          ? copy.dashboard.vaultInsightMonthsLeft(timeLeft.months)
+          : copy.dashboard.vaultInsightYearsMonthsLeft(timeLeft.years, timeLeft.months);
 
   const card = (
     <div className="vault-card-frame">
@@ -91,11 +131,8 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
         </div>
 
         <div className="relative z-10 mt-3 flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-white/85">
-          <span>{copy.dashboard.vaultInsightRemaining(formatCurrency(Math.round(remaining)))}</span>
-          <span className="text-white/50">•</span>
-          <span>{monthsLeft === null ? copy.dashboard.vaultInsightNoDeadline : copy.dashboard.vaultInsightTimeLeft(monthsLeft)}</span>
-          <span className="text-white/50">•</span>
-          <span>{requiredPerMonth === null ? copy.dashboard.vaultInsightMonthlyNeeded('—') : copy.dashboard.vaultInsightMonthlyNeeded(formatCurrency(Math.ceil(requiredPerMonth)))}</span>
+          <span>{copy.dashboard.vaultInsightGoalGap(formatCurrency(Math.round(remaining)))}</span>
+          <span>{timeLeftLabel}</span>
         </div>
 
         {(cardholderNames?.length || validThru) && (
@@ -126,10 +163,6 @@ export const TotalVaultCard = memo(function TotalVaultCard({ saved, target, onEd
       </section>
     </div>
   );
-
-  if (onEdit) {
-    return <Pressable onClick={onEdit}>{card}</Pressable>;
-  }
 
   return card;
 });

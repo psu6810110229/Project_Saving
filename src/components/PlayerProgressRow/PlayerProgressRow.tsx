@@ -137,7 +137,7 @@ export function PlayerProgressRow({
     <div className="relative shrink-0">
       {isLeader && <CrownBadge />}
       <Avatar
-        size="xl"
+        size="lg"
         imageUrl={imageUrl}
         fallback={fallback}
         ring={isLeader ? 'leader' : themeColor ? 'theme' : 'none'}

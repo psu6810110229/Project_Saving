@@ -117,7 +117,7 @@ export function AtomsPreview() {
               </span>
             } />
             <Avatar fallback="A" size="lg" ring="theme" themeColor="terracotta" />
-            <Avatar fallback="P" size="xl" ring="theme" themeColor="teal" />
+            <Avatar fallback="P" size="lg" ring="theme" themeColor="teal" />
           </div>
         </Group>
 

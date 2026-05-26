@@ -1,5 +1,7 @@
 import { memo, type ReactNode } from 'react';
 import { BucketRow } from '../BucketRow/BucketRow';
+import { Button } from '../Button/Button';
+import { IconButton } from '../IconButton/IconButton';
 import { IconPlus } from '../Icon/Icon';
 
 export interface BucketGridItem {
@@ -57,26 +59,14 @@ export const BucketGrid = memo(function BucketGrid({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {onManageBuckets && (
-            <button
-              type="button"
-              onClick={onManageBuckets}
-              aria-label={manageLabel}
-              title={manageLabel}
-              className="inline-flex items-center rounded-pill bg-well px-3 py-1.5 font-mono text-xs font-bold text-ink-muted shadow-neuPressed transition-colors hover:text-ink active:scale-[0.98]"
-            >
-              {manageLabel}
-            </button>
+            <Button variant="secondary" size="sm" onClick={onManageBuckets}>
+              {manageLabel!}
+            </Button>
           )}
           {onAddBucket && (
-            <button
-              type="button"
-              onClick={onAddBucket}
-              aria-label={ctaLabel}
-              title={ctaLabel}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand-500 text-ink-inverse shadow-haloOrange transition-all duration-200 hover:bg-brand-400 active:scale-[0.98]"
-            >
+            <IconButton variant="solid" size="md" ariaLabel={ctaLabel!} onClick={onAddBucket}>
               <IconPlus size={20} />
-            </button>
+            </IconButton>
           )}
         </div>
       </div>

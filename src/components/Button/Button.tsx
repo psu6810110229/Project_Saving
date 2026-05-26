@@ -12,7 +12,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
  * - `dangerSoft`— soft red bg for the Archive Project zone.
  */
 
-type Variant = 'primary' | 'action' | 'ghost' | 'dangerSoft';
+type Variant = 'primary' | 'action' | 'ghost' | 'dangerSoft' | 'secondary' | 'link';
 type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
@@ -38,6 +38,10 @@ const VARIANTS: Record<Variant, string> = {
     'bg-transparent text-ink-muted hover:text-ink hover:bg-brand-50',
   dangerSoft:
     'bg-danger-soft text-danger hover:bg-danger-soft/80',
+  secondary:
+    'bg-brand-50 border border-brand-100 text-ink-muted hover:bg-brand-100 hover:text-ink',
+  link:
+    'bg-transparent text-brand-800 hover:text-brand-600',
 };
 
 const SIZES: Record<Size, string> = {

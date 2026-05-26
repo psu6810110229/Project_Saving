@@ -1075,13 +1075,9 @@ export function Dashboard() {
                         <span className="min-w-0 flex-1 truncate font-mono text-xs font-bold text-ink-muted">
                           {copy.bucketIntent.nextStrip(nextBucket.name)}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => setNextPickerOpen(true)}
-                          className="shrink-0 font-mono text-xs font-bold text-brand-500 transition-colors hover:text-brand-700 active:scale-[0.98]"
-                        >
+                        <Button variant="link" size="sm" onClick={() => setNextPickerOpen(true)} className="shrink-0">
                           {copy.bucketIntent.changeNext}
-                        </button>
+                        </Button>
                       </div>
                     );
                   })()}
@@ -1201,13 +1197,9 @@ export function Dashboard() {
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-mono text-lg font-bold leading-tight text-ink">{d.activity}</h2>
           {logs.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setHistoryOpen(true)}
-              className="font-mono text-xs font-bold text-brand-800 active:scale-[0.98] transition-transform"
-            >
+            <Button variant="link" size="sm" onClick={() => setHistoryOpen(true)}>
               {d.viewAll}
-            </button>
+            </Button>
           )}
         </div>
         {mergedActivity.length > 0 ? (

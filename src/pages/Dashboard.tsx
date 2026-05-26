@@ -988,6 +988,7 @@ export function Dashboard() {
           editAriaLabel={isCreator ? d.goalEditAria : undefined}
           cardholderNames={leaderboardEntries.map(e => e.name)}
           validThru={activeRoom?.end_date ?? null}
+          deadlineDate={activeRoom?.end_date ?? null}
         />
       </motion.div>
 

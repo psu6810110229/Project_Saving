@@ -107,6 +107,10 @@ export const en = {
     recordedVault: 'Recorded Vault',
     vaultSaved: 'Saved',
     vaultTarget: 'Target',
+    vaultInsightRemaining: (amount: string) => `Remaining ${amount}`,
+    vaultInsightTimeLeft: (months: number) => `${months} month${months === 1 ? '' : 's'} left`,
+    vaultInsightMonthlyNeeded: (amount: string) => `Need/mo ${amount}`,
+    vaultInsightNoDeadline: 'No deadline',
     // Header
     projectLabel: 'Project',
     membersInRoom: (count: number) => `${count} member${count === 1 ? '' : 's'} in this room`,

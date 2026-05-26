@@ -6,11 +6,10 @@ import { IconCheck, IconRocket } from '../Icon/Icon';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useI18n } from '../../i18n/useI18n';
 import { FADE_TRANSITION, SPRING } from '../../lib/motion';
-import { subscribeAppUpdate } from '../../lib/pwaUpdate';
+import { applyAppUpdate, subscribeAppUpdate } from '../../lib/pwaUpdate';
 
 const RELEASE_UNDERSTOOD_KEY = 'releaseUnderstoodVersion';
 const RELEASE_DISMISSED_KEY = 'releaseDismissedSessionVersion';
-const FAKE_UPDATE_REFRESHED_KEY = 'fakeUpdateRefreshed';
 
 type Phase = 'idle' | 'loading' | 'done';
 
@@ -79,11 +78,10 @@ export function AppUpdateAvailableModal() {
     try {
       window.localStorage.removeItem(RELEASE_UNDERSTOOD_KEY);
       window.sessionStorage.removeItem(RELEASE_DISMISSED_KEY);
-      window.sessionStorage.setItem(FAKE_UPDATE_REFRESHED_KEY, '1');
     } catch {
       // storage may be unavailable
     }
-    window.location.reload();
+    void applyAppUpdate();
   }
 
   return createPortal(

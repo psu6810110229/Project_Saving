@@ -223,7 +223,7 @@ function ProfileBand({
   return (
     <section className="flex items-center gap-4 rounded-xl bg-surface p-5 shadow-soft">
       <Avatar
-        size="xl"
+        size="lg"
         imageUrl={avatarUrl}
         fallback={fallback}
         ring={themeColor ? 'theme' : 'none'}

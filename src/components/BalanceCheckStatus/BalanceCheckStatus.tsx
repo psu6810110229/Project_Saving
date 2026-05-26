@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Chip } from '../Chip/Chip';
 import { IconVault } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
-import { daysSince, formatSignedCurrency } from '../../lib/reconcile';
+import { daysSince, formatDirectionalAdjustment } from '../../lib/reconcile';
 import { useI18n } from '../../i18n/useI18n';
 import type { BalanceCheckpoint } from '../../types';
 
@@ -20,6 +20,7 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({ latest, app
   const { copy } = useI18n();
   const d = copy.dashboard;
   const c = copy.common;
+  const r = copy.reconcile;
   const days = latest ? daysSince(latest.checked_at) : null;
   const sinceLabel = latest
     ? days === 0
@@ -42,7 +43,7 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({ latest, app
           </p>
           {latest && (
             <Chip tone={matched ? 'leaf' : 'peach'}>
-              {matched ? d.balanceMatched : formatSignedCurrency(diff)}
+              {matched ? d.balanceMatched : formatDirectionalAdjustment(diff, r.statAdjustedUp, r.statAdjustedDown)}
             </Chip>
           )}
         </div>

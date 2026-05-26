@@ -2,7 +2,7 @@
 import { IconCheck, IconVault } from '../Icon/Icon';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { useI18n } from '../../i18n/useI18n';
-import { formatSignedCurrency } from '../../lib/reconcile';
+import { formatDirectionalAdjustment } from '../../lib/reconcile';
 import type { BalanceActivityEntry } from '../../types';
 
 interface BalanceActivityFeedProps {
@@ -53,7 +53,7 @@ export function BalanceActivityFeed({
                   <span className="font-bold">{actorName}</span>
                   {matched
                     ? ` ${copy.dashboard.checkedBalanceMatchedLong}`
-                    : ` ${copy.dashboard.checkedBalanceDiff(formatSignedCurrency(item.difference_amount))}`}
+                    : ` ${copy.dashboard.checkedBalanceDiff(formatDirectionalAdjustment(item.difference_amount, copy.reconcile.statAdjustedUp, copy.reconcile.statAdjustedDown))}`}
                 </p>
                 <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">
                   {item.reason ? `${reasons[item.reason].label} · ` : ''}{formatRelativeTime(item.checked_at)}

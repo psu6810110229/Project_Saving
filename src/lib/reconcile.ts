@@ -38,6 +38,17 @@ export function formatSignedCurrency(amount: number): string {
   return `${sign}${formatCurrency(Math.abs(amount))}`;
 }
 
+/** Directional label like "ปรับเพิ่ม ฿564" or "Adjusted down ฿537". */
+export function formatDirectionalAdjustment(
+  amount: number,
+  upLabel: string,
+  downLabel: string,
+): string {
+  if (!Number.isFinite(amount) || amount === 0) return formatCurrency(0);
+  const dir = amount > 0 ? upLabel : downLabel;
+  return `${dir} ${formatCurrency(Math.abs(amount))}`;
+}
+
 /** Whole days between two ISO timestamps. Returns 0 if same day. */
 export function daysSince(iso: string, now: Date = new Date()): number {
   const then = new Date(iso).getTime();

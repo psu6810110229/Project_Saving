@@ -13,7 +13,7 @@ import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import { formatSignedCurrency, RECONCILE_REASONS } from '../lib/reconcile';
+import { formatDirectionalAdjustment, formatSignedCurrency, RECONCILE_REASONS } from '../lib/reconcile';
 import type { BalanceAdjustmentReason } from '../types';
 
 type Step = 'enter' | 'difference';
@@ -162,7 +162,11 @@ export function CheckBalance() {
             <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-surfaceAlt p-3">
               <SummaryStat label={r.statActual} value={formatCurrency(actualNumber)} />
               <SummaryStat label={r.statVerified} value={formatCurrency(displayedAppBalance)} />
-              <SummaryStat label={r.statDifference} value={formatSignedCurrency(difference)} emphasized />
+              <SummaryStat
+                label={difference > 0 ? r.statAdjustedUp : r.statAdjustedDown}
+                value={formatSignedCurrency(difference)}
+                emphasized
+              />
             </div>
             <div className="mt-4 flex flex-col gap-2">
               {RECONCILE_REASONS.map(option => (
@@ -204,7 +208,7 @@ export function CheckBalance() {
         title={outcome?.matched ? r.outcomeMatchedTitle : r.outcomeAdjustmentTitle}
         body={outcome?.matched
           ? r.outcomeMatchedBody
-          : r.outcomeDifferenceBody(formatSignedCurrency(outcome?.diff ?? 0))}
+          : r.outcomeDifferenceBody(formatDirectionalAdjustment(outcome?.diff ?? 0, r.statAdjustedUp, r.statAdjustedDown))}
       >
         <Button variant="action" fullWidth onClick={() => navigate('/dashboard')}>{r.outcomeDone}</Button>
       </OutcomeModal>

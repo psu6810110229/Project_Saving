@@ -14,7 +14,7 @@ import { TextInput } from '../TextInput/TextInput';
 import { Button } from '../Button/Button';
 import { IconButton } from '../IconButton/IconButton';
 import { formatCurrency } from '../../lib/format';
-import { formatSignedCurrency, RECONCILE_REASONS } from '../../lib/reconcile';
+import { formatDirectionalAdjustment, formatSignedCurrency, RECONCILE_REASONS } from '../../lib/reconcile';
 import {
   severityFromBehindAmount,
   type HabitStatus,
@@ -382,7 +382,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
                     ? d.notChecked
                     : verifiedBalance.matched
                       ? d.matchedSince(verifiedBalance.sinceLabel)
-                      : `${formatSignedCurrency(verifiedBalance.diff)} ${verifiedBalance.sinceLabel}`}
+                      : `${formatDirectionalAdjustment(verifiedBalance.diff, r.statAdjustedUp, r.statAdjustedDown)} · ${verifiedBalance.sinceLabel}`}
                 </span>
               </p>
             </div>
@@ -421,7 +421,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
                     />
                     {vbDiff !== null && vbDiff !== 0 && (
                       <p className="font-mono text-xs text-ink-muted">
-                        {r.inlineDifferencePrefix} <span className={`font-bold ${vbDiff > 0 ? 'text-accent-leaf' : 'text-danger'}`}>{formatSignedCurrency(vbDiff)}</span>
+                        {vbDiff > 0 ? r.statAdjustedUp : r.statAdjustedDown}: <span className={`font-bold ${vbDiff > 0 ? 'text-accent-leaf' : 'text-danger'}`}>{formatSignedCurrency(vbDiff)}</span>
                       </p>
                     )}
                     {vbError && <p className="font-mono text-xs text-danger">{vbError}</p>}
@@ -449,7 +449,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
                         <p className="font-mono text-sm font-bold text-ink">{formatCurrency(verifiedBalance.amount)}</p>
                       </div>
                       <div>
-                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">{r.inlineStatDiff}</p>
+                        <p className="font-mono text-[10px] text-ink-muted uppercase tracking-wider">{(vbDiff ?? 0) > 0 ? r.statAdjustedUp : r.statAdjustedDown}</p>
                         <p className={`font-mono text-sm font-bold ${(vbDiff ?? 0) > 0 ? 'text-accent-leaf' : 'text-danger'}`}>
                           {formatSignedCurrency(vbDiff ?? 0)}
                         </p>

@@ -75,7 +75,7 @@ import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDa
 import { formatCurrency } from '../lib/format';
 import { availablePurposeCategoriesForMode, purposeDailyMarkers, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
-import { daysSince, formatSignedCurrency } from '../lib/reconcile';
+import { daysSince, formatDirectionalAdjustment } from '../lib/reconcile';
 import {
   activeRevisionAt,
   habitStatusFromDeposits,
@@ -1563,7 +1563,7 @@ function BalanceActivityRow({ entry }: { entry: BalanceActivityEntry }) {
           {' '}
           {matched
             ? d.checkedBalanceMatched
-            : d.checkedBalanceDiff(formatSignedCurrency(entry.difference_amount))}
+            : d.checkedBalanceDiff(formatDirectionalAdjustment(entry.difference_amount, copy.reconcile.statAdjustedUp, copy.reconcile.statAdjustedDown))}
         </p>
         <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">
           {entry.reason ? `${copy.reconcile.reasons[entry.reason].label} · ` : ''}{formatRelativeTime(entry.checked_at)}

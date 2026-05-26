@@ -406,6 +406,16 @@ export const en = {
     title: 'Update available',
     body: 'A new version of GO-OUT is ready. Update now to get the latest fixes and improvements.',
     updateNow: 'Update Now',
+    updatingTitle: 'Updating...',
+    progressMessages: [
+      'Downloading update...',
+      'Installing...',
+      'Please wait...',
+      'Almost there...',
+      'Finishing up...',
+    ] as const,
+    updateComplete: 'Update complete!',
+    done: 'Done',
   },
   bucket: {
     categoryLabels: {

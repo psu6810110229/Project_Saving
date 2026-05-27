@@ -83,6 +83,16 @@ export interface Bucket {
   archived_at?: string | null;
   /** Actor who archived the bucket. */
   archived_by?: string | null;
+  deadline?: string | null;
+  saving_rule_type?: SavingRuleType | null;
+  saving_rule_amount?: number | null;
+  saving_rule_start_amount?: number | null;
+  saving_rule_increment?: number | null;
+  saving_rule_cap?: number | null;
+  saving_rule_day_count?: number | null;
+  reminder_day?: number | null;
+  payment_type?: PaymentType | null;
+  completed_at?: string | null;
 }
 
 /**
@@ -151,6 +161,67 @@ export interface BucketDraft {
   category_source?: BucketCategorySource;
   category_confidence?: number;
   category_reviewed_at?: string | null;
+  deadline?: string | null;
+  saving_rule_type?: SavingRuleType | null;
+  saving_rule_amount?: number | null;
+  saving_rule_start_amount?: number | null;
+  saving_rule_increment?: number | null;
+  saving_rule_cap?: number | null;
+  saving_rule_day_count?: number | null;
+  reminder_day?: number | null;
+  payment_type?: PaymentType | null;
+}
+
+/** Data returned by the bucket create form's deadline & rule steps. */
+export interface BucketCreateRuleData {
+  deadline: string;
+  savingRuleType: SavingRuleType;
+  savingRuleAmount: number | null;
+  savingRuleStartAmount: number | null;
+  savingRuleIncrement: number | null;
+  savingRuleCap: number | null;
+  savingRuleDayCount: number | null;
+  reminderDay: number | null;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Bucket deadline & saving rule types (v0.10.0, migration 0071).
+ * ──────────────────────────────────────────────────────────────────── */
+
+export type SavingRuleType =
+  | 'fixed_daily'
+  | 'fixed_weekly'
+  | 'fixed_monthly'
+  | 'increasing_daily'
+  | 'increasing_daily_capped'
+  | 'flexible';
+
+export type PaymentType = 'advance_booking' | 'pre_trip' | 'on_trip' | 'flexible';
+
+export type PaceStatus = 'ahead' | 'on_track' | 'behind' | 'critical';
+
+export type BucketFocusState = 'focus' | 'next' | 'queued' | 'done' | 'overdue';
+
+export interface BucketPace {
+  status: PaceStatus;
+  percentSaved: number;
+  percentExpected: number;
+  remainingAmount: number;
+  remainingDays: number;
+  requiredPerDay: number | null;
+  requiredPerPeriod: number | null;
+  projectedCompletionDate: string | null;
+}
+
+export interface DailySummaryItem {
+  bucketId: string;
+  bucketName: string;
+  category: BucketCategory;
+  ruleType: SavingRuleType;
+  amountDue: number | null;
+  periodLabel: string;
+  periodDeadline: string | null;
+  isFocus: boolean;
 }
 
 /* ──────────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
 import { BucketDragHint } from '../components/BucketDragHint/BucketDragHint';
 import { BucketTransferSheet } from '../components/BucketTransferSheet/BucketTransferSheet';
+import { ActionAlert, type ActionAlertBucket } from '../components/ActionAlert/ActionAlert';
 import {
   DndContext,
   KeyboardSensor,
@@ -28,14 +29,13 @@ import {
 } from '@dnd-kit/core';
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
-import { RoomLeaderboardList, type PlayerProgressEntry } from '../components/RoomLeaderboardList/RoomLeaderboardList';
 import { IconBubble } from '../components/IconBubble/IconBubble';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { HeroCard } from '../components/HeroCard/HeroCard';
+import { TeamSection, type TeamSectionMember } from '../components/TeamSection/TeamSection';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { VerifiedBalanceReminderModal } from '../components/VerifiedBalanceReminderModal/VerifiedBalanceReminderModal';
-import { NudgeButton } from '../components/NudgeButton/NudgeButton';
 import { BellIconButton } from '../components/Notifications/BellIconButton';
 import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
@@ -524,6 +524,29 @@ export function Dashboard() {
   }, [buckets, logs, bucketTransfers, focusStates, copy.bucketIntent.status]);
   const activeBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind !== 'done'), [bucketItems]);
   const completedBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind === 'done'), [bucketItems]);
+  const actionAlertBuckets = useMemo<ActionAlertBucket[]>(() => buckets
+    .filter(bucket => !doneBucketIds.has(bucket.id) && bucket.deadline)
+    .map(bucket => {
+      const pace = calcBucketPace(bucket, logs, undefined, bucketTransfers);
+      if (pace.status !== 'behind' && pace.status !== 'critical') return null;
+      return {
+        id: bucket.id,
+        name: bucket.name,
+        status: pace.status,
+        remainingAmount: pace.remainingAmount,
+        remainingDays: pace.remainingDays,
+        requiredPerDay: pace.requiredPerDay,
+      };
+    })
+    .filter((bucket): bucket is ActionAlertBucket => bucket !== null)
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'critical' ? -1 : 1;
+      return (b.requiredPerDay ?? 0) - (a.requiredPerDay ?? 0);
+    }), [buckets, doneBucketIds, logs, bucketTransfers]);
+  const actionAlertStorageKey = useMemo(() => {
+    const signature = actionAlertBuckets.map(bucket => `${bucket.id}:${bucket.status}`).join('|') || 'none';
+    return `dashboard-action-alert:${activeRoomId ?? 'no-room'}:${user?.id ?? 'anon'}:${signature}`;
+  }, [actionAlertBuckets, activeRoomId, user?.id]);
   /* eslint-enable react-hooks/preserve-manual-memoization */
   // One-time bucket drag hint (Sprint 40.9). The hint is purely
   // teaching the drag shortcut, so it only makes sense when:
@@ -933,7 +956,7 @@ export function Dashboard() {
   // Leader-first list for the N-aware Progress Race. When the caller
   // is the only member, we synthesise their row from profile/total so
   // the section still renders before any partner has joined.
-  const leaderboardEntries: PlayerProgressEntry[] = useMemo(() => leaderboard.entries.length > 0
+  const leaderboardEntries: TeamSectionMember[] = useMemo(() => leaderboard.entries.length > 0
     ? leaderboard.entries.map(entry => ({
         userId: entry.userId,
         name: entry.isYou ? youName : (entry.displayName ?? d.partnerLabel),
@@ -966,20 +989,22 @@ export function Dashboard() {
     );
   }
 
-  const renderLeaderboardTrailing = useCallback((entry: PlayerProgressEntry) => (
-    <NudgeButton
-      partnerUserId={entry.userId}
-      roomId={activeRoomId}
-      partnerName={entry.name}
-    />
-  ), [activeRoomId]);
-
-  const handleLeaderboardRowClick = useCallback((entry: PlayerProgressEntry) => {
+  const handleTeamMemberClick = useCallback((entry: TeamSectionMember) => {
     if (entry.isYou) {
       navigate('/profile');
       return;
     }
     navigate(`/members/${entry.userId}`);
+  }, [navigate]);
+
+  const handleActionAlertView = useCallback((bucketId: string) => {
+    setBucketView('mine');
+    setExpandedBucketId(bucketId);
+    haptic('success');
+  }, []);
+
+  const handleTeamViewAll = useCallback(() => {
+    navigate('/manage-project');
   }, [navigate]);
 
   const handleCheckBalance = useCallback(() => navigate('/check-balance'), [navigate]);
@@ -1248,13 +1273,24 @@ export function Dashboard() {
         />
       </motion.div>
 
-      {/* 2 — Progress Race (N-aware leaderboard). */}
       <motion.div variants={sectionVariants}>
-        <RoomLeaderboardList
-          entries={leaderboardEntries}
+        <ActionAlert
+          buckets={actionAlertBuckets}
+          storageKey={actionAlertStorageKey}
+          formatMoney={formatMoney}
+          onViewBucket={handleActionAlertView}
+        />
+      </motion.div>
+
+      {/* 2 — Team summary. */}
+      <motion.div variants={sectionVariants}>
+        <TeamSection
+          members={leaderboardEntries}
+          roomSaved={totalSaved}
+          roomTarget={totalTarget}
           emptyBody={d.invitePartnerHint}
-          renderRowTrailing={renderLeaderboardTrailing}
-          onRowClick={handleLeaderboardRowClick}
+          onMemberClick={handleTeamMemberClick}
+          onViewAll={handleTeamViewAll}
         />
       </motion.div>
 

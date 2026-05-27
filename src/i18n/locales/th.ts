@@ -367,6 +367,30 @@ export const th: Messages = {
     endDateLabel: 'เดดไลน์',
     submitButton: 'ยืนยัน',
   },
+  createRoomWizard: {
+    headerLabel: 'โปรเจกต์ใหม่',
+    closeLabel: 'ปิด',
+    nextButton: 'ถัดไป',
+    stepBasicsTitle: 'คุณกำลังเก็บเงินเพื่ออะไร?',
+    stepBasicsSubtitle: 'ตั้งชื่อโปรเจกต์แล้วเลือกหมวดหมู่',
+    nameLabel: 'ชื่อโปรเจกต์',
+    namePlaceholder: 'ญี่ปุ่น 2027',
+    categoryLabel: 'หมวดหมู่',
+    categoryHint: 'หมวดหมู่เพิ่มเติมเร็วๆ นี้',
+    stepEventDateTitle: 'วันสำคัญคือเมื่อไหร่?',
+    stepEventDateSubtitle: 'เลือกวันเป้าหมายเพื่อสร้างไทม์ไลน์อัจฉริยะ',
+    countdownMonths: (months: number): string =>
+      months >= 12
+        ? `อีก ${Math.floor(months / 12)} ปี — มีเวลาเหลือเฟือ!`
+        : `อีก ${months} เดือน — ไปกันเลย!`,
+    countdownDays: (days: number): string =>
+      `อีก ${days} วัน — ต้องเร่งมือแล้ว!`,
+    coverImagePlaceholder: 'รูปปก',
+    changeCoverButton: 'เปลี่ยน',
+    comingSoonStep3: 'ขั้นตอนที่ 3: รายจ่าย — เร็วๆ นี้',
+    comingSoonStep4: 'ขั้นตอนที่ 4: ไทม์ไลน์ — เร็วๆ นี้',
+    comingSoonStep5: 'ขั้นตอนที่ 5: สรุป — เร็วๆ นี้',
+  },
   joinProject: {
     modalTitle: 'เข้าร่วมโปรเจกต์',
     codeLabel: 'รหัสเข้าร่วม',

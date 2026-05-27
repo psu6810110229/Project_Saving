@@ -379,6 +379,30 @@ export const en = {
     endDateLabel: 'End Date',
     submitButton: 'Create Project',
   },
+  createRoomWizard: {
+    headerLabel: 'New Project',
+    closeLabel: 'Close',
+    nextButton: 'Next',
+    stepBasicsTitle: 'What are you saving for?',
+    stepBasicsSubtitle: 'Give your project a name and pick a category.',
+    nameLabel: 'Project Name',
+    namePlaceholder: 'Japan 2027',
+    categoryLabel: 'Category',
+    categoryHint: 'More categories coming soon.',
+    stepEventDateTitle: 'When is the big day?',
+    stepEventDateSubtitle: 'Pick your target date so we can build a smart timeline.',
+    countdownMonths: (months: number): string =>
+      months >= 12
+        ? `${Math.floor(months / 12)} year${Math.floor(months / 12) === 1 ? '' : 's'} to go — plenty of time!`
+        : `${months} month${months === 1 ? '' : 's'} to go — let's do this!`,
+    countdownDays: (days: number): string =>
+      `${days} day${days === 1 ? '' : 's'} to go — time to hustle!`,
+    coverImagePlaceholder: 'Cover image',
+    changeCoverButton: 'Change',
+    comingSoonStep3: 'Step 3: Expenses — coming in Slice 2.4',
+    comingSoonStep4: 'Step 4: Timeline — coming in Slice 2.4',
+    comingSoonStep5: 'Step 5: Summary — coming in Slice 2.5',
+  },
   joinProject: {
     modalTitle: 'Join Project',
     codeLabel: 'Join Code',

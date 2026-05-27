@@ -9,6 +9,7 @@ import { ArchivedProjects } from './pages/ArchivedProjects';
 import { AtomsPreview } from './pages/AtomsPreview';
 import { AuthCallback } from './pages/AuthCallback';
 import { CheckBalance } from './pages/CheckBalance';
+import { CreateRoom } from './pages/CreateRoom';
 import { Dashboard } from './pages/Dashboard';
 import { SavingPlan } from './pages/SavingPlan';
 import { Login } from './pages/Login';
@@ -64,6 +65,7 @@ function App() {
               <Route path="/archived-projects" element={<ArchivedProjects />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
+              <Route path="/create-room" element={<CreateRoom />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

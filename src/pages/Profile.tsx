@@ -68,16 +68,15 @@ export function Profile() {
   }));
 
   // Manage Project -> "Create another project" links here with an
-  // ?intent=create-project query param. Opening the modal is the only
-  // job; strip the param afterwards so a refresh doesn't keep re-opening it.
+  // ?intent=create-project query param. Redirect to the wizard instead
+  // of opening the old modal.
   useEffect(() => {
     if (searchParams.get('intent') !== 'create-project') return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setActiveModal('create-project');
     const next = new URLSearchParams(searchParams);
     next.delete('intent');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+    navigate('/create-room');
+  }, [searchParams, setSearchParams, navigate]);
 
   const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
     loading,

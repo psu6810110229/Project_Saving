@@ -15,6 +15,10 @@ export interface BucketGridItem {
     kind: 'focus' | 'next' | 'done' | 'queued' | 'overdue';
     label: string;
   };
+  pace?: {
+    status: 'ahead' | 'on_track' | 'behind' | 'critical';
+    remainingDays: number;
+  } | null;
 }
 
 interface BucketGridProps {
@@ -83,6 +87,8 @@ export const BucketGrid = memo(function BucketGrid({
               name={bucket.name}
               saved={bucket.saved}
               target={bucket.target}
+              deadline={bucket.deadline}
+              pace={bucket.pace}
               onClick={() => onBucketClick?.(bucket.id)}
             />
           )

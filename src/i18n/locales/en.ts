@@ -624,6 +624,16 @@ export const en = {
     nextPickerTitle: 'Choose next bucket',
     clearNext: 'Clear selection',
   },
+  bucketCard: {
+    daysLeft: (n: number) => `${n}d left`,
+    daysLeftUrgent: (n: number) => `${n}d left!`,
+    deadlineToday: 'Today!',
+    daysOverdue: (n: number) => `${n}d overdue`,
+    paceAhead: 'Ahead',
+    paceOnTrack: 'On track',
+    paceBehind: 'Behind',
+    paceCritical: 'Critical',
+  },
   manageProject: {
     pageEyebrow: 'Project',
     pageTitle: 'Manage Project',

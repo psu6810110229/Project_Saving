@@ -72,6 +72,7 @@ import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
+import { calcBucketPace } from '../lib/paceCalculation';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/format';
@@ -468,6 +469,9 @@ export function Dashboard() {
         const label = statusLabels[focusState] ?? '';
         status = { kind: focusState, label };
       }
+      const paceResult = bucket.deadline
+        ? calcBucketPace(bucket, logs, undefined, bucketTransfers)
+        : null;
       return {
         id: bucket.id,
         icon: bucketIcon(bucket.category),
@@ -477,6 +481,7 @@ export function Dashboard() {
         category: bucket.category,
         deadline: bucket.deadline,
         status,
+        pace: paceResult ? { status: paceResult.status, remainingDays: paceResult.remainingDays } : null,
       };
     }).sort((a, b) => {
       const kindOrder: Record<string, number> = { overdue: 0, focus: 1, next: 2, queued: 3, done: 4 };
@@ -1130,6 +1135,8 @@ export function Dashboard() {
                 saved={bucket.saved}
                 target={bucket.target}
                 status={bucket.status}
+                deadline={bucket.deadline}
+                pace={bucket.pace}
               />
             )}
           />
@@ -1192,6 +1199,8 @@ export function Dashboard() {
                     saved={bucket.saved}
                     target={bucket.target}
                     status={bucket.status}
+                    deadline={bucket.deadline}
+                    pace={bucket.pace}
                     onClick={() => setExpandedBucketId(bucket.id)}
                   />
                 </BucketDragCard>

@@ -1,9 +1,13 @@
-import { memo, useEffect, useRef, type ReactNode } from 'react';
+import { memo, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
 import Pressable from '../Pressable/Pressable';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
+import { useI18n } from '../../i18n/useI18n';
+import { IconClock, IconFire, IconCheckCircle, IconWarning } from '../Icon/Icon';
+import type { PaceStatus } from '../../types';
 
 interface BucketRowProps {
   icon: ReactNode;
@@ -16,6 +20,11 @@ interface BucketRowProps {
     kind: 'focus' | 'next' | 'done' | 'queued' | 'overdue';
     label: string;
   };
+  deadline?: string | null;
+  pace?: {
+    status: PaceStatus;
+    remainingDays: number;
+  } | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -25,10 +34,26 @@ const STATUS_STYLES: Record<string, string> = {
   overdue: 'bg-red-50 text-danger',
 };
 
-export const BucketRow = memo(function BucketRow({ icon, name, saved, target, onClick, status }: BucketRowProps) {
+const PACE_CONFIG: Record<PaceStatus, { className: string; Icon: typeof IconFire }> = {
+  ahead: { className: 'text-accent-leaf', Icon: IconFire },
+  on_track: { className: 'text-ink-muted', Icon: IconCheckCircle },
+  behind: { className: 'text-brand-700', Icon: IconWarning },
+  critical: { className: 'text-danger', Icon: IconWarning },
+};
+
+function CountdownLabel({ remainingDays, copy }: { remainingDays: number; copy: ReturnType<typeof useI18n>['copy'] }) {
+  const bc = copy.bucketCard;
+  if (remainingDays === 0) return <span className="text-danger font-bold">{bc.deadlineToday}</span>;
+  if (remainingDays < 0) return <span className="text-danger">{bc.daysOverdue(Math.abs(remainingDays))}</span>;
+  if (remainingDays <= 7) return <span className="text-brand-700">{bc.daysLeftUrgent(remainingDays)}</span>;
+  return <span className="text-ink-muted">{bc.daysLeft(remainingDays)}</span>;
+}
+
+export const BucketRow = memo(function BucketRow({ icon, name, saved, target, onClick, status, deadline, pace }: BucketRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
   const wasComplete = useRef(target > 0 && saved >= target);
+  const { copy } = useI18n();
 
   useEffect(() => {
     const isComplete = target > 0 && saved >= target;
@@ -37,6 +62,15 @@ export const BucketRow = memo(function BucketRow({ icon, name, saved, target, on
     }
     wasComplete.current = isComplete;
   }, [saved, target]);
+
+  const hasDeadlineInfo = deadline != null && pace != null;
+  const paceConfig = pace ? PACE_CONFIG[pace.status] : null;
+  const paceLabel = pace ? copy.bucketCard[
+    pace.status === 'ahead' ? 'paceAhead'
+    : pace.status === 'on_track' ? 'paceOnTrack'
+    : pace.status === 'behind' ? 'paceBehind'
+    : 'paceCritical'
+  ] : null;
 
   return (
     <Pressable
@@ -62,7 +96,19 @@ export const BucketRow = memo(function BucketRow({ icon, name, saved, target, on
         </p>
       </div>
 
-      <div className="mt-auto w-full pb-1 pt-3">
+      <div className="mt-auto w-full pt-2">
+        {hasDeadlineInfo && paceConfig && (
+          <div className="mb-2 flex items-center justify-between gap-1 text-[11px] font-mono leading-tight">
+            <span className="flex items-center gap-1">
+              <IconClock size={12} className="shrink-0 text-ink-dim" />
+              <CountdownLabel remainingDays={pace!.remainingDays} copy={copy} />
+            </span>
+            <span className={`flex items-center gap-0.5 font-bold ${paceConfig.className}`}>
+              <paceConfig.Icon size={12} className="shrink-0" />
+              {paceLabel}
+            </span>
+          </div>
+        )}
         <ProgressBar value={animPct} tone="primary" size="sm" className="bg-brand-50" />
       </div>
     </Pressable>

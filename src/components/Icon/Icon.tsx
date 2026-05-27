@@ -343,3 +343,47 @@ export function IconSlip(p: IconProps) {
     </svg>
   );
 }
+
+export function IconClock(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+export function IconWarning(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <path d="M12 9v4M12 17h.01" />
+    </svg>
+  );
+}
+
+export function IconCheckCircle(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
+export function IconFire(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M12 12c0-3 2.5-6 2.5-6S17 9 17 12a5 5 0 0 1-10 0c0-2 1.5-4 3-5 0 2 1 4 2 5z" />
+    </svg>
+  );
+}
+
+export function IconCrown(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M2 17l3-11 5 5 2-7 2 7 5-5 3 11z" />
+      <path d="M2 17h20" />
+    </svg>
+  );
+}

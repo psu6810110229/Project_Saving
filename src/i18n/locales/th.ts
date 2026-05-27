@@ -613,6 +613,16 @@ export const th: Messages = {
     nextPickerTitle: 'เลือกเป้าหมายถัดไป',
     clearNext: 'ล้างการเลือก',
   },
+  bucketCard: {
+    daysLeft: (n: number) => `อีก ${n} วัน`,
+    daysLeftUrgent: (n: number) => `อีก ${n} วัน!`,
+    deadlineToday: 'วันนี้!',
+    daysOverdue: (n: number) => `เลย ${n} วัน`,
+    paceAhead: 'นำหน้า',
+    paceOnTrack: 'ตามแผน',
+    paceBehind: 'ตามไม่ทัน',
+    paceCritical: 'วิกฤต',
+  },
   manageProject: {
     pageEyebrow: 'โปรเจกต์',
     pageTitle: 'จัดการโปรเจกต์',

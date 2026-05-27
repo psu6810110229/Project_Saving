@@ -34,6 +34,7 @@ export function SavingPlan() {
   const data = useSharedData();
   const { goal, roomGoalEndDate } = data.goal;
   const { plan, loading, error, isPaused, createPlan, changePlan, pausePlan, resumePlan } = data.savingPlan;
+  const { buckets, loading: bucketsLoading } = data.buckets;
   const { copy, formatShortDateKey } = useI18n();
   const sp = copy.savingPlan;
 
@@ -368,14 +369,14 @@ export function SavingPlan() {
   }, [ruleType, startAmount, incrementAmount, capAmount, amount, planStartDate]);
 
   const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
-    loading,
+    loading: loading || bucketsLoading,
     showAfterMs: 120,
     minimumVisibleMs: 400,
   });
 
-  if (loading && !shouldShowSkeleton) return null;
+  if ((loading || bucketsLoading) && !shouldShowSkeleton) return null;
 
-  if (loading) {
+  if (loading || bucketsLoading) {
     return (
       <div className="flex flex-col gap-5 pt-8" aria-label={sp.loadingAriaLabel}>
         {/* Back-button placeholder */}
@@ -407,6 +408,40 @@ export function SavingPlan() {
             <Skeleton className="h-12 rounded-lg" />
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-12 rounded-lg" />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  const hasBucketRules = buckets.some(bucket => Boolean(bucket.deadline && bucket.saving_rule_type));
+
+  if (hasBucketRules) {
+    return (
+      <div className="flex flex-col gap-5 pt-8">
+        <div className="flex items-center justify-between gap-2">
+          <IconButton ariaLabel={sp.goBackAriaLabel} size="md" onClick={() => navigate(-1)}>
+            <IconArrowLeft size={20} />
+          </IconButton>
+        </div>
+
+        <section className="rounded-xl bg-surface p-5 shadow-soft">
+          <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
+            Saving Plan Archive
+          </p>
+          <h1 className="mt-2 font-mono text-2xl font-bold text-ink">
+            Your plan now comes from buckets
+          </h1>
+          <p className="mt-3 font-mono text-sm leading-relaxed text-ink-muted">
+            Legacy Saving Plans are kept as history. Daily targets are now auto-summed from your focus bucket rules on the dashboard.
+          </p>
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button variant="action" fullWidth onClick={() => navigate('/dashboard')}>
+              View today's plan
+            </Button>
+            <Button variant="ghost" size="md" fullWidth onClick={() => navigate('/dashboard')}>
+              Manage buckets
+            </Button>
           </div>
         </section>
       </div>

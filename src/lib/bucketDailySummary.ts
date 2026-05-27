@@ -77,9 +77,8 @@ export function calcDailySummary(
 
   for (const b of active) {
     const state = focusStates.get(b.id);
-    if (!state || state === 'done' || state === 'queued') continue;
+    if (state !== 'focus') continue;
 
-    const isFocus = state === 'focus' || state === 'overdue';
     const rule: SavingRuleType = b.saving_rule_type ?? 'flexible';
     const category: BucketCategory = b.category ?? 'other';
 
@@ -163,7 +162,7 @@ export function calcDailySummary(
       amountDue,
       periodLabel,
       periodDeadline,
-      isFocus,
+      isFocus: true,
     });
   }
 

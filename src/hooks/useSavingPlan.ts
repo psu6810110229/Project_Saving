@@ -299,6 +299,20 @@ export function useSavingPlan(roomId: string | null) {
     return { planId: plan.id };
   }
 
+  async function archivePlan(planId?: string): Promise<MutationResult> {
+    if (!user) return { error: 'Not authenticated' };
+    if (!roomId && !planId) return { error: 'No active room or plan' };
+
+    const { data, error: rpcErr } = await supabase.rpc('archive_saving_plan', {
+      p_room_id: roomId,
+      p_plan_id: planId ?? plan?.id ?? null,
+    });
+    if (rpcErr) return { error: rpcErr.message };
+    await fetchPlan();
+    const archivedPlanId = typeof data === 'string' ? data : undefined;
+    return { planId: archivedPlanId };
+  }
+
   const isPaused = plan ? isPausedOnDate(plan.pauses, todayBangkokKey()) : false;
 
   return {
@@ -311,6 +325,7 @@ export function useSavingPlan(roomId: string | null) {
     changePlan,
     pausePlan,
     resumePlan,
+    archivePlan,
     refetch: useCallback(async () => {
       await Promise.all([fetchPlan(), fetchDeposits()]);
     }, [fetchPlan, fetchDeposits]),

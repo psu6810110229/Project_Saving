@@ -54,6 +54,7 @@ import { ScrollFadeContainer } from '../components/ScrollFadeContainer/ScrollFad
 import { BucketNextPickerModal } from '../components/BucketNextPickerModal/BucketNextPickerModal';
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { computeBucketIntent } from '../lib/bucketIntent';
+import { calcDailySummary } from '../lib/bucketDailySummary';
 import { Modal } from '../components/Modal/Modal';
 import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
 import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
@@ -643,6 +644,11 @@ export function Dashboard() {
     isPausedToday,
     streakFrozenDates,
   );
+  const hasBucketRules = buckets.some(bucket => Boolean(bucket.deadline && bucket.saving_rule_type));
+  const bucketSummaryItems = useMemo(
+    () => calcDailySummary(buckets, logs, todayKey, bucketTransfers),
+    [buckets, logs, todayKey, bucketTransfers],
+  );
 
   // Saving Plan card meta — prefer the active plan revision's end date,
   // otherwise fall back to the room/goal end date. Some plans run in
@@ -894,7 +900,14 @@ export function Dashboard() {
   }, [navigate]);
 
   const handleCheckBalance = useCallback(() => navigate('/check-balance'), [navigate]);
-  const handleConfigurePlan = useCallback(() => navigate('/saving-plan'), [navigate]);
+  const handleConfigurePlan = useCallback(() => {
+    if (buckets.length > 0) {
+      setManageBucketsOpen(true);
+    } else {
+      setBucketModalOpen(true);
+    }
+  }, [buckets.length]);
+  const handleDepositFromPlan = useCallback(() => navigate('/add'), [navigate]);
   const handleManageProject = useCallback(() => navigate('/manage-project'), [navigate]);
 
   async function handleCreateBucket(ruleData: BucketCreateRuleData) {
@@ -1084,6 +1097,9 @@ export function Dashboard() {
           planStartDateKey={displayRevision?.effective_from_date ?? null}
           daysRemaining={planDaysRemaining}
           progressPct={planProgressPct}
+          bucketSummaryItems={bucketSummaryItems}
+          hasBucketRules={hasBucketRules}
+          onDeposit={handleDepositFromPlan}
         />
       </motion.div>
 

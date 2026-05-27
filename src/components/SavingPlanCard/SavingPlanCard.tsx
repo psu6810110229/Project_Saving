@@ -13,6 +13,7 @@ import {
 import { TextInput } from '../TextInput/TextInput';
 import { Button } from '../Button/Button';
 import { IconButton } from '../IconButton/IconButton';
+import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { formatCurrency } from '../../lib/format';
 import { formatDirectionalAdjustment, formatSignedCurrency, RECONCILE_REASONS } from '../../lib/reconcile';
 import {
@@ -24,7 +25,7 @@ import {
 import { useI18n } from '../../i18n/useI18n';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import { SPRING } from '../../lib/motion';
-import type { BalanceAdjustmentReason, SavingPlanRuleType } from '../../types';
+import type { BalanceAdjustmentReason, DailySummaryItem, SavingPlanRuleType } from '../../types';
 
 interface VerifiedBalanceSlot {
   amount: number;
@@ -60,6 +61,13 @@ interface SavingPlanCardProps {
   daysRemaining?: number | null;
   /** Recorded-vs-target progress, 0–100. Computed from money status by the caller. */
   progressPct?: number;
+  /**
+   * v0.10 bucket-rule summary. When provided, this replaces the
+   * legacy standalone Saving Plan meter.
+   */
+  bucketSummaryItems?: DailySummaryItem[];
+  hasBucketRules?: boolean;
+  onDeposit?: () => void;
 }
 
 function fireForStreak(streak: number): string {
@@ -83,6 +91,33 @@ const behindSeverityColor: Record<MoneyBehindSeverity, string> = {
   tremendous: 'text-danger',
 };
 
+function bucketSummaryLine(item: DailySummaryItem): string {
+  if (item.ruleType === 'flexible') return 'Flexible pace';
+  if (item.amountDue === null) {
+    if (item.ruleType === 'fixed_monthly') return 'Met this month';
+    if (item.ruleType === 'fixed_weekly') return 'Met this week';
+    return item.periodLabel;
+  }
+  const amount = formatCurrency(Math.round(item.amountDue));
+  if (item.ruleType === 'fixed_daily') return `${amount}/day`;
+  if (item.ruleType === 'fixed_weekly') return `${amount}/week`;
+  if (item.ruleType === 'fixed_monthly') return `${amount}/mo`;
+  return `${amount} today`;
+}
+
+function dailyRuleDueTotal(items: DailySummaryItem[]): number {
+  return items.reduce((sum, item) => {
+    if (
+      item.ruleType === 'fixed_daily'
+      || item.ruleType === 'increasing_daily'
+      || item.ruleType === 'increasing_daily_capped'
+    ) {
+      return sum + (item.amountDue ?? 0);
+    }
+    return sum;
+  }, 0);
+}
+
 export const SavingPlanCard = memo(function SavingPlanCard({
   ruleType,
   money,
@@ -97,6 +132,9 @@ export const SavingPlanCard = memo(function SavingPlanCard({
   planStartDateKey = null,
   daysRemaining = null,
   progressPct = 0,
+  bucketSummaryItems,
+  hasBucketRules = false,
+  onDeposit,
 }: SavingPlanCardProps) {
   const { copy, formatShortDateKey } = useI18n();
   const d = copy.dashboard;
@@ -116,6 +154,112 @@ export const SavingPlanCard = memo(function SavingPlanCard({
     money?.delta ?? 0,
     verifiedBalance?.amount ?? 0,
   ]);
+
+  if (bucketSummaryItems) {
+    const totalDueToday = dailyRuleDueTotal(bucketSummaryItems);
+    const hasItems = bucketSummaryItems.length > 0;
+
+    return (
+      <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-mono text-base font-bold leading-tight text-ink">
+              Today's Saving Plan
+            </h2>
+            <p className="mt-1 font-mono text-sm font-bold text-ink-muted">
+              {hasBucketRules
+                ? hasItems
+                  ? `${bucketSummaryItems.length} focus ${bucketSummaryItems.length === 1 ? 'bucket' : 'buckets'}`
+                  : 'No focus obligations today'
+                : 'Set up bucket rules to generate your plan'}
+            </p>
+          </div>
+          {onDeposit && hasItems && (
+            <Button
+              variant="action"
+              size="sm"
+              onClick={e => { e.stopPropagation(); onDeposit(); }}
+              className="shrink-0"
+            >
+              Deposit
+            </Button>
+          )}
+        </div>
+
+        {hasItems ? (
+          <div className="mt-4 flex flex-col divide-y divide-well">
+            {bucketSummaryItems.map(item => (
+              <div key={item.bucketId} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-700">
+                  <BucketCategoryIcon category={item.category} size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-mono text-sm font-bold text-ink">{item.bucketName}</p>
+                  <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">
+                    {item.periodLabel}
+                    {item.periodDeadline ? ` · due ${item.periodDeadline}` : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 font-mono text-sm font-bold text-ink">
+                  {bucketSummaryLine(item)}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-lg bg-brand-50 px-4 py-3">
+            <p className="font-mono text-sm font-bold text-ink">
+              {hasBucketRules ? 'Your focus buckets are covered for now.' : 'Bucket settings now drive the daily plan.'}
+            </p>
+            {onConfigure && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={e => { e.stopPropagation(); onConfigure(); }}
+                className="mt-3"
+              >
+                Set up buckets
+              </Button>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 border-t border-well pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-700">
+                <IconPiggyBank size={16} />
+              </span>
+              <div className="min-w-0">
+                <p className="font-mono text-[11px] leading-tight text-ink-muted">Today</p>
+                <p className="truncate font-mono text-sm font-bold text-ink">
+                  {formatCurrency(Math.round(totalDueToday))}
+                </p>
+              </div>
+            </div>
+            {habit.streak > 0 && (
+              <div className="flex min-w-0 items-center gap-2 text-right">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-700">
+                  <IconVault size={16} />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-mono text-[11px] leading-tight text-ink-muted">{d.streakLabel}</p>
+                  <p className="truncate font-mono text-sm font-bold text-ink">{d.streakDays(habit.streak)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+          {verifiedBalance && (
+            <p className="mt-3 truncate font-mono text-xs text-ink-muted">
+              {d.verifiedBalanceRowLabel}:{' '}
+              <span className="font-bold text-ink">{formatCurrency(Math.round(verifiedBalance.amount))}</span>
+              {verifiedBalance.sinceLabel && <span> · {verifiedBalance.sinceLabel}</span>}
+            </p>
+          )}
+        </div>
+      </section>
+    );
+  }
 
   function handleVbToggle() {
     if (vbExpanded) {

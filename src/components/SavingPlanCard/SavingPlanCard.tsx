@@ -68,6 +68,7 @@ interface SavingPlanCardProps {
   bucketSummaryItems?: DailySummaryItem[];
   hasBucketRules?: boolean;
   onDeposit?: () => void;
+  compact?: boolean;
 }
 
 function fireForStreak(streak: number): string {
@@ -167,6 +168,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
   bucketSummaryItems,
   hasBucketRules = false,
   onDeposit,
+  compact = false,
 }: SavingPlanCardProps) {
   const { copy, formatShortDateKey } = useI18n();
   const d = copy.dashboard;
@@ -186,6 +188,37 @@ export const SavingPlanCard = memo(function SavingPlanCard({
     money?.delta ?? 0,
     verifiedBalance?.amount ?? 0,
   ]);
+  const streakFire = fireForStreak(habit.streak);
+
+  if (compact) {
+    if (!money || !ruleType) return null;
+
+    const totalDueToday = bucketSummaryItems ? dailyRuleDueTotal(bucketSummaryItems) : money.expectedToday;
+    
+    return (
+      <Pressable onClick={onConfigure}>
+        <div className="flex items-center gap-2 rounded-xl border border-white/60 bg-surface px-4 py-3 shadow-soft">
+          <IconPiggyBank size={16} className="text-brand-500 shrink-0" />
+          <p className="truncate font-mono text-xs text-ink min-w-0 flex-1">
+            <span className="text-ink-muted">{copy.common.today}:</span> <span className="font-bold">{formatCurrency(Math.round(totalDueToday))}</span>
+            {habit.streak > 0 && (
+              <>
+                <span className="mx-1.5 text-ink-muted">·</span>
+                {streakLabel(habit, d.streakDays)}
+                {streakFire && <span className="ml-1 align-middle" aria-hidden>{streakFire}</span>}
+              </>
+            )}
+            {bucketSummaryItems && bucketSummaryItems.length > 0 && (
+              <>
+                <span className="mx-1.5 text-ink-muted">·</span>
+                {copy.bucketIntent.nextStrip(bucketSummaryItems[0].bucketName)}
+              </>
+            )}
+          </p>
+        </div>
+      </Pressable>
+    );
+  }
 
   if (bucketSummaryItems) {
     const totalDueToday = dailyRuleDueTotal(bucketSummaryItems);
@@ -404,7 +437,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
         ? d.depositedDaysAgo(1)
         : d.depositedDaysAgo(habit.daysSinceLastDeposit ?? 0);
 
-  const streakFire = fireForStreak(habit.streak);
+
 
   // SPRINT1-003: derive the freeze hint state from the dates the
   // parent plumbed down. The "We covered ..." hint only shows for a

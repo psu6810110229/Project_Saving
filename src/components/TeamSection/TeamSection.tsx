@@ -22,8 +22,8 @@ interface TeamSectionProps {
   roomSaved: number;
   roomTarget: number;
   emptyBody?: string;
-  onMemberClick: (member: TeamSectionMember) => void;
-  onViewAll: () => void;
+  onMemberClick?: (member: TeamSectionMember) => void;
+  onViewAll?: () => void;
 }
 
 export const TeamSection = memo(function TeamSection({
@@ -64,7 +64,7 @@ export const TeamSection = memo(function TeamSection({
             <TeamMemberCard
               key={member.userId}
               member={member}
-              onClick={() => onMemberClick(member)}
+              onClick={() => onMemberClick?.(member)}
             />
           ))}
         </div>

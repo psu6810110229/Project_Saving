@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '../Button/Button';
 import { IconBell, IconCheck } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
@@ -78,7 +78,7 @@ export function ReleaseUpdateModal() {
 
         <div className="shrink-0 border-t border-brand-100 bg-bg pt-3">
           <Button variant="action" fullWidth onClick={handleUnderstand}>
-            {copy.common.gotIt}
+            {copy.common.done}
           </Button>
         </div>
       </div>

@@ -440,3 +440,30 @@ export function IconImage(p: IconProps) {
     </svg>
   );
 }
+
+export function IconCamera(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+export function IconZoomIn(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35M11 8v6M8 11h6" />
+    </svg>
+  );
+}
+
+export function IconZoomOut(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35M8 11h6" />
+    </svg>
+  );
+}

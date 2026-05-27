@@ -11,6 +11,7 @@ interface MiniTimelineProps {
   todayDateKey: string;
   loading?: boolean;
   onOpenTimeline: () => void;
+  compact?: boolean;
 }
 
 const MAX_VISIBLE_ITEMS = 5;
@@ -20,6 +21,7 @@ export const MiniTimeline = memo(function MiniTimeline({
   todayDateKey,
   loading = false,
   onOpenTimeline,
+  compact = false,
 }: MiniTimelineProps) {
   const { copy, language } = useI18n();
   const d = copy.dashboard;
@@ -46,6 +48,13 @@ export const MiniTimeline = memo(function MiniTimeline({
   const visible = sorted.slice(visibleStart, visibleStart + MAX_VISIBLE_ITEMS);
 
   if (loading) {
+    if (compact) {
+      return (
+        <section className="rounded-lg bg-surfaceAlt px-4 py-2.5">
+          <Skeleton className="h-6 w-full max-w-[12rem] rounded-md" />
+        </section>
+      );
+    }
     return (
       <section className="rounded-xl bg-surface p-4 shadow-soft">
         <div className="flex items-center justify-between gap-3">
@@ -65,6 +74,28 @@ export const MiniTimeline = memo(function MiniTimeline({
 
   const highlighted = sorted[highlightedIndex] ?? visible[0];
   const highlightedDate = formatFullDate(highlighted.deadline, language);
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={onOpenTimeline}
+        className="group w-full flex items-center gap-3 rounded-lg px-4 py-3 text-left transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 bg-surface shadow-sm border border-well hover:border-brand-200"
+      >
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-well text-ink-muted group-hover:bg-brand-50 group-hover:text-brand-600 transition-colors">
+          <BucketCategoryIcon category={highlighted.category} size={14} />
+        </span>
+        <p className="min-w-0 flex-1 truncate font-mono text-xs text-ink">
+          <span className="text-ink-muted">{copy.common.next}:</span> <span className="font-bold text-sm ml-1">{highlighted.name}</span>
+          <span className="mx-1.5 text-ink-muted">·</span>
+          <span className="text-ink-muted">{highlightedDate}</span>
+        </p>
+        <span className="shrink-0 text-ink-dim group-hover:text-ink transition-colors">
+          <IconArrowRight size={14} />
+        </span>
+      </button>
+    );
+  }
 
   return (
     <button

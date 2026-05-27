@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
 import { Avatar } from '../components/Avatar/Avatar';
@@ -13,7 +13,7 @@ import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
-import { BucketDragHint } from '../components/BucketDragHint/BucketDragHint';
+
 import { BucketTransferSheet } from '../components/BucketTransferSheet/BucketTransferSheet';
 import { ActionAlert, type ActionAlertBucket } from '../components/ActionAlert/ActionAlert';
 import {
@@ -177,8 +177,7 @@ function bucketDragHintDistance(delta: number) {
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const reduceMotion = useReducedMotion();
+    const reduceMotion = useReducedMotion();
   const { user, profile } = useAuth();
   const migration = useMigrationState(user?.id);
   const { activeRoom, activeRoomId } = useRoom();
@@ -265,8 +264,7 @@ export function Dashboard() {
   );
   const purposePickerBuckets = effectiveTrendMode === 'me' ? buckets : allVisibleBuckets;
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
-  const [heroDepositOpen, setHeroDepositOpen] = useState(() => searchParams.get('deposit') === 'true');
-  const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
+    const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [completedBucketsOpen, setCompletedBucketsOpen] = useState(false);
   const [bucketDragMode, setBucketDragMode] = useState<BucketDragMode>('transfer');
@@ -427,21 +425,6 @@ export function Dashboard() {
   });
   const error = goalError ?? logsError;
 
-  useEffect(() => {
-    if (searchParams.get('deposit') === 'true') {
-      const timeoutId = window.setTimeout(() => setHeroDepositOpen(true), 0);
-      return () => window.clearTimeout(timeoutId);
-    }
-  }, [searchParams]);
-
-  const handleHeroDepositOpenChange = useCallback((open: boolean) => {
-    setHeroDepositOpen(open);
-    if (!open && searchParams.get('deposit') === 'true') {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.delete('deposit');
-      setSearchParams(nextParams, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
 
   // Bucket view falls back to 'mine' whenever the selected other
   // member leaves the room, switches rooms, or empties out their
@@ -806,34 +789,6 @@ export function Dashboard() {
   // otherwise fall back to the room/goal end date. Some plans run in
   // target-reach mode (no revision end_date), so the room date is the
   // usual source.
-  const heroDepositBuckets = activeBucketItems.length > 0 ? activeBucketItems : bucketItems;
-  const heroDepositInitialBucketId = bucketSummaryItems[0]?.bucketId
-    ?? focusBucketId
-    ?? heroDepositBuckets[0]?.id
-    ?? null;
-  const handleHeroDepositConfirm = useCallback(async (
-    bucketId: string,
-    amount: number,
-    slip: File | null,
-  ) => {
-    const bucket = heroDepositBuckets.find(item => item.id === bucketId);
-    if (!bucket || amount <= 0) return { error: copy.addMoney.validationNoBucket };
-
-    const result = await insert(amount, bucketId, undefined, depositSlipMarker(slip));
-    if (!result.error) {
-      const reached = bucket.saved < bucket.target && bucket.saved + amount >= bucket.target;
-      haptic(reached ? 'milestone' : 'success');
-      setVaultPreview({
-        prevSaved: totalSaved,
-        newSaved: totalSaved + amount,
-        target: totalTarget,
-        depositAmount: amount,
-        bucketName: bucket.name,
-        reachedBucket: reached,
-      });
-    }
-    return result;
-  }, [heroDepositBuckets, copy.addMoney.validationNoBucket, insert, setVaultPreview, totalSaved, totalTarget]);
 
   const planEndDateKey = displayRevision?.end_date ?? activeRoom?.end_date ?? null;
   const planDaysRemaining = planEndDateKey
@@ -1095,9 +1050,9 @@ export function Dashboard() {
     }
   }, [buckets.length]);
   const handleDepositFromPlan = useCallback(() => {
-    handleHeroDepositOpenChange(true);
+    
     navigate('/dashboard?deposit=true');
-  }, [handleHeroDepositOpenChange, navigate]);
+  }, [navigate]);
   function bucketDraftFromExisting(bucket: Bucket) {
     return {
       id: bucket.id,
@@ -1346,12 +1301,6 @@ export function Dashboard() {
           hasBuckets={buckets.length > 0}
           streak={heroStreak}
           streakUnit={heroStreakUnit}
-          depositOpen={heroDepositOpen}
-          onDepositOpenChange={handleHeroDepositOpenChange}
-          depositInitialBucketId={heroDepositInitialBucketId}
-          depositBuckets={heroDepositBuckets}
-          quickAmounts={quickAmounts}
-          onConfirmDeposit={handleHeroDepositConfirm}
         />
       </motion.div>
 
@@ -1407,6 +1356,7 @@ export function Dashboard() {
           bucketSummaryItems={bucketSummaryItems}
           hasBucketRules={hasBucketRules}
           onDeposit={handleDepositFromPlan}
+          compact
         />
       </motion.div>
 
@@ -1531,27 +1481,14 @@ export function Dashboard() {
                       </div>
                     );
                   })()}
-                  <BucketDragHint
-                    open={showBucketDragHint}
-                    message={copy.bucketDragHint.message}
-                    dismissAriaLabel={copy.bucketDragHint.dismissAriaLabel}
-                    onShown={handleBucketDragHintShown}
-                    onDismiss={handleBucketDragHintDismiss}
-                  />
+
                 </div>
               }
               renderBucket={bucket => (
                 <BucketDragCard
                   id={bucket.id}
-                  mode={bucketDragMode}
-                  dragHintRole={
-                    bucketDragHintDemo?.sourceId === bucket.id
-                      ? 'source'
-                      : bucketDragHintDemo?.destinationId === bucket.id
-                        ? 'target'
-                        : undefined
-                  }
-                  dragHintOffset={bucketDragHintDemo?.sourceId === bucket.id ? bucketDragHintDemo.offset : undefined}
+                  mode={undefined}
+
                 >
                   <BucketRow
                     icon={bucket.icon}
@@ -1617,6 +1554,7 @@ export function Dashboard() {
           todayDateKey={todayKey}
           loading={expenseTemplatesLoading}
           onOpenTimeline={handleTimelineOpen}
+          compact
         />
         <MomentumChart
           series={chartSeries}
@@ -1875,6 +1813,7 @@ export function Dashboard() {
           : null;
         return (
           <BucketSheet
+          quickAmounts={quickAmounts}
             open={Boolean(expandedBucketId)}
             onClose={() => setExpandedBucketId(null)}
             bucketId={expandedBucketId ?? ''}
@@ -1882,7 +1821,6 @@ export function Dashboard() {
             name={selectedBucketItem?.name ?? ''}
             saved={selectedBucketItem?.saved ?? 0}
             target={selectedBucketItem?.target ?? 0}
-            quickAmounts={quickAmounts}
             smartDefaultAmount={smartDefault.value}
             isComplete={isDone}
             extraAmount={extraAmt}

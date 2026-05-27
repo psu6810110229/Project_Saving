@@ -19,6 +19,7 @@ export interface WizardDraft {
   name: string;
   category: ProjectCategory;
   endDate: string;
+  coverImageUrl: string | null;
   totalBudget: number;
   expenses: ExpenseDraftItem[];
 }

@@ -2,19 +2,12 @@ import { useCallback, useState, type CSSProperties, type PointerEvent, type Reac
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Transform } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
-import { IconArrowRight, IconMoreVertical } from '../Icon/Icon';
+import { IconMoreVertical } from '../Icon/Icon';
 
 interface BucketDragCardProps {
   id: string;
   children: ReactNode;
-  mode?: 'transfer' | 'edit';
-  /** Role this card plays in the one-time drag gesture hint. */
-  dragHintRole?: 'source' | 'target';
-  /** CSS translate target for the drag gesture hint. */
-  dragHintOffset?: {
-    x: string;
-    y: string;
-  };
+  mode?: 'edit';
 }
 
 interface DragBounds {
@@ -72,7 +65,7 @@ function readDragBounds(node: HTMLDivElement): DragBounds {
  * the parent DndContext: a quick tap still propagates the click to the
  * underlying Pressable, while a hold-and-drag enters drag mode.
  */
-export function BucketDragCard({ id, children, mode = 'transfer', dragHintRole, dragHintOffset }: BucketDragCardProps) {
+export function BucketDragCard({ id, children, mode }: BucketDragCardProps) {
   const reduceMotion = useReducedMotion();
   const [dragBounds, setDragBounds] = useState<DragBounds | null>(null);
   const {
@@ -81,12 +74,12 @@ export function BucketDragCard({ id, children, mode = 'transfer', dragHintRole, 
     setNodeRef: setDragRef,
     isDragging,
     transform,
-  } = useDraggable({ id });
+  } = useDraggable({ id, disabled: mode !== 'edit' });
   const {
     setNodeRef: setDropRef,
     isOver,
     active,
-  } = useDroppable({ id });
+  } = useDroppable({ id, disabled: mode !== 'edit' });
 
   const sameBucket = active?.id === id;
   const validTarget = isOver && !sameBucket;
@@ -97,16 +90,11 @@ export function BucketDragCard({ id, children, mode = 'transfer', dragHintRole, 
   const constrainedTransform = transform
     ? clampTransformToBounds(transform, dragBounds, isDragging ? liftScale : 1)
     : null;
-  const showAnimatedDragHint = Boolean(dragHintRole === 'source' && dragHintOffset && !isDragging && !reduceMotion);
-  const showDropHint = Boolean(dragHintRole === 'target' && !isDragging && !reduceMotion);
   // Calm cubic-bezier eases the settle after a drag and the highlight
   // fade for valid targets. Matches the brand-soft motion language.
   const ease = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
-  const style: CSSProperties & {
-    '--bucket-drag-hint-x'?: string;
-    '--bucket-drag-hint-y'?: string;
-  } = {
+  const style: CSSProperties = {
     transform: constrainedTransform
       ? `translate3d(${constrainedTransform.x}px, ${constrainedTransform.y}px, 0) scale(${isDragging ? liftScale : 1})`
       : undefined,
@@ -117,19 +105,15 @@ export function BucketDragCard({ id, children, mode = 'transfer', dragHintRole, 
         ? `box-shadow 120ms linear, opacity 120ms linear`
         : `transform 180ms ${ease}, box-shadow 180ms ${ease}, opacity 180ms ${ease}`,
     touchAction: 'manipulation',
-    cursor: isDragging ? 'grabbing' : 'grab',
-    '--bucket-drag-hint-x': showAnimatedDragHint ? dragHintOffset?.x : undefined,
-    '--bucket-drag-hint-y': showAnimatedDragHint ? dragHintOffset?.y : undefined,
+    cursor: isDragging ? 'grabbing' : mode === 'edit' ? 'grab' : 'auto',
   };
 
   // Reduced motion keeps the ring tighter (no offset) so the state
   // change reads as a calm highlight instead of a glow shimmer.
   const ringClass = validTarget
     ? reduceMotion
-      ? mode === 'edit' ? 'ring-2 ring-ink-muted' : 'ring-2 ring-brand-500'
-      : mode === 'edit'
-        ? 'ring-2 ring-ink-muted ring-offset-2 ring-offset-bg'
-        : 'ring-2 ring-brand-500 ring-offset-2 ring-offset-bg'
+      ? 'ring-2 ring-ink-muted'
+      : 'ring-2 ring-ink-muted ring-offset-2 ring-offset-bg'
     : '';
   const liftClass = isDragging ? 'shadow-neuRaised opacity-95' : '';
   const setBucketNodeRef = useCallback((node: HTMLDivElement | null) => {
@@ -148,28 +132,19 @@ export function BucketDragCard({ id, children, mode = 'transfer', dragHintRole, 
     <div
       ref={setBucketNodeRef}
       style={style}
-      className={`relative rounded-2xl ${showAnimatedDragHint ? 'bucket-drag-demo' : ''} ${showDropHint ? 'bucket-drop-demo' : ''} ${liftClass} ${ringClass}`.trim()}
+      className={`relative rounded-2xl ${liftClass} ${ringClass}`.trim()}
       onPointerDownCapture={handlePointerDownCapture}
       {...attributes}
       {...listeners}
     >
       {children}
-      <span
-        aria-hidden
-        className={
-          'pointer-events-none absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full shadow-soft transition-colors '
-          + (mode === 'edit'
-            ? 'bg-ink text-ink-inverse'
-            : 'bg-brand-500 text-ink-inverse')
-        }
-      >
-        {mode === 'edit' ? <IconMoreVertical size={15} /> : <IconArrowRight size={15} />}
-      </span>
-      {dragHintRole && !isDragging && reduceMotion && (
-        <div
+      {mode === 'edit' && (
+        <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-brand-200"
-        />
+          className="pointer-events-none absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full shadow-soft transition-colors bg-ink text-ink-inverse"
+        >
+          <IconMoreVertical size={15} />
+        </span>
       )}
     </div>
   );

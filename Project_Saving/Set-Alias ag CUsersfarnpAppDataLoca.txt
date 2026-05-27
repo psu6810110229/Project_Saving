@@ -1,0 +1,1 @@
+Set-Alias ag "C:\Users\farnp\AppData\Local\Programs\Antigravity\bin\antigravity.exe"

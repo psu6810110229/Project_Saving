@@ -1,14 +1,16 @@
-import type { Bucket, BucketIntentSettings, BucketTransfer, SavingsLog } from '../types';
+import type { Bucket, BucketFocusState, BucketIntentSettings, BucketTransfer, SavingsLog } from '../types';
 import { BUCKET_CATEGORY_META } from './bucketCategories';
 import { bucketSaved } from './buckets';
+import { calcBucketFocusStates } from './bucketFocus';
 
 export type BucketIntentStatus = 'focus' | 'next' | 'done';
-export type BucketIntentSource = 'manual' | 'behavior' | 'category_order' | 'none';
+export type BucketIntentSource = 'manual' | 'behavior' | 'category_order' | 'deadline' | 'none';
 
 export interface BucketIntentResult {
   focusBucketId: string | null;
   nextBucketId: string | null;
   doneBucketIds: Set<string>;
+  focusStates: Map<string, BucketFocusState>;
   confidence: {
     focus: number;
     next: number;
@@ -31,6 +33,7 @@ const EMPTY: BucketIntentResult = {
   focusBucketId: null,
   nextBucketId: null,
   doneBucketIds: new Set<string>(),
+  focusStates: new Map<string, BucketFocusState>(),
   confidence: { focus: 0, next: 0 },
   source: { focus: 'none', next: 'none' },
 };
@@ -41,6 +44,70 @@ export function computeBucketIntent(input: BucketIntentInput): BucketIntentResul
   const active = buckets.filter(b => b.archived_at == null);
   if (active.length === 0) return EMPTY;
 
+  const hasAnyDeadline = active.some(b => b.deadline);
+
+  if (hasAnyDeadline) {
+    return computeDeadlineAwareIntent(active, logs, transfers, settings);
+  }
+
+  return computeLegacyIntent(active, logs, transfers, currentUserId, settings);
+}
+
+function computeDeadlineAwareIntent(
+  active: Bucket[],
+  logs: SavingsLog[],
+  transfers: BucketTransfer[],
+  settings?: BucketIntentSettings | null,
+): BucketIntentResult {
+  const focusStates = calcBucketFocusStates(active, logs, undefined, transfers);
+
+  const withoutDeadline = active.filter(b => !b.deadline);
+
+  for (const b of withoutDeadline) {
+    const saved = bucketSaved(b.id, logs, transfers);
+    if (b.target_amount > 0 && saved >= b.target_amount) {
+      focusStates.set(b.id, 'done');
+    } else if (!focusStates.has(b.id)) {
+      focusStates.set(b.id, 'queued');
+    }
+  }
+
+  const doneIds = new Set<string>();
+  let focusBucketId: string | null = null;
+  let nextBucketId: string | null = null;
+
+  for (const [id, state] of focusStates) {
+    if (state === 'done') doneIds.add(id);
+    if (state === 'focus' || state === 'overdue') {
+      if (!focusBucketId) focusBucketId = id;
+    }
+    if (state === 'next' && !nextBucketId) nextBucketId = id;
+  }
+
+  if (settings?.manual_next_bucket_id) {
+    const manualId = settings.manual_next_bucket_id;
+    if (focusStates.has(manualId) && !doneIds.has(manualId) && manualId !== focusBucketId) {
+      nextBucketId = manualId;
+    }
+  }
+
+  return {
+    focusBucketId,
+    nextBucketId,
+    doneBucketIds: doneIds,
+    focusStates,
+    confidence: { focus: 100, next: nextBucketId ? 100 : 0 },
+    source: { focus: 'deadline', next: nextBucketId ? 'deadline' : 'none' },
+  };
+}
+
+function computeLegacyIntent(
+  active: Bucket[],
+  logs: SavingsLog[],
+  transfers: BucketTransfer[],
+  currentUserId?: string,
+  settings?: BucketIntentSettings | null,
+): BucketIntentResult {
   const activeIds = new Set(active.map(b => b.id));
 
   const doneIds = new Set<string>();
@@ -53,10 +120,24 @@ export function computeBucketIntent(input: BucketIntentInput): BucketIntentResul
   const focusResult = computeFocus(active, doneIds, logs, currentUserId);
   const nextResult = computeNext(active, doneIds, focusResult.id, activeIds, settings);
 
+  const focusStates = new Map<string, BucketFocusState>();
+  for (const b of active) {
+    if (doneIds.has(b.id)) {
+      focusStates.set(b.id, 'done');
+    } else if (b.id === focusResult.id) {
+      focusStates.set(b.id, 'focus');
+    } else if (b.id === nextResult.id) {
+      focusStates.set(b.id, 'next');
+    } else {
+      focusStates.set(b.id, 'queued');
+    }
+  }
+
   return {
     focusBucketId: focusResult.id,
     nextBucketId: nextResult.id,
     doneBucketIds: doneIds,
+    focusStates,
     confidence: {
       focus: focusResult.confidence,
       next: nextResult.confidence,

@@ -2,10 +2,12 @@ import { useCallback, useState, type CSSProperties, type PointerEvent, type Reac
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Transform } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
+import { IconArrowRight, IconMoreVertical } from '../Icon/Icon';
 
 interface BucketDragCardProps {
   id: string;
   children: ReactNode;
+  mode?: 'transfer' | 'edit';
   /** Role this card plays in the one-time drag gesture hint. */
   dragHintRole?: 'source' | 'target';
   /** CSS translate target for the drag gesture hint. */
@@ -70,7 +72,7 @@ function readDragBounds(node: HTMLDivElement): DragBounds {
  * the parent DndContext: a quick tap still propagates the click to the
  * underlying Pressable, while a hold-and-drag enters drag mode.
  */
-export function BucketDragCard({ id, children, dragHintRole, dragHintOffset }: BucketDragCardProps) {
+export function BucketDragCard({ id, children, mode = 'transfer', dragHintRole, dragHintOffset }: BucketDragCardProps) {
   const reduceMotion = useReducedMotion();
   const [dragBounds, setDragBounds] = useState<DragBounds | null>(null);
   const {
@@ -124,8 +126,10 @@ export function BucketDragCard({ id, children, dragHintRole, dragHintOffset }: B
   // change reads as a calm highlight instead of a glow shimmer.
   const ringClass = validTarget
     ? reduceMotion
-      ? 'ring-2 ring-brand-500'
-      : 'ring-2 ring-brand-500 ring-offset-2 ring-offset-bg'
+      ? mode === 'edit' ? 'ring-2 ring-ink-muted' : 'ring-2 ring-brand-500'
+      : mode === 'edit'
+        ? 'ring-2 ring-ink-muted ring-offset-2 ring-offset-bg'
+        : 'ring-2 ring-brand-500 ring-offset-2 ring-offset-bg'
     : '';
   const liftClass = isDragging ? 'shadow-neuRaised opacity-95' : '';
   const setBucketNodeRef = useCallback((node: HTMLDivElement | null) => {
@@ -150,6 +154,17 @@ export function BucketDragCard({ id, children, dragHintRole, dragHintOffset }: B
       {...listeners}
     >
       {children}
+      <span
+        aria-hidden
+        className={
+          'pointer-events-none absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full shadow-soft transition-colors '
+          + (mode === 'edit'
+            ? 'bg-ink text-ink-inverse'
+            : 'bg-brand-500 text-ink-inverse')
+        }
+      >
+        {mode === 'edit' ? <IconMoreVertical size={15} /> : <IconArrowRight size={15} />}
+      </span>
       {dragHintRole && !isDragging && reduceMotion && (
         <div
           aria-hidden

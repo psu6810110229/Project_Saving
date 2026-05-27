@@ -690,6 +690,11 @@ export const th: Messages = {
     message: 'ลากเป้าหมายหนึ่งไปวางบนอีกอันเพื่อย้ายเงิน',
     dismissAriaLabel: 'ซ่อนคำแนะนำการลาก',
   },
+  bucketDragMode: {
+    ariaLabel: 'โหมดการลากเป้าหมาย',
+    transfer: 'ย้ายเงิน',
+    edit: 'จัดลำดับ',
+  },
   bucketIntent: {
     status: {
       focus: 'ลำดับปัจจุบัน',

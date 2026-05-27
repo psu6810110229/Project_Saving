@@ -44,7 +44,9 @@ import {
   IconCalendar,
   IconCheck,
   IconChevronDown,
+  IconEdit,
   IconRocket,
+  IconSwap,
   IconTrash,
   IconUser,
   IconVault,
@@ -132,6 +134,7 @@ const VB_REMINDER_SESSION_KEY = 'verifiedBalanceReminderDismissed';
 const SHOW_DEPOSIT_RACE = false;
 
 type DailyTrendMode = 'room' | 'me' | 'compare';
+type BucketDragMode = 'transfer' | 'edit';
 
 const restrictBucketDragToViewport: Modifier = ({ activeNodeRect, transform, windowRect }) => {
   if (!activeNodeRect || !windowRect) return transform;
@@ -251,6 +254,8 @@ export function Dashboard() {
   const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [completedBucketsOpen, setCompletedBucketsOpen] = useState(false);
+  const [bucketDragMode, setBucketDragMode] = useState<BucketDragMode>('transfer');
+  const [bucketReorderSaving, setBucketReorderSaving] = useState(false);
   const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
   const [migrationBannerDismissed, setMigrationBannerDismissed] = useState(false);
   const [manageBucketTransferSheetOpen, setManageBucketTransferSheetOpen] = useState(false);
@@ -278,7 +283,51 @@ export function Dashboard() {
     useSensor(KeyboardSensor),
   );
 
+  async function handleBucketReorderDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+    const sourceId = String(active.id);
+    const destinationId = String(over.id);
+    if (sourceId === destinationId) return;
+
+    const activeIds = displayedActiveBucketItems.map(bucket => bucket.id);
+    const sourceIndex = activeIds.indexOf(sourceId);
+    const destinationIndex = activeIds.indexOf(destinationId);
+    if (sourceIndex < 0 || destinationIndex < 0) return;
+
+    const reorderedActiveIds = [...activeIds];
+    const [movedId] = reorderedActiveIds.splice(sourceIndex, 1);
+    reorderedActiveIds.splice(destinationIndex, 0, movedId);
+
+    const bucketById = new Map(buckets.map(bucket => [bucket.id, bucket]));
+    const activeIdSet = new Set(activeIds);
+    const reorderedActiveBuckets = reorderedActiveIds
+      .map(id => bucketById.get(id))
+      .filter((bucket): bucket is Bucket => Boolean(bucket));
+    const completedAndHiddenBuckets = buckets.filter(bucket => !activeIdSet.has(bucket.id));
+
+    setBucketReorderSaving(true);
+    const result = await saveBuckets(
+      [...reorderedActiveBuckets, ...completedAndHiddenBuckets].map(bucketDraftFromExisting),
+    ).finally(() => setBucketReorderSaving(false));
+
+    if (result.error) {
+      setMessage(result.code === 'duplicate_name'
+        ? copy.bucket.duplicateName(result.duplicateName ?? '')
+        : result.error);
+      return;
+    }
+
+    setMessage(null);
+    haptic('success');
+  }
+
   function handleBucketDragEnd(event: DragEndEvent) {
+    if (bucketDragMode === 'edit') {
+      void handleBucketReorderDragEnd(event);
+      return;
+    }
+
     const { active, over } = event;
     if (!over) return;
     const sourceId = String(active.id);
@@ -322,6 +371,7 @@ export function Dashboard() {
   }, [markBucketDragHintSeenForAccount]);
 
   function handleBucketDragStart() {
+    if (bucketDragMode === 'edit') return;
     if (bucketDragHintDismissed) return;
     dismissBucketDragHint();
   }
@@ -506,6 +556,7 @@ export function Dashboard() {
         target: bucket.target_amount,
         category: bucket.category,
         deadline: bucket.deadline,
+        completedAt: bucket.completed_at,
         status,
         pace: paceResult ? { status: paceResult.status, remainingDays: paceResult.remainingDays } : null,
       };
@@ -524,6 +575,13 @@ export function Dashboard() {
   }, [buckets, logs, bucketTransfers, focusStates, copy.bucketIntent.status]);
   const activeBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind !== 'done'), [bucketItems]);
   const completedBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind === 'done'), [bucketItems]);
+  const manualActiveBucketItems = useMemo(() => {
+    const itemById = new Map(bucketItems.map(item => [item.id, item]));
+    return buckets
+      .map(bucket => itemById.get(bucket.id))
+      .filter((item): item is (typeof bucketItems)[number] => item != null && item.status?.kind !== 'done');
+  }, [buckets, bucketItems]);
+  const displayedActiveBucketItems = bucketDragMode === 'edit' ? manualActiveBucketItems : activeBucketItems;
   const actionAlertBuckets = useMemo<ActionAlertBucket[]>(() => buckets
     .filter(bucket => !doneBucketIds.has(bucket.id) && bucket.deadline)
     .map(bucket => {
@@ -559,7 +617,8 @@ export function Dashboard() {
   // the hint to a returning user whose profile row is still resolving.
   const bucketDragHintSeenOnAccount = Boolean(dataProfile?.bucket_drag_hint_seen_at);
   const showBucketDragHint =
-    activeBucketItems.length >= 2
+    bucketDragMode === 'transfer'
+    && activeBucketItems.length >= 2
     && !profileLoading
     && !bucketDragHintDismissed
     && (!bucketDragHintSeenOnAccount || bucketDragHintMarkedThisSession);
@@ -1390,8 +1449,8 @@ export function Dashboard() {
           >
             <BucketGrid
               title={d.tripBuckets}
-              subtitle={buckets.length > 0 ? d.bucketCount(activeBucketItems.length) : undefined}
-              buckets={activeBucketItems}
+              subtitle={buckets.length > 0 ? d.bucketCount(displayedActiveBucketItems.length) : undefined}
+              buckets={displayedActiveBucketItems}
               ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
               onAddBucket={() => setBucketModalOpen(true)}
               manageLabel={buckets.length > 0 ? d.manageBuckets : undefined}
@@ -1399,6 +1458,42 @@ export function Dashboard() {
               belowHeader={
                 <div className="flex flex-col gap-3">
                   {memberPicker}
+                  {activeBucketItems.length >= 2 && (
+                    <div
+                      role="tablist"
+                      aria-label={copy.bucketDragMode.ariaLabel}
+                      className="inline-flex w-fit max-w-full items-center gap-1 rounded-pill bg-well p-1 shadow-neuPressed"
+                    >
+                      {([
+                        { value: 'transfer' as const, label: copy.bucketDragMode.transfer, Icon: IconSwap },
+                        { value: 'edit' as const, label: copy.bucketDragMode.edit, Icon: IconEdit },
+                      ]).map(option => {
+                        const active = bucketDragMode === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            disabled={bucketReorderSaving}
+                            onClick={() => setBucketDragMode(option.value)}
+                            className={
+                              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill px-3 font-mono text-[11px] font-bold transition-colors '
+                              + (bucketReorderSaving
+                                ? 'cursor-wait opacity-60 '
+                                : '')
+                              + (active
+                                ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
+                                : 'text-ink-muted hover:bg-surface hover:text-ink')
+                            }
+                          >
+                            <option.Icon size={13} />
+                            <span>{option.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   {nextBucketId && (() => {
                     const nextBucket = bucketItems.find(b => b.id === nextBucketId);
                     if (!nextBucket) return null;
@@ -1425,6 +1520,7 @@ export function Dashboard() {
               renderBucket={bucket => (
                 <BucketDragCard
                   id={bucket.id}
+                  mode={bucketDragMode}
                   dragHintRole={
                     bucketDragHintDemo?.sourceId === bucket.id
                       ? 'source'
@@ -1474,6 +1570,8 @@ export function Dashboard() {
                     saved={bucket.saved}
                     target={bucket.target}
                     status={bucket.status}
+                    completedAt={bucket.completedAt}
+                    variant="completed"
                     onClick={() => setExpandedBucketId(bucket.id)}
                   />
                 ))}

@@ -21,6 +21,8 @@ interface BucketRowProps {
     label: string;
   };
   deadline?: string | null;
+  completedAt?: string | null;
+  variant?: 'default' | 'completed';
   pace?: {
     status: PaceStatus;
     remainingDays: number;
@@ -49,11 +51,22 @@ function CountdownLabel({ remainingDays, copy }: { remainingDays: number; copy: 
   return <span className="text-ink-muted">{bc.daysLeft(remainingDays)}</span>;
 }
 
-export const BucketRow = memo(function BucketRow({ icon, name, saved, target, onClick, status, deadline, pace }: BucketRowProps) {
+export const BucketRow = memo(function BucketRow({
+  icon,
+  name,
+  saved,
+  target,
+  onClick,
+  status,
+  deadline,
+  completedAt,
+  variant = 'default',
+  pace,
+}: BucketRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
   const wasComplete = useRef(target > 0 && saved >= target);
-  const { copy } = useI18n();
+  const { copy, formatShortDateKey } = useI18n();
 
   useEffect(() => {
     const isComplete = target > 0 && saved >= target;
@@ -73,6 +86,34 @@ export const BucketRow = memo(function BucketRow({ icon, name, saved, target, on
     : pace.status === 'behind' ? 'paceBehind'
     : 'paceCritical'
   ] : null;
+  const completedDateLabel = completedAt ? formatShortDateKey(completedAt.slice(0, 10)) : status?.label;
+
+  if (variant === 'completed') {
+    return (
+      <Pressable
+        onClick={onClick}
+        className="relative flex min-h-[8.5rem] w-full flex-col rounded-2xl bg-surface px-4 py-4 text-left shadow-soft"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <IconBubble tone="peach" size="md" className="text-accent-leaf">{icon}</IconBubble>
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
+            <IconCheckCircle size={16} />
+          </span>
+        </div>
+        <div className="mt-3 min-w-0">
+          <p className="truncate font-mono text-sm font-bold leading-tight text-ink">{name}</p>
+          <p className="mt-1 font-mono text-xs leading-tight text-ink-muted">
+            {formatCurrency(Math.round(animTarget))}
+          </p>
+        </div>
+        {completedDateLabel && (
+          <p className="mt-auto pt-3 font-mono text-[11px] font-bold leading-tight text-accent-leaf">
+            {completedDateLabel}
+          </p>
+        )}
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable

@@ -701,6 +701,11 @@ export const en = {
     message: 'Drag a bucket onto another to move money.',
     dismissAriaLabel: 'Hide drag hint',
   },
+  bucketDragMode: {
+    ariaLabel: 'Bucket drag mode',
+    transfer: 'Transfer',
+    edit: 'Reorder',
+  },
   bucketIntent: {
     status: {
       focus: 'Focus now',

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
@@ -113,11 +113,22 @@ const containerVariants = {
 };
 
 const sectionVariants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 0, y: 8 },
   visible: {
     opacity: 1,
-    transition: { duration: 0.18 },
+    y: 0,
+    transition: { duration: 0.22, ease: [0.16, 1, 0.2, 1] },
   },
+};
+
+const reducedContainerVariants = {
+  hidden: {},
+  visible: {},
+};
+
+const reducedSectionVariants = {
+  hidden: { opacity: 1, y: 0 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0 } },
 };
 
 // Toggle to re-enable the "Next Win" micro-goal block without
@@ -167,6 +178,7 @@ function bucketDragHintDistance(delta: number) {
 export function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const reduceMotion = useReducedMotion();
   const { user, profile } = useAuth();
   const migration = useMigrationState(user?.id);
   const { activeRoom, activeRoomId } = useRoom();
@@ -417,7 +429,8 @@ export function Dashboard() {
 
   useEffect(() => {
     if (searchParams.get('deposit') === 'true') {
-      setHeroDepositOpen(true);
+      const timeoutId = window.setTimeout(() => setHeroDepositOpen(true), 0);
+      return () => window.clearTimeout(timeoutId);
     }
   }, [searchParams]);
 
@@ -820,7 +833,7 @@ export function Dashboard() {
       });
     }
     return result;
-  }, [heroDepositBuckets, copy.addMoney.validationNoBucket, insert, totalSaved, totalTarget]);
+  }, [heroDepositBuckets, copy.addMoney.validationNoBucket, insert, setVaultPreview, totalSaved, totalTarget]);
 
   const planEndDateKey = displayRevision?.end_date ?? activeRoom?.end_date ?? null;
   const planDaysRemaining = planEndDateKey
@@ -1259,17 +1272,20 @@ export function Dashboard() {
   if (!isRefreshing && loading) return null;
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
+  const dashboardContainerVariants = reduceMotion ? reducedContainerVariants : containerVariants;
+  const dashboardSectionVariants = reduceMotion ? reducedSectionVariants : sectionVariants;
+
   return (
     <PullToRefresh onRefresh={refreshAll}>
       {createPortal(
         <div aria-hidden className="dashboard-mesh-bg pointer-events-none fixed inset-0 -z-10" />,
         document.body,
       )}
-    <motion.div className="flex flex-col gap-6 pt-8 pb-6" variants={containerVariants} initial="hidden" animate="visible">
+    <motion.div className="flex flex-col gap-6 pt-8 pb-6" variants={dashboardContainerVariants} initial="hidden" animate="visible">
       {/* Project header. Compact, no heavy card. */}
       <motion.header
         className="flex items-start justify-between gap-3"
-        variants={sectionVariants}
+        variants={dashboardSectionVariants}
       >
         <div className="min-w-0 flex-1">
           <div className="flex max-w-full flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -1294,7 +1310,7 @@ export function Dashboard() {
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}
       {showMigrationBanner && (
-        <motion.div variants={sectionVariants} className="rounded-xl bg-surface p-4 shadow-soft">
+        <motion.div variants={dashboardSectionVariants} className="rounded-xl bg-surface p-4 shadow-soft">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
               <IconCalendar size={20} />
@@ -1317,7 +1333,7 @@ export function Dashboard() {
         </motion.div>
       )}
 
-      <motion.div variants={sectionVariants}>
+      <motion.div variants={dashboardSectionVariants} className="min-h-[25rem] min-[390px]:min-h-[26rem]">
         <HeroCard
           displayName={youName}
           saved={total}
@@ -1339,7 +1355,7 @@ export function Dashboard() {
         />
       </motion.div>
 
-      <motion.div variants={sectionVariants}>
+      <motion.div variants={dashboardSectionVariants}>
         <ActionAlert
           buckets={actionAlertBuckets}
           storageKey={actionAlertStorageKey}
@@ -1349,7 +1365,7 @@ export function Dashboard() {
       </motion.div>
 
       {/* 2 — Team summary. */}
-      <motion.div variants={sectionVariants}>
+      <motion.div variants={dashboardSectionVariants} className="min-h-[15.75rem]">
         <TeamSection
           members={leaderboardEntries}
           roomSaved={totalSaved}
@@ -1361,7 +1377,7 @@ export function Dashboard() {
       </motion.div>
 
       {/* 3 — Saving Plan island (with embedded Verified Balance). */}
-      <motion.div variants={sectionVariants}>
+      <motion.div variants={dashboardSectionVariants}>
         {reconciledAppBalance === null && verifiedBalanceSlot === null && (
           // Fallback row only when there is no Verified Balance to fold
           // into the Saving Plan island — kept lightweight so it still
@@ -1396,13 +1412,13 @@ export function Dashboard() {
 
       {/* (Next Win — hidden for now; component preserved.) */}
       {SHOW_NEXT_WIN && (
-        <motion.div variants={sectionVariants}>
+        <motion.div variants={dashboardSectionVariants}>
           <MicroGoalCard {...selectedBucket} />
         </motion.div>
       )}
 
       {/* 4 — Smart Buckets. */}
-      <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
+      <motion.div className="flex min-h-[18rem] flex-col gap-3" variants={dashboardSectionVariants}>
         {(() => {
           const memberPicker = hasOtherBuckets ? (
             <BucketMemberPicker
@@ -1595,7 +1611,7 @@ export function Dashboard() {
       </motion.div>
 
       {/* 5 - Insights. Timeline first, then the trend chart. */}
-      <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
+      <motion.div className="flex min-h-[21rem] flex-col gap-3" variants={dashboardSectionVariants}>
         <MiniTimeline
           templates={expenseTemplates}
           todayDateKey={todayKey}
@@ -1669,7 +1685,7 @@ export function Dashboard() {
 
       {/* 6 — Activity. Deposits and balance checks merged into one
               chronological list, top 3 items only. */}
-      <motion.section className="flex flex-col gap-3" variants={sectionVariants}>
+      <motion.section className="flex flex-col gap-3" variants={dashboardSectionVariants}>
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-mono text-lg font-bold leading-tight text-ink">{d.activity}</h2>
           {logs.length > 0 && (
@@ -2104,31 +2120,147 @@ function DashboardStatusCard({ title, body }: { title: string; body: string }) {
 function DashboardSkeleton() {
   const { copy } = useI18n();
   return (
-    <div className="flex flex-col gap-6 pt-8 animate-fade-in" aria-label={copy.common.loadingDashboard}>
+    <div className="flex flex-col gap-6 pt-8 pb-6 animate-fade-in" aria-busy="true" aria-label={copy.common.loadingDashboard}>
       <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-3 w-20 rounded-pill" />
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-3 w-36 rounded-pill" />
+        <div className="min-w-0 flex-1">
+          <Skeleton className="h-8 w-52 max-w-[70%]" />
+          <Skeleton className="mt-2 h-3 w-12 rounded-pill" />
         </div>
         <Spinner size="sm" tone="neutral" />
       </div>
-      <section className="rounded-xl bg-brand-50 p-5 shadow-soft">
-        <Skeleton className="h-4 w-28 rounded-pill" />
-        <Skeleton className="mt-4 h-8 w-3/4" />
-        <Skeleton className="mt-3 h-3 w-1/2 rounded-pill" />
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-        </div>
-      </section>
-      <section className="flex flex-col gap-3">
-        <Skeleton className="h-6 w-36 rounded-pill" />
-        <Skeleton className="h-16 rounded-xl" />
-        <Skeleton className="h-16 rounded-xl" />
-        <Skeleton className="h-16 rounded-xl" />
-      </section>
+      <HeroCardSkeleton />
+      <TeamSectionSkeleton />
+      <SavingPlanSkeleton />
+      <BucketZoneSkeleton />
+      <InsightsSkeleton />
+      <ActivitySkeleton />
     </div>
+  );
+}
+
+function HeroCardSkeleton() {
+  return (
+    <section className="flex min-h-[25rem] flex-col rounded-2xl bg-brand-50 px-4 py-4 shadow-soft min-[390px]:min-h-[26rem] min-[390px]:px-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <Skeleton className="h-4 w-24 rounded-pill bg-white/50" />
+          <Skeleton className="mt-2 h-3 w-28 rounded-pill bg-white/40" />
+        </div>
+        <Skeleton className="h-4 w-10 rounded-pill bg-white/45" />
+      </div>
+      <div className="mt-10 flex flex-col items-center">
+        <Skeleton className="h-11 w-56 max-w-full bg-white/55" />
+        <Skeleton className="mt-3 h-4 w-32 rounded-pill bg-white/45" />
+      </div>
+      <Skeleton className="mt-6 h-2 w-full rounded-pill bg-white/45" />
+      <div className="mt-5 flex flex-col gap-2">
+        <Skeleton className="h-10 rounded-xl bg-white/35" />
+        <Skeleton className="h-10 rounded-xl bg-white/35" />
+      </div>
+      <Skeleton className="mt-4 h-12 rounded-pill bg-white/70" />
+      <div className="mt-auto flex items-end justify-between gap-4 pt-5">
+        <Skeleton className="h-8 w-20 rounded-lg bg-white/35" />
+        <Skeleton className="h-4 w-24 rounded-pill bg-white/35" />
+      </div>
+    </section>
+  );
+}
+
+function TeamSectionSkeleton() {
+  return (
+    <section className="min-h-[15.75rem] rounded-xl bg-surface p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Skeleton className="h-6 w-20" />
+          <Skeleton className="mt-2 h-3 w-24 rounded-pill" />
+        </div>
+        <Skeleton className="mt-1 h-3 w-28 rounded-pill" />
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index} className="flex min-h-[9.75rem] flex-col items-center rounded-xl bg-well px-2 py-3">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <Skeleton className="mt-3 h-3 w-14 rounded-pill" />
+            <Skeleton className="mt-3 h-5 w-10 rounded-pill" />
+            <Skeleton className="mt-3 h-1.5 w-full rounded-pill" />
+            <Skeleton className="mt-auto h-3 w-3 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SavingPlanSkeleton() {
+  return (
+    <section className="rounded-2xl bg-surface p-4 shadow-soft">
+      <Skeleton className="h-3 w-28 rounded-pill" />
+      <Skeleton className="mt-3 h-7 w-44" />
+      <Skeleton className="mt-3 h-3 w-full rounded-pill" />
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <Skeleton className="h-20 rounded-xl" />
+        <Skeleton className="h-20 rounded-xl" />
+      </div>
+    </section>
+  );
+}
+
+function BucketZoneSkeleton() {
+  return (
+    <section className="flex min-h-[18rem] flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Skeleton className="h-6 w-36" />
+          <Skeleton className="mt-2 h-3 w-24 rounded-pill" />
+        </div>
+        <Skeleton className="h-10 w-10 rounded-full" />
+      </div>
+      <div className="grid grid-cols-2 gap-4 p-1">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Skeleton key={index} className="aspect-square rounded-2xl" />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function InsightsSkeleton() {
+  return (
+    <section className="flex min-h-[21rem] flex-col gap-3">
+      <div className="rounded-xl bg-surface p-4 shadow-soft">
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-6 w-24 rounded-pill" />
+        </div>
+        <div className="mt-4 flex gap-3">
+          {Array.from({ length: 4 }, (_, index) => (
+            <Skeleton key={index} className="h-16 flex-1 rounded-xl" />
+          ))}
+        </div>
+      </div>
+      <div className="rounded-[2rem] bg-surface p-4 shadow-soft">
+        <Skeleton className="h-6 w-44" />
+        <Skeleton className="mt-3 h-8 w-32" />
+        <Skeleton className="mt-4 h-10 w-52 rounded-pill" />
+        <Skeleton className="mt-4 h-[200px] rounded-xl" />
+      </div>
+    </section>
+  );
+}
+
+function ActivitySkeleton() {
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-5 w-14 rounded-pill" />
+      </div>
+      <div className="rounded-xl bg-surface px-4 shadow-soft">
+        <Skeleton className="my-4 h-12 rounded-lg" />
+        <Skeleton className="my-4 h-12 rounded-lg" />
+        <Skeleton className="my-4 h-12 rounded-lg" />
+      </div>
+    </section>
   );
 }
 
@@ -2187,9 +2319,11 @@ const BUCKET_MEMBER_PICKER_HINT_STORAGE_KEY = 'bucket-member-picker-hint-seen-v1
  *  first option, wrapping tab labels, or detaching from the bucket
  *  section. Selection state mirrors the previous tab-pill look. */
 function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMemberPickerProps) {
+  const reduceMotion = useReducedMotion();
   const [showHint, setShowHint] = useState(false);
   const shellRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
+    if (reduceMotion) return;
     try {
       if (window.localStorage.getItem(BUCKET_MEMBER_PICKER_HINT_STORAGE_KEY)) return;
     } catch {
@@ -2215,7 +2349,7 @@ function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMembe
       window.clearTimeout(startId);
       window.clearTimeout(endId);
     };
-  }, []);
+  }, [reduceMotion]);
 
   return (
     <LayoutGroup id="bucket-member-pill">
@@ -2271,7 +2405,7 @@ function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMembe
                   <motion.span
                     layoutId="bucket-member-active-pill"
                     className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
-                    transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                    transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }}
                   />
                 )}
                 <span className="relative z-10 whitespace-nowrap">
@@ -2302,6 +2436,7 @@ interface DailyTrendModeControlProps {
 const TREND_MODE_HINT_STORAGE_KEY = 'daily-trend-mode-hint-seen-v1';
 
 function DailyTrendModeControl({ ariaLabel, options, value, onChange, disabledValues }: DailyTrendModeControlProps) {
+  const reduceMotion = useReducedMotion();
   // First-visit shimmer: sweep a soft sheen across the toggle once
   // *after the card scrolls into view*, so users who never reach the
   // Daily Trend section don't burn their one-time hint. Stored per
@@ -2309,6 +2444,7 @@ function DailyTrendModeControl({ ariaLabel, options, value, onChange, disabledVa
   const [showHint, setShowHint] = useState(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
+    if (reduceMotion) return;
     try {
       if (window.localStorage.getItem(TREND_MODE_HINT_STORAGE_KEY)) return;
     } catch {
@@ -2336,7 +2472,7 @@ function DailyTrendModeControl({ ariaLabel, options, value, onChange, disabledVa
       window.clearTimeout(startId);
       window.clearTimeout(endId);
     };
-  }, []);
+  }, [reduceMotion]);
 
   return (
     <LayoutGroup id="trend-mode-pill">
@@ -2386,7 +2522,7 @@ function DailyTrendModeControl({ ariaLabel, options, value, onChange, disabledVa
                 <motion.span
                   layoutId="trend-mode-active-pill"
                   className="absolute inset-0 rounded-pill bg-brand-500 shadow-[0_4px_12px_rgba(242,107,26,0.28)]"
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }}
                 />
               )}
               <span className="relative z-10">{option.label}</span>
@@ -2417,6 +2553,7 @@ interface CompareMemberDropdownProps {
  *  card can grow/shrink smoothly without an overlay clipping against
  *  the card's rounded, overflow-hidden shell. */
 function CompareMemberDropdown({ ariaLabel, members, selectedId, onSelect }: CompareMemberDropdownProps) {
+  const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const selected = members.find(member => member.userId === selectedId) ?? members[0] ?? null;
 
@@ -2472,7 +2609,7 @@ function CompareMemberDropdown({ ariaLabel, members, selectedId, onSelect }: Com
           <motion.span
             aria-hidden
             animate={{ rotate: open ? 180 : 0 }}
-            transition={{ type: 'spring', stiffness: 520, damping: 34 }}
+            transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 34 }}
             className="shrink-0 text-ink-muted"
           >
             <IconChevronDown size={14} />
@@ -2484,10 +2621,10 @@ function CompareMemberDropdown({ ariaLabel, members, selectedId, onSelect }: Com
         {open && (
           <motion.div
             key="compare-member-options"
-            initial={{ opacity: 0, scaleY: 0.86, y: -4 }}
+            initial={reduceMotion ? { opacity: 1, scaleY: 1, y: 0 } : { opacity: 0, scaleY: 0.86, y: -4 }}
             animate={{ opacity: 1, scaleY: 1, y: 0 }}
-            exit={{ opacity: 0, scaleY: 0.9, y: -3 }}
-            transition={{ duration: 0.34, ease: [0.16, 1, 0.2, 1] }}
+            exit={reduceMotion ? { opacity: 1, scaleY: 1, y: 0 } : { opacity: 0, scaleY: 0.9, y: -3 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.34, ease: [0.16, 1, 0.2, 1] }}
             className="absolute left-0 top-full mt-1 w-full origin-top overflow-hidden"
           >
             <motion.div
@@ -2497,10 +2634,15 @@ function CompareMemberDropdown({ ariaLabel, members, selectedId, onSelect }: Com
               initial="closed"
               animate="open"
               exit="closed"
-              variants={{
-                open: { transition: { staggerChildren: 0.035, delayChildren: 0.03 } },
-                closed: { transition: { staggerChildren: 0.02, staggerDirection: -1 } },
-              }}
+              variants={reduceMotion
+                ? {
+                    open: {},
+                    closed: {},
+                  }
+                : {
+                    open: { transition: { staggerChildren: 0.035, delayChildren: 0.03 } },
+                    closed: { transition: { staggerChildren: 0.02, staggerDirection: -1 } },
+                  }}
             >
               {members.map(member => {
                 const active = member.userId === selectedId;
@@ -2518,9 +2660,9 @@ function CompareMemberDropdown({ ariaLabel, members, selectedId, onSelect }: Com
                     }}
                     variants={{
                       open: { opacity: 1, x: 0 },
-                      closed: { opacity: 0, x: -6 },
+                      closed: reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -6 },
                     }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }}
                     className={
                       'relative flex h-9 w-full min-w-0 items-center gap-1.5 rounded-xl px-1.5 pr-2 font-mono text-[11px] font-bold transition-colors '
                       + (active ? 'text-ink-inverse' : 'text-ink-muted hover:bg-surface/70')
@@ -2530,7 +2672,7 @@ function CompareMemberDropdown({ ariaLabel, members, selectedId, onSelect }: Com
                       <motion.span
                         layoutId="compare-member-dropdown-active"
                         className="absolute inset-0 rounded-xl bg-brand-500"
-                        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                        transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }}
                       />
                     )}
                     <span className="relative z-10 inline-flex shrink-0 [&_.rounded-full]:!h-5 [&_.rounded-full]:!w-5">

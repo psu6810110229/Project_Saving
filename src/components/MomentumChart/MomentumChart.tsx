@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { palette } from '../../lib/theme';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
@@ -99,6 +100,7 @@ function useAnimatedSeries(
   target: number[],
   targetPartner: number[] | undefined,
   duration = 350,
+  reduceMotion = false,
 ): { series: number[]; partner: number[] | undefined } {
   const [state, setState] = useState(() => ({
     series: target.slice(),
@@ -116,8 +118,19 @@ function useAnimatedSeries(
       || (!!prev.partner && !!targetPartner
         && prev.partner.length === targetPartner.length
         && prev.partner.every((v, i) => v === targetPartner[i]));
-    if (sameSeries && samePartner) return;
+    if (sameSeries && samePartner && !reduceMotion) return;
     targetRef.current = { series: target, partner: targetPartner };
+
+    if (reduceMotion) {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      const nextState = {
+        series: target.slice(),
+        partner: targetPartner ? targetPartner.slice() : undefined,
+      };
+      fromRef.current = nextState;
+      const timeoutId = window.setTimeout(() => setState(nextState), 0);
+      return () => window.clearTimeout(timeoutId);
+    }
 
     const len = target.length;
     const pad = (arr: number[] | undefined): number[] =>
@@ -144,7 +157,7 @@ function useAnimatedSeries(
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [target, targetPartner, duration]);
+  }, [target, targetPartner, duration, reduceMotion]);
 
   return state;
 }
@@ -215,6 +228,7 @@ export const MomentumChart = memo(function MomentumChart({
   weekExpected,
 }: MomentumChartProps) {
   const { copy } = useI18n();
+  const reduceMotion = useReducedMotion();
   const d = copy.dashboard;
   const catLabels = copy.bucket.categoryLabels;
   // Primary/secondary labels in the legend prefer the caller-controlled
@@ -244,7 +258,7 @@ export const MomentumChart = memo(function MomentumChart({
   // Tween bar values whenever the mode (or underlying data) changes so
   // bars visibly morph between Room / Me / Compare instead of snapping.
   // Header totals and legend amounts stay snapped to the target values.
-  const animated = useAnimatedSeries(series, hasPartner ? partnerSeries : undefined, 750);
+  const animated = useAnimatedSeries(series, hasPartner ? partnerSeries : undefined, 750, reduceMotion ?? false);
   const animSeries = animated.series;
   const animPartner = animated.partner;
 

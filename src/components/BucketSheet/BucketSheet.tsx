@@ -56,7 +56,6 @@ export function BucketSheet({
   name,
   saved,
   target,
-  quickAmounts: _quickAmounts,
   onConfirm,
   onDelete,
   isComplete,
@@ -82,14 +81,20 @@ export function BucketSheet({
 
   const prevBucketRef = useRef<string | null>(null);
   useEffect(() => {
+    let timeoutId: number | null = null;
     if (open && bucketId && bucketId !== prevBucketRef.current) {
       prevBucketRef.current = bucketId;
       if (smartDefaultAmount != null && smartDefaultAmount > 0) {
-        setCustomValue(String(smartDefaultAmount));
-        setSelectedPill(null);
+        timeoutId = window.setTimeout(() => {
+          setCustomValue(String(smartDefaultAmount));
+          setSelectedPill(null);
+        }, 0);
       }
     }
     if (!open) prevBucketRef.current = null;
+    return () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    };
   }, [open, bucketId, smartDefaultAmount]);
 
   const customAmount = Number(customValue);

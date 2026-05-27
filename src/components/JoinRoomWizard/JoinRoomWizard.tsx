@@ -10,10 +10,10 @@ import { IconArrowLeft } from '../Icon/Icon';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { useI18n } from '../../i18n/useI18n';
 import { supabase } from '../../lib/supabase';
+import { joinWizardDraftKey } from './joinWizardDraft';
 import type { ExpenseTemplate } from '../../types';
 
 const TOTAL_STEPS = 3;
-const JOIN_WIZARD_DRAFT_KEY = 'go-out:join-wizard-draft';
 
 export interface JoinBucketDraft {
   id: string;
@@ -43,7 +43,7 @@ interface JoinRoomWizardProps {
 
 function loadDraft(roomId: string): JoinWizardDraft {
   try {
-    const raw = localStorage.getItem(`${JOIN_WIZARD_DRAFT_KEY}:${roomId}`);
+    const raw = localStorage.getItem(joinWizardDraftKey(roomId));
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.step === 'number') return parsed as JoinWizardDraft;
@@ -54,12 +54,8 @@ function loadDraft(roomId: string): JoinWizardDraft {
 
 function saveDraft(roomId: string, draft: JoinWizardDraft) {
   try {
-    localStorage.setItem(`${JOIN_WIZARD_DRAFT_KEY}:${roomId}`, JSON.stringify(draft));
+    localStorage.setItem(joinWizardDraftKey(roomId), JSON.stringify(draft));
   } catch { /* storage full — non-critical */ }
-}
-
-export function clearJoinWizardDraft(roomId: string) {
-  try { localStorage.removeItem(`${JOIN_WIZARD_DRAFT_KEY}:${roomId}`); } catch { /* noop */ }
 }
 
 const slideTransition = {
@@ -84,8 +80,9 @@ export function JoinRoomWizard({ roomId, roomGoalTarget, isRejoin, restoredBucke
 
   useEffect(() => {
     if (templatesLoaded || draft.buckets.length > 0) {
-      setTemplatesLoaded(true);
-      return;
+      if (templatesLoaded) return;
+      const timeoutId = window.setTimeout(() => setTemplatesLoaded(true), 0);
+      return () => window.clearTimeout(timeoutId);
     }
     let cancelled = false;
 

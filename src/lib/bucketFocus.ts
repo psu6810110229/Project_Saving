@@ -64,7 +64,6 @@ export function calcBucketFocusStates(
 
       if (daysToSecond <= 30 && isBehind) {
         result.set(second.id, 'focus');
-        focusCount++;
       }
     }
   }

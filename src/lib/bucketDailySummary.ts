@@ -83,8 +83,8 @@ export function calcDailySummary(
     const category: BucketCategory = b.category ?? 'other';
 
     let amountDue: number | null = null;
-    let periodLabel = 'flexible';
-    let periodDeadline: string | null = null;
+    let periodLabel: string;
+    let periodDeadline: string | null;
 
     switch (rule) {
       case 'fixed_daily': {

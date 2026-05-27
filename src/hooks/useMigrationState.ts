@@ -45,14 +45,17 @@ export function useMigrationState(userId: string | undefined | null) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setLoaded(false);
-    if (!storageKey || typeof window === 'undefined') {
-      setState(initialState());
+    const timeoutId = window.setTimeout(() => {
+      setLoaded(false);
+      if (!storageKey || typeof window === 'undefined') {
+        setState(initialState());
+        setLoaded(true);
+        return;
+      }
+      setState(parseState(window.localStorage.getItem(storageKey)));
       setLoaded(true);
-      return;
-    }
-    setState(parseState(window.localStorage.getItem(storageKey)));
-    setLoaded(true);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [storageKey]);
 
   const update = useCallback((next: MigrationState | ((current: MigrationState) => MigrationState)) => {

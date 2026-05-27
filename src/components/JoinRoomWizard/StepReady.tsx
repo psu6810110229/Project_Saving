@@ -5,7 +5,7 @@ import { IconArrowLeft } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
-import { clearJoinWizardDraft } from './JoinRoomWizard';
+import { clearJoinWizardDraft } from './joinWizardDraft';
 import type { JoinBucketDraft } from './JoinRoomWizard';
 
 interface StepReadyProps {

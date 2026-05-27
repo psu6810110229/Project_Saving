@@ -12,6 +12,7 @@ import { CheckBalance } from './pages/CheckBalance';
 import { Dashboard } from './pages/Dashboard';
 import { SavingPlan } from './pages/SavingPlan';
 import { Login } from './pages/Login';
+import { Maintenance } from './pages/Maintenance';
 import { ManageProject } from './pages/ManageProject';
 import { MemberDetail } from './pages/MemberDetail';
 import { MoleculesPreview } from './pages/MoleculesPreview';
@@ -24,7 +25,13 @@ import { DashboardReferenceScreen } from './pages/DashboardReferenceScreen';
 import { DashboardBucketsScreen } from './pages/DashboardBucketsScreen';
 import { AddMoneyReferenceScreen } from './pages/AddMoneyReferenceScreen';
 
+const MAINTENANCE_MODE = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
+
 function App() {
+  if (MAINTENANCE_MODE) {
+    return <Maintenance />;
+  }
+
   return (
     <BrowserRouter>
       <AuthProvider>

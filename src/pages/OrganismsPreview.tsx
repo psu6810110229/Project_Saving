@@ -144,6 +144,7 @@ export function OrganismsPreview() {
             onNameChange={setBucketName}
             onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
             onSubmit={() => setModalOpen(true)}
+            roomEndDate="2027-06-15"
           />
         </Group>
 

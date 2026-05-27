@@ -101,6 +101,15 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       target_amount: d.target_amount,
       category: d.category ?? 'other',
       position: i,
+      ...(d.deadline !== undefined && { deadline: d.deadline }),
+      ...(d.saving_rule_type !== undefined && { saving_rule_type: d.saving_rule_type }),
+      ...(d.saving_rule_amount !== undefined && { saving_rule_amount: d.saving_rule_amount }),
+      ...(d.saving_rule_start_amount !== undefined && { saving_rule_start_amount: d.saving_rule_start_amount }),
+      ...(d.saving_rule_increment !== undefined && { saving_rule_increment: d.saving_rule_increment }),
+      ...(d.saving_rule_cap !== undefined && { saving_rule_cap: d.saving_rule_cap }),
+      ...(d.saving_rule_day_count !== undefined && { saving_rule_day_count: d.saving_rule_day_count }),
+      ...(d.reminder_day !== undefined && { reminder_day: d.reminder_day }),
+      ...(d.payment_type !== undefined && { payment_type: d.payment_type }),
     }));
 
     const inserts = next.filter(d => d.id === undefined).map((d, i) => ({
@@ -110,6 +119,15 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       target_amount: d.target_amount,
       category: d.category ?? 'other',
       position: i + updates.length,
+      ...(d.deadline !== undefined && { deadline: d.deadline }),
+      ...(d.saving_rule_type !== undefined && { saving_rule_type: d.saving_rule_type }),
+      ...(d.saving_rule_amount !== undefined && { saving_rule_amount: d.saving_rule_amount }),
+      ...(d.saving_rule_start_amount !== undefined && { saving_rule_start_amount: d.saving_rule_start_amount }),
+      ...(d.saving_rule_increment !== undefined && { saving_rule_increment: d.saving_rule_increment }),
+      ...(d.saving_rule_cap !== undefined && { saving_rule_cap: d.saving_rule_cap }),
+      ...(d.saving_rule_day_count !== undefined && { saving_rule_day_count: d.saving_rule_day_count }),
+      ...(d.reminder_day !== undefined && { reminder_day: d.reminder_day }),
+      ...(d.payment_type !== undefined && { payment_type: d.payment_type }),
     }));
 
     // Detect updates whose user-facing fields (not just position)

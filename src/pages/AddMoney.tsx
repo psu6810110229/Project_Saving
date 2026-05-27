@@ -24,7 +24,7 @@ import { computeBucketIntent } from '../lib/bucketIntent';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
 import { SHOW_ATTACHED_SLIP } from '../lib/flags';
 import { haptic } from '../lib/haptics';
-import type { BucketCategory } from '../types';
+import type { BucketCategory, BucketCreateRuleData } from '../types';
 
 const DEFAULT_BUCKET_CATEGORY = 'flight' as const;
 
@@ -103,7 +103,7 @@ export function AddMoney() {
     );
   }
 
-  async function handleCreateBucket() {
+  async function handleCreateBucket(ruleData: BucketCreateRuleData) {
     const target = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || target <= 0) {
       setMessage(copy.bucket.validationNameAndTarget);
@@ -115,7 +115,20 @@ export function AddMoney() {
     }
     const result = await saveBuckets([
       ...buckets,
-      { id: undefined, name: bucketName.trim(), target_amount: target, category: bucketCategory },
+      {
+        id: undefined,
+        name: bucketName.trim(),
+        target_amount: target,
+        category: bucketCategory,
+        deadline: ruleData.deadline,
+        saving_rule_type: ruleData.savingRuleType,
+        saving_rule_amount: ruleData.savingRuleAmount,
+        saving_rule_start_amount: ruleData.savingRuleStartAmount,
+        saving_rule_increment: ruleData.savingRuleIncrement,
+        saving_rule_cap: ruleData.savingRuleCap,
+        saving_rule_day_count: ruleData.savingRuleDayCount,
+        reminder_day: ruleData.reminderDay,
+      },
     ]);
     if (result.error) {
       setMessage(result.code === 'duplicate_name'
@@ -197,6 +210,7 @@ export function AddMoney() {
           onNameChange={setBucketName}
           onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
           onSubmit={handleCreateBucket}
+          roomEndDate={activeRoom?.end_date ?? null}
         />
       </div>
     );

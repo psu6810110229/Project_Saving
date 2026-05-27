@@ -8,18 +8,12 @@ export function Maintenance() {
 
         <div className="mt-5 text-4xl">🔧</div>
 
-        <h1 className="mt-4 font-mono text-xl font-bold text-ink">
-          Under Maintenance
-        </h1>
-        <p className="mt-1 font-mono text-sm text-ink-muted">
+        <h1 className="mt-4 font-mono text-lg font-bold text-ink">
           กำลังปรับปรุงระบบ
-        </p>
+        </h1>
 
-        <p className="mt-4 font-mono text-xs leading-5 text-ink-dim">
-          We're improving your experience. Please check back soon.
-        </p>
-        <p className="font-mono text-xs leading-5 text-ink-dim">
-          เรากำลังปรับปรุงเพื่อประสบการณ์ที่ดีขึ้น กรุณากลับมาใหม่ในภายหลัง
+        <p className="mt-4 font-mono text-sm leading-5 text-ink-dim">
+          เรากำลังปรับปรุงเพื่อประสบการณ์ให้ดีขึ้น กรุณากลับมาใหม่ในภายหลัง
         </p>
       </section>
     </div>

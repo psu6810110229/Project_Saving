@@ -567,6 +567,7 @@ export interface HabitStatus {
   daysSinceLastDeposit: number | null;
   hasDepositedToday: boolean;
   streak: number;
+  streakUnit?: 'day' | 'week' | 'month';
 }
 
 function streakFromDayKeys(

@@ -118,6 +118,16 @@ function dailyRuleDueTotal(items: DailySummaryItem[]): number {
   }, 0);
 }
 
+function streakLabel(habit: HabitStatus, streakDays: (n: number) => string): string {
+  if (habit.streakUnit === 'month') {
+    return `${habit.streak} month${habit.streak === 1 ? '' : 's'}`;
+  }
+  if (habit.streakUnit === 'week') {
+    return `${habit.streak} week${habit.streak === 1 ? '' : 's'}`;
+  }
+  return streakDays(habit.streak);
+}
+
 export const SavingPlanCard = memo(function SavingPlanCard({
   ruleType,
   money,
@@ -244,7 +254,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
                 </span>
                 <div className="min-w-0">
                   <p className="font-mono text-[11px] leading-tight text-ink-muted">{d.streakLabel}</p>
-                  <p className="truncate font-mono text-sm font-bold text-ink">{d.streakDays(habit.streak)}</p>
+                  <p className="truncate font-mono text-sm font-bold text-ink">{streakLabel(habit, d.streakDays)}</p>
                 </div>
               </div>
             )}
@@ -488,7 +498,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
               <span>
                 {d.streakLabel}:{' '}
                 <span className="font-bold text-ink">
-                  {d.streakDays(habit.streak)}
+                  {streakLabel(habit, d.streakDays)}
                   {streakFire && (
                     <span aria-hidden className="ml-1 align-middle">{streakFire}</span>
                   )}

@@ -7,6 +7,7 @@ import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityT
 import { Avatar } from '../components/Avatar/Avatar';
 import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
 import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
+import { MigrationWizard } from '../components/MigrationWizard/MigrationWizard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { BucketManager } from '../components/BucketManager/BucketManager';
@@ -40,6 +41,7 @@ import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCoun
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
   IconArrowRight,
+  IconCalendar,
   IconCheck,
   IconChevronDown,
   IconRocket,
@@ -55,6 +57,7 @@ import { BucketNextPickerModal } from '../components/BucketNextPickerModal/Bucke
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
 import { computeBucketIntent } from '../lib/bucketIntent';
 import { calcDailySummary } from '../lib/bucketDailySummary';
+import { calcPeriodAwareStreak } from '../lib/streakCalculation';
 import { Modal } from '../components/Modal/Modal';
 import { OutcomeModal } from '../components/OutcomeModal/OutcomeModal';
 import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
@@ -65,6 +68,7 @@ import { Spinner } from '../components/Spinner/Spinner';
 import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useSharedData } from '../hooks/useSharedData';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useMigrationState } from '../hooks/useMigrationState';
 import { useLogs } from '../hooks/useLogs';
 import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
 import { useRoom } from '../hooks/useRoom';
@@ -83,6 +87,7 @@ import { supabase } from '../lib/supabase';
 import { daysSince, formatDirectionalAdjustment } from '../lib/reconcile';
 import {
   activeRevisionAt,
+  daysBetween,
   habitStatusFromDeposits,
   isPausedOnDate,
   moneyStatusFor,
@@ -156,6 +161,7 @@ function bucketDragHintDistance(delta: number) {
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const migration = useMigrationState(user?.id);
   const { activeRoom, activeRoomId } = useRoom();
   const data = useSharedData();
   const { refreshAll, isRefreshing } = data;
@@ -243,6 +249,7 @@ export function Dashboard() {
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [completedBucketsOpen, setCompletedBucketsOpen] = useState(false);
   const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
+  const [migrationBannerDismissed, setMigrationBannerDismissed] = useState(false);
   const [manageBucketTransferSheetOpen, setManageBucketTransferSheetOpen] = useState(false);
   const [nextPickerOpen, setNextPickerOpen] = useState(false);
   const [transferIntent, setTransferIntent] = useState<{
@@ -649,6 +656,37 @@ export function Dashboard() {
     () => calcDailySummary(buckets, logs, todayKey, bucketTransfers),
     [buckets, logs, todayKey, bucketTransfers],
   );
+  const bucketStreak = useMemo(
+    () => calcPeriodAwareStreak(buckets, logs, todayKey, streakFrozenDates, bucketTransfers),
+    [buckets, logs, todayKey, streakFrozenDates, bucketTransfers],
+  );
+  const migrationBuckets = useMemo(
+    () => buckets.filter(bucket => !bucket.deadline || migration.state.completedBucketIds.includes(bucket.id)),
+    [buckets, migration.state.completedBucketIds],
+  );
+  const migrationNeedsSetup = migration.loaded
+    && !migration.state.done
+    && (buckets.some(bucket => !bucket.deadline) || migration.state.completedBucketIds.length > 0);
+  const migrationWizardOpen = migrationNeedsSetup && !migration.state.dismissed;
+  const showMigrationBanner = migrationNeedsSetup
+    && migration.state.dismissed
+    && !migrationBannerDismissed;
+  const displayedHabitStatus = hasBucketRules
+    ? {
+        state: bucketStreak.trackable
+          ? bucketStreak.hasMetCurrentPeriod
+            ? 'active' as const
+            : 'at_risk' as const
+          : 'no_deposits_yet' as const,
+        lastDepositDateKey: bucketStreak.lastDepositDateKey,
+        daysSinceLastDeposit: bucketStreak.lastDepositDateKey
+          ? Math.max(0, daysBetween(bucketStreak.lastDepositDateKey, todayKey))
+          : null,
+        hasDepositedToday: bucketStreak.hasLoggedToday,
+        streak: bucketStreak.streak,
+        streakUnit: bucketStreak.unit,
+      }
+    : habitStatus;
 
   // Saving Plan card meta — prefer the active plan revision's end date,
   // otherwise fall back to the room/goal end date. Some plans run in
@@ -910,6 +948,69 @@ export function Dashboard() {
   const handleDepositFromPlan = useCallback(() => navigate('/add'), [navigate]);
   const handleManageProject = useCallback(() => navigate('/manage-project'), [navigate]);
 
+  function bucketDraftFromExisting(bucket: Bucket) {
+    return {
+      id: bucket.id,
+      name: bucket.name,
+      target_amount: bucket.target_amount,
+      category: bucket.category,
+      deadline: bucket.deadline,
+      saving_rule_type: bucket.saving_rule_type,
+      saving_rule_amount: bucket.saving_rule_amount,
+      saving_rule_start_amount: bucket.saving_rule_start_amount,
+      saving_rule_increment: bucket.saving_rule_increment,
+      saving_rule_cap: bucket.saving_rule_cap,
+      saving_rule_day_count: bucket.saving_rule_day_count,
+      reminder_day: bucket.reminder_day,
+      payment_type: bucket.payment_type,
+    };
+  }
+
+  async function handleMigrationStart() {
+    migration.setState(current => ({
+      ...current,
+      step: Math.max(1, current.step),
+      dismissed: false,
+    }));
+  }
+
+  function handleMigrationLater() {
+    migration.markDismissed();
+    setMigrationBannerDismissed(false);
+  }
+
+  async function handleMigrationBucketSubmit(bucket: Bucket, ruleData: BucketCreateRuleData) {
+    const result = await saveBuckets(
+      buckets.map(item => item.id === bucket.id
+        ? {
+            ...bucketDraftFromExisting(item),
+            deadline: ruleData.deadline,
+            saving_rule_type: ruleData.savingRuleType,
+            saving_rule_amount: ruleData.savingRuleAmount,
+            saving_rule_start_amount: ruleData.savingRuleStartAmount,
+            saving_rule_increment: ruleData.savingRuleIncrement,
+            saving_rule_cap: ruleData.savingRuleCap,
+            saving_rule_day_count: ruleData.savingRuleDayCount,
+            reminder_day: ruleData.reminderDay,
+          }
+        : bucketDraftFromExisting(item)),
+    );
+    if (!result.error) {
+      migration.markBucketCompleted(bucket.id);
+      haptic('success');
+    }
+    return result;
+  }
+
+  async function handleMigrationComplete() {
+    const result = await data.savingPlan.archivePlan();
+    if (result.error) return result;
+    migration.markDone();
+    await refreshAll();
+    haptic('success');
+    return {};
+  }
+
   async function handleCreateBucket(ruleData: BucketCreateRuleData) {
     const nextTarget = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || nextTarget <= 0) {
@@ -1047,6 +1148,30 @@ export function Dashboard() {
       </motion.header>
 
       {/* 1 — Recorded Vault. Shared progress toward target. */}
+      {showMigrationBanner && (
+        <motion.div variants={sectionVariants} className="rounded-xl bg-surface p-4 shadow-soft">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+              <IconCalendar size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-mono text-sm font-bold text-ink">Finish setting up your saving goals</h2>
+              <p className="mt-1 font-mono text-xs leading-relaxed text-ink-muted">
+                Add deadlines and saving rules to unlock today's bucket plan.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button variant="action" size="sm" onClick={handleMigrationStart}>
+                  Continue setup
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setMigrationBannerDismissed(true)}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       <motion.div variants={sectionVariants}>
         <TotalVaultCard
           saved={totalSaved}
@@ -1086,7 +1211,7 @@ export function Dashboard() {
         <SavingPlanCard
           ruleType={displayRevision?.rule_type ?? null}
           money={moneyStatus}
-          habit={habitStatus}
+          habit={displayedHabitStatus}
           onConfigure={handleConfigurePlan}
           verifiedBalance={verifiedBalanceSlot}
           isPaused={isPausedToday}
@@ -1374,6 +1499,22 @@ export function Dashboard() {
           bucketEvents={bucketEventItems}
         />
       </motion.section>
+
+      <MigrationWizard
+        open={migrationWizardOpen}
+        state={migration.state}
+        buckets={migrationBuckets}
+        logs={logs}
+        transfers={bucketTransfers}
+        roomEndDate={activeRoom?.end_date ?? null}
+        summaryItems={bucketSummaryItems}
+        streak={displayedHabitStatus.streak ?? 0}
+        streakUnit={'streakUnit' in displayedHabitStatus ? displayedHabitStatus.streakUnit : undefined}
+        onStart={handleMigrationStart}
+        onLater={handleMigrationLater}
+        onBucketSubmit={handleMigrationBucketSubmit}
+        onComplete={handleMigrationComplete}
+      />
 
       <Modal open={bucketModalOpen} title={d.addBucketModalTitle} onClose={() => setBucketModalOpen(false)}>
         <div className="flex flex-col gap-4">

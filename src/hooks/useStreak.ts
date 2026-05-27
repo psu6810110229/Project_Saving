@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { calcStreakWithFreezes, localDateKey, APP_TZ } from '../lib/streak';
-import type { SavingsLog } from '../types';
+import { calcPeriodAwareStreak, type StreakGranularity } from '../lib/streakCalculation';
+import type { Bucket, BucketTransfer, SavingsLog } from '../types';
 
 function todayKey() {
   return localDateKey(new Date().toISOString(), APP_TZ);
@@ -9,6 +10,8 @@ function todayKey() {
 interface UseStreakResult {
   streak: number;
   hasLoggedToday: boolean;
+  unit: StreakGranularity;
+  trackable: boolean;
 }
 
 /**
@@ -20,6 +23,8 @@ export function useStreak(
   userId: string | undefined,
   logs: SavingsLog[],
   frozenDates: ReadonlySet<string> = new Set(),
+  buckets?: Bucket[],
+  transfers?: BucketTransfer[],
 ): UseStreakResult {
   const [today, setToday] = useState(todayKey);
 
@@ -33,10 +38,20 @@ export function useStreak(
   }, []);
 
   return useMemo(() => {
-    if (!userId) return { streak: 0, hasLoggedToday: false };
+    if (!userId) return { streak: 0, hasLoggedToday: false, unit: 'day', trackable: false };
     const userLogs = logs.filter(l => l.user_id === userId);
+    const userBuckets = buckets?.filter(b => b.user_id === userId) ?? [];
+    if (userBuckets.some(bucket => bucket.deadline && bucket.saving_rule_type)) {
+      const result = calcPeriodAwareStreak(userBuckets, userLogs, today, frozenDates, transfers);
+      return {
+        streak: result.streak,
+        hasLoggedToday: result.hasLoggedToday,
+        unit: result.unit,
+        trackable: result.trackable,
+      };
+    }
     const streak = calcStreakWithFreezes(userLogs, today, frozenDates);
     const hasLoggedToday = userLogs.some(l => localDateKey(l.created_at) === today);
-    return { streak, hasLoggedToday };
-  }, [userId, logs, today, frozenDates]);
+    return { streak, hasLoggedToday, unit: 'day', trackable: true };
+  }, [userId, logs, today, frozenDates, buckets, transfers]);
 }

@@ -144,6 +144,15 @@
     @apply border-t border-brand-100/60;
   }
 
+  .icon-stroke-crisp,
+  .icon-stroke-crisp * {
+    vector-effect: non-scaling-stroke;
+  }
+
+  .bucket-card-meta {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Subtle staggered reveal for composed pages (Dashboard).
      Pair with `style={{ animationDelay: '60ms' }}` etc. for sequence. */
   .reveal-section {

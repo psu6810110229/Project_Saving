@@ -12,7 +12,7 @@ interface IconProps extends SVGProps<SVGSVGElement> {
   size?: number;
 }
 
-function svgProps({ size = 20, ...rest }: IconProps) {
+function svgProps({ size = 20, className, ...rest }: IconProps) {
   return {
     width: size,
     height: size,
@@ -22,6 +22,7 @@ function svgProps({ size = 20, ...rest }: IconProps) {
     strokeWidth: 1.75,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
+    className: ['icon-stroke-crisp', className].filter(Boolean).join(' '),
     ...rest,
   };
 }
@@ -353,6 +354,18 @@ export function IconClock(p: IconProps) {
   );
 }
 
+export function IconClockAlert(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l3 2" />
+      <path d="M18 3.8 20.2 2" />
+      <path d="M18 8.2 20.2 10" />
+      <path d="M19.5 6h2.5" />
+    </svg>
+  );
+}
+
 export function IconWarning(p: IconProps) {
   return (
     <svg {...svgProps(p)} aria-hidden>
@@ -384,6 +397,36 @@ export function IconCrown(p: IconProps) {
     <svg {...svgProps(p)} aria-hidden>
       <path d="M2 17l3-11 5 5 2-7 2 7 5-5 3 11z" />
       <path d="M2 17h20" />
+    </svg>
+  );
+}
+
+export function IconCalendarClock(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M8 3v4M16 3v4" />
+      <circle cx="15.5" cy="15.5" r="3.5" />
+      <path d="M15.5 13.8v1.9l1.3.8" />
+    </svg>
+  );
+}
+
+export function IconArrowUpRight(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M7 17 17 7" />
+      <path d="M9 7h8v8" />
+    </svg>
+  );
+}
+
+export function IconShield(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="M9 12l2 2 4-5" />
     </svg>
   );
 }

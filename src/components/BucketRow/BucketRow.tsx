@@ -6,7 +6,7 @@ import { formatCurrency } from '../../lib/format';
 import Pressable from '../Pressable/Pressable';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import { useI18n } from '../../i18n/useI18n';
-import { IconClock, IconFire, IconCheckCircle, IconWarning } from '../Icon/Icon';
+import { IconArrowUpRight, IconCheckCircle, IconClock, IconClockAlert, IconWarning } from '../Icon/Icon';
 import type { PaceStatus } from '../../types';
 
 interface BucketRowProps {
@@ -31,11 +31,11 @@ const STATUS_STYLES: Record<string, string> = {
   focus: 'bg-brand-100 text-brand-700',
   next: 'bg-blue-50 text-blue-600',
   done: 'bg-green-100 text-green-700',
-  overdue: 'bg-red-50 text-danger',
+  overdue: 'bg-danger-soft text-danger',
 };
 
-const PACE_CONFIG: Record<PaceStatus, { className: string; Icon: typeof IconFire }> = {
-  ahead: { className: 'text-accent-leaf', Icon: IconFire },
+const PACE_CONFIG: Record<PaceStatus, { className: string; Icon: typeof IconArrowUpRight }> = {
+  ahead: { className: 'text-accent-leaf', Icon: IconArrowUpRight },
   on_track: { className: 'text-ink-muted', Icon: IconCheckCircle },
   behind: { className: 'text-brand-700', Icon: IconWarning },
   critical: { className: 'text-danger', Icon: IconWarning },
@@ -65,6 +65,8 @@ export const BucketRow = memo(function BucketRow({ icon, name, saved, target, on
 
   const hasDeadlineInfo = deadline != null && pace != null;
   const paceConfig = pace ? PACE_CONFIG[pace.status] : null;
+  const CountdownIcon = pace && pace.remainingDays <= 7 ? IconClockAlert : IconClock;
+  const countdownIconClass = pace && pace.remainingDays <= 7 ? 'text-danger' : 'text-ink-dim';
   const paceLabel = pace ? copy.bucketCard[
     pace.status === 'ahead' ? 'paceAhead'
     : pace.status === 'on_track' ? 'paceOnTrack'
@@ -98,12 +100,12 @@ export const BucketRow = memo(function BucketRow({ icon, name, saved, target, on
 
       <div className="mt-auto w-full pt-2">
         {hasDeadlineInfo && paceConfig && (
-          <div className="mb-2 flex items-center justify-between gap-1 text-[11px] font-mono leading-tight">
-            <span className="flex items-center gap-1">
-              <IconClock size={12} className="shrink-0 text-ink-dim" />
+          <div className="bucket-card-meta mb-2 flex items-center justify-between gap-1 text-[11px] font-mono leading-tight">
+            <span className="flex min-w-0 items-center gap-1 whitespace-nowrap">
+              <CountdownIcon size={12} className={`shrink-0 ${countdownIconClass}`} />
               <CountdownLabel remainingDays={pace!.remainingDays} copy={copy} />
             </span>
-            <span className={`flex items-center gap-0.5 font-bold ${paceConfig.className}`}>
+            <span className={`flex min-w-0 items-center gap-0.5 whitespace-nowrap font-bold ${paceConfig.className}`}>
               <paceConfig.Icon size={12} className="shrink-0" />
               {paceLabel}
             </span>

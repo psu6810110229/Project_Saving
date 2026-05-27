@@ -1,10 +1,12 @@
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { MOTION_DURATION, MOTION_EASE, REDUCED_MOTION_TRANSITION } from '../../lib/motion';
 import { WizardProgress } from './WizardProgress';
 import { StepBasics } from './StepBasics';
 import { StepEventDate } from './StepEventDate';
+import { StepExpenses } from './StepExpenses';
+import { StepTimeline } from './StepTimeline';
 import {
   IconArrowLeft,
   IconBriefcase,
@@ -15,16 +17,28 @@ import {
 } from '../Icon/Icon';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { useI18n } from '../../i18n/useI18n';
-import type { ProjectCategory } from '../../types';
 import { WIZARD_DRAFT_KEY } from '../../lib/wizardDraft';
+import { suggestExpenses } from '../../lib/travelExpenseRules';
+import type { ExpenseDraftItem, WizardDraft } from './wizardTypes';
 
 const TOTAL_STEPS = 5;
 
-interface WizardDraft {
-  step: number;
-  name: string;
-  category: ProjectCategory;
-  endDate: string;
+function buildInitialExpenses(endDate: string, totalBudget: number): ExpenseDraftItem[] {
+  if (!endDate) return [];
+  const suggested = suggestExpenses(totalBudget || 50_000, endDate);
+  return suggested.map(s => ({
+    id: s.category,
+    category: s.category,
+    nameEn: s.nameEn,
+    nameTh: s.nameTh,
+    targetAmount: s.targetAmount,
+    deadline: s.deadline,
+    checked: true,
+    isCustom: false,
+    tipKey: s.tipKey,
+    priority: s.priority,
+    paymentType: s.paymentType,
+  }));
 }
 
 function loadDraft(): WizardDraft {
@@ -35,7 +49,7 @@ function loadDraft(): WizardDraft {
       if (parsed && typeof parsed.step === 'number') return parsed as WizardDraft;
     }
   } catch { /* ignore corrupt data */ }
-  return { step: 1, name: '', category: 'travel', endDate: '' };
+  return { step: 1, name: '', category: 'travel', endDate: '', totalBudget: 0, expenses: [] };
 }
 
 function saveDraft(draft: WizardDraft) {
@@ -76,13 +90,24 @@ export function CreateRoomWizard() {
     setDraft(prev => ({ ...prev, step }));
   }, [draft.step]);
 
-  const categoryOptions = [
+  const goToStep3 = useCallback(() => {
+    setDirection(1);
+    setDraft(prev => {
+      const needsInit = prev.expenses.length === 0 && prev.endDate;
+      const expenses = needsInit
+        ? buildInitialExpenses(prev.endDate, prev.totalBudget)
+        : prev.expenses;
+      return { ...prev, step: 3, expenses };
+    });
+  }, []);
+
+  const categoryOptions = useMemo(() => [
     { id: 'travel' as const, label: copy.profile.projectCategories.travel, icon: <IconPlane size={28} /> },
     { id: 'gadget' as const, label: copy.profile.projectCategories.gadget, icon: <IconSmartphone size={28} /> },
     { id: 'wedding' as const, label: copy.profile.projectCategories.wedding, icon: <IconHeart size={28} /> },
     { id: 'home' as const, label: copy.profile.projectCategories.home, icon: <IconHome size={28} /> },
     { id: 'other' as const, label: copy.profile.projectCategories.other, icon: <IconBriefcase size={28} /> },
-  ];
+  ], [copy.profile.projectCategories]);
 
   function handleClose() {
     navigate(-1);
@@ -107,16 +132,34 @@ export function CreateRoomWizard() {
         <StepEventDate
           endDate={draft.endDate}
           onEndDateChange={endDate => setDraft(prev => ({ ...prev, endDate }))}
-          onNext={() => goTo(3)}
+          onNext={goToStep3}
           onBack={() => goTo(1)}
         />
       );
       break;
     case 3:
-      stepContent = <StepPlaceholder label={c.comingSoonStep3} />;
+      stepContent = (
+        <StepExpenses
+          endDate={draft.endDate}
+          totalBudget={draft.totalBudget}
+          expenses={draft.expenses}
+          onTotalBudgetChange={totalBudget => setDraft(prev => ({ ...prev, totalBudget }))}
+          onExpensesChange={expenses => setDraft(prev => ({ ...prev, expenses }))}
+          onNext={() => goTo(4)}
+          onBack={() => goTo(2)}
+        />
+      );
       break;
     case 4:
-      stepContent = <StepPlaceholder label={c.comingSoonStep4} />;
+      stepContent = (
+        <StepTimeline
+          eventDate={draft.endDate}
+          expenses={draft.expenses}
+          onExpensesChange={expenses => setDraft(prev => ({ ...prev, expenses }))}
+          onNext={() => goTo(5)}
+          onBack={() => goTo(3)}
+        />
+      );
       break;
     case 5:
       stepContent = <StepPlaceholder label={c.comingSoonStep5} />;

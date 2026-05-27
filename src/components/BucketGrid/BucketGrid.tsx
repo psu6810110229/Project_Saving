@@ -10,8 +10,9 @@ export interface BucketGridItem {
   name: string;
   saved: number;
   target: number;
+  deadline?: string | null;
   status?: {
-    kind: 'focus' | 'next' | 'done';
+    kind: 'focus' | 'next' | 'done' | 'queued' | 'overdue';
     label: string;
   };
 }

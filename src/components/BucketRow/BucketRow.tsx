@@ -13,15 +13,16 @@ interface BucketRowProps {
   onClick?: () => void;
   expanded?: boolean;
   status?: {
-    kind: 'focus' | 'next' | 'done';
+    kind: 'focus' | 'next' | 'done' | 'queued' | 'overdue';
     label: string;
   };
 }
 
-const STATUS_STYLES: Record<'focus' | 'next' | 'done', string> = {
+const STATUS_STYLES: Record<string, string> = {
   focus: 'bg-brand-100 text-brand-700',
-  next: 'bg-accent-100 text-accent-700',
+  next: 'bg-blue-50 text-blue-600',
   done: 'bg-green-100 text-green-700',
+  overdue: 'bg-red-50 text-danger',
 };
 
 export const BucketRow = memo(function BucketRow({ icon, name, saved, target, onClick, status }: BucketRowProps) {
@@ -42,8 +43,8 @@ export const BucketRow = memo(function BucketRow({ icon, name, saved, target, on
       onClick={onClick}
       className="relative flex aspect-square w-full flex-col items-center rounded-2xl bg-surface px-4 pb-4 pt-7 text-center shadow-soft"
     >
-      {status ? (
-        <span className={`absolute right-3 top-3 rounded-pill px-2 py-0.5 font-mono text-[10px] font-bold leading-tight ${STATUS_STYLES[status.kind]}`}>
+      {status && status.kind !== 'queued' ? (
+        <span className={`absolute right-3 top-3 rounded-pill px-2 py-0.5 font-mono text-[10px] font-bold leading-tight ${STATUS_STYLES[status.kind] ?? ''}`}>
           {status.label}
         </span>
       ) : (

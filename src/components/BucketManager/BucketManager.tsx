@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { bucketSaved, hasDuplicateBucketName, sumTargets } from '../../lib/buckets';
 import { isLowConfidenceCategory } from '../../lib/bucketCategories';
 import { type ArchiveErrorHint, useArchiveBucket } from '../../hooks/useArchiveBucket';
-import type { Bucket, BucketCategory, BucketTransfer, SavingsLog } from '../../types';
+import type { Bucket, BucketCategory, BucketTransfer, SavingsLog, SavingRuleType } from '../../types';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { BucketCategoryReviewModal } from '../BucketCategoryReviewModal/BucketCategoryReviewModal';
 import { BucketTransferSheet, type TransferBucketOption } from '../BucketTransferSheet/BucketTransferSheet';
@@ -22,7 +22,7 @@ interface BucketManagerProps {
   transfers?: BucketTransfer[];
   goalTarget?: number | null;
   statusMessage?: string | null;
-  onUpdate: (bucket: Bucket, next: { name: string; target_amount: number }) => Promise<{ error?: string; code?: string; duplicateName?: string }>;
+  onUpdate: (bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; reminder_day?: number | null }) => Promise<{ error?: string; code?: string; duplicateName?: string; deadlineExtensionWarning?: boolean }>;
   onReviewCategories?: (updates: { id: string; category: BucketCategory }[]) => Promise<{ error?: string }>;
   onTransferSheetOpenChange?: (open: boolean) => void;
   /**
@@ -92,6 +92,8 @@ export function BucketManager({
   const [reviewOpen, setReviewOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [draftTarget, setDraftTarget] = useState('');
+  const [draftDeadline, setDraftDeadline] = useState('');
+  const [draftRuleType, setDraftRuleType] = useState<SavingRuleType | ''>('');
   const [pendingRemove, setPendingRemove] = useState<Bucket | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [transferSheetSourceId, setTransferSheetSourceId] = useState<string | null>(null);
@@ -139,6 +141,8 @@ export function BucketManager({
     setEditingId(bucket.id);
     setDraftName(bucket.name);
     setDraftTarget(String(bucket.target_amount));
+    setDraftDeadline(bucket.deadline ?? '');
+    setDraftRuleType(bucket.saving_rule_type ?? '');
     setLocalMessage(null);
   }
 
@@ -146,6 +150,8 @@ export function BucketManager({
     setEditingId(null);
     setDraftName('');
     setDraftTarget('');
+    setDraftDeadline('');
+    setDraftRuleType('');
     setLocalMessage(null);
   }
 
@@ -175,6 +181,8 @@ export function BucketManager({
     const result = await onUpdate(bucket, {
       name: draftName.trim(),
       target_amount: targetAmount,
+      ...(draftDeadline !== (bucket.deadline ?? '') && { deadline: draftDeadline || null }),
+      ...(draftRuleType !== (bucket.saving_rule_type ?? '') && { saving_rule_type: (draftRuleType || null) as SavingRuleType | null }),
     });
     setSaving(false);
 
@@ -185,7 +193,11 @@ export function BucketManager({
       return;
     }
 
-    setLocalMessage(copy.bucket.updatedSuccess);
+    setLocalMessage(
+      (result as { deadlineExtensionWarning?: boolean }).deadlineExtensionWarning
+        ? copy.bucket.deadlineExtensionPrompt
+        : copy.bucket.updatedSuccess,
+    );
     setEditingId(null);
   }
 
@@ -280,9 +292,13 @@ export function BucketManager({
         editingId={editingId}
         draftName={draftName}
         draftTarget={draftTarget}
+        draftDeadline={draftDeadline}
+        draftRuleType={draftRuleType}
         saving={saving}
         onDraftNameChange={setDraftName}
         onDraftTargetChange={value => setDraftTarget(value.replace(/[^0-9]/g, ''))}
+        onDraftDeadlineChange={setDraftDeadline}
+        onDraftRuleTypeChange={setDraftRuleType}
         onStartEdit={startEdit}
         onCancelEdit={cancelEdit}
         onSaveEdit={saveEdit}
@@ -349,9 +365,13 @@ function BucketSummary({
   editingId,
   draftName,
   draftTarget,
+  draftDeadline,
+  draftRuleType,
   saving,
   onDraftNameChange,
   onDraftTargetChange,
+  onDraftDeadlineChange,
+  onDraftRuleTypeChange,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
@@ -365,9 +385,13 @@ function BucketSummary({
   editingId: string | null;
   draftName: string;
   draftTarget: string;
+  draftDeadline: string;
+  draftRuleType: SavingRuleType | '';
   saving: boolean;
   onDraftNameChange: (value: string) => void;
   onDraftTargetChange: (value: string) => void;
+  onDraftDeadlineChange: (value: string) => void;
+  onDraftRuleTypeChange: (value: SavingRuleType | '') => void;
   onStartEdit: (bucket: Bucket) => void;
   onCancelEdit: () => void;
   onSaveEdit: (bucket: Bucket) => void;
@@ -421,6 +445,26 @@ function BucketSummary({
                       onChange={event => onDraftTargetChange(event.target.value)}
                     />
                   </FormField>
+                  <FormField label={copy.bucket.editDeadlineLabel}>
+                    <input
+                      type="date"
+                      value={draftDeadline}
+                      onChange={event => onDraftDeadlineChange(event.target.value)}
+                      className="w-full rounded-xl border border-well bg-bg px-4 py-3 font-mono text-sm text-ink"
+                    />
+                  </FormField>
+                  <FormField label={copy.bucket.editRuleLabel}>
+                    <select
+                      value={draftRuleType}
+                      onChange={event => onDraftRuleTypeChange(event.target.value as SavingRuleType | '')}
+                      className="w-full rounded-xl border border-well bg-bg px-4 py-3 font-mono text-sm text-ink"
+                    >
+                      <option value="">{'—'}</option>
+                      {(['fixed_daily', 'fixed_weekly', 'fixed_monthly', 'increasing_daily', 'increasing_daily_capped', 'flexible'] as const).map(rt => (
+                        <option key={rt} value={rt}>{copy.bucket.ruleNames[rt]}</option>
+                      ))}
+                    </select>
+                  </FormField>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
@@ -456,6 +500,16 @@ function BucketSummary({
                     <p className="mt-1 font-mono text-xs text-ink-muted">
                       {copy.bucket.remaining(formatMoney(remaining))}
                     </p>
+                    {bucket.deadline && (
+                      <p className="mt-1 font-mono text-xs text-ink-dim">
+                        {copy.bucket.editDeadlineLabel}: {bucket.deadline}
+                      </p>
+                    )}
+                    {bucket.saving_rule_type && (
+                      <p className="mt-1 font-mono text-xs text-ink-dim">
+                        {copy.bucket.ruleNames[bucket.saving_rule_type]}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <IconButton

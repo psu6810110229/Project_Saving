@@ -77,6 +77,7 @@ import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDa
 import { formatCurrency } from '../lib/format';
 import { availablePurposeCategoriesForMode, purposeDailyMarkers, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
+import { supabase } from '../lib/supabase';
 import { daysSince, formatDirectionalAdjustment } from '../lib/reconcile';
 import {
   activeRevisionAt,
@@ -88,7 +89,7 @@ import {
   todayBangkokKey,
 } from '../lib/savingPlan';
 import type { SavingPlanRevision } from '../types';
-import type { BalanceActivityEntry, Bucket, BucketCategory, BucketTransfer, ProfileTheme } from '../types';
+import type { BalanceActivityEntry, Bucket, BucketCategory, BucketCreateRuleData, BucketTransfer, ProfileTheme, SavingRuleType } from '../types';
 import type { BucketActivityEvent } from '../hooks/useBucketActivityEvents';
 
 /** Framer Motion stagger variants for the Dashboard cascade. */
@@ -238,6 +239,7 @@ export function Dashboard() {
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [completedBucketsOpen, setCompletedBucketsOpen] = useState(false);
   const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
   const [manageBucketTransferSheetOpen, setManageBucketTransferSheetOpen] = useState(false);
   const [nextPickerOpen, setNextPickerOpen] = useState(false);
@@ -454,19 +456,17 @@ export function Dashboard() {
     currentUserId: user?.id,
     settings: intentSettings,
   });
-  const { doneBucketIds, focusBucketId, nextBucketId } = intentResult;
+  const { doneBucketIds, focusBucketId, nextBucketId, focusStates } = intentResult;
   /* eslint-disable react-hooks/preserve-manual-memoization */
   const bucketItems = useMemo(() => {
     const statusLabels = copy.bucketIntent.status;
     return buckets.map(bucket => {
       const saved = bucketSaved(bucket.id, logs, bucketTransfers);
-      let status: { kind: 'focus' | 'next' | 'done'; label: string } | undefined;
-      if (intentResult.doneBucketIds.has(bucket.id)) {
-        status = { kind: 'done', label: statusLabels.done };
-      } else if (intentResult.focusBucketId === bucket.id) {
-        status = { kind: 'focus', label: statusLabels.focus };
-      } else if (intentResult.nextBucketId === bucket.id) {
-        status = { kind: 'next', label: statusLabels.next };
+      const focusState = focusStates.get(bucket.id);
+      let status: { kind: 'focus' | 'next' | 'done' | 'queued' | 'overdue'; label: string } | undefined;
+      if (focusState) {
+        const label = statusLabels[focusState] ?? '';
+        status = { kind: focusState, label };
       }
       return {
         id: bucket.id,
@@ -475,14 +475,24 @@ export function Dashboard() {
         saved,
         target: bucket.target_amount,
         category: bucket.category,
+        deadline: bucket.deadline,
         status,
       };
     }).sort((a, b) => {
+      const kindOrder: Record<string, number> = { overdue: 0, focus: 1, next: 2, queued: 3, done: 4 };
+      const orderA = kindOrder[a.status?.kind ?? 'queued'] ?? 3;
+      const orderB = kindOrder[b.status?.kind ?? 'queued'] ?? 3;
+      if (orderA !== orderB) return orderA - orderB;
+      if (a.deadline && b.deadline) return a.deadline.localeCompare(b.deadline);
+      if (a.deadline) return -1;
+      if (b.deadline) return 1;
       const pctA = a.target > 0 ? a.saved / a.target : 0;
       const pctB = b.target > 0 ? b.saved / b.target : 0;
       return pctB - pctA;
     });
-  }, [buckets, logs, bucketTransfers, intentResult, copy.bucketIntent.status]);
+  }, [buckets, logs, bucketTransfers, focusStates, copy.bucketIntent.status]);
+  const activeBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind !== 'done'), [bucketItems]);
+  const completedBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind === 'done'), [bucketItems]);
   /* eslint-enable react-hooks/preserve-manual-memoization */
   // One-time bucket drag hint (Sprint 40.9). The hint is purely
   // teaching the drag shortcut, so it only makes sense when:
@@ -495,7 +505,7 @@ export function Dashboard() {
   // the hint to a returning user whose profile row is still resolving.
   const bucketDragHintSeenOnAccount = Boolean(dataProfile?.bucket_drag_hint_seen_at);
   const showBucketDragHint =
-    bucketItems.length >= 2
+    activeBucketItems.length >= 2
     && !profileLoading
     && !bucketDragHintDismissed
     && (!bucketDragHintSeenOnAccount || bucketDragHintMarkedThisSession);
@@ -504,8 +514,8 @@ export function Dashboard() {
 
     const sourceIndex = 0;
     const destinationIndex = 1;
-    const source = bucketItems[sourceIndex];
-    const destination = bucketItems[destinationIndex];
+    const source = activeBucketItems[sourceIndex];
+    const destination = activeBucketItems[destinationIndex];
     if (!source || !destination) return null;
 
     const sourceCol = sourceIndex % 2;
@@ -542,7 +552,7 @@ export function Dashboard() {
       name: string;
       saved: number;
       target: number;
-      status?: { kind: 'focus' | 'next' | 'done'; label: string };
+      status?: { kind: 'focus' | 'next' | 'done' | 'queued' | 'overdue'; label: string };
     }[];
   }
   const otherMemberBucketGroups: OtherMemberBucketGroup[] = otherMemberIds
@@ -882,7 +892,7 @@ export function Dashboard() {
   const handleConfigurePlan = useCallback(() => navigate('/saving-plan'), [navigate]);
   const handleManageProject = useCallback(() => navigate('/manage-project'), [navigate]);
 
-  async function handleCreateBucket() {
+  async function handleCreateBucket(ruleData: BucketCreateRuleData) {
     const nextTarget = Number(bucketTarget);
     if (!bucketCategory || !bucketName.trim() || nextTarget <= 0) {
       setMessage(copy.bucket.validationNameAndTarget);
@@ -898,7 +908,20 @@ export function Dashboard() {
     }
     const result = await saveBuckets([
       ...buckets,
-      { id: undefined, name: bucketName.trim(), target_amount: nextTarget, category: bucketCategory },
+      {
+        id: undefined,
+        name: bucketName.trim(),
+        target_amount: nextTarget,
+        category: bucketCategory,
+        deadline: ruleData.deadline,
+        saving_rule_type: ruleData.savingRuleType,
+        saving_rule_amount: ruleData.savingRuleAmount,
+        saving_rule_start_amount: ruleData.savingRuleStartAmount,
+        saving_rule_increment: ruleData.savingRuleIncrement,
+        saving_rule_cap: ruleData.savingRuleCap,
+        saving_rule_day_count: ruleData.savingRuleDayCount,
+        reminder_day: ruleData.reminderDay,
+      },
     ]);
     if (result.error) {
       setMessage(result.code === 'duplicate_name'
@@ -913,7 +936,7 @@ export function Dashboard() {
     }
   }
 
-  async function handleManageBucketUpdate(bucket: Bucket, next: { name: string; target_amount: number }) {
+  async function handleManageBucketUpdate(bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; reminder_day?: number | null }) {
     if (hasDuplicateBucketName(buckets, next.name, bucket.id)) {
       const error = copy.bucket.duplicateName(next.name.trim());
       return { error, code: 'duplicate_name' as const, duplicateName: next.name.trim() };
@@ -927,7 +950,16 @@ export function Dashboard() {
     }
     const result = await saveBuckets(
       buckets.map(item => item.id === bucket.id
-        ? { id: item.id, name: next.name, target_amount: next.target_amount, category: item.category }
+        ? {
+            id: item.id,
+            name: next.name,
+            target_amount: next.target_amount,
+            category: item.category,
+            ...(next.deadline !== undefined && { deadline: next.deadline }),
+            ...(next.saving_rule_type !== undefined && { saving_rule_type: next.saving_rule_type }),
+            ...(next.saving_rule_amount !== undefined && { saving_rule_amount: next.saving_rule_amount }),
+            ...(next.reminder_day !== undefined && { reminder_day: next.reminder_day }),
+          }
         : { id: item.id, name: item.name, target_amount: item.target_amount, category: item.category }),
     );
     if (result.error) {
@@ -937,6 +969,23 @@ export function Dashboard() {
           ? copy.bucket.duplicateName(result.duplicateName ?? next.name.trim())
           : result.error,
       };
+    }
+    // Insert deadline revision and check for frequent extensions
+    if (next.deadline !== undefined && next.deadline !== (bucket.deadline ?? null) && user) {
+      void supabase.from('bucket_deadline_revisions').insert({
+        bucket_id: bucket.id,
+        previous_deadline: bucket.deadline ?? null,
+        new_deadline: next.deadline,
+        changed_by: user.id,
+      });
+      const { count } = await supabase
+        .from('bucket_deadline_revisions')
+        .select('id', { count: 'exact', head: true })
+        .eq('bucket_id', bucket.id);
+      if (count != null && count >= 3) {
+        haptic('success');
+        return { ...result, deadlineExtensionWarning: true };
+      }
     }
     haptic('success');
     return result;
@@ -1093,8 +1142,8 @@ export function Dashboard() {
           >
             <BucketGrid
               title={d.tripBuckets}
-              subtitle={buckets.length > 0 ? d.bucketCount(buckets.length) : undefined}
-              buckets={bucketItems}
+              subtitle={buckets.length > 0 ? d.bucketCount(activeBucketItems.length) : undefined}
+              buckets={activeBucketItems}
               ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
               onAddBucket={() => setBucketModalOpen(true)}
               manageLabel={buckets.length > 0 ? d.manageBuckets : undefined}
@@ -1151,6 +1200,37 @@ export function Dashboard() {
           </DndContext>
         );
         })()}
+        {completedBucketItems.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => setCompletedBucketsOpen(prev => !prev)}
+              className="flex items-center gap-2 rounded-lg bg-surfaceAlt px-3 py-2 text-left"
+            >
+              <span className="min-w-0 flex-1 font-mono text-xs font-bold text-ink-muted">
+                {copy.bucketIntent.status.done} ({completedBucketItems.length})
+              </span>
+              <span className={`text-ink-dim transition-transform ${completedBucketsOpen ? 'rotate-180' : ''}`}>
+                ▾
+              </span>
+            </button>
+            {completedBucketsOpen && (
+              <div className="grid grid-cols-2 gap-4 p-1">
+                {completedBucketItems.map(bucket => (
+                  <BucketRow
+                    key={bucket.id}
+                    icon={bucket.icon}
+                    name={bucket.name}
+                    saved={bucket.saved}
+                    target={bucket.target}
+                    status={bucket.status}
+                    onClick={() => setExpandedBucketId(bucket.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {buckets.length === 0 && (
           <Button variant="action" fullWidth onClick={() => setBucketModalOpen(true)}>
             {d.createFirstBucket}
@@ -1284,6 +1364,7 @@ export function Dashboard() {
             onNameChange={setBucketName}
             onTargetChange={value => setBucketTarget(value.replace(/[^0-9]/g, ''))}
             onSubmit={handleCreateBucket}
+            roomEndDate={activeRoom?.end_date ?? null}
           />
         </div>
       </Modal>

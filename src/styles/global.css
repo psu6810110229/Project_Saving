@@ -229,10 +229,90 @@
     content: none;
   }
 
+  .hero-credit-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      linear-gradient(0deg, rgba(44, 13, 17, 0.32), rgba(44, 13, 17, 0.32)),
+      radial-gradient(115% 78% at 100% 0%, rgba(255, 190, 126, 0.46) 0%, transparent 58%),
+      radial-gradient(120% 90% at 0% 100%, rgba(58, 16, 24, 0.62) 0%, transparent 66%),
+      linear-gradient(125deg, rgba(86, 28, 33, 0.66) 0%, rgba(142, 54, 34, 0.52) 38%, rgba(188, 91, 45, 0.46) 66%, rgba(74, 26, 34, 0.64) 100%),
+      var(--hero-card-cover, url('/vault-card-japan-clean.jpg'));
+    background-position: center;
+    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, cover;
+    border: 0;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.14) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.28) inset,
+      0 18px 40px -18px rgba(60, 18, 12, 0.62);
+    outline: 0;
+  }
+
+  .hero-credit-card[data-has-cover='false'] {
+    background:
+      radial-gradient(120% 80% at 100% 0%, rgba(255, 178, 120, 0.45) 0%, transparent 60%),
+      radial-gradient(120% 90% at 0% 100%, rgba(64, 18, 24, 0.55) 0%, transparent 65%),
+      linear-gradient(125deg, rgba(90, 31, 31, 0.55) 0%, rgba(138, 51, 32, 0.45) 38%, rgba(184, 90, 44, 0.4) 65%, rgba(90, 31, 31, 0.55) 100%),
+      url('/vault-card-japan-clean.jpg');
+    background-position: center;
+    background-size: 100% 100%, 100% 100%, 100% 100%, cover;
+  }
+
+  .hero-credit-card[data-category='gadget'][data-has-cover='false'] {
+    background:
+      radial-gradient(100% 70% at 100% 0%, rgba(113, 190, 177, 0.34) 0%, transparent 62%),
+      radial-gradient(120% 90% at 0% 100%, rgba(44, 35, 45, 0.6) 0%, transparent 65%),
+      linear-gradient(125deg, rgba(48, 52, 63, 0.72) 0%, rgba(52, 98, 103, 0.5) 45%, rgba(169, 88, 51, 0.42) 100%);
+  }
+
+  .hero-credit-card[data-category='wedding'][data-has-cover='false'],
+  .hero-credit-card[data-category='home'][data-has-cover='false'] {
+    background:
+      radial-gradient(110% 75% at 100% 0%, rgba(255, 207, 158, 0.42) 0%, transparent 62%),
+      radial-gradient(120% 90% at 0% 100%, rgba(80, 36, 44, 0.54) 0%, transparent 65%),
+      linear-gradient(125deg, rgba(103, 47, 52, 0.64) 0%, rgba(156, 78, 48, 0.48) 48%, rgba(73, 95, 87, 0.36) 100%);
+  }
+
+  .hero-credit-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background:
+      linear-gradient(
+        115deg,
+        transparent 38%,
+        rgba(255, 255, 255, 0.05) 47%,
+        rgba(255, 255, 255, 0.12) 50%,
+        rgba(255, 255, 255, 0.05) 53%,
+        transparent 62%
+      ),
+      radial-gradient(80% 55% at 50% 0%, rgba(255, 255, 255, 0.1), transparent 65%);
+    background-size: 300% 100%, 100% 100%;
+    background-position: -200% 0, center;
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+
+  .hero-credit-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: linear-gradient(180deg, rgba(22, 8, 8, 0.04) 0%, rgba(22, 8, 8, 0.28) 100%);
+    pointer-events: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .vault-credit-card::before {
       animation: none;
       background-position: 50% 0;
+    }
+
+    .hero-credit-card::before {
+      animation: none;
+      background-position: 50% 0, center;
     }
   }
 }

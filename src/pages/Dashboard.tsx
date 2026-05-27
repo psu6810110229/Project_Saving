@@ -32,7 +32,7 @@ import { RoomLeaderboardList, type PlayerProgressEntry } from '../components/Roo
 import { IconBubble } from '../components/IconBubble/IconBubble';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
-import { TotalVaultCard } from '../components/TotalVaultCard/TotalVaultCard';
+import { HeroCard } from '../components/HeroCard/HeroCard';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { VerifiedBalanceReminderModal } from '../components/VerifiedBalanceReminderModal/VerifiedBalanceReminderModal';
 import { NudgeButton } from '../components/NudgeButton/NudgeButton';
@@ -546,12 +546,6 @@ export function Dashboard() {
     };
   })();
 
-  // Task 37: Manage Project is the only editing surface for both
-  // the room goal and the personal sub-goal. Creators see an edit
-  // affordance on the Vault card that navigates to /manage-project;
-  // non-creators see no affordance at all.
-  const isCreator = Boolean(user?.id && activeRoom?.created_by === user.id);
-
   // Per-member grouping for the buckets section. Order follows
   // `otherMemberIds` (joined_at asc) — stable across re-renders, unlike
   // leaderboard rank. Members with zero buckets are filtered out so the
@@ -687,6 +681,10 @@ export function Dashboard() {
         streakUnit: bucketStreak.unit,
       }
     : habitStatus;
+  const heroStreak = displayedHabitStatus.streak ?? 0;
+  const heroStreakUnit = hasBucketRules
+    ? bucketStreak.unit
+    : ('streakUnit' in displayedHabitStatus ? displayedHabitStatus.streakUnit : undefined);
 
   // Saving Plan card meta — prefer the active plan revision's end date,
   // otherwise fall back to the room/goal end date. Some plans run in
@@ -946,8 +944,6 @@ export function Dashboard() {
     }
   }, [buckets.length]);
   const handleDepositFromPlan = useCallback(() => navigate('/add'), [navigate]);
-  const handleManageProject = useCallback(() => navigate('/manage-project'), [navigate]);
-
   function bucketDraftFromExisting(bucket: Bucket) {
     return {
       id: bucket.id,
@@ -1181,14 +1177,18 @@ export function Dashboard() {
       )}
 
       <motion.div variants={sectionVariants}>
-        <TotalVaultCard
-          saved={totalSaved}
-          target={totalTarget}
-          onEdit={isCreator ? handleManageProject : undefined}
-          editAriaLabel={isCreator ? d.goalEditAria : undefined}
-          cardholderNames={leaderboardEntries.map(e => e.name)}
+        <HeroCard
+          displayName={youName}
+          saved={total}
+          target={target}
+          roomName={activeRoom?.name ?? null}
+          roomCategory={activeRoom?.category ?? null}
+          coverImageUrl={activeRoom?.cover_image_url ?? null}
           validThru={activeRoom?.end_date ?? null}
-          deadlineDate={activeRoom?.end_date ?? null}
+          dailySummaryItem={bucketSummaryItems[0] ?? null}
+          hasBuckets={buckets.length > 0}
+          streak={heroStreak}
+          streakUnit={heroStreakUnit}
         />
       </motion.div>
 

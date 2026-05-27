@@ -47,10 +47,12 @@ function loadDraft(): WizardDraft {
     const raw = localStorage.getItem(WIZARD_DRAFT_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed.step === 'number') return parsed as WizardDraft;
+      if (parsed && typeof parsed.step === 'number') {
+        return { coverImageUrl: null, ...parsed } as WizardDraft;
+      }
     }
   } catch { /* ignore corrupt data */ }
-  return { step: 1, name: '', category: 'travel', endDate: '', totalBudget: 0, expenses: [] };
+  return { step: 1, name: '', category: 'travel', endDate: '', coverImageUrl: null, totalBudget: 0, expenses: [] };
 }
 
 function saveDraft(draft: WizardDraft) {

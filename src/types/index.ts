@@ -34,6 +34,8 @@ export interface Room {
   archived_at?: string | null;
   /** Room-level shared goal target (Task 37 / migration 0057). Nullable during rollout. */
   target_amount?: number | null;
+  /** Supabase Storage path for custom room cover image. */
+  cover_image_url?: string | null;
 }
 
 export interface RoomMember {
@@ -182,6 +184,26 @@ export interface BucketCreateRuleData {
   savingRuleCap: number | null;
   savingRuleDayCount: number | null;
   reminderDay: number | null;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Expense Templates (v0.10.0, migration 0073).
+ * ──────────────────────────────────────────────────────────────────── */
+
+export interface ExpenseTemplate {
+  id: string;
+  room_id: string;
+  category: BucketCategory;
+  name: string;
+  target_amount: number;
+  payment_type: PaymentType;
+  deadline: string;
+  suggested_rule_type?: SavingRuleType | null;
+  suggested_rule_amount?: number | null;
+  priority: number;
+  tip_key?: string | null;
+  created_by: string;
+  created_at: string;
 }
 
 /* ──────────────────────────────────────────────────────────────────────

@@ -427,20 +427,20 @@ export function SavingPlan() {
 
         <section className="rounded-xl bg-surface p-5 shadow-soft">
           <p className="font-mono text-lg font-bold uppercase tracking-[0.18em] text-brand-800">
-            Saving Plan Archive
+            {sp.archiveEyebrow}
           </p>
           <h1 className="mt-2 font-mono text-2xl font-bold text-ink">
-            Your plan now comes from buckets
+            {sp.archiveTitle}
           </h1>
           <p className="mt-3 font-mono text-sm leading-relaxed text-ink-muted">
-            Legacy Saving Plans are kept as history. Daily targets are now auto-summed from your focus bucket rules on the dashboard.
+            {sp.archiveBody}
           </p>
           <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Button variant="action" fullWidth onClick={() => navigate('/dashboard')}>
-              View today's plan
+              {sp.archiveViewToday}
             </Button>
             <Button variant="ghost" size="md" fullWidth onClick={() => navigate('/dashboard')}>
-              Manage buckets
+              {sp.archiveManageBuckets}
             </Button>
           </div>
         </section>

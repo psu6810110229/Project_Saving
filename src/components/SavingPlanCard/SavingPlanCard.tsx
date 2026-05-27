@@ -91,18 +91,40 @@ const behindSeverityColor: Record<MoneyBehindSeverity, string> = {
   tremendous: 'text-danger',
 };
 
-function bucketSummaryLine(item: DailySummaryItem): string {
-  if (item.ruleType === 'flexible') return 'Flexible pace';
+type DashboardCopy = ReturnType<typeof useI18n>['copy']['dashboard'];
+
+function bucketPeriodLabel(item: DailySummaryItem, d: DashboardCopy): string {
+  if (
+    item.ruleType === 'fixed_daily'
+    || item.ruleType === 'increasing_daily'
+    || item.ruleType === 'increasing_daily_capped'
+  ) {
+    return d.bucketPlanPeriodToday;
+  }
+  if (item.ruleType === 'fixed_weekly') return d.bucketPlanPeriodThisWeek;
+  if (item.ruleType === 'fixed_monthly') {
+    const reminderMatch = item.periodLabel.match(/\((\d+)d to reminder\)/);
+    if (reminderMatch) return d.bucketPlanPeriodMonthReminder(Number(reminderMatch[1]));
+    return d.bucketPlanPeriodThisMonth;
+  }
+  return d.bucketPlanPeriodFlexible;
+}
+
+function bucketSummaryLine(
+  item: DailySummaryItem,
+  d: DashboardCopy,
+): string {
+  if (item.ruleType === 'flexible') return d.bucketPlanFlexiblePace;
   if (item.amountDue === null) {
-    if (item.ruleType === 'fixed_monthly') return 'Met this month';
-    if (item.ruleType === 'fixed_weekly') return 'Met this week';
-    return item.periodLabel;
+    if (item.ruleType === 'fixed_monthly') return d.bucketPlanMetThisMonth;
+    if (item.ruleType === 'fixed_weekly') return d.bucketPlanMetThisWeek;
+    return bucketPeriodLabel(item, d);
   }
   const amount = formatCurrency(Math.round(item.amountDue));
-  if (item.ruleType === 'fixed_daily') return `${amount}/day`;
-  if (item.ruleType === 'fixed_weekly') return `${amount}/week`;
-  if (item.ruleType === 'fixed_monthly') return `${amount}/mo`;
-  return `${amount} today`;
+  if (item.ruleType === 'fixed_daily') return d.bucketPlanPerDay(amount);
+  if (item.ruleType === 'fixed_weekly') return d.bucketPlanPerWeek(amount);
+  if (item.ruleType === 'fixed_monthly') return d.bucketPlanPerMonth(amount);
+  return d.bucketPlanTodayAmount(amount);
 }
 
 function dailyRuleDueTotal(items: DailySummaryItem[]): number {
@@ -174,14 +196,14 @@ export const SavingPlanCard = memo(function SavingPlanCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h2 className="font-mono text-base font-bold leading-tight text-ink">
-              Today's Saving Plan
+              {d.bucketPlanTitle}
             </h2>
             <p className="mt-1 font-mono text-sm font-bold text-ink-muted">
               {hasBucketRules
                 ? hasItems
-                  ? `${bucketSummaryItems.length} focus ${bucketSummaryItems.length === 1 ? 'bucket' : 'buckets'}`
-                  : 'No focus obligations today'
-                : 'Set up bucket rules to generate your plan'}
+                  ? d.bucketPlanFocusCount(bucketSummaryItems.length)
+                  : d.bucketPlanNoFocus
+                : d.bucketPlanSetupPrompt}
             </p>
           </div>
           {onDeposit && hasItems && (
@@ -191,7 +213,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
               onClick={e => { e.stopPropagation(); onDeposit(); }}
               className="shrink-0"
             >
-              Deposit
+              {d.bucketPlanDeposit}
             </Button>
           )}
         </div>
@@ -206,12 +228,12 @@ export const SavingPlanCard = memo(function SavingPlanCard({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-mono text-sm font-bold text-ink">{item.bucketName}</p>
                   <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">
-                    {item.periodLabel}
-                    {item.periodDeadline ? ` · due ${item.periodDeadline}` : ''}
+                    {bucketPeriodLabel(item, d)}
+                    {item.periodDeadline ? ` · ${d.bucketPlanDueDate(item.periodDeadline)}` : ''}
                   </p>
                 </div>
                 <p className="shrink-0 font-mono text-sm font-bold text-ink">
-                  {bucketSummaryLine(item)}
+                  {bucketSummaryLine(item, d)}
                 </p>
               </div>
             ))}
@@ -219,7 +241,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
         ) : (
           <div className="mt-4 rounded-lg bg-brand-50 px-4 py-3">
             <p className="font-mono text-sm font-bold text-ink">
-              {hasBucketRules ? 'Your focus buckets are covered for now.' : 'Bucket settings now drive the daily plan.'}
+              {hasBucketRules ? d.bucketPlanCovered : d.bucketPlanDrivenByBuckets}
             </p>
             {onConfigure && (
               <Button
@@ -228,7 +250,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
                 onClick={e => { e.stopPropagation(); onConfigure(); }}
                 className="mt-3"
               >
-                Set up buckets
+                {d.bucketPlanSetupBuckets}
               </Button>
             )}
           </div>
@@ -241,7 +263,7 @@ export const SavingPlanCard = memo(function SavingPlanCard({
                 <IconPiggyBank size={16} />
               </span>
               <div className="min-w-0">
-                <p className="font-mono text-[11px] leading-tight text-ink-muted">Today</p>
+                <p className="font-mono text-[11px] leading-tight text-ink-muted">{copy.common.today}</p>
                 <p className="truncate font-mono text-sm font-bold text-ink">
                   {formatCurrency(Math.round(totalDueToday))}
                 </p>

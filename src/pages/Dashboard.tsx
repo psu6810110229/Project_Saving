@@ -974,6 +974,14 @@ export function Dashboard() {
     }));
   }
 
+  function handleMigrationBack() {
+    migration.setState(current => ({
+      ...current,
+      step: Math.max(0, current.step - 1),
+      dismissed: false,
+    }));
+  }
+
   function handleMigrationLater() {
     migration.markDismissed();
     setMigrationBannerDismissed(false);
@@ -1155,16 +1163,16 @@ export function Dashboard() {
               <IconCalendar size={20} />
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className="font-mono text-sm font-bold text-ink">Finish setting up your saving goals</h2>
+              <h2 className="font-mono text-sm font-bold text-ink">{copy.migrationWizard.bannerTitle}</h2>
               <p className="mt-1 font-mono text-xs leading-relaxed text-ink-muted">
-                Add deadlines and saving rules to unlock today's bucket plan.
+                {copy.migrationWizard.bannerBody}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="action" size="sm" onClick={handleMigrationStart}>
-                  Continue setup
+                  {copy.migrationWizard.bannerContinue}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setMigrationBannerDismissed(true)}>
-                  Dismiss
+                  {copy.migrationWizard.bannerDismiss}
                 </Button>
               </div>
             </div>
@@ -1511,6 +1519,7 @@ export function Dashboard() {
         streak={displayedHabitStatus.streak ?? 0}
         streakUnit={'streakUnit' in displayedHabitStatus ? displayedHabitStatus.streakUnit : undefined}
         onStart={handleMigrationStart}
+        onBack={handleMigrationBack}
         onLater={handleMigrationLater}
         onBucketSubmit={handleMigrationBucketSubmit}
         onComplete={handleMigrationComplete}

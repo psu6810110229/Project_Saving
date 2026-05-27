@@ -58,7 +58,17 @@
       "PowerShell(npm run *)",
       "PowerShell(git add *)",
       "PowerShell(npx playwright install chromium 2>&1 | Select-Object -Last 3)",
-      "PowerShell(npm ls *)"
+      "PowerShell(npm ls *)",
+      "PowerShell(git log *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Fran's Folder\\\\Project\" -Recurse -Depth 2)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell($word = New-Object -ComObject Word.Application; $word.Visible = $false; $doc = $word.Documents.Open\\(\"C:\\\\Users\\\\farnp\\\\Downloads\\\\v0.10.0 update.docx\"\\); $doc.Content.Text; $doc.Close\\($false\\); $word.Quit\\(\\))",
+      "Bash(Get-ChildItem -Path \"D:\\\\Fran's Folder\\\\Project\" -Filter \"*.md\" -Depth 1)",
+      "Bash(Select-Object Name, FullName, Length)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(git commit *)"
     ]
   }
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { Bucket, BucketCreateRuleData, BucketTransfer, SavingRuleType, SavingsLog } from '../../types';
 import { addDays, daysBetween, todayBangkokKey } from '../../lib/savingPlan';
 import { bucketSaved } from '../../lib/buckets';
@@ -6,9 +6,12 @@ import { Button } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { FormField } from '../FormField/FormField';
+import { ReminderDayPicker } from '../ReminderDayPicker/ReminderDayPicker';
+import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
 
-type RuleChoice = 'fixed_daily' | 'fixed_weekly' | 'fixed_monthly' | 'flexible';
+type RuleChoice = 'fixed_daily' | 'fixed_weekly' | 'fixed_monthly' | 'flexible' | 'custom';
+type FixedRuleChoice = Exclude<RuleChoice, 'flexible' | 'custom'>;
 
 interface MigrationBucketStepProps {
   bucket: Bucket;
@@ -60,7 +63,22 @@ function recommendedRule(remainingDays: number): RuleChoice {
   return 'fixed_monthly';
 }
 
-function calcRuleAmount(targetAmount: number, remainingDays: number, rule: Exclude<RuleChoice, 'flexible'>): number {
+function initialRuleChoice(ruleType: SavingRuleType | null | undefined, remainingDays: number): RuleChoice {
+  if (
+    ruleType === 'fixed_daily'
+    || ruleType === 'fixed_weekly'
+    || ruleType === 'fixed_monthly'
+    || ruleType === 'flexible'
+  ) {
+    return ruleType;
+  }
+  if (ruleType === 'increasing_daily' || ruleType === 'increasing_daily_capped') {
+    return 'custom';
+  }
+  return recommendedRule(remainingDays);
+}
+
+function calcRuleAmount(targetAmount: number, remainingDays: number, rule: FixedRuleChoice): number {
   if (remainingDays <= 0) return targetAmount;
   switch (rule) {
     case 'fixed_daily':
@@ -83,13 +101,19 @@ export function MigrationBucketStep({
   onSubmit,
 }: MigrationBucketStepProps) {
   const { copy, formatMoney } = useI18n();
+  const m = copy.migrationWizard;
   const today = todayBangkokKey();
-  const [deadline, setDeadline] = useState(() => calcDefaultDeadline(bucket, roomEndDate, today));
+  const [deadline, setDeadline] = useState(() => bucket.deadline ?? calcDefaultDeadline(bucket, roomEndDate, today));
   const remainingDays = Math.max(1, daysBetween(today, deadline));
-  const [ruleChoice, setRuleChoice] = useState<RuleChoice>(() => recommendedRule(remainingDays));
-  const [reminderDay, setReminderDay] = useState(25);
+  const [ruleChoice, setRuleChoice] = useState<RuleChoice>(() => initialRuleChoice(bucket.saving_rule_type, remainingDays));
+  const [reminderDay, setReminderDay] = useState(bucket.reminder_day ?? 25);
+  const [customStart, setCustomStart] = useState(() => bucket.saving_rule_start_amount ? String(Math.round(bucket.saving_rule_start_amount)) : '');
+  const [customIncrement, setCustomIncrement] = useState(() => bucket.saving_rule_increment ? String(Math.round(bucket.saving_rule_increment)) : '');
+  const [customCap, setCustomCap] = useState(() => bucket.saving_rule_cap ? String(Math.round(bucket.saving_rule_cap)) : '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const reminderDayRef = useRef<HTMLDivElement | null>(null);
+  const customRuleRef = useRef<HTMLDivElement | null>(null);
 
   const saved = bucketSaved(bucket.id, logs, transfers);
   const remainingTarget = Math.max(0, bucket.target_amount - saved);
@@ -102,11 +126,25 @@ export function MigrationBucketStep({
   const recommended = recommendedRule(remainingDays);
 
   const ruleOptions: Array<{ id: RuleChoice; label: string; helper: string }> = [
-    { id: 'fixed_daily', label: `${formatMoney(amounts.fixed_daily)} per day`, helper: 'Best when the deadline is close.' },
-    { id: 'fixed_weekly', label: `${formatMoney(amounts.fixed_weekly)} per week`, helper: 'A steady weekly checkpoint.' },
-    { id: 'fixed_monthly', label: `${formatMoney(amounts.fixed_monthly)} per month`, helper: 'Good for longer timelines.' },
-    { id: 'flexible', label: 'Flexible', helper: 'Track progress without a fixed rhythm.' },
+    { id: 'fixed_daily', label: copy.bucket.rulePerDay(formatMoney(amounts.fixed_daily)), helper: m.ruleDailyHelper },
+    { id: 'fixed_weekly', label: copy.bucket.rulePerWeek(formatMoney(amounts.fixed_weekly)), helper: m.ruleWeeklyHelper },
+    { id: 'fixed_monthly', label: copy.bucket.rulePerMonth(formatMoney(amounts.fixed_monthly)), helper: m.ruleMonthlyHelper },
+    { id: 'flexible', label: m.ruleFlexibleLabel, helper: m.ruleFlexibleHelper },
+    { id: 'custom', label: copy.bucket.ruleCustom, helper: m.ruleCustomHelper },
   ];
+
+  useEffect(() => {
+    if (ruleChoice !== 'fixed_monthly' && ruleChoice !== 'custom') return;
+    const timeoutId = window.setTimeout(() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const target = ruleChoice === 'fixed_monthly' ? reminderDayRef.current : customRuleRef.current;
+      target?.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : 'smooth',
+        block: 'nearest',
+      });
+    }, 80);
+    return () => window.clearTimeout(timeoutId);
+  }, [ruleChoice]);
 
   async function handleSubmit() {
     if (!deadline) {
@@ -118,16 +156,49 @@ export function MigrationBucketStep({
       return;
     }
 
-    const savingRuleType: SavingRuleType = ruleChoice;
-    const savingRuleAmount = ruleChoice === 'flexible' ? null : amounts[ruleChoice];
+    let savingRuleType: SavingRuleType;
+    let savingRuleAmount: number | null = null;
+    let savingRuleStartAmount: number | null = null;
+    let savingRuleIncrement: number | null = null;
+    let savingRuleCap: number | null = null;
+    let savingRuleDayCount: number | null = null;
+
+    if (ruleChoice === 'fixed_daily' || ruleChoice === 'fixed_weekly' || ruleChoice === 'fixed_monthly') {
+      savingRuleType = ruleChoice;
+      savingRuleAmount = amounts[ruleChoice];
+    } else if (ruleChoice === 'flexible') {
+      savingRuleType = 'flexible';
+    } else {
+      const start = Number(customStart);
+      const increment = Number(customIncrement || '0');
+      const cap = Number(customCap || '0');
+      if (!Number.isFinite(start) || start <= 0) {
+        setError(copy.bucket.validationCustomStartAmount);
+        return;
+      }
+      if (!Number.isFinite(increment) || increment < 0) {
+        setError(copy.bucket.validationCustomIncrement);
+        return;
+      }
+      if (cap > 0 && cap < start) {
+        setError(copy.bucket.validationCustomCap);
+        return;
+      }
+      savingRuleType = cap > 0 ? 'increasing_daily_capped' : 'increasing_daily';
+      savingRuleStartAmount = start;
+      savingRuleIncrement = increment;
+      savingRuleCap = cap > 0 ? cap : null;
+      savingRuleDayCount = Math.max(1, remainingDays);
+    }
+
     const ruleData: BucketCreateRuleData = {
       deadline,
       savingRuleType,
       savingRuleAmount,
-      savingRuleStartAmount: null,
-      savingRuleIncrement: null,
-      savingRuleCap: null,
-      savingRuleDayCount: null,
+      savingRuleStartAmount,
+      savingRuleIncrement,
+      savingRuleCap,
+      savingRuleDayCount,
       reminderDay: ruleChoice === 'fixed_monthly' ? reminderDay : null,
     };
 
@@ -148,13 +219,13 @@ export function MigrationBucketStep({
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[11px] font-bold uppercase tracking-wide text-ink-dim">
-            Goal {bucketNumber} of {totalBuckets}
+            {m.bucketStepLabel(bucketNumber, totalBuckets)}
           </p>
           <h3 className="mt-1 break-words font-mono text-lg font-bold leading-tight text-ink">
             {bucket.name}
           </h3>
           <p className="mt-1 font-mono text-xs text-ink-muted">
-            {formatMoney(saved)} saved of {formatMoney(bucket.target_amount)}
+            {m.savedOf(formatMoney(saved), formatMoney(bucket.target_amount))}
           </p>
         </div>
       </div>
@@ -165,9 +236,9 @@ export function MigrationBucketStep({
 
       <section className="flex flex-col gap-3">
         <div>
-          <h4 className="font-mono text-sm font-bold text-ink">Pick a deadline</h4>
+          <h4 className="font-mono text-sm font-bold text-ink">{m.pickDeadlineTitle}</h4>
           <p className="mt-1 font-mono text-xs text-ink-muted">
-            We pre-filled a smart date from your project timeline.
+            {m.pickDeadlineBody}
           </p>
         </div>
         <CalendarPicker value={deadline} onChange={setDeadline} minDate={addDays(today, 1)} />
@@ -175,9 +246,9 @@ export function MigrationBucketStep({
 
       <section className="flex flex-col gap-3">
         <div>
-          <h4 className="font-mono text-sm font-bold text-ink">Choose a saving rule</h4>
+          <h4 className="font-mono text-sm font-bold text-ink">{m.chooseRuleTitle}</h4>
           <p className="mt-1 font-mono text-xs text-ink-muted">
-            You can change this later from bucket settings.
+            {m.chooseRuleBody}
           </p>
         </div>
         <div className="flex flex-col gap-2">
@@ -187,7 +258,10 @@ export function MigrationBucketStep({
               <button
                 key={option.id}
                 type="button"
-                onClick={() => setRuleChoice(option.id)}
+                onClick={() => {
+                  setRuleChoice(option.id);
+                  setError(null);
+                }}
                 className={[
                   'flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all',
                   selected ? 'bg-brand-100 ring-2 ring-brand-500' : 'bg-well hover:bg-brand-50',
@@ -207,7 +281,7 @@ export function MigrationBucketStep({
                 </span>
                 {option.id === recommended && (
                   <span className="shrink-0 rounded-pill bg-brand-500 px-2 py-0.5 font-mono text-[10px] font-bold text-ink-inverse">
-                    Best fit
+                    {m.bestFit}
                   </span>
                 )}
               </button>
@@ -217,17 +291,55 @@ export function MigrationBucketStep({
       </section>
 
       {ruleChoice === 'fixed_monthly' && (
-        <FormField label={copy.bucket.reminderDayLabel}>
-          <select
-            value={reminderDay}
-            onChange={(event) => setReminderDay(Number(event.target.value))}
-            className="w-full rounded-xl border border-well bg-bg px-4 py-3 font-mono text-sm text-ink"
-          >
-            {Array.from({ length: 28 }, (_, index) => index + 1).map(day => (
-              <option key={day} value={day}>{day}</option>
-            ))}
-          </select>
-        </FormField>
+        <div ref={reminderDayRef} className="scroll-mt-4">
+          <FormField label={copy.bucket.reminderDayLabel}>
+            <ReminderDayPicker
+              value={reminderDay}
+              onChange={setReminderDay}
+              valueLabel={copy.bucket.reminderDayValue}
+              decreaseAriaLabel={copy.bucket.reminderDayDecrease}
+              increaseAriaLabel={copy.bucket.reminderDayIncrease}
+            />
+          </FormField>
+        </div>
+      )}
+
+      {ruleChoice === 'custom' && (
+        <div ref={customRuleRef} className="flex scroll-mt-4 flex-col gap-3 rounded-xl bg-well p-4">
+          <FormField label={copy.bucket.customStartAmount}>
+            <TextInput
+              value={customStart}
+              inputMode="numeric"
+              placeholder="10"
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                setCustomStart(event.target.value.replace(/[^0-9]/g, ''));
+                setError(null);
+              }}
+            />
+          </FormField>
+          <FormField label={copy.bucket.customDailyIncrease}>
+            <TextInput
+              value={customIncrement}
+              inputMode="numeric"
+              placeholder="5"
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                setCustomIncrement(event.target.value.replace(/[^0-9]/g, ''));
+                setError(null);
+              }}
+            />
+          </FormField>
+          <FormField label={copy.bucket.customCap}>
+            <TextInput
+              value={customCap}
+              inputMode="numeric"
+              placeholder="200"
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                setCustomCap(event.target.value.replace(/[^0-9]/g, ''));
+                setError(null);
+              }}
+            />
+          </FormField>
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-2">
@@ -235,7 +347,7 @@ export function MigrationBucketStep({
           {copy.common.back}
         </Button>
         <Button variant="action" size="md" disabled={submitting} onClick={handleSubmit}>
-          {submitting ? 'Saving...' : 'Next'}
+          {submitting ? m.savingButton : copy.bucket.nextButton}
         </Button>
       </div>
     </div>

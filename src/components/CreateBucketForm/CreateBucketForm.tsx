@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FormEvent, type ReactNode, useState } from 'react';
+import { type ChangeEvent, type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { BucketCategory, BucketCreateRuleData, SavingRuleType } from '../../types';
 import { addDays, daysBetween, todayBangkokKey } from '../../lib/savingPlan';
 import { Button } from '../Button/Button';
@@ -6,6 +6,7 @@ import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
 import { CategoryRow } from '../CategoryRow/CategoryRow';
 import { FormField } from '../FormField/FormField';
 import { IconEdit, IconPiggyBank } from '../Icon/Icon';
+import { ReminderDayPicker } from '../ReminderDayPicker/ReminderDayPicker';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
@@ -74,9 +75,22 @@ export function CreateBucketForm({
   const [customIncrement, setCustomIncrement] = useState('');
   const [customCap, setCustomCap] = useState('');
   const [stepError, setStepError] = useState<string | null>(null);
+  const reminderDayRef = useRef<HTMLDivElement | null>(null);
 
   const targetAmount = Number(target) || 0;
   const remainingDays = deadline ? daysBetween(today, deadline) : 0;
+
+  useEffect(() => {
+    if (step !== 2 || ruleChoice !== 'fixed_monthly') return;
+    const timeoutId = window.setTimeout(() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      reminderDayRef.current?.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : 'smooth',
+        block: 'nearest',
+      });
+    }, 80);
+    return () => window.clearTimeout(timeoutId);
+  }, [ruleChoice, step]);
 
   function handleBasicsSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -253,17 +267,17 @@ export function CreateBucketForm({
 
       {/* Monthly reminder day */}
       {ruleChoice === 'fixed_monthly' && (
-        <FormField label={b.reminderDayLabel}>
-          <select
-            value={reminderDay}
-            onChange={(e) => setReminderDay(Number(e.target.value))}
-            className="w-full rounded-xl border border-well bg-bg px-4 py-3 font-mono text-sm text-ink"
-          >
-            {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </FormField>
+        <div ref={reminderDayRef} className="scroll-mt-4">
+          <FormField label={b.reminderDayLabel}>
+            <ReminderDayPicker
+              value={reminderDay}
+              onChange={setReminderDay}
+              valueLabel={b.reminderDayValue}
+              decreaseAriaLabel={b.reminderDayDecrease}
+              increaseAriaLabel={b.reminderDayIncrease}
+            />
+          </FormField>
+        </div>
       )}
 
       {/* Custom increasing fields */}

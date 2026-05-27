@@ -11,10 +11,31 @@ interface MigrationSummaryProps {
   onComplete: () => void;
 }
 
+type DashboardCopy = ReturnType<typeof useI18n>['copy']['dashboard'];
+
+function bucketPeriodLabel(item: DailySummaryItem, d: DashboardCopy): string {
+  if (
+    item.ruleType === 'fixed_daily'
+    || item.ruleType === 'increasing_daily'
+    || item.ruleType === 'increasing_daily_capped'
+  ) {
+    return d.bucketPlanPeriodToday;
+  }
+  if (item.ruleType === 'fixed_weekly') return d.bucketPlanPeriodThisWeek;
+  if (item.ruleType === 'fixed_monthly') {
+    const reminderMatch = item.periodLabel.match(/\((\d+)d to reminder\)/);
+    if (reminderMatch) return d.bucketPlanPeriodMonthReminder(Number(reminderMatch[1]));
+    return d.bucketPlanPeriodThisMonth;
+  }
+  return d.bucketPlanPeriodFlexible;
+}
+
 export function MigrationSummary({ items, streak, streakUnit, onComplete }: MigrationSummaryProps) {
-  const { formatMoney } = useI18n();
+  const { copy, formatMoney } = useI18n();
+  const m = copy.migrationWizard;
+  const d = copy.dashboard;
   const todayAmount = items.reduce((total, item) => total + (item.amountDue ?? 0), 0);
-  const focusName = items[0]?.bucketName ?? 'your first goal';
+  const focusName = items[0]?.bucketName ?? m.summaryFallbackFocus;
 
   return (
     <div className="flex flex-col gap-4">
@@ -22,26 +43,26 @@ export function MigrationSummary({ items, streak, streakUnit, onComplete }: Migr
         <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-green-50 text-green-700">
           <IconCheckCircle size={24} />
         </span>
-        <h3 className="font-mono text-2xl font-bold leading-tight text-ink">You're all set</h3>
+        <h3 className="font-mono text-2xl font-bold leading-tight text-ink">{m.summaryTitle}</h3>
         <p className="mt-2 font-mono text-sm leading-relaxed text-ink-muted">
-          Your goals now have deadlines and a saving rhythm. The dashboard will keep the next step clear.
+          {m.summaryBody}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-well p-4">
-          <p className="font-mono text-[11px] font-bold uppercase tracking-wide text-ink-dim">Today</p>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-wide text-ink-dim">{m.summaryToday}</p>
           <p className="mt-2 font-mono text-xl font-bold text-ink">{formatMoney(todayAmount)}</p>
-          <p className="mt-1 font-mono text-[11px] text-ink-muted">Focus: {focusName}</p>
+          <p className="mt-1 font-mono text-[11px] text-ink-muted">{m.summaryFocus(focusName)}</p>
         </div>
         <div className="rounded-xl bg-well p-4">
-          <p className="font-mono text-[11px] font-bold uppercase tracking-wide text-ink-dim">Streak</p>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-wide text-ink-dim">{m.summaryStreak}</p>
           <p className="mt-2 flex items-center gap-1.5 font-mono text-xl font-bold text-ink">
             <IconFire size={18} className="text-brand-700" />
             {streak}
           </p>
           <p className="mt-1 font-mono text-[11px] text-ink-muted">
-            {streakUnit ? `${streakUnit} preserved` : 'Preserved'}
+            {streakUnit ? m.preservedUnit(streakUnit) : m.preserved}
           </p>
         </div>
       </div>
@@ -55,7 +76,7 @@ export function MigrationSummary({ items, streak, streakUnit, onComplete }: Migr
               </span>
               <span className="min-w-0 flex-1 truncate font-mono text-xs font-bold text-ink">{item.bucketName}</span>
               <span className="shrink-0 font-mono text-xs text-ink-muted">
-                {item.amountDue != null ? formatMoney(item.amountDue) : item.periodLabel}
+                {item.amountDue != null ? formatMoney(item.amountDue) : bucketPeriodLabel(item, d)}
               </span>
             </div>
           ))}
@@ -63,7 +84,7 @@ export function MigrationSummary({ items, streak, streakUnit, onComplete }: Migr
       )}
 
       <Button variant="action" fullWidth onClick={onComplete}>
-        Start saving
+        {m.completeButton}
       </Button>
     </div>
   );

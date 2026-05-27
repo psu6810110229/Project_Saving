@@ -7,6 +7,7 @@ import { Button } from '../Button/Button';
 import { IconArrowRight, IconCalendar, IconCheckCircle } from '../Icon/Icon';
 import { MigrationBucketStep } from './MigrationBucketStep';
 import { MigrationSummary } from './MigrationSummary';
+import { useI18n } from '../../i18n/useI18n';
 
 interface MigrationWizardProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface MigrationWizardProps {
   streak: number;
   streakUnit?: string;
   onStart: () => void;
+  onBack: () => void;
   onLater: () => void;
   onBucketSubmit: (bucket: Bucket, ruleData: BucketCreateRuleData) => Promise<{ error?: string }>;
   onComplete: () => Promise<{ error?: string }>;
@@ -35,18 +37,19 @@ export function MigrationWizard({
   streak,
   streakUnit,
   onStart,
+  onBack,
   onLater,
   onBucketSubmit,
   onComplete,
 }: MigrationWizardProps) {
+  const { copy } = useI18n();
+  const m = copy.migrationWizard;
   const [completeError, setCompleteError] = useState<string | null>(null);
-  const pendingBuckets = buckets.filter(bucket =>
-    !bucket.deadline && !state.completedBucketIds.includes(bucket.id)
-  );
   const totalBuckets = buckets.length;
-  const currentBucket = pendingBuckets[0] ?? null;
-  const showIntro = state.step === 0 && state.completedBucketIds.length === 0 && pendingBuckets.length > 0;
-  const showSummary = !showIntro && !currentBucket;
+  const showIntro = state.step <= 0 && totalBuckets > 0;
+  const showSummary = totalBuckets === 0 || state.step > totalBuckets;
+  const currentIndex = Math.max(0, Math.min(state.step - 1, totalBuckets - 1));
+  const currentBucket = !showIntro && !showSummary ? buckets[currentIndex] ?? null : null;
 
   async function handleComplete() {
     setCompleteError(null);
@@ -55,7 +58,7 @@ export function MigrationWizard({
   }
 
   return (
-    <Modal open={open} title="Goal setup" onClose={onLater}>
+    <Modal open={open} title={m.modalTitle} onClose={onLater}>
       <AnimatePresence mode="wait" initial={false}>
         {showIntro && (
           <motion.div
@@ -71,10 +74,10 @@ export function MigrationWizard({
                 <IconCalendar size={24} />
               </span>
               <h3 className="font-mono text-2xl font-bold leading-tight text-ink">
-                Each goal now gets its own deadline
+                {m.introTitle}
               </h3>
               <p className="mt-2 font-mono text-sm leading-relaxed text-ink-muted">
-                We will pre-fill smart dates and saving rules for your existing buckets. Most people can just tap Next.
+                {m.introBody}
               </p>
             </div>
             <div className="rounded-xl bg-well p-4">
@@ -83,14 +86,14 @@ export function MigrationWizard({
                   <IconCheckCircle size={20} />
                 </span>
                 <p className="font-mono text-xs leading-relaxed text-ink-muted">
-                  Your current savings and streak stay intact. The old Saving Plan is archived after setup.
+                  {m.introPreserveNote}
                 </p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="ghost" size="md" onClick={onLater}>Later</Button>
+              <Button variant="ghost" size="md" onClick={onLater}>{m.laterButton}</Button>
               <Button variant="action" size="md" trailingIcon={<IconArrowRight size={16} />} onClick={onStart}>
-                Let's go
+                {m.startButton}
               </Button>
             </div>
           </motion.div>
@@ -106,11 +109,12 @@ export function MigrationWizard({
           >
             <MigrationBucketStep
               bucket={currentBucket}
-              bucketNumber={state.completedBucketIds.length + 1}
+              bucketNumber={currentIndex + 1}
               totalBuckets={totalBuckets}
               roomEndDate={roomEndDate}
               logs={logs}
               transfers={transfers}
+              onBack={onBack}
               onSubmit={onBucketSubmit}
             />
           </motion.div>

@@ -33,6 +33,7 @@ import { IconBubble } from '../components/IconBubble/IconBubble';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { HeroCard } from '../components/HeroCard/HeroCard';
+import { MiniTimeline } from '../components/MiniTimeline/MiniTimeline';
 import { TeamSection, type TeamSectionMember } from '../components/TeamSection/TeamSection';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { VerifiedBalanceReminderModal } from '../components/VerifiedBalanceReminderModal/VerifiedBalanceReminderModal';
@@ -73,6 +74,7 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useMigrationState } from '../hooks/useMigrationState';
 import { useLogs } from '../hooks/useLogs';
 import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
+import { useExpenseTemplates } from '../hooks/useExpenseTemplates';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
@@ -188,6 +190,7 @@ export function Dashboard() {
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
+  const { templates: expenseTemplates, loading: expenseTemplatesLoading } = useExpenseTemplates(activeRoomId);
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = data.leaderboard;
   const {
@@ -1066,6 +1069,10 @@ export function Dashboard() {
     navigate('/manage-project');
   }, [navigate]);
 
+  const handleTimelineOpen = useCallback(() => {
+    navigate('/manage-project?modal=buckets');
+  }, [navigate]);
+
   const handleCheckBalance = useCallback(() => navigate('/check-balance'), [navigate]);
   const handleConfigurePlan = useCallback(() => {
     if (buckets.length > 0) {
@@ -1587,8 +1594,14 @@ export function Dashboard() {
         {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       </motion.div>
 
-      {/* 5 — Graphs. Lighter than the insight cards above. */}
+      {/* 5 - Insights. Timeline first, then the trend chart. */}
       <motion.div className="flex flex-col gap-3" variants={sectionVariants}>
+        <MiniTimeline
+          templates={expenseTemplates}
+          todayDateKey={todayKey}
+          loading={expenseTemplatesLoading}
+          onOpenTimeline={handleTimelineOpen}
+        />
         <MomentumChart
           series={chartSeries}
           partnerSeries={chartPartnerSeries}

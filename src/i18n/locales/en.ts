@@ -235,6 +235,11 @@ export const en = {
     scopeAllBuckets: 'All buckets',
     scopeBucket: (name: string) => `Scope: ${name}`,
     switchBucketOwner: 'Switch bucket owner',
+    // Mini timeline
+    timelineLabel: 'Timeline',
+    timelineTitle: 'Next payment deadline',
+    timelineNextDue: (date: string) => `Next: ${date}`,
+    timelineOpenAria: 'Open project timeline',
     // Daily trend chart
     dailyDepositTrend: 'Daily Deposit Trend',
     last7Days: 'Last 7 days',

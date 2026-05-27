@@ -7,6 +7,7 @@ import { notifyRoomJoined, notifyRoomLeft } from '../lib/notifyEvents';
 import { useI18n } from '../i18n/useI18n';
 import type { ProjectCategory, Room } from '../types';
 import { ROOM_NAME_MAX_LENGTH } from '../lib/roomName';
+import { calcSuggestedRule } from '../lib/travelExpenseRules';
 
 interface CreateRoomValues {
   name: string;
@@ -18,12 +19,32 @@ interface CreateRoomValues {
 interface ActionResult {
   error?: string;
   roomId?: string;
+  inviteCode?: string;
   /**
    * Set when a write was rejected because the caller already owns
    * an active project as a creator. The UI uses this to surface a
    * confirmation dialog ("archive current and continue?").
    */
   conflict?: { existingRoomId: string; existingName: string };
+}
+
+interface WizardExpense {
+  category: string;
+  nameEn: string;
+  nameTh: string;
+  targetAmount: number;
+  deadline: string;
+  priority: number;
+  paymentType?: string;
+  tipKey?: string | null;
+}
+
+interface CreateRoomWithTemplatesValues {
+  name: string;
+  target_amount: number;
+  end_date: string;
+  category: ProjectCategory;
+  expenses: WizardExpense[];
 }
 
 interface ActiveRoomRow {
@@ -173,7 +194,71 @@ export function useRooms() {
 
     setRooms([room, ...currentRooms]);
     setActiveRoomId(room.id);
-    return { roomId: room.id };
+    return { roomId: room.id, inviteCode: room.invite_code };
+  }
+
+  async function createRoomWithTemplates(
+    values: CreateRoomWithTemplatesValues,
+    options: { archiveExisting?: boolean } = {},
+  ): Promise<ActionResult> {
+    const result = await createRoom(
+      {
+        name: values.name,
+        target_amount: values.target_amount,
+        end_date: values.end_date,
+        category: values.category,
+      },
+      options,
+    );
+    if (result.error || result.conflict || !result.roomId || !userId) return result;
+
+    const roomId = result.roomId;
+
+    if (values.expenses.length > 0) {
+      const templates = values.expenses.map(e => {
+        const rule = calcSuggestedRule(e.targetAmount, e.deadline);
+        return {
+          room_id: roomId,
+          category: e.category,
+          name: e.nameEn,
+          target_amount: e.targetAmount,
+          payment_type: e.paymentType ?? 'flexible',
+          deadline: e.deadline,
+          suggested_rule_type: rule.ruleType,
+          suggested_rule_amount: rule.amount > 0 ? rule.amount : null,
+          priority: e.priority,
+          tip_key: e.tipKey ?? null,
+          created_by: userId,
+        };
+      });
+
+      const { error: tplError } = await supabase
+        .from('expense_templates')
+        .insert(templates);
+      if (tplError) {
+        console.warn('[useRooms] expense_templates insert failed', tplError);
+      }
+
+      const buckets = values.expenses.map((e, i) => ({
+        user_id: userId,
+        room_id: roomId,
+        name: e.nameEn,
+        target_amount: e.targetAmount,
+        category: e.category,
+        position: i,
+        deadline: e.deadline,
+        payment_type: e.paymentType ?? 'flexible',
+      }));
+
+      const { error: bucketError } = await supabase
+        .from('buckets')
+        .insert(buckets);
+      if (bucketError) {
+        console.warn('[useRooms] creator bucket creation failed', bucketError);
+      }
+    }
+
+    return result;
   }
 
   async function joinRoomByCode(code: string): Promise<ActionResult> {
@@ -322,5 +407,5 @@ export function useRooms() {
     fetchRooms({ showLoading: currentRooms.length === 0 });
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, renameRoom, fetchActiveRoomForCreator, fetchArchivedRooms };
+  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, renameRoom, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

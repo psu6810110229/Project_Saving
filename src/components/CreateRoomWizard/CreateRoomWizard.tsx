@@ -7,6 +7,7 @@ import { StepBasics } from './StepBasics';
 import { StepEventDate } from './StepEventDate';
 import { StepExpenses } from './StepExpenses';
 import { StepTimeline } from './StepTimeline';
+import { StepSummary } from './StepSummary';
 import {
   IconArrowLeft,
   IconBriefcase,
@@ -63,14 +64,6 @@ const slideTransition = {
   duration: MOTION_DURATION.fade,
   ease: MOTION_EASE.emphasized,
 };
-
-function StepPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="flex min-h-[200px] items-center justify-center rounded-xl bg-surface p-8 shadow-soft">
-      <p className="font-mono text-sm text-ink-dim">{label}</p>
-    </div>
-  );
-}
 
 export function CreateRoomWizard() {
   const navigate = useNavigate();
@@ -162,7 +155,16 @@ export function CreateRoomWizard() {
       );
       break;
     case 5:
-      stepContent = <StepPlaceholder label={c.comingSoonStep5} />;
+      stepContent = (
+        <StepSummary
+          name={draft.name}
+          category={draft.category}
+          endDate={draft.endDate}
+          totalBudget={draft.totalBudget}
+          expenses={draft.expenses}
+          onBack={() => goTo(4)}
+        />
+      );
       break;
     default:
       stepContent = null;

@@ -13,6 +13,7 @@ import {
   IconTrash,
   IconUserPlus,
   IconEdit,
+  IconShield,
 } from '../components/Icon/Icon';
 import { Modal } from '../components/Modal/Modal';
 import { PageHeader } from '../components/PageHeader/PageHeader';
@@ -51,6 +52,7 @@ type ManageModal =
   | 'rename-room'
   | 'room-goal'
   | 'personal-goal'
+  | 'transfer-ownership'
   | null;
 
 export function ManageProject() {
@@ -72,7 +74,7 @@ export function ManageProject() {
     saveRoomGoal,
     saveMemberGoal,
   } = data.goal;
-  const { archiveRoom, leaveRoom, renameRoom, refetch: refetchRooms } = useRooms();
+  const { archiveRoom, leaveRoom, renameRoom, transferOwnership, refetch: refetchRooms } = useRooms();
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers } = data.bucketTransfers;
@@ -91,6 +93,8 @@ export function ManageProject() {
   const [pendingRoomGoal, setPendingRoomGoal] = useState<{ target: number; endDate: string } | null>(null);
   const [personalGoalAmount, setPersonalGoalAmount] = useState('');
   const [personalGoalError, setPersonalGoalError] = useState<string | null>(null);
+  const [selectedTransferMember, setSelectedTransferMember] = useState<string | null>(null);
+  const [confirmingTransfer, setConfirmingTransfer] = useState(false);
   const { shouldShowLoader: shouldShowMemberSkeleton } = useLoadingGate({
     loading: membersLoading,
     showAfterMs: 120,
@@ -297,6 +301,22 @@ export function ManageProject() {
     navigate('/profile');
   }
 
+  async function handleTransferOwnership() {
+    if (!activeRoomId || !selectedTransferMember) return;
+    const result = await transferOwnership(activeRoomId, selectedTransferMember);
+    if (result.error) {
+      setMessage(copy.manageProject.transferErrorGeneric);
+      setConfirmingTransfer(false);
+      return;
+    }
+    haptic('success');
+    setConfirmingTransfer(false);
+    setActiveModal(null);
+    setSelectedTransferMember(null);
+    setMessage(copy.manageProject.transferSuccess);
+    await refetchRooms();
+  }
+
   const isRoomFull = members.length === 7;
   const projectBasicsItems = [
     {
@@ -370,7 +390,21 @@ export function ManageProject() {
     // },
   ];
 
+  const otherMembers = members.filter(m => m.userId !== user?.id);
+
   const roomActionItems = [
+    ...(isCreator && otherMembers.length > 0
+      ? [{
+          id: 'transfer',
+          icon: <IconShield size={18} />,
+          label: copy.manageProject.transferOwnershipLabel,
+          description: copy.manageProject.transferOwnershipDesc,
+          onClick: () => {
+            setSelectedTransferMember(null);
+            openModal('transfer-ownership');
+          },
+        }]
+      : []),
     {
       id: 'create-another',
       icon: <IconUserPlus size={18} />,
@@ -622,10 +656,73 @@ export function ManageProject() {
           statusMessage={message}
         />
       </Modal>
+      <Modal
+        open={activeModal === 'transfer-ownership'}
+        title={copy.manageProject.transferTitle}
+        onClose={closeModal}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="font-mono text-sm text-ink-muted">
+            {copy.manageProject.transferSelectMember}
+          </p>
+          <div className="flex flex-col gap-2">
+            {otherMembers.map(member => {
+              const fallback = firstGrapheme(member.displayName);
+              const selected = selectedTransferMember === member.userId;
+              return (
+                <button
+                  key={member.userId}
+                  type="button"
+                  onClick={() => setSelectedTransferMember(member.userId)}
+                  className={`flex items-center gap-3 rounded-lg p-3 text-left transition-colors ${
+                    selected
+                      ? 'bg-brand-50 ring-2 ring-brand-300'
+                      : 'bg-surface shadow-soft hover:bg-well'
+                  }`}
+                >
+                  <RoomMemberRow
+                    name={member.displayName}
+                    fallback={fallback}
+                    imageUrl={member.avatarUrl}
+                    themeColor={member.themeColor ?? undefined}
+                    joinedDateLabel=""
+                    isYou={false}
+                    isCreator={false}
+                    creatorBadgeLabel=""
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <Button
+            variant="primary"
+            fullWidth
+            disabled={!selectedTransferMember}
+            onClick={() => setConfirmingTransfer(true)}
+          >
+            {copy.manageProject.transferConfirmLabel}
+          </Button>
+        </div>
+      </Modal>
+      <ConfirmModal
+        open={confirmingTransfer}
+        title={copy.manageProject.transferConfirmTitle}
+        body={copy.manageProject.transferConfirmBody(
+          otherMembers.find(m => m.userId === selectedTransferMember)?.displayName ?? '',
+        )}
+        confirmLabel={copy.manageProject.transferConfirmLabel}
+        danger
+        onCancel={() => setConfirmingTransfer(false)}
+        onConfirm={handleTransferOwnership}
+      />
       <ConfirmModal
         open={confirmingArchive}
         title={copy.manageProject.archiveConfirmTitle}
-        body={copy.manageProject.archiveConfirmBody}
+        body={
+          otherMembers.length > 0
+            ? `${copy.manageProject.archiveConfirmBody}\n\n${copy.manageProject.archiveSuggestTransfer}`
+            : copy.manageProject.archiveConfirmBody
+        }
         confirmLabel={copy.manageProject.archiveConfirmLabel}
         danger
         onCancel={() => setConfirmingArchive(false)}

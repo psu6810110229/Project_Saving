@@ -152,7 +152,13 @@ export function Profile() {
     if (result.error) setMessage(result.error);
     else {
       closeModal();
-      navigate('/dashboard');
+      if (result.roomId) {
+        const params = new URLSearchParams({ roomId: result.roomId });
+        if (result.joinStatus === 'rejoined') params.set('rejoin', 'true');
+        navigate(`/join-room?${params.toString()}`);
+      } else {
+        navigate('/dashboard');
+      }
     }
   }
 

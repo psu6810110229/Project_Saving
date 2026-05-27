@@ -20,6 +20,8 @@ interface ActionResult {
   error?: string;
   roomId?: string;
   inviteCode?: string;
+  /** 'joined' for new members, 'rejoined' for returning members with prior data. */
+  joinStatus?: 'joined' | 'rejoined';
   /**
    * Set when a write was rejected because the caller already owns
    * an active project as a creator. The UI uses this to surface a
@@ -292,7 +294,8 @@ export function useRooms() {
     await fetchRooms();
     // Fire-and-forget: tell the existing room creator that we joined.
     notifyRoomJoined(roomId);
-    return { roomId };
+    const joinStatus = status === 'rejoined' ? 'rejoined' as const : 'joined' as const;
+    return { roomId, joinStatus };
   }
 
   async function archiveRoom(roomId: string): Promise<ActionResult> {
@@ -402,10 +405,24 @@ export function useRooms() {
     return { roomId };
   }
 
+  async function transferOwnership(roomId: string, newOwnerId: string): Promise<ActionResult> {
+    if (!userId) return { error: 'Not authenticated' };
+    const { error: rpcError } = await supabase.rpc('transfer_room_ownership', {
+      p_room_id: roomId,
+      p_new_owner_id: newOwnerId,
+    });
+    if (rpcError) return { error: rpcError.message };
+
+    setRooms(prev => prev.map(room => (
+      room.id === roomId ? { ...room, created_by: newOwnerId } : room
+    )));
+    return { roomId };
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRooms({ showLoading: currentRooms.length === 0 });
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, renameRoom, fetchActiveRoomForCreator, fetchArchivedRooms };
+  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

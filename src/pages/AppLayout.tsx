@@ -230,7 +230,13 @@ function ProjectSetup({
   async function handleJoin() {
     const result = await onJoin(code);
     if (result.error) setMessage(result.error);
-    else navigate('/dashboard');
+    else if (result.roomId) {
+      const params = new URLSearchParams({ roomId: result.roomId });
+      if (result.joinStatus === 'rejoined') params.set('rejoin', 'true');
+      navigate(`/join-room?${params.toString()}`);
+    } else {
+      navigate('/dashboard');
+    }
   }
 
   return (

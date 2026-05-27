@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
 import { Avatar } from '../components/Avatar/Avatar';
@@ -80,6 +80,7 @@ import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTarge
 import { calcBucketPace } from '../lib/paceCalculation';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
+import { depositSlipMarker } from '../lib/deposit';
 import { formatCurrency } from '../lib/format';
 import { availablePurposeCategoriesForMode, purposeDailyMarkers, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
@@ -160,6 +161,7 @@ function bucketDragHintDistance(delta: number) {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const migration = useMigrationState(user?.id);
   const { activeRoom, activeRoomId } = useRoom();
@@ -245,6 +247,7 @@ export function Dashboard() {
   );
   const purposePickerBuckets = effectiveTrendMode === 'me' ? buckets : allVisibleBuckets;
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
+  const [heroDepositOpen, setHeroDepositOpen] = useState(() => searchParams.get('deposit') === 'true');
   const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [completedBucketsOpen, setCompletedBucketsOpen] = useState(false);
@@ -358,6 +361,21 @@ export function Dashboard() {
     minimumVisibleMs: 400,
   });
   const error = goalError ?? logsError;
+
+  useEffect(() => {
+    if (searchParams.get('deposit') === 'true') {
+      setHeroDepositOpen(true);
+    }
+  }, [searchParams]);
+
+  const handleHeroDepositOpenChange = useCallback((open: boolean) => {
+    setHeroDepositOpen(open);
+    if (!open && searchParams.get('deposit') === 'true') {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('deposit');
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Bucket view falls back to 'mine' whenever the selected other
   // member leaves the room, switches rooms, or empties out their
@@ -690,6 +708,35 @@ export function Dashboard() {
   // otherwise fall back to the room/goal end date. Some plans run in
   // target-reach mode (no revision end_date), so the room date is the
   // usual source.
+  const heroDepositBuckets = activeBucketItems.length > 0 ? activeBucketItems : bucketItems;
+  const heroDepositInitialBucketId = bucketSummaryItems[0]?.bucketId
+    ?? focusBucketId
+    ?? heroDepositBuckets[0]?.id
+    ?? null;
+  const handleHeroDepositConfirm = useCallback(async (
+    bucketId: string,
+    amount: number,
+    slip: File | null,
+  ) => {
+    const bucket = heroDepositBuckets.find(item => item.id === bucketId);
+    if (!bucket || amount <= 0) return { error: copy.addMoney.validationNoBucket };
+
+    const result = await insert(amount, bucketId, undefined, depositSlipMarker(slip));
+    if (!result.error) {
+      const reached = bucket.saved < bucket.target && bucket.saved + amount >= bucket.target;
+      haptic(reached ? 'milestone' : 'success');
+      setVaultPreview({
+        prevSaved: totalSaved,
+        newSaved: totalSaved + amount,
+        target: totalTarget,
+        depositAmount: amount,
+        bucketName: bucket.name,
+        reachedBucket: reached,
+      });
+    }
+    return result;
+  }, [heroDepositBuckets, copy.addMoney.validationNoBucket, insert, totalSaved, totalTarget]);
+
   const planEndDateKey = displayRevision?.end_date ?? activeRoom?.end_date ?? null;
   const planDaysRemaining = planEndDateKey
     ? Math.max(
@@ -943,7 +990,10 @@ export function Dashboard() {
       setBucketModalOpen(true);
     }
   }, [buckets.length]);
-  const handleDepositFromPlan = useCallback(() => navigate('/add'), [navigate]);
+  const handleDepositFromPlan = useCallback(() => {
+    handleHeroDepositOpenChange(true);
+    navigate('/dashboard?deposit=true');
+  }, [handleHeroDepositOpenChange, navigate]);
   function bucketDraftFromExisting(bucket: Bucket) {
     return {
       id: bucket.id,
@@ -1189,6 +1239,12 @@ export function Dashboard() {
           hasBuckets={buckets.length > 0}
           streak={heroStreak}
           streakUnit={heroStreakUnit}
+          depositOpen={heroDepositOpen}
+          onDepositOpenChange={handleHeroDepositOpenChange}
+          depositInitialBucketId={heroDepositInitialBucketId}
+          depositBuckets={heroDepositBuckets}
+          quickAmounts={quickAmounts}
+          onConfirmDeposit={handleHeroDepositConfirm}
         />
       </motion.div>
 

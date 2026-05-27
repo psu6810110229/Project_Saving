@@ -1,7 +1,7 @@
 import { memo, useMemo, useState, type CSSProperties } from 'react';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { IconCheckCircle, IconFire, IconPiggyBank } from '../Icon/Icon';
-import { HeroCardDeposit } from './HeroCardDeposit';
+import { HeroCardDeposit, type HeroDepositBucket } from './HeroCardDeposit';
 import { formatCurrency } from '../../lib/format';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import type { BucketCategory, DailySummaryItem, ProjectCategory } from '../../types';
@@ -18,6 +18,12 @@ interface HeroCardProps {
   hasBuckets: boolean;
   streak: number;
   streakUnit?: 'day' | 'week' | 'month';
+  depositOpen?: boolean;
+  onDepositOpenChange?: (open: boolean) => void;
+  depositInitialBucketId?: string | null;
+  depositBuckets?: HeroDepositBucket[];
+  quickAmounts?: number[];
+  onConfirmDeposit?: (bucketId: string, amount: number, slip: File | null) => Promise<{ error?: string }>;
 }
 
 type HeroStyle = CSSProperties & {
@@ -62,11 +68,6 @@ function dailySummaryLabel(item: DailySummaryItem | null | undefined, hasBuckets
   return `Today: ${item.bucketName}`;
 }
 
-function dailySummaryAmount(item: DailySummaryItem | null | undefined): string | null {
-  if (!item || item.amountDue == null) return null;
-  return formatCurrency(Math.round(item.amountDue));
-}
-
 export const HeroCard = memo(function HeroCard({
   displayName,
   saved,
@@ -79,8 +80,16 @@ export const HeroCard = memo(function HeroCard({
   hasBuckets,
   streak,
   streakUnit,
+  depositOpen,
+  onDepositOpenChange,
+  depositInitialBucketId,
+  depositBuckets = [],
+  quickAmounts = [],
+  onConfirmDeposit,
 }: HeroCardProps) {
-  const [depositOpen, setDepositOpen] = useState(false);
+  const [internalDepositOpen, setInternalDepositOpen] = useState(false);
+  const resolvedDepositOpen = depositOpen ?? internalDepositOpen;
+  const setDepositOpen = onDepositOpenChange ?? setInternalDepositOpen;
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
   const pctRounded = Math.round(animPct);
@@ -91,7 +100,7 @@ export const HeroCard = memo(function HeroCard({
   ), [coverImageUrl]);
   const focusCategory: BucketCategory | undefined = dailySummaryItem?.category;
   const dailyLabel = dailySummaryLabel(dailySummaryItem, hasBuckets);
-  const depositAmountLabel = dailySummaryAmount(dailySummaryItem);
+  const suggestedDepositAmount = dailySummaryItem?.amountDue ?? null;
 
   return (
     <div className="vault-card-frame">
@@ -165,9 +174,12 @@ export const HeroCard = memo(function HeroCard({
         </button>
 
         <HeroCardDeposit
-          open={depositOpen}
-          focusBucketName={dailySummaryItem?.bucketName}
-          amountLabel={depositAmountLabel}
+          open={resolvedDepositOpen}
+          buckets={depositBuckets}
+          initialBucketId={depositInitialBucketId ?? dailySummaryItem?.bucketId ?? null}
+          suggestedAmount={suggestedDepositAmount}
+          quickAmounts={quickAmounts}
+          onConfirm={onConfirmDeposit ?? (async () => ({ error: 'Deposit is unavailable.' }))}
           onClose={() => setDepositOpen(false)}
         />
 

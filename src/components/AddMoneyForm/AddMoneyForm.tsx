@@ -4,9 +4,11 @@ import { Button } from '../Button/Button';
 import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { FormField } from '../FormField/FormField';
 import { IconPiggyBank } from '../Icon/Icon';
+import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { SlipAttachField } from '../SlipAttachField/SlipAttachField';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
+import { cleanQuickAmounts, resolveDepositAmount } from '../../lib/deposit';
 import { SHOW_ATTACHED_SLIP } from '../../lib/flags';
 
 interface AddMoneyFormProps {
@@ -35,15 +37,15 @@ export function AddMoneyForm({
   bucketName,
   saved,
   target,
-  quickAmounts: _quickAmounts,
-  selectedQuickAmount: _selectedQuickAmount,
+  quickAmounts,
+  selectedQuickAmount,
   amountValue,
   slip,
-  onQuickAmountSelect: _onQuickAmountSelect,
+  onQuickAmountSelect,
   onAmountChange,
   onSlipChange,
   onSubmit,
-  onEditQuickAmounts: _onEditQuickAmounts,
+  onEditQuickAmounts,
   mineLabel,
   theirLabel,
   mineSeries,
@@ -51,7 +53,8 @@ export function AddMoneyForm({
   submitting = false,
 }: AddMoneyFormProps) {
   const { copy } = useI18n();
-  const amount = Number(amountValue) || 0;
+  const amount = resolveDepositAmount(amountValue, selectedQuickAmount);
+  const cleanedQuickAmounts = cleanQuickAmounts(quickAmounts);
   const showTrendPreview = mineLabel && theirLabel && mineSeries && theirSeries;
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -70,6 +73,32 @@ export function AddMoneyForm({
           onChange={(event: ChangeEvent<HTMLInputElement>) => onAmountChange(event.target.value)}
         />
       </FormField>
+      {cleanedQuickAmounts.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
+              {copy.addMoney.depositAmountLabel}
+            </p>
+            {onEditQuickAmounts && (
+              <button
+                type="button"
+                onClick={onEditQuickAmounts}
+                className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-brand-800"
+              >
+                {copy.addMoney.editQuickAmountsLabel}
+              </button>
+            )}
+          </div>
+          <QuickAddRow
+            amounts={cleanedQuickAmounts}
+            selected={selectedQuickAmount}
+            onSelect={amount => {
+              onQuickAmountSelect(amount);
+              if (amountValue) onAmountChange('');
+            }}
+          />
+        </div>
+      )}
       {showTrendPreview && (
         <ComparisonTrendChart
           mineLabel={mineLabel}

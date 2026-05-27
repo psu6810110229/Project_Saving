@@ -3,7 +3,6 @@ import { AuthProvider } from './components/AuthProvider/AuthProvider';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
 import { RoomProvider } from './components/RoomContext/RoomContext';
 import { I18nProvider } from './i18n/I18nProvider';
-import { AddMoney } from './pages/AddMoney';
 import { AppLayout } from './pages/AppLayout';
 import { ArchivedProjects } from './pages/ArchivedProjects';
 import { AtomsPreview } from './pages/AtomsPreview';
@@ -57,7 +56,7 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/add" element={<AddMoney />} />
+              <Route path="/add" element={<Navigate to="/dashboard?deposit=true" replace />} />
               <Route path="/check-balance" element={<CheckBalance />} />
               <Route path="/saving-plan" element={<SavingPlan />} />
               <Route path="/profile" element={<Profile />} />

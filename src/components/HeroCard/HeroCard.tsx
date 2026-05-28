@@ -9,7 +9,7 @@ import {
 } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
-import type { DailySummaryItem, ProjectCategory } from '../../types';
+import type { CoverTint, DailySummaryItem, ProjectCategory } from '../../types';
 
 interface HeroCardProps {
   displayName: string;
@@ -30,10 +30,13 @@ interface HeroCardProps {
   onChangeCover?: () => void;
   changeCoverAriaLabel?: string;
   changingCover?: boolean;
+  coverTint?: CoverTint | null;
 }
 
 type HeroStyle = CSSProperties & {
   '--hero-card-cover'?: string;
+  '--hero-scrim-rgb'?: string;
+  '--hero-scrim-strength'?: string;
 };
 
 interface InlineInfoProps {
@@ -193,6 +196,7 @@ export const HeroCard = memo(function HeroCard({
   onChangeCover,
   changeCoverAriaLabel,
   changingCover = false,
+  coverTint,
 }: HeroCardProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
@@ -204,9 +208,15 @@ export const HeroCard = memo(function HeroCard({
   const validThruLabel = formatValidThru(validThru);
   const latestLabel = formatLastChecked(lastCheckedAt);
   const resolvedBucketCount = bucketCount ?? (hasBuckets ? 1 : 0);
-  const cardStyle = useMemo<HeroStyle>(() => (
-    coverImageUrl ? { '--hero-card-cover': cssUrl(coverImageUrl) } : {}
-  ), [coverImageUrl]);
+  const cardStyle = useMemo<HeroStyle>(() => {
+    const style: HeroStyle = {};
+    if (coverImageUrl) style['--hero-card-cover'] = cssUrl(coverImageUrl);
+    if (coverTint) {
+      style['--hero-scrim-rgb'] = coverTint.rgb.join(', ');
+      style['--hero-scrim-strength'] = String(coverTint.strength);
+    }
+    return style;
+  }, [coverImageUrl, coverTint]);
   const metrics: MetricProps[] = [
     {
       icon: <IconUser size={13} />,
@@ -242,6 +252,7 @@ export const HeroCard = memo(function HeroCard({
         data-category={roomCategory ?? undefined}
         style={cardStyle}
       >
+        {coverImageUrl && <div className="hero-card-feather" aria-hidden />}
         <div className="relative z-10 flex items-start justify-between gap-3">
           <h2 className="min-w-0 truncate py-0.5 font-mono-th text-[1rem] font-semibold leading-tight tracking-[0.04em] text-white drop-shadow-[0_2px_10px_rgba(116,50,20,0.34)] min-[480px]:text-[1.42rem]">
             ยอดเก็บของคุณ

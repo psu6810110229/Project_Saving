@@ -218,6 +218,9 @@ export function Dashboard() {
   // Hero cover is per-user (room_members.cover_image_url), falling back to the
   // shared room cover when the member has not set their own.
   const heroCoverUrl = activeRoom?.member_cover_image_url ?? activeRoom?.cover_image_url ?? null;
+  // Adaptive tint applies only to the member's own cover; the shared
+  // fallback cover (and legacy covers) use the neutral scrim.
+  const heroCoverTint = activeRoom?.member_cover_image_url ? (activeRoom?.member_cover_tint ?? null) : null;
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
@@ -1070,14 +1073,14 @@ export function Dashboard() {
     setCoverSaving(true);
     setCoverError(null);
     try {
-      const blob = await cropAndResizeRoomCover(coverCropFile, crop);
+      const { blob, tint } = await cropAndResizeRoomCover(coverCropFile, crop);
       const result = await uploadRoomCover(blob);
       if (result.errorCode || result.error || !result.url) {
         setCoverError(roomCoverErrorMessage(result.errorCode ?? 'upload_failed', copy.createRoomWizard, result.error));
         return;
       }
 
-      const updateResult = await updateMemberCover(activeRoomId, { cover_image_url: result.url });
+      const updateResult = await updateMemberCover(activeRoomId, { cover_image_url: result.url, cover_tint: tint });
       if (updateResult.error) {
         setCoverError(updateResult.error);
         return;
@@ -1408,6 +1411,7 @@ export function Dashboard() {
           onChangeCover={handleHeroCoverChoose}
           changeCoverAriaLabel={`${copy.createRoomWizard.changeCoverButton} ${copy.createRoomWizard.coverImagePlaceholder}`}
           changingCover={coverSaving || coverUploading}
+          coverTint={heroCoverTint}
         />
         <input
           ref={coverFileInputRef}

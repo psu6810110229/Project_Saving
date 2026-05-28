@@ -106,7 +106,7 @@ export function StepEventDate({
 
     setCoverError(null);
     try {
-      const blob = await cropAndResizeRoomCover(cropFile, crop);
+      const { blob } = await cropAndResizeRoomCover(cropFile, crop);
       const result = await uploadRoomCover(blob);
       if (result.errorCode || result.error || !result.url) {
         setCoverError(roomCoverErrorMessage(result.errorCode ?? 'upload_failed', c, result.error));

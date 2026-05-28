@@ -42,6 +42,23 @@ export interface Room {
    * cover_image_url when unset. Populated during fetch, not a column on rooms.
    */
   member_cover_image_url?: string | null;
+  /**
+   * Adaptive readability tint for the caller's hero cover, computed from
+   * the image at upload time (room_members.cover_tint, migration 0076).
+   * Drives the hero card scrim color + strength. Null for legacy covers.
+   */
+  member_cover_tint?: CoverTint | null;
+}
+
+/**
+ * Readability tint derived from a cover image's own colors. `rgb` is a
+ * deep, slightly-desaturated shade of the image palette; `strength`
+ * (0..1) scales how heavily the scrim darkens, based on how bright the
+ * image is in the card's text zones.
+ */
+export interface CoverTint {
+  rgb: [number, number, number];
+  strength: number;
 }
 
 export interface RoomMember {

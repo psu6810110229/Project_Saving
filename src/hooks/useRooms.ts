@@ -5,7 +5,7 @@ import { useRoom } from './useRoom';
 import { generateInviteCode } from '../lib/inviteCode';
 import { notifyRoomJoined, notifyRoomLeft } from '../lib/notifyEvents';
 import { useI18n } from '../i18n/useI18n';
-import type { ProjectCategory, Room } from '../types';
+import type { CoverTint, ProjectCategory, Room } from '../types';
 import { ROOM_NAME_MAX_LENGTH } from '../lib/roomName';
 import { calcSuggestedRule } from '../lib/travelExpenseRules';
 
@@ -68,6 +68,10 @@ interface UpdateRoomCoverValues {
   cover_image_url: string | null;
 }
 
+interface UpdateMemberCoverValues extends UpdateRoomCoverValues {
+  cover_tint?: CoverTint | null;
+}
+
 const ROOM_FETCH_TIMEOUT_MS = 12_000;
 
 export function useRooms() {
@@ -95,7 +99,7 @@ export function useRooms() {
 
     const { data, error: err } = await supabase
       .from('room_members')
-      .select('cover_image_url, rooms(*)')
+      .select('cover_image_url, cover_tint, rooms(*)')
       .eq('user_id', userId)
       .order('joined_at', { ascending: true })
       .abortSignal(controller.signal);
@@ -109,10 +113,12 @@ export function useRooms() {
     }
 
     const rooms: Room[] = (data ?? [])
-      .map((row: { cover_image_url: string | null; rooms: Room | Room[] | null }): Room | null => {
+      .map((row: { cover_image_url: string | null; cover_tint: CoverTint | null; rooms: Room | Room[] | null }): Room | null => {
         const r = row.rooms;
         const room = Array.isArray(r) ? r[0] : r;
-        return room ? { ...room, member_cover_image_url: row.cover_image_url } : null;
+        return room
+          ? { ...room, member_cover_image_url: row.cover_image_url, member_cover_tint: row.cover_tint }
+          : null;
       })
       .filter((room): room is Room => room !== null && !room.archived_at);
 
@@ -430,18 +436,21 @@ export function useRooms() {
     return { roomId };
   }
 
-  async function updateMemberCover(roomId: string, values: UpdateRoomCoverValues): Promise<ActionResult> {
+  async function updateMemberCover(roomId: string, values: UpdateMemberCoverValues): Promise<ActionResult> {
     if (!userId) return { error: 'Not authenticated' };
 
+    const tint = values.cover_tint ?? null;
     const { error: updateError } = await supabase
       .from('room_members')
-      .update({ cover_image_url: values.cover_image_url })
+      .update({ cover_image_url: values.cover_image_url, cover_tint: tint })
       .eq('room_id', roomId)
       .eq('user_id', userId);
     if (updateError) return { error: updateError.message };
 
     setRooms(prev => prev.map(room => (
-      room.id === roomId ? { ...room, member_cover_image_url: values.cover_image_url } : room
+      room.id === roomId
+        ? { ...room, member_cover_image_url: values.cover_image_url, member_cover_tint: tint }
+        : room
     )));
     return { roomId };
   }

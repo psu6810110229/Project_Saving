@@ -294,15 +294,54 @@
     pointer-events: none;
   }
 
+  /* Organic feathered edge: a blurred, scaled copy of the cover masked
+     so it shows only around an irregular border, leaving the center
+     sharp. The intersect composite turns three offset transparent-center
+     gradients into a blobby clear region (union), so the blurred band
+     around it has non-uniform thickness. */
+  .hero-card-feather {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: var(--hero-card-cover, url('/vault-card-japan-clean.jpg'));
+    background-position: 60% 50%;
+    background-size: cover;
+    filter: blur(9px) saturate(1.04);
+    transform: scale(1.1);
+    -webkit-mask-image:
+      radial-gradient(120% 100% at 44% 38%, transparent 0 50%, #000 78%),
+      radial-gradient(95% 125% at 61% 54%, transparent 0 48%, #000 80%),
+      radial-gradient(110% 92% at 50% 64%, transparent 0 53%, #000 82%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      radial-gradient(120% 100% at 44% 38%, transparent 0 50%, #000 78%),
+      radial-gradient(95% 125% at 61% 54%, transparent 0 48%, #000 80%),
+      radial-gradient(110% 92% at 50% 64%, transparent 0 53%, #000 82%);
+    mask-composite: intersect;
+  }
+
+  /* Readability scrim: tint shaded from the cover's own palette
+     (--hero-scrim-rgb) at a strength scaled to image brightness
+     (--hero-scrim-strength), shaped to text zones (top + bottom bands,
+     left column) leaving the mid-right vivid. Falls back to neutral. */
   .hero-credit-card::after {
     content: '';
     position: absolute;
     inset: 0;
     z-index: 0;
-    background:
-      linear-gradient(180deg, rgba(255, 241, 221, 0.04) 0%, rgba(101, 35, 15, 0.1) 56%, rgba(82, 27, 13, 0.24) 100%),
-      radial-gradient(110% 78% at 0% 100%, rgba(92, 31, 14, 0.24), transparent 70%);
     pointer-events: none;
+    --scrim-rgb: var(--hero-scrim-rgb, 28, 22, 19);
+    --scrim-k: var(--hero-scrim-strength, 0.6);
+    background:
+      linear-gradient(180deg,
+        rgba(var(--scrim-rgb), calc(var(--scrim-k) * 0.66)) 0%,
+        rgba(var(--scrim-rgb), calc(var(--scrim-k) * 0.23)) 36%,
+        rgba(var(--scrim-rgb), calc(var(--scrim-k) * 0.23)) 62%,
+        rgba(var(--scrim-rgb), calc(var(--scrim-k) * 0.9)) 100%),
+      linear-gradient(90deg,
+        rgba(var(--scrim-rgb), calc(var(--scrim-k) * 0.5)) 0%,
+        rgba(var(--scrim-rgb), 0) 55%);
   }
 
   @media (prefers-reduced-motion: reduce) {

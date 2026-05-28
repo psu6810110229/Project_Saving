@@ -1357,11 +1357,13 @@ export function Dashboard() {
                   buckets={displayedActiveBucketItems}
                   ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
                   onAddBucket={() => setBucketModalOpen(true)}
-                  manageLabel={buckets.length > 0 ? d.manageBuckets : undefined}
-                  onManageBuckets={buckets.length > 0 ? () => setManageBucketsOpen(true) : undefined}
                   belowHeader={editToggle ? <div className="flex flex-col gap-3">{editToggle}</div> : undefined}
                   renderBucket={bucket => isEditing ? (
-                    <SortableBucketCard id={bucket.id}>
+                    <SortableBucketCard
+                      id={bucket.id}
+                      onEdit={() => setManageBucketsOpen(true)}
+                      editAriaLabel={copy.bucket.editAriaLabel(bucket.name)}
+                    >
                       <BucketRow
                         icon={bucket.icon}
                         name={bucket.name}

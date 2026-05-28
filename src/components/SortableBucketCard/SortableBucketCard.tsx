@@ -2,10 +2,15 @@ import { type CSSProperties, type ReactNode } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
+import { IconButton } from '../IconButton/IconButton';
+import { IconEdit } from '../Icon/Icon';
 
 interface SortableBucketCardProps {
   id: string;
   children: ReactNode;
+  /** When set, shows a pencil button (top-right) that opens bucket editing. */
+  onEdit?: () => void;
+  editAriaLabel?: string;
 }
 
 // Deterministic 0..1 seed from the id so each card's wiggle is offset
@@ -24,7 +29,7 @@ function wiggleSeed(id: string): number {
  * transform lives on the root; the iOS-style wiggle `rotate` lives on
  * an inner wrapper so the two transforms never collide.
  */
-export function SortableBucketCard({ id, children }: SortableBucketCardProps) {
+export function SortableBucketCard({ id, children, onEdit, editAriaLabel }: SortableBucketCardProps) {
   const reduceMotion = useReducedMotion();
   const {
     attributes,
@@ -60,6 +65,22 @@ export function SortableBucketCard({ id, children }: SortableBucketCardProps) {
       <div className={shouldWiggle ? 'bucket-edit-wiggle' : ''} style={innerStyle}>
         {children}
       </div>
+      {onEdit && (
+        <IconButton
+          type="button"
+          variant="solid"
+          size="sm"
+          ariaLabel={editAriaLabel ?? 'Edit bucket'}
+          className="absolute -right-1.5 -top-1.5 z-10"
+          onPointerDown={event => event.stopPropagation()}
+          onClick={event => {
+            event.stopPropagation();
+            onEdit();
+          }}
+        >
+          <IconEdit size={14} />
+        </IconButton>
+      )}
     </div>
   );
 }

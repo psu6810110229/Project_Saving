@@ -30,9 +30,11 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchBuckets = useCallback(async () => {
+  const fetchBuckets = useCallback(async (opts?: { silent?: boolean }) => {
     if (!roomId || !user) { setBuckets([]); setLoading(false); return; }
-    setLoading(true);
+    // Silent refetches (post-save / post-archive) skip the loading flag so
+    // the bucket grid refreshes in place instead of flashing a loading state.
+    if (!opts?.silent) setLoading(true);
     // Active screens hide archived buckets (Task 40 / migration 0058).
     // Historical surfaces that need archived rows must query without
     // this filter; this hook is the active-buckets path.
@@ -175,7 +177,7 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       insertedIds = (insertedRows ?? []).map(row => row.id as string);
     }
 
-    await fetchBuckets();
+    await fetchBuckets({ silent: true });
 
     // Fire-and-forget partner notifications. Bucket failures must
     // not block the save itself; the helpers swallow errors.
@@ -207,9 +209,15 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       if (error) return { error: error.message };
     }
 
-    await fetchBuckets();
+    await fetchBuckets({ silent: true });
     return {};
   }
 
-  return { buckets, loading, saveBuckets, reviewBucketCategories, refetch: fetchBuckets };
+  return {
+    buckets,
+    loading,
+    saveBuckets,
+    reviewBucketCategories,
+    refetch: () => fetchBuckets({ silent: true }),
+  };
 }

@@ -116,12 +116,43 @@ function formatBucketCount(count: number): string {
   return `${Math.max(0, count)} เป้าหมาย`;
 }
 
+function formatValidThru(date?: string | null): string | null {
+  const due = parseLocalDate(date);
+  if (!due) return null;
+  const mm = String(due.getMonth() + 1).padStart(2, '0');
+  const yy = String(due.getFullYear() % 100).padStart(2, '0');
+  return `${mm}/${yy}`;
+}
+
 function formatStreak(streak: number, unit: HeroCardProps['streakUnit']): string {
   const value = Math.max(0, Math.round(streak));
   const resolved = unit ?? 'day';
   if (resolved === 'week') return `${value} สัปดาห์`;
   if (resolved === 'month') return `${value} เดือน`;
   return `${value} วัน`;
+}
+
+function CardChip() {
+  return (
+    <span
+      className="relative grid h-6 w-8 place-items-center overflow-hidden rounded-[5px] bg-gradient-to-b from-[#FCE7A8] via-[#E7BE63] to-[#C2912E] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_1px_2px_rgba(80,40,10,0.45)]"
+      aria-hidden
+    >
+      <span className="absolute inset-x-1 top-1/2 h-px -translate-y-1/2 bg-[#9a7320]/65" />
+      <span className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-[#9a7320]/65" />
+      <span className="absolute left-1/2 top-1/2 h-2.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-[2px] border border-[#9a7320]/55" />
+    </span>
+  );
+}
+
+function ContactlessGlyph() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="text-white/70">
+      <path d="M8.5 8a6 6 0 0 1 0 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 5.5a10 10 0 0 1 0 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M15.5 3a14 14 0 0 1 0 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function MetricItem({ icon, label, value, helper }: MetricProps) {
@@ -170,6 +201,7 @@ export const HeroCard = memo(function HeroCard({
   const remaining = Math.max(target - saved, 0);
   const timeLeft = formatTimeLeft(validThru);
   const remainingAmount = formatCurrency(Math.round(remaining));
+  const validThruLabel = formatValidThru(validThru);
   const latestLabel = formatLastChecked(lastCheckedAt);
   const resolvedBucketCount = bucketCount ?? (hasBuckets ? 1 : 0);
   const cardStyle = useMemo<HeroStyle>(() => (
@@ -205,7 +237,7 @@ export const HeroCard = memo(function HeroCard({
   return (
     <div className="vault-card-frame">
       <section
-        className="hero-credit-card flex w-full flex-col rounded-2xl px-3 py-5 text-white min-[400px]:px-4 min-[480px]:py-5"
+        className="hero-credit-card flex w-full flex-col rounded-2xl px-3 py-4 text-white min-[400px]:px-4 min-[480px]:py-5"
         data-has-cover={coverImageUrl ? 'true' : 'false'}
         data-category={roomCategory ?? undefined}
         style={cardStyle}
@@ -250,18 +282,18 @@ export const HeroCard = memo(function HeroCard({
           </div>
         </div>
 
-        <div className="relative z-10 mt-1.5 min-[480px]:mt-2">
+        <div className="relative z-10 mt-4 min-[480px]:mt-5">
           <div className="flex max-w-full items-baseline gap-2 whitespace-nowrap">
             <span className="font-mono text-[1.75rem] font-bold leading-none tracking-[0.06em] tabular-nums text-white drop-shadow-[0_2px_12px_rgba(116,50,20,0.36)] min-[480px]:text-[2.62rem]">
               {formatCurrency(Math.round(animSaved))}
             </span>
             <span className="font-mono text-[1.25rem] font-semibold leading-none tracking-[0.08em] tabular-nums text-white/82 drop-shadow-[0_2px_8px_rgba(116,50,20,0.28)] min-[480px]:text-[1.48rem]">
-              <span className="mr-0.5">/</span>{formatCurrency(Math.round(animTarget))}
+              <span className="mr-2">/</span>{formatCurrency(Math.round(animTarget))}
             </span>
           </div>
 
           <div
-            className="mt-3 h-2 w-[65%] min-w-[12rem] max-w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(126,55,20,0.22)]"
+            className="mt-4 h-2 w-[70%] min-w-[10rem] max-w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(126,55,20,0.22)]"
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -273,13 +305,30 @@ export const HeroCard = memo(function HeroCard({
             />
           </div>
 
-          <p className="mt-3 truncate font-mono-th text-[0.85rem] font-semibold leading-snug tracking-[0.03em] text-white/84 drop-shadow-[0_1px_7px_rgba(116,50,20,0.32)] min-[480px]:text-[0.95rem]">
+          <div className="absolute right-0 top-1/2 flex -translate-y-1/2 flex-col items-start gap-1.5">
+            <div className="flex items-center gap-2">
+              <CardChip />
+              <ContactlessGlyph />
+            </div>
+            {validThruLabel && (
+              <div className="leading-none">
+                <span className="block font-mono text-[0.45rem] font-bold uppercase tracking-[0.20em] text-white/62">
+                  Valid Thru
+                </span>
+                <span className="mt-0.5 block font-mono text-[0.58rem] font-semibold tabular-nums tracking-[0.08em] text-white/90">
+                  {validThruLabel}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <p className="mt-4 truncate font-mono-th text-[0.85rem] font-semibold leading-snug tracking-[0.03em] text-white/84 drop-shadow-[0_1px_7px_rgba(116,50,20,0.32)] min-[480px]:text-[0.95rem]">
             เหลืออีก <span className="font-mono tabular-nums">{remainingAmount}</span>
             {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
           </p>
         </div>
 
-        <div className="relative z-10 mt-3 grid grid-cols-4 border-t border-white/25 pt-4">
+        <div className="relative z-10 mt-4 grid grid-cols-4 border-t border-white/25 pt-3">
           {metrics.map((metric, index) => (
             <div key={metric.label} className={index === 0 ? 'min-w-0' : 'min-w-0 border-l border-white/50'}>
               <MetricItem {...metric} />

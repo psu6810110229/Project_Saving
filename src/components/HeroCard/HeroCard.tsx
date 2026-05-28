@@ -247,14 +247,14 @@ export const HeroCard = memo(function HeroCard({
   return (
     <div className="vault-card-frame">
       <section
-        className="hero-credit-card flex aspect-[1.586/1] w-full flex-col justify-between rounded-2xl px-4 py-3 text-white min-[400px]:px-6 min-[480px]:py-6"
+        className="hero-credit-card flex aspect-[1.586/1] w-full flex-col justify-between rounded-2xl px-4 py-5 text-white min-[400px]:px-6 min-[480px]:py-8"
         data-has-cover={coverImageUrl ? 'true' : 'false'}
         data-category={roomCategory ?? undefined}
         style={cardStyle}
       >
         {coverImageUrl && <div className="hero-card-feather" aria-hidden />}
         <div className="hero-card-pattern" aria-hidden />
-        <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-start gap-1 min-[400px]:right-4">
+        <div className="absolute right-3 top-[46%] z-20 flex -translate-y-1/2 flex-col items-start gap-1 min-[400px]:right-4">
           <div className="flex items-center gap-2">
             <CardChip />
             <ContactlessGlyph />
@@ -272,7 +272,7 @@ export const HeroCard = memo(function HeroCard({
         </div>
         <div className="relative z-10 flex items-start justify-between gap-3">
           <h2 className="min-w-0 truncate py-0.5 font-mono-th text-[0.85rem] font-light leading-tight tracking-[0.12em] text-white drop-shadow-[0_2px_10px_rgba(18,16,15,0.34)] min-[480px]:text-[1.42rem]">
-            ยอดเก็บของคุณ
+            สวัสดี {displayName}
           </h2>
           <div className="flex shrink-0 items-center gap-1 text-white/85 drop-shadow-[0_2px_10px_rgba(18,16,15,0.5)]">
             <span
@@ -310,7 +310,7 @@ export const HeroCard = memo(function HeroCard({
           </div>
         </div>
 
-        <div className="relative z-10 mt-4 min-[480px]:mt-6">
+        <div className="relative z-10 mt-2">
           <div className="flex min-w-0 max-w-full items-baseline gap-2 whitespace-nowrap">
             <span className="font-mono text-[clamp(1.3rem,6.5vw,2.5rem)] font-semibold leading-none tracking-[0.02em] tabular-nums text-white/90 drop-shadow-[0_2px_12px_rgba(18,16,15,0.36)]">
               {formatCurrency(Math.round(animSaved))}
@@ -320,7 +320,7 @@ export const HeroCard = memo(function HeroCard({
             </span>
           </div>
 
-          <div className="mt-1 flex items-center pr-[4.25rem] min-[480px]:pr-[4.75rem]">
+          <div className="mt-3 flex items-center pr-[4.25rem] min-[480px]:pr-[4.75rem]">
             <div className="min-w-0 flex-1">
               <div
                 className="h-2 w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(18,16,15,0.22)]"
@@ -335,7 +335,7 @@ export const HeroCard = memo(function HeroCard({
                 />
               </div>
 
-              <p className="mt-2 truncate font-mono-th text-[0.85rem] font-medium leading-snug tracking-[0.03em] text-white/78 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.95rem]">
+              <p className="mt-3 truncate font-mono-th text-[0.85rem] font-medium leading-snug tracking-[0.03em] text-white/78 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.95rem]">
                 ต้องเก็บ <span className="font-mono tabular-nums">{remainingAmount}</span>
                 {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
               </p>

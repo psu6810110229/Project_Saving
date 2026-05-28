@@ -1500,11 +1500,20 @@ export function Dashboard() {
               <span className="min-w-0 flex-1 font-mono text-xs font-bold text-ink-muted">
                 {copy.bucketIntent.status.done} ({completedBucketItems.length})
               </span>
-              <span className={`text-ink-dim transition-transform ${completedBucketsOpen ? 'rotate-180' : ''}`}>
+              <span className={`text-2xl leading-none text-ink-dim transition-transform duration-300 ${completedBucketsOpen ? 'rotate-180' : ''}`}>
                 ▾
               </span>
             </button>
-            {completedBucketsOpen && (
+            <AnimatePresence initial={false}>
+              {completedBucketsOpen && (
+                <motion.div
+                  key="completed-buckets"
+                  initial={reduceMotion ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={reduceMotion ? { height: 'auto', opacity: 0 } : { height: 0, opacity: 0 }}
+                  transition={reduceMotion ? { duration: 0 } : { duration: 0.34, ease: [0.16, 1, 0.2, 1] }}
+                  className="overflow-hidden"
+                >
               <div className="grid grid-cols-2 gap-4 p-1">
                 {completedBucketItems.map(bucket => {
                   const isEditing = bucketDragMode === 'edit';
@@ -1550,7 +1559,9 @@ export function Dashboard() {
                   );
                 })}
               </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
         {buckets.length === 0 && (

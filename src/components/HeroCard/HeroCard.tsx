@@ -116,7 +116,7 @@ function formatLastChecked(iso?: string | null): string {
 }
 
 function formatBucketCount(count: number): string {
-  return `${Math.max(0, count)} เป้าหมาย`;
+  return `${Math.max(0, count)} เป้า`;
 }
 
 function formatValidThru(date?: string | null): string | null {
@@ -247,7 +247,7 @@ export const HeroCard = memo(function HeroCard({
   return (
     <div className="vault-card-frame">
       <section
-        className="hero-credit-card flex aspect-[1.586/1] w-full flex-col justify-between rounded-2xl px-4 py-5 text-white min-[400px]:px-6 min-[480px]:py-8"
+        className="hero-credit-card flex aspect-[1.586/1] w-full flex-col justify-between rounded-2xl px-6 py-5 text-white min-[400px]:px-6 min-[480px]:py-8"
         data-has-cover={coverImageUrl ? 'true' : 'false'}
         data-category={roomCategory ?? undefined}
         style={cardStyle}
@@ -312,10 +312,10 @@ export const HeroCard = memo(function HeroCard({
 
         <div className="relative z-10 mt-2">
           <div className="flex min-w-0 max-w-full items-baseline gap-2 whitespace-nowrap">
-            <span className="font-mono text-[clamp(1.3rem,6.5vw,2.5rem)] font-semibold leading-none tracking-[0.02em] tabular-nums text-white/90 drop-shadow-[0_2px_12px_rgba(18,16,15,0.36)]">
+            <span className="font-mono text-[clamp(1.1rem,5.2vw,2rem)] font-semibold leading-none tracking-[0.02em] tabular-nums text-white/90 drop-shadow-[0_2px_12px_rgba(18,16,15,0.36)]">
               {formatCurrency(Math.round(animSaved))}
             </span>
-            <span className="font-mono text-[clamp(0.95rem,4.5vw,1.45rem)] font-medium leading-none tracking-[0.04em] tabular-nums text-white/72 drop-shadow-[0_2px_8px_rgba(18,16,15,0.28)]">
+            <span className="font-mono text-[clamp(0.8rem,3.6vw,1.2rem)] font-medium leading-none tracking-[0.04em] tabular-nums text-white/72 drop-shadow-[0_2px_8px_rgba(18,16,15,0.28)]">
               <span className="mr-2">/</span>{formatCurrency(Math.round(animTarget))}
             </span>
           </div>
@@ -335,7 +335,7 @@ export const HeroCard = memo(function HeroCard({
                 />
               </div>
 
-              <p className="mt-3 truncate font-mono-th text-[0.85rem] font-medium leading-snug tracking-[0.03em] text-white/78 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.95rem]">
+              <p className="mt-3 truncate font-mono-th text-[0.72rem] font-medium leading-snug tracking-[0.03em] text-white/78 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.82rem]">
                 ต้องเก็บ <span className="font-mono tabular-nums">{remainingAmount}</span>
                 {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
               </p>

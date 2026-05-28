@@ -33,7 +33,7 @@ import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
 import { hasDuplicateBucketName, sumTargets } from '../lib/buckets';
 import { haptic } from '../lib/haptics';
 import { ROOM_NAME_MAX_LENGTH } from '../lib/roomName';
-import type { Bucket } from '../types';
+import type { Bucket, SavingRuleType } from '../types';
 
 function firstGrapheme(value: string): string {
   if (!value) return '?';
@@ -251,7 +251,7 @@ export function ManageProject() {
     setMessage(copy.manageProject.personalGoalSuccess);
   }
 
-  async function handleUpdateBucket(bucket: Bucket, next: { name: string; target_amount: number }) {
+  async function handleUpdateBucket(bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; saving_rule_start_amount?: number | null; saving_rule_increment?: number | null; saving_rule_cap?: number | null; saving_rule_day_count?: number | null; reminder_day?: number | null }) {
     if (hasDuplicateBucketName(buckets, next.name, bucket.id)) {
       const error = copy.bucket.duplicateName(next.name.trim());
       setMessage(error);
@@ -268,7 +268,20 @@ export function ManageProject() {
 
     const result = await saveBuckets(
       buckets.map(item => item.id === bucket.id
-        ? { id: item.id, name: next.name, target_amount: next.target_amount, category: item.category }
+        ? {
+            id: item.id,
+            name: next.name,
+            target_amount: next.target_amount,
+            category: item.category,
+            ...(next.deadline !== undefined && { deadline: next.deadline }),
+            ...(next.saving_rule_type !== undefined && { saving_rule_type: next.saving_rule_type }),
+            ...(next.saving_rule_amount !== undefined && { saving_rule_amount: next.saving_rule_amount }),
+            ...(next.saving_rule_start_amount !== undefined && { saving_rule_start_amount: next.saving_rule_start_amount }),
+            ...(next.saving_rule_increment !== undefined && { saving_rule_increment: next.saving_rule_increment }),
+            ...(next.saving_rule_cap !== undefined && { saving_rule_cap: next.saving_rule_cap }),
+            ...(next.saving_rule_day_count !== undefined && { saving_rule_day_count: next.saving_rule_day_count }),
+            ...(next.reminder_day !== undefined && { reminder_day: next.reminder_day }),
+          }
         : { id: item.id, name: item.name, target_amount: item.target_amount, category: item.category }),
     );
 
@@ -637,6 +650,7 @@ export function ManageProject() {
           logs={logs}
           transfers={bucketTransfers}
           goalTarget={goalTarget}
+          roomEndDate={activeRoom?.end_date ?? null}
           onUpdate={handleUpdateBucket}
           onReviewCategories={async (updates) => {
             const result = await reviewBucketCategories(updates);

@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { bucketSaved, hasDuplicateBucketName, sumTargets } from '../../lib/buckets';
+import { bucketSaved, sumTargets } from '../../lib/buckets';
 import { isLowConfidenceCategory } from '../../lib/bucketCategories';
 import { type ArchiveErrorHint, useArchiveBucket } from '../../hooks/useArchiveBucket';
 import type { Bucket, BucketCategory, BucketTransfer, SavingsLog, SavingRuleType } from '../../types';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { BucketCategoryReviewModal } from '../BucketCategoryReviewModal/BucketCategoryReviewModal';
+import { BucketEditForm, type BucketEditFormResult, type BucketEditValues } from '../BucketEditForm/BucketEditForm';
 import { BucketTransferSheet, type TransferBucketOption } from '../BucketTransferSheet/BucketTransferSheet';
 import { Button } from '../Button/Button';
-import { FormField } from '../FormField/FormField';
-import { IconCheck, IconEdit, IconPiggyBank, IconTrash, IconX } from '../Icon/Icon';
+import { IconEdit, IconTrash } from '../Icon/Icon';
 import { IconButton } from '../IconButton/IconButton';
 import { RemoveBucketModal, type RemoveBucketDestination } from '../RemoveBucketModal/RemoveBucketModal';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
-import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
 
 interface BucketManagerProps {
@@ -24,7 +23,9 @@ interface BucketManagerProps {
   highlightBucketId?: string | null;
   goalTarget?: number | null;
   statusMessage?: string | null;
-  onUpdate: (bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; reminder_day?: number | null }) => Promise<{ error?: string; code?: string; duplicateName?: string; deadlineExtensionWarning?: boolean }>;
+  onUpdate: (bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; saving_rule_start_amount?: number | null; saving_rule_increment?: number | null; saving_rule_cap?: number | null; saving_rule_day_count?: number | null; reminder_day?: number | null }) => Promise<{ error?: string; code?: string; duplicateName?: string; deadlineExtensionWarning?: boolean }>;
+  /** Room end date used to pre-fill a sensible default deadline when a bucket has none. */
+  roomEndDate?: string | null;
   onReviewCategories?: (updates: { id: string; category: BucketCategory }[]) => Promise<{ error?: string }>;
   onTransferSheetOpenChange?: (open: boolean) => void;
   /**
@@ -83,26 +84,22 @@ export function BucketManager({
   transfers,
   highlightBucketId,
   goalTarget,
+  roomEndDate,
   statusMessage,
   onUpdate,
   onReviewCategories,
   onTransferSheetOpenChange,
   onRemoved,
 }: BucketManagerProps) {
-  const { copy, formatMoney } = useI18n();
+  const { copy } = useI18n();
   const { archive, pending: removePending } = useArchiveBucket();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [draftName, setDraftName] = useState('');
-  const [draftTarget, setDraftTarget] = useState('');
-  const [draftDeadline, setDraftDeadline] = useState('');
-  const [draftRuleType, setDraftRuleType] = useState<SavingRuleType | ''>('');
   const [pendingRemove, setPendingRemove] = useState<Bucket | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [transferSheetSourceId, setTransferSheetSourceId] = useState<string | null>(null);
   const [balanceOverrides, setBalanceOverrides] = useState<Record<string, number>>({});
   const [localMessage, setLocalMessage] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const totalBucketTargets = sumTargets(buckets);
 
   const pendingRemoveSaved = pendingRemove
@@ -142,65 +139,18 @@ export function BucketManager({
 
   function startEdit(bucket: Bucket) {
     setEditingId(bucket.id);
-    setDraftName(bucket.name);
-    setDraftTarget(String(bucket.target_amount));
-    setDraftDeadline(bucket.deadline ?? '');
-    setDraftRuleType(bucket.saving_rule_type ?? '');
     setLocalMessage(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setDraftName('');
-    setDraftTarget('');
-    setDraftDeadline('');
-    setDraftRuleType('');
     setLocalMessage(null);
   }
 
-  async function saveEdit(bucket: Bucket) {
-    const targetAmount = Number(draftTarget);
-    if (!draftName.trim()) {
-      setLocalMessage(copy.bucket.validationNameBeforeSaving);
-      return;
-    }
-    if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
-      setLocalMessage(copy.bucket.validationTargetAboveZero);
-      return;
-    }
-    if (hasDuplicateBucketName(buckets, draftName, bucket.id)) {
-      setLocalMessage(copy.bucket.duplicateName(draftName.trim()));
-      return;
-    }
-    if (typeof goalTarget === 'number') {
-      const capacityForEdit = goalTarget - (totalBucketTargets - bucket.target_amount);
-      if (targetAmount > capacityForEdit) {
-        setLocalMessage(copy.bucket.capacityErrorForEdit(formatMoney(Math.max(0, capacityForEdit))));
-        return;
-      }
-    }
-
-    setSaving(true);
-    const result = await onUpdate(bucket, {
-      name: draftName.trim(),
-      target_amount: targetAmount,
-      ...(draftDeadline !== (bucket.deadline ?? '') && { deadline: draftDeadline || null }),
-      ...(draftRuleType !== (bucket.saving_rule_type ?? '') && { saving_rule_type: (draftRuleType || null) as SavingRuleType | null }),
-    });
-    setSaving(false);
-
-    if (result.error) {
-      setLocalMessage(result.code === 'duplicate_name'
-        ? copy.bucket.duplicateName(result.duplicateName ?? draftName.trim())
-        : result.error);
-      return;
-    }
-
-    setLocalMessage(
-      (result as { deadlineExtensionWarning?: boolean }).deadlineExtensionWarning
-        ? copy.bucket.deadlineExtensionPrompt
-        : copy.bucket.updatedSuccess,
-    );
+  function handleEdited(result: { deadlineExtensionWarning?: boolean }) {
+    setLocalMessage(result.deadlineExtensionWarning
+      ? copy.bucket.deadlineExtensionPrompt
+      : copy.bucket.updatedSuccess);
     setEditingId(null);
   }
 
@@ -291,21 +241,13 @@ export function BucketManager({
         logs={logs}
         transfers={transfers}
         goalTarget={goalTarget}
-        totalBucketTargets={totalBucketTargets}
+        roomEndDate={roomEndDate}
         highlightBucketId={highlightBucketId}
         editingId={editingId}
-        draftName={draftName}
-        draftTarget={draftTarget}
-        draftDeadline={draftDeadline}
-        draftRuleType={draftRuleType}
-        saving={saving}
-        onDraftNameChange={setDraftName}
-        onDraftTargetChange={value => setDraftTarget(value.replace(/[^0-9]/g, ''))}
-        onDraftDeadlineChange={setDraftDeadline}
-        onDraftRuleTypeChange={setDraftRuleType}
         onStartEdit={startEdit}
         onCancelEdit={cancelEdit}
-        onSaveEdit={saveEdit}
+        onSave={onUpdate}
+        onSaved={handleEdited}
         onAskRemove={openRemove}
       />
       {typeof goalTarget === 'number' && (
@@ -365,42 +307,26 @@ function BucketSummary({
   logs,
   transfers,
   goalTarget,
-  totalBucketTargets,
+  roomEndDate,
   highlightBucketId,
   editingId,
-  draftName,
-  draftTarget,
-  draftDeadline,
-  draftRuleType,
-  saving,
-  onDraftNameChange,
-  onDraftTargetChange,
-  onDraftDeadlineChange,
-  onDraftRuleTypeChange,
   onStartEdit,
   onCancelEdit,
-  onSaveEdit,
+  onSave,
+  onSaved,
   onAskRemove,
 }: {
   buckets: Bucket[];
   logs: SavingsLog[];
   transfers?: BucketTransfer[];
   goalTarget?: number | null;
-  totalBucketTargets: number;
+  roomEndDate?: string | null;
   highlightBucketId?: string | null;
   editingId: string | null;
-  draftName: string;
-  draftTarget: string;
-  draftDeadline: string;
-  draftRuleType: SavingRuleType | '';
-  saving: boolean;
-  onDraftNameChange: (value: string) => void;
-  onDraftTargetChange: (value: string) => void;
-  onDraftDeadlineChange: (value: string) => void;
-  onDraftRuleTypeChange: (value: SavingRuleType | '') => void;
   onStartEdit: (bucket: Bucket) => void;
   onCancelEdit: () => void;
-  onSaveEdit: (bucket: Bucket) => void;
+  onSave: (bucket: Bucket, next: BucketEditValues) => Promise<BucketEditFormResult>;
+  onSaved: (result: BucketEditFormResult) => void;
   onAskRemove: (bucket: Bucket) => void;
 }) {
   const { copy, formatMoney } = useI18n();
@@ -417,16 +343,6 @@ function BucketSummary({
           const saved = bucketSaved(bucket.id, logs, transfers);
           const remaining = Math.max(0, bucket.target_amount - saved);
           const editing = editingId === bucket.id;
-          const capacityForEdit = typeof goalTarget === 'number'
-            ? goalTarget - (totalBucketTargets - bucket.target_amount)
-            : null;
-          const draftTargetAmount = Number(draftTarget);
-          const editTargetError = editing
-            && typeof capacityForEdit === 'number'
-            && Number.isFinite(draftTargetAmount)
-            && draftTargetAmount > capacityForEdit
-              ? copy.bucket.capacityExceededBy(formatMoney(draftTargetAmount - capacityForEdit))
-              : undefined;
 
           return (
             <div
@@ -437,69 +353,17 @@ function BucketSummary({
               }
             >
               {editing ? (
-                <div className="flex flex-col gap-3">
-                  <FormField label={copy.bucket.editNameLabel}>
-                    <TextInput
-                      value={draftName}
-                      leadingIcon={<IconEdit size={16} />}
-                      onChange={event => onDraftNameChange(event.target.value)}
-                    />
-                  </FormField>
-                  <FormField
-                    label={copy.bucket.editTargetLabel}
-                    helper={typeof capacityForEdit === 'number' ? copy.bucket.capacityAvailable(formatMoney(Math.max(0, capacityForEdit))) : undefined}
-                    error={editTargetError}
-                  >
-                    <TextInput
-                      value={draftTarget}
-                      inputMode="numeric"
-                      leadingIcon={<IconPiggyBank size={16} />}
-                      onChange={event => onDraftTargetChange(event.target.value)}
-                    />
-                  </FormField>
-                  <FormField label={copy.bucket.editDeadlineLabel}>
-                    <input
-                      type="date"
-                      value={draftDeadline}
-                      onChange={event => onDraftDeadlineChange(event.target.value)}
-                      className="w-full rounded-xl border border-well bg-bg px-4 py-3 font-mono text-sm text-ink"
-                    />
-                  </FormField>
-                  <FormField label={copy.bucket.editRuleLabel}>
-                    <select
-                      value={draftRuleType}
-                      onChange={event => onDraftRuleTypeChange(event.target.value as SavingRuleType | '')}
-                      className="w-full rounded-xl border border-well bg-bg px-4 py-3 font-mono text-sm text-ink"
-                    >
-                      <option value="">{'—'}</option>
-                      {(['fixed_daily', 'fixed_weekly', 'fixed_monthly', 'increasing_daily', 'increasing_daily_capped', 'flexible'] as const).map(rt => (
-                        <option key={rt} value={rt}>{copy.bucket.ruleNames[rt]}</option>
-                      ))}
-                    </select>
-                  </FormField>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="md"
-                      leadingIcon={<IconX size={16} />}
-                      onClick={onCancelEdit}
-                      disabled={saving}
-                    >
-                      {copy.bucket.editCancel}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="md"
-                      leadingIcon={<IconCheck size={16} />}
-                      onClick={() => onSaveEdit(bucket)}
-                      disabled={saving}
-                    >
-                      {copy.bucket.editSave}
-                    </Button>
-                  </div>
-                </div>
+                <BucketEditForm
+                  bucket={bucket}
+                  buckets={buckets}
+                  logs={logs}
+                  transfers={transfers}
+                  goalTarget={goalTarget}
+                  roomEndDate={roomEndDate}
+                  onCancel={onCancelEdit}
+                  onSave={onSave}
+                  onSaved={onSaved}
+                />
               ) : (
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">

@@ -10,7 +10,7 @@ import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { MigrationWizard } from '../components/MigrationWizard/MigrationWizard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
-import { BucketManager } from '../components/BucketManager/BucketManager';
+import { BucketEditForm } from '../components/BucketEditForm/BucketEditForm';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
 import { SortableBucketCard } from '../components/SortableBucketCard/SortableBucketCard';
@@ -185,7 +185,7 @@ export function Dashboard() {
   } = data.goal;
   useRooms();
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
-  const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
+  const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
@@ -263,10 +263,8 @@ export function Dashboard() {
   // doesn't leak into the deposit BucketSheet (dnd-kit pointer-up issue).
   const justDraggedRef = useRef(false);
   const dragEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
-  const [editHighlightBucketId, setEditHighlightBucketId] = useState<string | null>(null);
+  const [editBucketId, setEditBucketId] = useState<string | null>(null);
   const [migrationBannerDismissed, setMigrationBannerDismissed] = useState(false);
-  const [manageBucketTransferSheetOpen, setManageBucketTransferSheetOpen] = useState(false);
   const [transferIntent, setTransferIntent] = useState<{
     sourceId: string;
     destinationId: string | null;
@@ -993,12 +991,11 @@ export function Dashboard() {
   const handleCheckBalance = useCallback(() => navigate('/check-balance'), [navigate]);
   const handleConfigurePlan = useCallback(() => {
     if (buckets.length > 0) {
-      setEditHighlightBucketId(null);
-      setManageBucketsOpen(true);
+      navigate('/manage-project?modal=buckets');
     } else {
       setBucketModalOpen(true);
     }
-  }, [buckets.length]);
+  }, [buckets.length, navigate]);
   const handleDepositFromPlan = useCallback(() => {
     const targetBucketId = focusBucketId ?? activeBucketItems[0]?.id;
     if (targetBucketId) {
@@ -1120,7 +1117,7 @@ export function Dashboard() {
     }
   }
 
-  async function handleManageBucketUpdate(bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; reminder_day?: number | null }) {
+  async function handleManageBucketUpdate(bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; saving_rule_start_amount?: number | null; saving_rule_increment?: number | null; saving_rule_cap?: number | null; saving_rule_day_count?: number | null; reminder_day?: number | null }) {
     if (hasDuplicateBucketName(buckets, next.name, bucket.id)) {
       const error = copy.bucket.duplicateName(next.name.trim());
       return { error, code: 'duplicate_name' as const, duplicateName: next.name.trim() };
@@ -1142,6 +1139,10 @@ export function Dashboard() {
             ...(next.deadline !== undefined && { deadline: next.deadline }),
             ...(next.saving_rule_type !== undefined && { saving_rule_type: next.saving_rule_type }),
             ...(next.saving_rule_amount !== undefined && { saving_rule_amount: next.saving_rule_amount }),
+            ...(next.saving_rule_start_amount !== undefined && { saving_rule_start_amount: next.saving_rule_start_amount }),
+            ...(next.saving_rule_increment !== undefined && { saving_rule_increment: next.saving_rule_increment }),
+            ...(next.saving_rule_cap !== undefined && { saving_rule_cap: next.saving_rule_cap }),
+            ...(next.saving_rule_day_count !== undefined && { saving_rule_day_count: next.saving_rule_day_count }),
             ...(next.reminder_day !== undefined && { reminder_day: next.reminder_day }),
           }
         : { id: item.id, name: item.name, target_amount: item.target_amount, category: item.category }),
@@ -1364,7 +1365,7 @@ export function Dashboard() {
                   renderBucket={bucket => isEditing ? (
                     <SortableBucketCard
                       id={bucket.id}
-                      onEdit={() => { setEditHighlightBucketId(bucket.id); setManageBucketsOpen(true); }}
+                      onEdit={() => setEditBucketId(bucket.id)}
                       editAriaLabel={copy.bucket.editAriaLabel(bucket.name)}
                     >
                       <BucketRow
@@ -1602,36 +1603,30 @@ export function Dashboard() {
         </div>
       </Modal>
 
-      <Modal
-        open={manageBucketsOpen}
-        title={copy.manageProject.manageBucketsModalTitle}
-        onClose={() => { setManageBucketsOpen(false); setManageBucketTransferSheetOpen(false); setEditHighlightBucketId(null); }}
-        hidden={manageBucketTransferSheetOpen}
-      >
-        <BucketManager
-          buckets={buckets}
-          logs={logs}
-          transfers={bucketTransfers}
-          highlightBucketId={editHighlightBucketId}
-          goalTarget={target > 0 ? target : null}
-          onUpdate={handleManageBucketUpdate}
-          onReviewCategories={async (updates) => {
-            const result = await reviewBucketCategories(updates);
-            if (!result.error) {
-              for (const u of updates) {
-                logIntentEvent({
-                  eventKey: 'category_reviewed',
-                  bucketId: u.id,
-                  payload: { category: u.category },
-                });
-              }
-            }
-            return result;
-          }}
-          onTransferSheetOpenChange={setManageBucketTransferSheetOpen}
-          onRemoved={refetchBuckets}
-        />
-      </Modal>
+      {(() => {
+        const editBucket = editBucketId ? buckets.find(b => b.id === editBucketId) : null;
+        return (
+          <Modal
+            open={Boolean(editBucket)}
+            title={copy.bucket.editAriaLabel(editBucket?.name ?? '')}
+            onClose={() => setEditBucketId(null)}
+          >
+            {editBucket && (
+              <BucketEditForm
+                bucket={editBucket}
+                buckets={buckets}
+                logs={logs}
+                transfers={bucketTransfers}
+                goalTarget={target > 0 ? target : null}
+                roomEndDate={activeRoom?.end_date ?? null}
+                onCancel={() => setEditBucketId(null)}
+                onSave={handleManageBucketUpdate}
+                onSaved={() => setEditBucketId(null)}
+              />
+            )}
+          </Modal>
+        );
+      })()}
 
       <VerifiedBalanceReminderModal
         open={vbReminder.open}

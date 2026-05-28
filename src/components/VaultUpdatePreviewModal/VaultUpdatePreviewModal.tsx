@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '../Button/Button';
 import { IconCheck } from '../Icon/Icon';
-import { TotalVaultCard } from '../TotalVaultCard/TotalVaultCard';
+import { HeroCard } from '../HeroCard/HeroCard';
 import { FADE_TRANSITION, SPRING } from '../../lib/motion';
 import { useI18n } from '../../i18n/useI18n';
+import type { ProjectCategory } from '../../types';
 
 interface VaultUpdatePreviewModalProps {
   open: boolean;
@@ -15,8 +16,16 @@ interface VaultUpdatePreviewModalProps {
   depositAmount: number;
   bucketName: string;
   reachedBucket: boolean;
-  cardholderNames?: string[];
+  displayName: string;
+  roomName?: string | null;
+  roomCategory?: ProjectCategory | null;
+  coverImageUrl?: string | null;
   validThru?: string | null;
+  hasBuckets: boolean;
+  bucketCount?: number;
+  streak: number;
+  streakUnit?: 'day' | 'week' | 'month';
+  lastCheckedAt?: string | null;
   onDone: () => void;
 }
 
@@ -28,8 +37,16 @@ export function VaultUpdatePreviewModal({
   depositAmount,
   bucketName,
   reachedBucket,
-  cardholderNames,
+  displayName,
+  roomName,
+  roomCategory,
+  coverImageUrl,
   validThru,
+  hasBuckets,
+  bucketCount,
+  streak,
+  streakUnit,
+  lastCheckedAt,
   onDone,
 }: VaultUpdatePreviewModalProps) {
   if (typeof document === 'undefined') return null;
@@ -60,8 +77,16 @@ export function VaultUpdatePreviewModal({
               depositAmount={depositAmount}
               bucketName={bucketName}
               reachedBucket={reachedBucket}
-              cardholderNames={cardholderNames}
+              displayName={displayName}
+              roomName={roomName}
+              roomCategory={roomCategory}
+              coverImageUrl={coverImageUrl}
               validThru={validThru}
+              hasBuckets={hasBuckets}
+              bucketCount={bucketCount}
+              streak={streak}
+              streakUnit={streakUnit}
+              lastCheckedAt={lastCheckedAt}
               onDone={onDone}
             />
           </motion.section>
@@ -79,8 +104,16 @@ interface PreviewBodyProps {
   depositAmount: number;
   bucketName: string;
   reachedBucket: boolean;
-  cardholderNames?: string[];
+  displayName: string;
+  roomName?: string | null;
+  roomCategory?: ProjectCategory | null;
+  coverImageUrl?: string | null;
   validThru?: string | null;
+  hasBuckets: boolean;
+  bucketCount?: number;
+  streak: number;
+  streakUnit?: 'day' | 'week' | 'month';
+  lastCheckedAt?: string | null;
   onDone: () => void;
 }
 
@@ -94,8 +127,16 @@ function PreviewBody({
   depositAmount,
   bucketName,
   reachedBucket,
-  cardholderNames,
+  displayName,
+  roomName,
+  roomCategory,
+  coverImageUrl,
   validThru,
+  hasBuckets,
+  bucketCount,
+  streak,
+  streakUnit,
+  lastCheckedAt,
   onDone,
 }: PreviewBodyProps) {
   const { copy, formatMoney } = useI18n();
@@ -132,11 +173,19 @@ function PreviewBody({
       <p className="text-center font-mono text-[11px] uppercase tracking-[0.2em] text-ink-muted">
         {reachedBucket ? copy.addMoney.bucketReachedTitle : copy.addMoney.outcomeTitle}
       </p>
-      <TotalVaultCard
+      <HeroCard
+        displayName={displayName}
         saved={displaySaved}
         target={target}
-        cardholderNames={cardholderNames}
+        roomName={roomName}
+        roomCategory={roomCategory}
+        coverImageUrl={coverImageUrl}
         validThru={validThru}
+        hasBuckets={hasBuckets}
+        bucketCount={bucketCount}
+        streak={streak}
+        streakUnit={streakUnit}
+        lastCheckedAt={lastCheckedAt}
       />
       <div className="flex items-center justify-center gap-2 rounded-xl bg-surface px-4 py-3 shadow-soft">
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent-teal/15 text-accent-teal">

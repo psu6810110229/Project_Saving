@@ -48,6 +48,9 @@ export default {
         mono: ['"IBM Plex Mono"', '"IBM Plex Sans Thai"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
         // Sans fallback for long-form body text + Thai labels.
         sans: ['"IBM Plex Sans"', '"IBM Plex Sans Thai"', 'system-ui', 'sans-serif'],
+        'ibm-plex-sans-th': ['"IBM Plex Sans Thai"', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        // Geometric Thai face used alongside IBM Plex Mono digits.
+        'mono-th': ['"Mitr"', '"IBM Plex Sans Thai"', 'ui-monospace', 'monospace'],
       },
       borderRadius: {
         lg: '14px',

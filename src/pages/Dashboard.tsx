@@ -1974,9 +1974,9 @@ export function Dashboard() {
                 haptic(reached ? 'milestone' : 'success');
                 if (selectedBucketItem) {
                   setVaultPreview({
-                    prevSaved: totalSaved,
-                    newSaved: totalSaved + amount,
-                    target: totalTarget,
+                    prevSaved: total,
+                    newSaved: total + amount,
+                    target,
                     depositAmount: amount,
                     bucketName: selectedBucketItem.name,
                     reachedBucket: reached,
@@ -1997,8 +1997,16 @@ export function Dashboard() {
         depositAmount={vaultPreview?.depositAmount ?? 0}
         bucketName={vaultPreview?.bucketName ?? ''}
         reachedBucket={vaultPreview?.reachedBucket ?? false}
-        cardholderNames={leaderboardEntries.map(e => e.name)}
+        displayName={youName}
+        roomName={activeRoom?.name ?? null}
+        roomCategory={activeRoom?.category ?? null}
+        coverImageUrl={activeRoom?.cover_image_url ?? null}
         validThru={activeRoom?.end_date ?? null}
+        hasBuckets={buckets.length > 0}
+        bucketCount={buckets.filter(bucket => bucket.archived_at == null).length}
+        streak={heroStreak}
+        streakUnit={heroStreakUnit}
+        lastCheckedAt={latestCheckpoint?.checked_at ?? null}
         onDone={() => setVaultPreview(null)}
       />
       <OutcomeModal

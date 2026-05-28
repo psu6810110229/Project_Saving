@@ -1,11 +1,9 @@
 import { memo, useMemo, type CSSProperties, type ReactNode } from 'react';
 import {
-  IconCalendar,
   IconCamera,
   IconCheckCircle,
   IconEdit,
   IconFire,
-  IconFlag,
   IconLayers,
   IconUser,
 } from '../Icon/Icon';
@@ -126,24 +124,6 @@ function formatStreak(streak: number, unit: HeroCardProps['streakUnit']): string
   return `${value} วัน`;
 }
 
-function InfoItem({ icon, label, value }: InlineInfoProps) {
-  return (
-    <div className="flex min-w-0 items-center gap-2.5">
-      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/20 bg-white/[0.07] text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] min-[480px]:h-8 min-[480px]:w-8">
-        {icon}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate font-sans text-[0.62rem] font-semibold leading-none text-white/64 min-[480px]:text-[0.68rem]">
-          {label}
-        </span>
-        <span className="mt-1 block truncate font-sans text-[0.8rem] font-bold leading-none text-white/92 min-[480px]:text-[0.9rem]">
-          {value}
-        </span>
-      </span>
-    </div>
-  );
-}
-
 function MetricItem({ icon, label, value, helper }: MetricProps) {
   return (
     <div className="flex min-w-0 items-center gap-1.5 px-1">
@@ -151,13 +131,13 @@ function MetricItem({ icon, label, value, helper }: MetricProps) {
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block truncate font-sans text-[0.46rem] font-bold uppercase leading-none tracking-[0.05em] text-[#FFE2B8]/76">
+        <span className="block truncate font-mono text-[0.46rem] font-bold uppercase leading-none tracking-[0.05em] text-[#FFE2B8]/76">
           {label}
         </span>
-        <span className="mt-1 block truncate font-sans text-[0.62rem] font-bold leading-none text-white/95">
+        <span className="mt-1 block truncate font-mono-th text-[0.62rem] font-bold leading-none tracking-[0.03em] text-white/95">
           {value}
         </span>
-        <span className="mt-0.5 block truncate font-sans text-[0.42rem] font-medium leading-[0.62rem] text-white/56">
+        <span className="mt-0.5 block truncate font-mono-th text-[0.42rem] font-medium leading-[0.62rem] tracking-[0.03em] text-white/56">
           {helper}
         </span>
       </span>
@@ -169,7 +149,6 @@ export const HeroCard = memo(function HeroCard({
   displayName,
   saved,
   target,
-  roomName,
   roomCategory,
   coverImageUrl,
   validThru,
@@ -190,9 +169,7 @@ export const HeroCard = memo(function HeroCard({
   const clamped = Math.max(0, Math.min(100, animPct));
   const remaining = Math.max(target - saved, 0);
   const timeLeft = formatTimeLeft(validThru);
-  const remainingText = timeLeft
-    ? `เหลืออีก ${formatCurrency(Math.round(remaining))} ภายในเวลา ${timeLeft}`
-    : `เหลืออีก ${formatCurrency(Math.round(remaining))}`;
+  const remainingAmount = formatCurrency(Math.round(remaining));
   const latestLabel = formatLastChecked(lastCheckedAt);
   const resolvedBucketCount = bucketCount ?? (hasBuckets ? 1 : 0);
   const cardStyle = useMemo<HeroStyle>(() => (
@@ -203,43 +180,43 @@ export const HeroCard = memo(function HeroCard({
       icon: <IconUser size={13} />,
       label: 'OWNER',
       value: displayName,
-      helper: 'เจ้าของเป้าหมาย',
+      helper: 'สู้ๆ นะคนเก่ง :)',
     },
     {
       icon: <IconLayers size={13} />,
       label: 'BUCKETS',
       value: formatBucketCount(resolvedBucketCount),
-      helper: 'แยกตามวัตถุประสงค์',
+      helper: 'มีไว้พุ่งชน',
     },
     {
       icon: <IconFire size={13} />,
       label: 'STREAK',
       value: formatStreak(streak, streakUnit),
-      helper: 'เก็บต่อเนื่อง',
+      helper: 'ติดต่อกัน',
     },
     {
       icon: <IconCheckCircle size={13} />,
       label: 'CHECKED',
       value: latestLabel,
-      helper: 'อัปเดตล่าสุด',
+      helper: 'ที่เช็คยอดล่าสุด',
     },
   ];
 
   return (
     <div className="vault-card-frame">
       <section
-        className="hero-credit-card flex aspect-[1.52/1] min-h-[15rem] w-full flex-col rounded-3xl px-5 py-4 text-white min-[480px]:px-6 min-[480px]:py-5"
+        className="hero-credit-card flex w-full flex-col rounded-2xl px-3 py-5 text-white min-[400px]:px-4 min-[480px]:py-5"
         data-has-cover={coverImageUrl ? 'true' : 'false'}
         data-category={roomCategory ?? undefined}
         style={cardStyle}
       >
         <div className="relative z-10 flex items-start justify-between gap-3">
-          <h2 className="min-w-0 truncate font-sans text-[1.16rem] font-bold leading-none text-white drop-shadow-[0_2px_10px_rgba(116,50,20,0.34)] min-[480px]:text-[1.42rem]">
+          <h2 className="min-w-0 truncate py-0.5 font-mono-th text-[1rem] font-semibold leading-tight tracking-[0.04em] text-white drop-shadow-[0_2px_10px_rgba(116,50,20,0.34)] min-[480px]:text-[1.42rem]">
             ยอดเก็บของคุณ
           </h2>
-          <div className="flex shrink-0 items-start gap-2 text-white drop-shadow-[0_2px_10px_rgba(116,50,20,0.32)]">
+          <div className="flex shrink-0 items-center gap-1.5 text-white drop-shadow-[0_2px_10px_rgba(116,50,20,0.32)]">
             <span
-              className="font-sans text-[1.16rem] font-bold leading-none tabular-nums min-[480px]:text-[1.42rem]"
+              className="font-mono text-[1.0rem] font-semibold leading-none tracking-[0.04em] tabular-nums min-[480px]:text-[1.42rem]"
               aria-label={`${pctRounded}%`}
             >
               {pctRounded}%
@@ -251,7 +228,7 @@ export const HeroCard = memo(function HeroCard({
                 title={changeCoverAriaLabel ?? 'Change cover image'}
                 disabled={changingCover}
                 onClick={e => { e.stopPropagation(); onChangeCover(); }}
-                className="-mt-1 grid h-8 w-8 place-items-center rounded-full text-white/82 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-wait disabled:opacity-55"
+                className="-mt-1 grid h-8 w-8 place-items-center rounded-full text-white/82 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-wait disabled:opacity-55 "
               >
                 <IconCamera size={21} strokeWidth={1.75} />
               </button>
@@ -263,28 +240,28 @@ export const HeroCard = memo(function HeroCard({
                 onClick={e => { e.stopPropagation(); onEdit(); }}
                 className="-mt-1 grid h-8 w-8 place-items-center rounded-full text-white/82 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
               >
-                <IconEdit size={22} strokeWidth={1.7} />
+                <IconEdit size={20} strokeWidth={1.7} />
               </button>
             ) : (
               <span className="-mt-1 grid h-8 w-8 place-items-center text-white/84" aria-hidden>
-                <IconEdit size={23} strokeWidth={1.8} />
+                <IconEdit size={20} strokeWidth={1.7} />
               </span>
             )}
           </div>
         </div>
 
-        <div className="relative z-10 mt-4 min-[480px]:mt-5">
-          <div className="flex max-w-full items-baseline gap-2.5 whitespace-nowrap">
-            <span className="font-sans text-[2.08rem] font-bold leading-none tabular-nums text-white drop-shadow-[0_2px_12px_rgba(116,50,20,0.36)] min-[480px]:text-[2.62rem]">
+        <div className="relative z-10 mt-1.5 min-[480px]:mt-2">
+          <div className="flex max-w-full items-baseline gap-2 whitespace-nowrap">
+            <span className="font-mono text-[1.75rem] font-bold leading-none tracking-[0.06em] tabular-nums text-white drop-shadow-[0_2px_12px_rgba(116,50,20,0.36)] min-[480px]:text-[2.62rem]">
               {formatCurrency(Math.round(animSaved))}
             </span>
-            <span className="font-sans text-[1.18rem] font-semibold leading-none tabular-nums text-white/82 drop-shadow-[0_2px_8px_rgba(116,50,20,0.28)] min-[480px]:text-[1.48rem]">
-              / {formatCurrency(Math.round(animTarget))}
+            <span className="font-mono text-[1.25rem] font-semibold leading-none tracking-[0.08em] tabular-nums text-white/82 drop-shadow-[0_2px_8px_rgba(116,50,20,0.28)] min-[480px]:text-[1.48rem]">
+              <span className="mr-0.5">/</span>{formatCurrency(Math.round(animTarget))}
             </span>
           </div>
 
           <div
-            className="mt-3.5 h-1.5 w-[68%] min-w-[12rem] max-w-full overflow-hidden rounded-pill bg-white/[0.26] shadow-[inset_0_1px_2px_rgba(126,55,20,0.22)]"
+            className="mt-3 h-2 w-[65%] min-w-[12rem] max-w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(126,55,20,0.22)]"
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -296,19 +273,15 @@ export const HeroCard = memo(function HeroCard({
             />
           </div>
 
-          <p className="mt-2.5 truncate font-sans text-[0.8rem] font-semibold leading-snug text-white/84 drop-shadow-[0_1px_7px_rgba(116,50,20,0.32)] min-[480px]:text-[0.95rem]">
-            {remainingText}
+          <p className="mt-3 truncate font-mono-th text-[0.85rem] font-semibold leading-snug tracking-[0.03em] text-white/84 drop-shadow-[0_1px_7px_rgba(116,50,20,0.32)] min-[480px]:text-[0.95rem]">
+            เหลืออีก <span className="font-mono tabular-nums">{remainingAmount}</span>
+            {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
           </p>
         </div>
 
-        <div className="relative z-10 mt-3 grid grid-cols-2 gap-3 border-t border-white/12 pt-3 min-[480px]:mt-4 min-[480px]:gap-5">
-          <InfoItem icon={<IconFlag size={14} />} label="เป้าหมายหลัก" value={roomName?.trim() || 'Japan 2027'} />
-          <InfoItem icon={<IconCalendar size={14} />} label="อัปเดตล่าสุด" value={latestLabel} />
-        </div>
-
-        <div className="relative z-10 mt-auto grid grid-cols-4 border-t border-white/12 pt-3">
+        <div className="relative z-10 mt-3 grid grid-cols-4 border-t border-white/25 pt-4">
           {metrics.map((metric, index) => (
-            <div key={metric.label} className={index === 0 ? 'min-w-0' : 'min-w-0 border-l border-white/14'}>
+            <div key={metric.label} className={index === 0 ? 'min-w-0' : 'min-w-0 border-l border-white/50'}>
               <MetricItem {...metric} />
             </div>
           ))}

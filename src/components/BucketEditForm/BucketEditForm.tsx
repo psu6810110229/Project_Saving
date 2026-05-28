@@ -1,4 +1,4 @@
-import { type ChangeEvent, useMemo, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { Bucket, BucketTransfer, SavingRuleType, SavingsLog } from '../../types';
 import { addDays, daysBetween, todayBangkokKey } from '../../lib/savingPlan';
 import {
@@ -45,6 +45,8 @@ interface BucketEditFormProps {
   transfers?: BucketTransfer[];
   goalTarget?: number | null;
   roomEndDate?: string | null;
+  /** Smoothly scroll the expanding rule section (monthly reminder / custom) into view on change. */
+  autoScrollOnExpand?: boolean;
   onCancel: () => void;
   onSave: (bucket: Bucket, next: BucketEditValues) => Promise<BucketEditFormResult>;
   /** Called after a successful save so the parent can close / exit edit mode. */
@@ -58,6 +60,7 @@ export function BucketEditForm({
   transfers,
   goalTarget,
   roomEndDate,
+  autoScrollOnExpand = false,
   onCancel,
   onSave,
   onSaved,
@@ -76,6 +79,26 @@ export function BucketEditForm({
   const [customCap, setCustomCap] = useState(() => (bucket.saving_rule_cap ? String(Math.round(bucket.saving_rule_cap)) : ''));
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const ruleSectionRef = useRef<HTMLDivElement | null>(null);
+  const reminderDayRef = useRef<HTMLDivElement | null>(null);
+  const customRuleRef = useRef<HTMLDivElement | null>(null);
+
+  // Reveal the section a mode opens (or return to the rule cards when it
+  // collapses). Only the exact-bucket edit opts in via autoScrollOnExpand.
+  useEffect(() => {
+    if (!autoScrollOnExpand) return;
+    const timeoutId = window.setTimeout(() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const behavior: ScrollBehavior = reduceMotion ? 'auto' : 'smooth';
+      const target = ruleChoice === 'fixed_monthly'
+        ? reminderDayRef.current
+        : ruleChoice === 'custom'
+          ? customRuleRef.current
+          : ruleSectionRef.current;
+      target?.scrollIntoView({ behavior, block: 'nearest' });
+    }, 80);
+    return () => window.clearTimeout(timeoutId);
+  }, [ruleChoice, autoScrollOnExpand]);
 
   const targetAmount = Number(draftTarget);
   const saved = bucketSaved(bucket.id, logs, transfers);
@@ -219,7 +242,7 @@ export function BucketEditForm({
       </FormField>
 
       <FormField label={copy.bucket.editRuleLabel}>
-        <div className="flex flex-col gap-2">
+        <div ref={ruleSectionRef} className="flex scroll-mt-4 flex-col gap-2">
           {ruleOptions.map(option => {
             const selected = ruleChoice === option.id;
             return (
@@ -253,19 +276,21 @@ export function BucketEditForm({
       </FormField>
 
       {ruleChoice === 'fixed_monthly' && (
-        <FormField label={copy.bucket.reminderDayLabel}>
-          <ReminderDayPicker
-            value={reminderDay}
-            onChange={setReminderDay}
-            valueLabel={copy.bucket.reminderDayValue}
-            decreaseAriaLabel={copy.bucket.reminderDayDecrease}
-            increaseAriaLabel={copy.bucket.reminderDayIncrease}
-          />
-        </FormField>
+        <div ref={reminderDayRef} className="scroll-mt-4">
+          <FormField label={copy.bucket.reminderDayLabel}>
+            <ReminderDayPicker
+              value={reminderDay}
+              onChange={setReminderDay}
+              valueLabel={copy.bucket.reminderDayValue}
+              decreaseAriaLabel={copy.bucket.reminderDayDecrease}
+              increaseAriaLabel={copy.bucket.reminderDayIncrease}
+            />
+          </FormField>
+        </div>
       )}
 
       {ruleChoice === 'custom' && (
-        <div className="flex flex-col gap-3 rounded-xl bg-well p-4">
+        <div ref={customRuleRef} className="flex scroll-mt-4 flex-col gap-3 rounded-xl bg-well p-4">
           <FormField label={copy.bucket.customStartAmount}>
             <TextInput
               value={customStart}

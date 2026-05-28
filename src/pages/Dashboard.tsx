@@ -1619,6 +1619,7 @@ export function Dashboard() {
                 transfers={bucketTransfers}
                 goalTarget={target > 0 ? target : null}
                 roomEndDate={activeRoom?.end_date ?? null}
+                autoScrollOnExpand
                 onCancel={() => setEditBucketId(null)}
                 onSave={handleManageBucketUpdate}
                 onSaved={() => setEditBucketId(null)}

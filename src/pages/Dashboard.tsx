@@ -39,6 +39,8 @@ import { IconButton } from '../components/IconButton/IconButton';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { HeroCard } from '../components/HeroCard/HeroCard';
+import { HeroCoverPicker } from '../components/HeroCoverPicker/HeroCoverPicker';
+import type { HeroCoverPreset } from '../lib/heroCovers';
 import { ImageCropper } from '../components/ImageCropper/ImageCropper';
 import { TeamSection, type TeamSectionMember } from '../components/TeamSection/TeamSection';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
@@ -452,6 +454,7 @@ export function Dashboard() {
   const [coverCropFile, setCoverCropFile] = useState<File | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [coverSaving, setCoverSaving] = useState(false);
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
   const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
     id,
     icon: <BucketCategoryIcon category={id} size={22} />,
@@ -1049,7 +1052,33 @@ export function Dashboard() {
   function handleHeroCoverChoose() {
     if (!activeRoomId || coverSaving || coverUploading) return;
     setCoverError(null);
+    setCoverPickerOpen(true);
+  }
+
+  function handleHeroCoverUploadOwn() {
+    setCoverPickerOpen(false);
+    setCoverError(null);
     coverFileInputRef.current?.click();
+  }
+
+  async function handleHeroCoverSelectPreset(preset: HeroCoverPreset) {
+    if (!activeRoomId || coverSaving || coverUploading) return;
+    setCoverSaving(true);
+    setCoverError(null);
+    try {
+      const updateResult = await updateMemberCover(activeRoomId, {
+        cover_image_url: preset.url,
+        cover_tint: preset.tint,
+      });
+      if (updateResult.error) {
+        setCoverError(updateResult.error);
+        return;
+      }
+      setCoverPickerOpen(false);
+      haptic('success');
+    } finally {
+      setCoverSaving(false);
+    }
   }
 
   function handleHeroCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -1794,6 +1823,15 @@ export function Dashboard() {
         onLater={handleMigrationLater}
         onBucketSubmit={handleMigrationBucketSubmit}
         onComplete={handleMigrationComplete}
+      />
+
+      <HeroCoverPicker
+        open={coverPickerOpen}
+        onClose={() => { if (!coverSaving) setCoverPickerOpen(false); }}
+        onSelectPreset={handleHeroCoverSelectPreset}
+        onUploadOwn={handleHeroCoverUploadOwn}
+        saving={coverSaving || coverUploading}
+        selectedUrl={heroCoverUrl}
       />
 
       {coverCropFile && (

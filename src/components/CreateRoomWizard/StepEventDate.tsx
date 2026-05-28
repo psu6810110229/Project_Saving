@@ -9,6 +9,8 @@ import {
   type CropRect,
 } from '../../hooks/useImageUpload';
 import { roomCoverErrorMessage } from '../../lib/roomCoverImage';
+import { HeroCoverPicker } from '../HeroCoverPicker/HeroCoverPicker';
+import type { HeroCoverPreset } from '../../lib/heroCovers';
 import type { ProjectCategory } from '../../types';
 
 interface StepEventDateProps {
@@ -70,6 +72,7 @@ export function StepEventDate({
   const { uploading, validateRoomCoverFile, cropAndResizeRoomCover, uploadRoomCover } = useImageUpload();
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const today = useMemo(() => todayKey(), []);
   const minDate = useMemo(() => {
@@ -84,7 +87,18 @@ export function StepEventDate({
 
   function handleChooseCover() {
     setCoverError(null);
+    setPickerOpen(true);
+  }
+
+  function handleUploadOwn() {
+    setPickerOpen(false);
+    setCoverError(null);
     fileInputRef.current?.click();
+  }
+
+  function handleSelectPreset(preset: HeroCoverPreset) {
+    onCoverImageChange(preset.url);
+    setPickerOpen(false);
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -190,6 +204,14 @@ export function StepEventDate({
           {coverError}
         </p>
       )}
+
+      <HeroCoverPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelectPreset={handleSelectPreset}
+        onUploadOwn={handleUploadOwn}
+        selectedUrl={coverImageUrl}
+      />
 
       {cropFile && (
         <ImageCropper

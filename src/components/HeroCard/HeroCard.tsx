@@ -150,7 +150,7 @@ function CardChip() {
 
 function ContactlessGlyph() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="text-white/70">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="text-white/85">
       <path d="M8.5 8a6 6 0 0 1 0 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M12 5.5a10 10 0 0 1 0 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M15.5 3a14 14 0 0 1 0 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -160,18 +160,18 @@ function ContactlessGlyph() {
 
 function MetricItem({ icon, label, value, helper }: MetricProps) {
   return (
-    <div className="flex min-w-0 items-center gap-1.5 px-1">
-      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[#FFE2B8]/48 bg-[#FFE2B8]/10 text-[#FFE2B8] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+    <div className="flex min-w-0 items-center gap-1 px-0.5">
+      <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border border-[#FFE2B8]/48 bg-[#FFE2B8]/10 text-[#FFE2B8] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block truncate font-mono text-[0.46rem] font-semibold uppercase leading-none tracking-[0.05em] text-[#FFE2B8]/72">
+        <span className="block truncate font-mono text-[0.52rem] font-semibold uppercase leading-none tracking-[0.03em] text-[#FFE2B8]/85">
           {label}
         </span>
-        <span className="mt-1 block truncate font-mono-th text-[0.62rem] font-medium leading-none tracking-[0.03em] text-white/86">
+        <span className="mt-1 block truncate font-mono-th text-[0.74rem] font-medium leading-none tracking-[0.02em] text-white/85">
           {value}
         </span>
-        <span className="mt-0.5 block truncate font-mono-th text-[0.42rem] font-medium leading-[0.62rem] tracking-[0.03em] text-white/56">
+        <span className="mt-0.5 block truncate font-mono-th text-[0.5rem] font-medium leading-[0.72rem] tracking-[0.02em] text-white/85">
           {helper}
         </span>
       </span>
@@ -261,17 +261,17 @@ export const HeroCard = memo(function HeroCard({
           </div>
           {validThruLabel && (
             <div className="leading-none">
-              <span className="block font-mono text-[0.45rem] font-bold uppercase tracking-[0.20em] text-white/62">
+              <span className="block font-mono text-[0.45rem] font-bold uppercase tracking-[0.20em] text-white/85">
                 Valid Thru
               </span>
-              <span className="mt-0.5 block font-mono text-[0.58rem] font-semibold tabular-nums tracking-[0.08em] text-white/90">
+              <span className="mt-0.5 block font-mono text-[0.58rem] font-semibold tabular-nums tracking-[0.08em] text-white/85">
                 {validThruLabel}
               </span>
             </div>
           )}
         </div>
         <div className="relative z-10 flex items-start justify-between gap-3">
-          <h2 className="min-w-0 truncate py-0.5 font-mono-th text-[0.85rem] font-light leading-tight tracking-[0.12em] text-white drop-shadow-[0_2px_10px_rgba(18,16,15,0.34)] min-[480px]:text-[1.42rem]">
+          <h2 className="min-w-0 truncate py-0.5 font-mono-th text-[0.85rem] font-light leading-tight tracking-[0.12em] text-white/85 drop-shadow-[0_2px_10px_rgba(18,16,15,0.34)] min-[480px]:text-[1.42rem]">
             สวัสดี {displayName}
           </h2>
           <div className="flex shrink-0 items-center gap-1 text-white/85 drop-shadow-[0_2px_10px_rgba(18,16,15,0.5)]">
@@ -312,10 +312,10 @@ export const HeroCard = memo(function HeroCard({
 
         <div className="relative z-10 mt-2">
           <div className="flex min-w-0 max-w-full items-baseline gap-2 whitespace-nowrap">
-            <span className="font-mono text-[clamp(1.1rem,5.2vw,2rem)] font-semibold leading-none tracking-[0.02em] tabular-nums text-white/90 drop-shadow-[0_2px_12px_rgba(18,16,15,0.36)]">
+            <span className="font-mono text-[clamp(1.1rem,5.2vw,2rem)] font-semibold leading-none tracking-[0.02em] tabular-nums text-white/85 drop-shadow-[0_2px_12px_rgba(18,16,15,0.36)]">
               {formatCurrency(Math.round(animSaved))}
             </span>
-            <span className="font-mono text-[clamp(0.8rem,3.6vw,1.2rem)] font-medium leading-none tracking-[0.04em] tabular-nums text-white/72 drop-shadow-[0_2px_8px_rgba(18,16,15,0.28)]">
+            <span className="font-mono text-[clamp(0.8rem,3.6vw,1.2rem)] font-medium leading-none tracking-[0.04em] tabular-nums text-white/85 drop-shadow-[0_2px_8px_rgba(18,16,15,0.28)]">
               <span className="mr-2">/</span>{formatCurrency(Math.round(animTarget))}
             </span>
           </div>
@@ -335,7 +335,7 @@ export const HeroCard = memo(function HeroCard({
                 />
               </div>
 
-              <p className="mt-3 truncate font-mono-th text-[0.72rem] font-medium leading-snug tracking-[0.03em] text-white/78 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.82rem]">
+              <p className="mt-3 truncate font-mono-th text-[0.72rem] font-medium leading-snug tracking-[0.03em] text-white/85 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.82rem]">
                 ต้องเก็บ <span className="font-mono tabular-nums">{remainingAmount}</span>
                 {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
               </p>
@@ -345,7 +345,7 @@ export const HeroCard = memo(function HeroCard({
 
         <div className="relative z-10 mt-4 grid grid-cols-4 border-t border-white/25 pt-3">
           {metrics.map((metric, index) => (
-            <div key={metric.label} className={index === 0 ? 'min-w-0' : 'min-w-0 border-l border-white/50'}>
+            <div key={metric.label} className={index === 0 ? 'min-w-0' : 'min-w-0 border-l border-white/50 pl-1.5'}>
               <MetricItem {...metric} />
             </div>
           ))}

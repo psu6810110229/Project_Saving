@@ -237,6 +237,15 @@ export function IconCalendar(p: IconProps) {
   );
 }
 
+export function IconFlag(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="M5 21V4" />
+      <path d="M5 5.5c3-1.6 5.6 1.5 9.2 0 1.6-.7 3-.8 4.8-.1v9c-1.8-.7-3.2-.6-4.8.1-3.6 1.5-6.2-1.6-9.2 0" />
+    </svg>
+  );
+}
+
 export function IconUserPlus(p: IconProps) {
   return (
     <svg {...svgProps(p)} aria-hidden>
@@ -304,6 +313,16 @@ export function IconGrid(p: IconProps) {
       <rect x="14" y="3" width="7" height="7" rx="1.5" />
       <rect x="3" y="14" width="7" height="7" rx="1.5" />
       <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+export function IconLayers(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <path d="m12 3 8 4-8 4-8-4 8-4z" />
+      <path d="m4 12 8 4 8-4" />
+      <path d="m4 17 8 4 8-4" />
     </svg>
   );
 }

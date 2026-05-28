@@ -175,13 +175,13 @@
   .vault-card-frame::after {
     content: '';
     position: absolute;
-    left: 8%;
-    right: 8%;
-    bottom: -20px;
+    left: 9%;
+    right: 9%;
+    bottom: -16px;
     z-index: -1;
-    height: 46px;
+    height: 40px;
     border-radius: 999px;
-    background: rgba(88, 50, 44, 0.28);
+    background: rgba(138, 81, 45, 0.2);
     filter: blur(22px);
     pointer-events: none;
   }
@@ -234,28 +234,27 @@
     isolation: isolate;
     overflow: hidden;
     background:
-      linear-gradient(0deg, rgba(44, 13, 17, 0.32), rgba(44, 13, 17, 0.32)),
-      radial-gradient(115% 78% at 100% 0%, rgba(255, 190, 126, 0.46) 0%, transparent 58%),
-      radial-gradient(120% 90% at 0% 100%, rgba(58, 16, 24, 0.62) 0%, transparent 66%),
-      linear-gradient(125deg, rgba(86, 28, 33, 0.66) 0%, rgba(142, 54, 34, 0.52) 38%, rgba(188, 91, 45, 0.46) 66%, rgba(74, 26, 34, 0.64) 100%),
+      linear-gradient(180deg, rgba(255, 239, 215, 0.18) 0%, rgba(245, 145, 72, 0.1) 48%, rgba(120, 43, 20, 0.3) 100%),
+      linear-gradient(104deg, rgba(255, 220, 184, 0.24) 0%, rgba(208, 89, 35, 0.26) 42%, rgba(255, 145, 58, 0.12) 68%, rgba(116, 42, 20, 0.18) 100%),
+      radial-gradient(72% 82% at 82% 25%, rgba(255, 187, 91, 0.46) 0%, rgba(255, 145, 67, 0.16) 42%, transparent 70%),
       var(--hero-card-cover, url('/vault-card-japan-clean.jpg'));
-    background-position: center;
-    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, cover;
+    background-position: center, center, center, 60% 50%;
+    background-size: 100% 100%, 100% 100%, 100% 100%, cover;
     border: 0;
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.14) inset,
-      0 -1px 0 rgba(0, 0, 0, 0.28) inset,
-      0 18px 40px -18px rgba(60, 18, 12, 0.62);
+      0 1px 0 rgba(255, 255, 255, 0.18) inset,
+      0 -1px 0 rgba(96, 38, 16, 0.18) inset,
+      0 20px 42px -22px rgba(111, 49, 24, 0.5);
     outline: 0;
   }
 
   .hero-credit-card[data-has-cover='false'] {
     background:
-      radial-gradient(120% 80% at 100% 0%, rgba(255, 178, 120, 0.45) 0%, transparent 60%),
-      radial-gradient(120% 90% at 0% 100%, rgba(64, 18, 24, 0.55) 0%, transparent 65%),
-      linear-gradient(125deg, rgba(90, 31, 31, 0.55) 0%, rgba(138, 51, 32, 0.45) 38%, rgba(184, 90, 44, 0.4) 65%, rgba(90, 31, 31, 0.55) 100%),
+      linear-gradient(180deg, rgba(255, 239, 215, 0.18) 0%, rgba(245, 145, 72, 0.1) 48%, rgba(120, 43, 20, 0.3) 100%),
+      linear-gradient(104deg, rgba(255, 220, 184, 0.24) 0%, rgba(208, 89, 35, 0.26) 42%, rgba(255, 145, 58, 0.12) 68%, rgba(116, 42, 20, 0.18) 100%),
+      radial-gradient(72% 82% at 82% 25%, rgba(255, 187, 91, 0.46) 0%, rgba(255, 145, 67, 0.16) 42%, transparent 70%),
       url('/vault-card-japan-clean.jpg');
-    background-position: center;
+    background-position: center, center, center, 60% 50%;
     background-size: 100% 100%, 100% 100%, 100% 100%, cover;
   }
 
@@ -283,12 +282,12 @@
       linear-gradient(
         115deg,
         transparent 38%,
-        rgba(255, 255, 255, 0.05) 47%,
-        rgba(255, 255, 255, 0.12) 50%,
-        rgba(255, 255, 255, 0.05) 53%,
+        rgba(255, 245, 231, 0.05) 47%,
+        rgba(255, 245, 231, 0.14) 50%,
+        rgba(255, 245, 231, 0.05) 53%,
         transparent 62%
       ),
-      radial-gradient(80% 55% at 50% 0%, rgba(255, 255, 255, 0.1), transparent 65%);
+      radial-gradient(90% 55% at 55% -8%, rgba(255, 244, 226, 0.18), transparent 66%);
     background-size: 300% 100%, 100% 100%;
     background-position: -200% 0, center;
     mix-blend-mode: screen;
@@ -300,7 +299,9 @@
     position: absolute;
     inset: 0;
     z-index: 0;
-    background: linear-gradient(180deg, rgba(22, 8, 8, 0.04) 0%, rgba(22, 8, 8, 0.28) 100%);
+    background:
+      linear-gradient(180deg, rgba(255, 241, 221, 0.04) 0%, rgba(101, 35, 15, 0.1) 56%, rgba(82, 27, 13, 0.24) 100%),
+      radial-gradient(110% 78% at 0% 100%, rgba(92, 31, 14, 0.24), transparent 70%);
     pointer-events: none;
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -38,6 +38,7 @@ import { IconButton } from '../components/IconButton/IconButton';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { HeroCard } from '../components/HeroCard/HeroCard';
+import { ImageCropper } from '../components/ImageCropper/ImageCropper';
 import { TeamSection, type TeamSectionMember } from '../components/TeamSection/TeamSection';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { VerifiedBalanceReminderModal } from '../components/VerifiedBalanceReminderModal/VerifiedBalanceReminderModal';
@@ -77,6 +78,7 @@ import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
 import { type ArchiveErrorHint, useArchiveBucket } from '../hooks/useArchiveBucket';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
+import { useImageUpload, type CropRect } from '../hooks/useImageUpload';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
 import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
@@ -87,6 +89,7 @@ import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDa
 import { formatCurrency } from '../lib/format';
 import { availablePurposeCategoriesForMode, purposeDailyMarkers, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
+import { roomCoverErrorMessage } from '../lib/roomCoverImage';
 import { supabase } from '../lib/supabase';
 import { daysSince, formatDirectionalAdjustment } from '../lib/reconcile';
 import {
@@ -210,7 +213,7 @@ export function Dashboard() {
     loading: goalLoading,
     error: goalError,
   } = data.goal;
-  useRooms();
+  const { updateRoomCover } = useRooms();
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
@@ -435,6 +438,11 @@ export function Dashboard() {
   const [bucketName, setBucketName] = useState(() => copy.bucket.defaultNames[DEFAULT_BUCKET_CATEGORY]);
   const [bucketTarget, setBucketTarget] = useState('30000');
   const [message, setMessage] = useState<string | null>(null);
+  const coverFileInputRef = useRef<HTMLInputElement | null>(null);
+  const { uploading: coverUploading, validateRoomCoverFile, cropAndResizeRoomCover, uploadRoomCover } = useImageUpload();
+  const [coverCropFile, setCoverCropFile] = useState<File | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const [coverSaving, setCoverSaving] = useState(false);
   const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
     id,
     icon: <BucketCategoryIcon category={id} size={22} />,
@@ -1022,6 +1030,58 @@ export function Dashboard() {
       setBucketModalOpen(true);
     }
   }, [buckets.length, navigate]);
+  function handleHeroCoverChoose() {
+    if (!activeRoomId || activeRoom?.created_by !== user?.id || coverSaving || coverUploading) return;
+    setCoverError(null);
+    coverFileInputRef.current?.click();
+  }
+
+  function handleHeroCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0] ?? null;
+    event.currentTarget.value = '';
+    if (!file) return;
+
+    const validationError = validateRoomCoverFile(file);
+    if (validationError) {
+      setCoverError(roomCoverErrorMessage(validationError, copy.createRoomWizard));
+      return;
+    }
+
+    setCoverError(null);
+    setCoverCropFile(file);
+  }
+
+  async function handleHeroCoverApplyCrop(crop: CropRect) {
+    if (!coverCropFile || !activeRoomId) return;
+
+    setCoverSaving(true);
+    setCoverError(null);
+    try {
+      const blob = await cropAndResizeRoomCover(coverCropFile, crop);
+      const result = await uploadRoomCover(blob);
+      if (result.errorCode || result.error || !result.url) {
+        setCoverError(roomCoverErrorMessage(result.errorCode ?? 'upload_failed', copy.createRoomWizard, result.error));
+        return;
+      }
+
+      const updateResult = await updateRoomCover(activeRoomId, { cover_image_url: result.url });
+      if (updateResult.error) {
+        setCoverError(updateResult.error);
+        return;
+      }
+
+      setCoverCropFile(null);
+      haptic('success');
+    } catch (error) {
+      setCoverError(roomCoverErrorMessage(
+        error instanceof Error && error.message === 'canvas_failed' ? 'canvas_failed' : 'decode_failed',
+        copy.createRoomWizard,
+      ));
+    } finally {
+      setCoverSaving(false);
+    }
+  }
+
   const handleDepositFromPlan = useCallback(() => {
     const targetBucketId = focusBucketId ?? activeBucketItems[0]?.id;
     if (targetBucketId) {
@@ -1315,7 +1375,7 @@ export function Dashboard() {
         </motion.div>
       )}
 
-      <motion.div variants={dashboardSectionVariants} className="min-h-[25rem] min-[390px]:min-h-[26rem]">
+      <motion.div variants={dashboardSectionVariants} className="min-h-[14rem]">
         <HeroCard
           displayName={youName}
           saved={total}
@@ -1326,9 +1386,28 @@ export function Dashboard() {
           validThru={activeRoom?.end_date ?? null}
           dailySummaryItem={bucketSummaryItems[0] ?? null}
           hasBuckets={buckets.length > 0}
+          bucketCount={buckets.filter(bucket => bucket.archived_at == null).length}
           streak={heroStreak}
           streakUnit={heroStreakUnit}
+          lastCheckedAt={latestCheckpoint?.checked_at ?? null}
+          onEdit={handleConfigurePlan}
+          editAriaLabel="แก้ไขเป้าหมาย"
+          onChangeCover={activeRoom?.created_by === user?.id ? handleHeroCoverChoose : undefined}
+          changeCoverAriaLabel={`${copy.createRoomWizard.changeCoverButton} ${copy.createRoomWizard.coverImagePlaceholder}`}
+          changingCover={coverSaving || coverUploading}
         />
+        <input
+          ref={coverFileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleHeroCoverFileChange}
+        />
+        {coverError && !coverCropFile && (
+          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 font-mono text-sm text-danger">
+            {coverError}
+          </p>
+        )}
       </motion.div>
 
       <motion.div variants={dashboardSectionVariants}>
@@ -1699,6 +1778,21 @@ export function Dashboard() {
         onBucketSubmit={handleMigrationBucketSubmit}
         onComplete={handleMigrationComplete}
       />
+
+      {coverCropFile && (
+        <ImageCropper
+          open
+          file={coverCropFile}
+          saving={coverSaving || coverUploading}
+          error={coverError}
+          onCancel={() => {
+            if (coverSaving || coverUploading) return;
+            setCoverCropFile(null);
+            setCoverError(null);
+          }}
+          onApply={handleHeroCoverApplyCrop}
+        />
+      )}
 
       <Modal open={bucketModalOpen} title={d.addBucketModalTitle} onClose={() => setBucketModalOpen(false)}>
         <div className="flex flex-col gap-4">
@@ -2099,27 +2193,24 @@ function DashboardSkeleton() {
 
 function HeroCardSkeleton() {
   return (
-    <section className="flex min-h-[25rem] flex-col rounded-2xl bg-brand-50 px-4 py-4 shadow-soft min-[390px]:min-h-[26rem] min-[390px]:px-5">
+    <section className="flex aspect-[1.52/1] min-h-[15rem] flex-col rounded-3xl bg-brand-50 px-5 py-4 shadow-soft min-[480px]:px-6 min-[480px]:py-5">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <Skeleton className="h-4 w-24 rounded-pill bg-white/50" />
-          <Skeleton className="mt-2 h-3 w-28 rounded-pill bg-white/40" />
-        </div>
-        <Skeleton className="h-4 w-10 rounded-pill bg-white/45" />
+        <Skeleton className="h-6 w-36 rounded-pill bg-white/50" />
+        <Skeleton className="h-6 w-16 rounded-pill bg-white/45" />
       </div>
-      <div className="mt-10 flex flex-col items-center">
-        <Skeleton className="h-11 w-56 max-w-full bg-white/55" />
-        <Skeleton className="mt-3 h-4 w-32 rounded-pill bg-white/45" />
+      <div className="mt-4">
+        <Skeleton className="h-10 w-56 max-w-full bg-white/55" />
+        <Skeleton className="mt-3 h-2 w-[66%] rounded-pill bg-white/45" />
+        <Skeleton className="mt-2 h-4 w-64 max-w-full rounded-pill bg-white/45" />
       </div>
-      <Skeleton className="mt-6 h-2 w-full rounded-pill bg-white/45" />
-      <div className="mt-5 flex flex-col gap-2">
-        <Skeleton className="h-10 rounded-xl bg-white/35" />
-        <Skeleton className="h-10 rounded-xl bg-white/35" />
+      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-white/45 pt-3">
+        <Skeleton className="h-9 rounded-xl bg-white/35" />
+        <Skeleton className="h-9 rounded-xl bg-white/35" />
       </div>
-      <Skeleton className="mt-4 h-12 rounded-pill bg-white/70" />
-      <div className="mt-auto flex items-end justify-between gap-4 pt-5">
-        <Skeleton className="h-8 w-20 rounded-lg bg-white/35" />
-        <Skeleton className="h-4 w-24 rounded-pill bg-white/35" />
+      <div className="mt-auto grid grid-cols-4 gap-2 border-t border-white/45 pt-3">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Skeleton key={index} className="h-8 rounded-xl bg-white/35" />
+        ))}
       </div>
     </section>
   );

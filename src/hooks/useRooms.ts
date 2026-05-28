@@ -64,6 +64,10 @@ interface UpdateRoomValues {
   end_date: string;
 }
 
+interface UpdateRoomCoverValues {
+  cover_image_url: string | null;
+}
+
 const ROOM_FETCH_TIMEOUT_MS = 12_000;
 
 export function useRooms() {
@@ -410,6 +414,21 @@ export function useRooms() {
     return { roomId };
   }
 
+  async function updateRoomCover(roomId: string, values: UpdateRoomCoverValues): Promise<ActionResult> {
+    if (!userId) return { error: 'Not authenticated' };
+
+    const { error: updateError } = await supabase
+      .from('rooms')
+      .update({ cover_image_url: values.cover_image_url })
+      .eq('id', roomId);
+    if (updateError) return { error: updateError.message };
+
+    setRooms(prev => prev.map(room => (
+      room.id === roomId ? { ...room, cover_image_url: values.cover_image_url } : room
+    )));
+    return { roomId };
+  }
+
   async function transferOwnership(roomId: string, newOwnerId: string): Promise<ActionResult> {
     if (!userId) return { error: 'Not authenticated' };
     const { error: rpcError } = await supabase.rpc('transfer_room_ownership', {
@@ -429,5 +448,5 @@ export function useRooms() {
     fetchRooms({ showLoading: currentRooms.length === 0 });
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
+  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

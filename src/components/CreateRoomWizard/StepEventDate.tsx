@@ -7,8 +7,8 @@ import { useI18n } from '../../i18n/useI18n';
 import {
   useImageUpload,
   type CropRect,
-  type ImageUploadErrorCode,
 } from '../../hooks/useImageUpload';
+import { roomCoverErrorMessage } from '../../lib/roomCoverImage';
 import type { ProjectCategory } from '../../types';
 
 interface StepEventDateProps {
@@ -55,18 +55,6 @@ const DEFAULT_COVER_IMAGES: Record<ProjectCategory, string> = {
   other: '/vault-card-japan-clean.jpg',
 };
 
-function coverErrorMessage(
-  code: ImageUploadErrorCode,
-  copy: ReturnType<typeof useI18n>['copy']['createRoomWizard'],
-  fallback?: string,
-): string {
-  if (code === 'invalid_type') return copy.coverTypeError;
-  if (code === 'too_large') return copy.coverSizeError;
-  if (code === 'not_authenticated') return copy.coverAuthError;
-  if (code === 'decode_failed' || code === 'canvas_failed') return copy.coverProcessError;
-  return fallback ?? copy.coverUploadError;
-}
-
 export function StepEventDate({
   endDate,
   category,
@@ -106,7 +94,7 @@ export function StepEventDate({
 
     const validationError = validateRoomCoverFile(file);
     if (validationError) {
-      setCoverError(coverErrorMessage(validationError, c));
+      setCoverError(roomCoverErrorMessage(validationError, c));
       return;
     }
 
@@ -121,14 +109,14 @@ export function StepEventDate({
       const blob = await cropAndResizeRoomCover(cropFile, crop);
       const result = await uploadRoomCover(blob);
       if (result.errorCode || result.error || !result.url) {
-        setCoverError(coverErrorMessage(result.errorCode ?? 'upload_failed', c, result.error));
+        setCoverError(roomCoverErrorMessage(result.errorCode ?? 'upload_failed', c, result.error));
         return;
       }
 
       onCoverImageChange(result.url);
       setCropFile(null);
     } catch (error) {
-      setCoverError(coverErrorMessage(
+      setCoverError(roomCoverErrorMessage(
         error instanceof Error && error.message === 'canvas_failed' ? 'canvas_failed' : 'decode_failed',
         c,
       ));

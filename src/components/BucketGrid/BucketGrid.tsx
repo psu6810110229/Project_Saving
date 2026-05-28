@@ -1,8 +1,6 @@
 import { memo, type ReactNode } from 'react';
 import { BucketRow } from '../BucketRow/BucketRow';
 import { Button } from '../Button/Button';
-import { IconButton } from '../IconButton/IconButton';
-import { IconPlus } from '../Icon/Icon';
 
 export interface BucketGridItem {
   id: string;
@@ -27,12 +25,15 @@ interface BucketGridProps {
   subtitle?: string;
   buckets: BucketGridItem[];
   ctaLabel?: string;
+  addShortLabel?: string;
   onAddBucket?: () => void;
   manageLabel?: string;
   onManageBuckets?: () => void;
   onBucketClick?: (id: string) => void;
   renderBucket?: (bucket: BucketGridItem) => ReactNode;
   belowHeader?: ReactNode;
+  /** Rendered in the header's right-side button group, beside the Add button. */
+  headerAction?: ReactNode;
 }
 
 export const BucketGrid = memo(function BucketGrid({
@@ -40,12 +41,14 @@ export const BucketGrid = memo(function BucketGrid({
   subtitle,
   buckets,
   ctaLabel,
+  addShortLabel,
   onAddBucket,
   manageLabel,
   onManageBuckets,
   onBucketClick,
   renderBucket,
   belowHeader,
+  headerAction,
 }: BucketGridProps) {
   return (
     <section className="flex flex-col gap-4">
@@ -69,10 +72,11 @@ export const BucketGrid = memo(function BucketGrid({
               {manageLabel!}
             </Button>
           )}
+          {headerAction}
           {onAddBucket && (
-            <IconButton variant="solid" size="md" ariaLabel={ctaLabel!} onClick={onAddBucket}>
-              <IconPlus size={20} />
-            </IconButton>
+            <Button variant="action" size="sm" aria-label={ctaLabel} onClick={onAddBucket}>
+              {addShortLabel ?? ctaLabel}
+            </Button>
           )}
         </div>
       </div>

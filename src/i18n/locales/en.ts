@@ -219,6 +219,7 @@ export const en = {
     bucketCount: (n: number) => `${n} active bucket${n === 1 ? '' : 's'}`,
     bucketReadOnly: 'read-only',
     addBucket: 'Add Bucket',
+    addShort: 'Add',
     createBucket: 'Create Bucket',
     createFirstBucket: 'Create First Bucket',
     addBucketModalTitle: 'Add Bucket',

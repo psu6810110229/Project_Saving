@@ -1356,8 +1356,9 @@ export function Dashboard() {
                   subtitle={buckets.length > 0 ? d.bucketCount(displayedActiveBucketItems.length) : undefined}
                   buckets={displayedActiveBucketItems}
                   ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
+                  addShortLabel={d.addShort}
                   onAddBucket={() => setBucketModalOpen(true)}
-                  belowHeader={editToggle ? <div className="flex flex-col gap-3">{editToggle}</div> : undefined}
+                  headerAction={editToggle}
                   renderBucket={bucket => isEditing ? (
                     <SortableBucketCard
                       id={bucket.id}

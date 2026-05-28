@@ -1,22 +1,15 @@
 import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { AppShell } from '../components/AppShell/AppShell';
 import type { BottomNavTab } from '../components/BottomNav/BottomNav';
 import { Button } from '../components/Button/Button';
-import { CreateProjectForm } from '../components/CreateProjectForm/CreateProjectForm';
 import { DataProvider } from '../components/DataContext/DataContext';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { LoadingState } from '../components/LoadingState/LoadingState';
 import { MilestoneCelebrationModal } from '../components/MilestoneCelebrationModal/MilestoneCelebrationModal';
 import { PageTransition } from '../components/PageTransition/PageTransition';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
-import {
-  IconBriefcase,
-  IconHeart,
-  IconHome,
-  IconPlane,
-  IconSmartphone,
-} from '../components/Icon/Icon';
+import { IconChevronRight, IconPlane, IconRocket, IconUserPlus } from '../components/Icon/Icon';
 import { useAuth } from '../hooks/useAuth';
 import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useMilestoneCrossings } from '../hooks/useMilestoneCrossings';
@@ -26,11 +19,10 @@ import { useProfile } from '../hooks/useProfile';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { LANGUAGE_STORAGE_KEY, isLanguage } from '../i18n/languages';
-import type { ProjectCategory } from '../types';
 
 type SetupMode = 'create' | 'join';
 
-const ROOMLESS_ROUTES = ['/archived-projects', '/profile'];
+const ROOMLESS_ROUTES = ['/archived-projects', '/profile', '/create-room', '/join-room'];
 
 function isRoomlessRoute(pathname: string): boolean {
   return ROOMLESS_ROUTES.some(
@@ -56,7 +48,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { activeRoom } = useRoom();
-  const { loading, error, refetch, createRoom, joinRoomByCode } = useRooms();
+  const { loading, error, refetch, joinRoomByCode } = useRooms();
   const { copy } = useI18n();
   const al = copy.appLayout;
   const { shouldShowLoader, fakeLoadingExpired } = useLoadingGate({
@@ -101,7 +93,7 @@ export function AppLayout() {
       )}
       {!loading && !error && !activeRoom && !roomlessAllowed && (
         <PageTransition transitionKey="project-setup">
-          <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />
+          <ProjectSetup onJoin={joinRoomByCode} />
         </PageTransition>
       )}
       {!loading && !error && !activeRoom && roomlessAllowed && (
@@ -194,38 +186,16 @@ function ProfileLanguageSync() {
 }
 
 function ProjectSetup({
-  onCreate,
   onJoin,
 }: {
-  onCreate: ReturnType<typeof useRooms>['createRoom'];
   onJoin: ReturnType<typeof useRooms>['joinRoomByCode'];
 }) {
   const navigate = useNavigate();
   const { copy } = useI18n();
   const ps = copy.projectSetup;
   const [mode, setMode] = useState<SetupMode>('create');
-  const [category, setCategory] = useState<ProjectCategory | null>('travel');
-  const [name, setName] = useState('Japan 2027');
-  const [target, setTarget] = useState('100000');
-  const [endDate, setEndDate] = useState('2027-11-01');
   const [code, setCode] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const projectOptions = projectOptionIcons.map(({ id, icon }) => ({
-    id,
-    icon,
-    label: copy.profile.projectCategories[id],
-  }));
-
-  async function handleCreate() {
-    const targetAmount = Number(target);
-    if (!category || !name.trim() || !endDate || targetAmount <= 0) {
-      setMessage(ps.createValidation);
-      return;
-    }
-    const result = await onCreate({ name, target_amount: targetAmount, end_date: endDate, category });
-    if (result.error) setMessage(result.error);
-    else navigate('/dashboard');
-  }
 
   async function handleJoin() {
     const result = await onJoin(code);
@@ -240,44 +210,85 @@ function ProjectSetup({
   }
 
   return (
-    <div className="flex flex-col gap-4 pt-8">
+    <div className="flex flex-col gap-6 pt-8">
       <header>
         <SectionLabel tone="brand">GO-OUT</SectionLabel>
         <h1 className="mt-2 font-mono text-3xl font-bold text-ink">{ps.title}</h1>
         <p className="mt-2 font-mono text-xs text-ink-muted">{ps.subtitle}</p>
       </header>
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant={mode === 'create' ? 'primary' : 'ghost'} size="md" onClick={() => setMode('create')}>
-          {ps.createTab}
-        </Button>
-        <Button variant={mode === 'join' ? 'primary' : 'ghost'} size="md" onClick={() => setMode('join')}>
-          {ps.joinTab}
-        </Button>
-      </div>
-      {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
-      {mode === 'create' ? (
-        <CreateProjectForm
-          category={category}
-          options={projectOptions}
-          name={name}
-          target={target}
-          endDate={endDate}
-          onCategoryChange={setCategory}
-          onNameChange={setName}
-          onTargetChange={value => setTarget(value.replace(/[^0-9]/g, ''))}
-          onEndDateChange={setEndDate}
-          onSubmit={handleCreate}
-        />
+
+      {message && (
+        <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>
+      )}
+
+      {mode === 'join' ? (
+        <div className="flex flex-col gap-4">
+          <JoinProjectFlow
+            code={code}
+            error={code.length > 0 && code.length < 6 ? ps.joinCodeValidation : undefined}
+            preview={code.length >= 6 ? joinPreview(code, copy) : null}
+            onCodeChange={setCode}
+            onJoin={handleJoin}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setMode('create');
+              setMessage(null);
+            }}
+            className="self-start font-mono text-xs font-bold text-ink-muted hover:text-ink"
+          >
+            ← {copy.common.back}
+          </button>
+        </div>
       ) : (
-        <JoinProjectFlow
-          code={code}
-          error={code.length > 0 && code.length < 6 ? ps.joinCodeValidation : undefined}
-          preview={code.length >= 6 ? joinPreview(code, copy) : null}
-          onCodeChange={setCode}
-          onJoin={handleJoin}
-        />
+        <div className="flex flex-col gap-3">
+          <SetupChoiceCard
+            icon={<IconRocket size={22} />}
+            title={ps.createCardTitle}
+            body={ps.createCardBody}
+            onClick={() => navigate('/create-room')}
+          />
+          <SetupChoiceCard
+            icon={<IconUserPlus size={22} />}
+            title={ps.joinCardTitle}
+            body={ps.joinCardBody}
+            onClick={() => setMode('join')}
+          />
+        </div>
       )}
     </div>
+  );
+}
+
+function SetupChoiceCard({
+  icon,
+  title,
+  body,
+  onClick,
+}: {
+  icon: ReactNode;
+  title: string;
+  body: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-full items-center gap-4 rounded-2xl bg-surface p-5 text-left shadow-soft transition-transform active:scale-[0.99]"
+    >
+      <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-mono text-base font-bold text-ink">{title}</span>
+        <span className="mt-0.5 block font-mono text-xs leading-5 text-ink-muted">{body}</span>
+      </span>
+      <span className="flex-shrink-0 text-ink-dim transition-colors group-hover:text-brand-600">
+        <IconChevronRight size={20} />
+      </span>
+    </button>
   );
 }
 
@@ -322,14 +333,6 @@ function pathFromTab(tab: BottomNavTab): string {
   if (tab === 'profile') return '/profile';
   return '/dashboard';
 }
-
-const projectOptionIcons = [
-  { id: 'travel' as const, icon: <IconPlane size={28} /> },
-  { id: 'gadget' as const, icon: <IconSmartphone size={28} /> },
-  { id: 'wedding' as const, icon: <IconHeart size={28} /> },
-  { id: 'home' as const, icon: <IconHome size={28} /> },
-  { id: 'other' as const, icon: <IconBriefcase size={28} /> },
-];
 
 function joinPreview(code: string, copy: ReturnType<typeof useI18n>['copy']) {
   return {

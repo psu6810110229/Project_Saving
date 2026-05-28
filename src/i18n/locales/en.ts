@@ -369,10 +369,14 @@ export const en = {
   },
   projectSetup: {
     title: 'Start a savings project',
-    subtitle: "Create the Japan trip vault or join with Art's code.",
+    subtitle: 'Create a new project or join one with an invite code.',
     createTab: 'Create',
     joinTab: 'Join',
     createValidation: 'Fill in a project name, target, category, and end date.',
+    createCardTitle: 'Create a project',
+    createCardBody: 'Set it up step by step — name, target date, and a smart expense plan.',
+    joinCardTitle: 'Join a project',
+    joinCardBody: 'Enter a 6-character invite code from a friend.',
     joinCodeValidation: 'Enter the full 6-character code.',
     inviteName: (code: string) => `Invite ${code}`,
     projectOwner: 'Project owner',
@@ -398,13 +402,9 @@ export const en = {
     categoryHint: 'More categories coming soon.',
     stepEventDateTitle: 'When is the big day?',
     stepEventDateSubtitle: 'Pick your target date so we can build a smart timeline.',
-    countdownMonths: (months: number): string =>
-      months >= 12
-        ? `${Math.floor(months / 12)} year${Math.floor(months / 12) === 1 ? '' : 's'} to go — plenty of time!`
-        : `${months} month${months === 1 ? '' : 's'} to go — let's do this!`,
-    countdownDays: (days: number): string =>
-      `${days} day${days === 1 ? '' : 's'} to go — time to hustle!`,
     coverImagePlaceholder: 'Cover image',
+    coverPreviewHint: 'This image is your dashboard card background.',
+    chooseCoverButton: 'Choose cover image',
     changeCoverButton: 'Change',
     coverPickerTitle: 'Choose a cover',
     coverPickerPresetsLabel: 'Default styles',
@@ -458,6 +458,9 @@ export const en = {
       `${count} expense${count === 1 ? '' : 's'} planned`,
     createProjectButton: 'Create Project',
     creatingProject: 'Creating...',
+    conflictMessage: (name: string): string =>
+      `You already have an active project “${name}”. Creating this one will archive it.`,
+    conflictArchiveButton: 'Archive & create',
     successTitle: "You're all set!",
     successSubtitle: 'Share the invite code so friends can join and start saving together.',
     inviteCodeLabel: 'Invite Code',

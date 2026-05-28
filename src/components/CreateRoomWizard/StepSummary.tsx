@@ -48,6 +48,7 @@ export function StepSummary({
 
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflictName, setConflictName] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -77,7 +78,7 @@ export function StepSummary({
     [checked],
   );
 
-  const handleCreate = useCallback(async () => {
+  const handleCreate = useCallback(async (archiveExisting = false) => {
     setCreating(true);
     setError(null);
 
@@ -97,12 +98,12 @@ export function StepSummary({
         paymentType: e.paymentType,
         tipKey: e.tipKey,
       })),
-    });
+    }, { archiveExisting });
 
     setCreating(false);
 
     if (result.conflict) {
-      setError('You already have an active project. Archive it first.');
+      setConflictName(result.conflict.existingName);
       return;
     }
     if (result.error) {
@@ -111,6 +112,7 @@ export function StepSummary({
     }
 
     clearWizardDraft();
+    setConflictName(null);
     setInviteCode(result.inviteCode ?? null);
   }, [name, category, endDate, coverImageUrl, totalBudget, expenseTotal, checked, createRoomWithTemplates]);
 
@@ -233,20 +235,40 @@ export function StepSummary({
         </p>
       )}
 
-      {/* Navigation */}
-      <div className="flex gap-3">
-        <Button variant="ghost" size="lg" onClick={onBack} disabled={creating}>
-          <IconArrowLeft size={16} />
-        </Button>
-        <Button
-          variant="action"
-          fullWidth
-          onClick={handleCreate}
-          disabled={creating}
-        >
-          {creating ? c.creatingProject : c.createProjectButton}
-        </Button>
-      </div>
+      {conflictName ? (
+        <div className="flex flex-col gap-3 rounded-xl bg-brand-50 p-4">
+          <p className="font-mono-th text-sm leading-relaxed text-brand-800">
+            {c.conflictMessage(conflictName)}
+          </p>
+          <div className="flex gap-3">
+            <Button variant="ghost" size="lg" onClick={() => setConflictName(null)} disabled={creating}>
+              {copy.common.cancel}
+            </Button>
+            <Button
+              variant="action"
+              fullWidth
+              onClick={() => void handleCreate(true)}
+              disabled={creating}
+            >
+              {creating ? c.creatingProject : c.conflictArchiveButton}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-3">
+          <Button variant="ghost" size="lg" onClick={onBack} disabled={creating}>
+            <IconArrowLeft size={16} />
+          </Button>
+          <Button
+            variant="action"
+            fullWidth
+            onClick={() => void handleCreate()}
+            disabled={creating}
+          >
+            {creating ? c.creatingProject : c.createProjectButton}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -356,10 +356,14 @@ export const th: Messages = {
   },
   projectSetup: {
     title: 'เริ่มโปรเจกต์เก็บเงิน',
-    subtitle: 'สร้างเป้าหมายทริปญี่ปุ่น หรือเข้าร่วมด้วยรหัสของคู่คุณ',
+    subtitle: 'สร้างโปรเจกต์ใหม่ หรือเข้าร่วมด้วยรหัสเชิญ',
     createTab: 'สร้าง',
     joinTab: 'เข้าร่วม',
     createValidation: 'ใส่ชื่อโปรเจกต์ เป้าหมาย หมวดหมู่ และวันที่ตั้งเป้าไว้ให้ครบ',
+    createCardTitle: 'สร้างโปรเจกต์',
+    createCardBody: 'ตั้งค่าทีละขั้นตอน — ชื่อ วันที่ตั้งเป้า และแผนค่าใช้จ่ายอัจฉริยะ',
+    joinCardTitle: 'เข้าร่วมโปรเจกต์',
+    joinCardBody: 'ใส่รหัสเชิญ 6 ตัวจากเพื่อนของคุณ',
     joinCodeValidation: 'ใส่รหัสเข้าร่วม 6 ตัวให้ครบ',
     inviteName: (code: string) => `รหัส ${code}`,
     projectOwner: 'เจ้าของโปรเจกต์',
@@ -385,13 +389,9 @@ export const th: Messages = {
     categoryHint: 'หมวดหมู่เพิ่มเติมเร็วๆ นี้',
     stepEventDateTitle: 'วันสำคัญคือเมื่อไหร่?',
     stepEventDateSubtitle: 'เลือกวันเป้าหมายเพื่อสร้างไทม์ไลน์อัจฉริยะ',
-    countdownMonths: (months: number): string =>
-      months >= 12
-        ? `อีก ${Math.floor(months / 12)} ปี — มีเวลาเหลือเฟือ!`
-        : `อีก ${months} เดือน — ไปกันเลย!`,
-    countdownDays: (days: number): string =>
-      `อีก ${days} วัน — ต้องเร่งมือแล้ว!`,
     coverImagePlaceholder: 'รูปปก',
+    coverPreviewHint: 'รูปนี้คือพื้นหลังการ์ดบนแดชบอร์ดของคุณ',
+    chooseCoverButton: 'เลือกรูปปก',
     changeCoverButton: 'เปลี่ยน',
     coverPickerTitle: 'เลือกรูปปก',
     coverPickerPresetsLabel: 'สไตล์เริ่มต้น',
@@ -445,6 +445,9 @@ export const th: Messages = {
       `วางแผน ${count} รายจ่าย`,
     createProjectButton: 'สร้างโปรเจกต์',
     creatingProject: 'กำลังสร้าง...',
+    conflictMessage: (name: string): string =>
+      `คุณมีโปรเจกต์ที่ใช้งานอยู่แล้ว “${name}” การสร้างโปรเจกต์นี้จะเก็บโปรเจกต์เดิมเข้าคลัง`,
+    conflictArchiveButton: 'เก็บเข้าคลังแล้วสร้าง',
     successTitle: 'พร้อมแล้ว!',
     successSubtitle: 'แชร์รหัสเชิญให้เพื่อนเข้ามาออมเงินด้วยกัน',
     inviteCodeLabel: 'รหัสเชิญ',

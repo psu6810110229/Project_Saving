@@ -711,6 +711,8 @@ export const en = {
     ariaLabel: 'Bucket drag mode',
     transfer: 'Transfer',
     edit: 'Reorder',
+    editButton: 'Edit',
+    doneButton: 'Done',
   },
   bucketIntent: {
     status: {

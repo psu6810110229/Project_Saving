@@ -56,7 +56,7 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/add" element={<Navigate to="/dashboard?deposit=true" replace />} />
+              <Route path="/add" element={<Navigate to="/dashboard" replace />} />
               <Route path="/check-balance" element={<CheckBalance />} />
               <Route path="/saving-plan" element={<SavingPlan />} />
               <Route path="/profile" element={<Profile />} />

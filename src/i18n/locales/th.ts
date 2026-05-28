@@ -699,6 +699,8 @@ export const th: Messages = {
     ariaLabel: 'โหมดการลากเป้าหมาย',
     transfer: 'ย้ายเงิน',
     edit: 'จัดลำดับ',
+    editButton: 'แก้ไข',
+    doneButton: 'เสร็จสิ้น',
   },
   bucketIntent: {
     status: {

@@ -436,6 +436,16 @@
   }
 }
 
+@keyframes bucket-edit-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-1.4deg); }
+  75%      { transform: rotate(1.4deg); }
+}
+
+.bucket-edit-wiggle {
+  animation: bucket-edit-wiggle 0.34s ease-in-out infinite;
+}
+
 .bucket-drop-demo::before {
   inset: -7px;
   z-index: 25;

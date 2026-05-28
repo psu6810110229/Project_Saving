@@ -2,12 +2,10 @@ import { useCallback, useState, type CSSProperties, type PointerEvent, type Reac
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Transform } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
-import { IconMoreVertical } from '../Icon/Icon';
 
 interface BucketDragCardProps {
   id: string;
   children: ReactNode;
-  mode?: 'edit';
 }
 
 interface DragBounds {
@@ -65,7 +63,7 @@ function readDragBounds(node: HTMLDivElement): DragBounds {
  * the parent DndContext: a quick tap still propagates the click to the
  * underlying Pressable, while a hold-and-drag enters drag mode.
  */
-export function BucketDragCard({ id, children, mode }: BucketDragCardProps) {
+export function BucketDragCard({ id, children }: BucketDragCardProps) {
   const reduceMotion = useReducedMotion();
   const [dragBounds, setDragBounds] = useState<DragBounds | null>(null);
   const {
@@ -74,12 +72,12 @@ export function BucketDragCard({ id, children, mode }: BucketDragCardProps) {
     setNodeRef: setDragRef,
     isDragging,
     transform,
-  } = useDraggable({ id, disabled: mode !== 'edit' });
+  } = useDraggable({ id });
   const {
     setNodeRef: setDropRef,
     isOver,
     active,
-  } = useDroppable({ id, disabled: mode !== 'edit' });
+  } = useDroppable({ id });
 
   const sameBucket = active?.id === id;
   const validTarget = isOver && !sameBucket;
@@ -105,15 +103,15 @@ export function BucketDragCard({ id, children, mode }: BucketDragCardProps) {
         ? `box-shadow 120ms linear, opacity 120ms linear`
         : `transform 180ms ${ease}, box-shadow 180ms ${ease}, opacity 180ms ${ease}`,
     touchAction: 'manipulation',
-    cursor: isDragging ? 'grabbing' : mode === 'edit' ? 'grab' : 'auto',
+    cursor: isDragging ? 'grabbing' : 'grab',
   };
 
   // Reduced motion keeps the ring tighter (no offset) so the state
   // change reads as a calm highlight instead of a glow shimmer.
   const ringClass = validTarget
     ? reduceMotion
-      ? 'ring-2 ring-ink-muted'
-      : 'ring-2 ring-ink-muted ring-offset-2 ring-offset-bg'
+      ? 'ring-2 ring-brand-500'
+      : 'ring-2 ring-brand-500 ring-offset-2 ring-offset-bg'
     : '';
   const liftClass = isDragging ? 'shadow-neuRaised opacity-95' : '';
   const setBucketNodeRef = useCallback((node: HTMLDivElement | null) => {
@@ -138,14 +136,6 @@ export function BucketDragCard({ id, children, mode }: BucketDragCardProps) {
       {...listeners}
     >
       {children}
-      {mode === 'edit' && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full shadow-soft transition-colors bg-ink text-ink-inverse"
-        >
-          <IconMoreVertical size={15} />
-        </span>
-      )}
     </div>
   );
 }

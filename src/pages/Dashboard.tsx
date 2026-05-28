@@ -13,6 +13,7 @@ import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
+import { SortableBucketCard } from '../components/SortableBucketCard/SortableBucketCard';
 
 import { BucketTransferSheet } from '../components/BucketTransferSheet/BucketTransferSheet';
 import { ActionAlert, type ActionAlertBucket } from '../components/ActionAlert/ActionAlert';
@@ -21,12 +22,14 @@ import {
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
+  closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
   type Modifier,
   type Modifiers,
 } from '@dnd-kit/core';
+import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { IconBubble } from '../components/IconBubble/IconBubble';
@@ -47,7 +50,6 @@ import {
   IconChevronDown,
   IconEdit,
   IconRocket,
-  IconSwap,
   IconTrash,
   IconUser,
   IconVault,
@@ -55,10 +57,7 @@ import {
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
 import { MomentumPurposePicker } from '../components/MomentumPurposePicker/MomentumPurposePicker';
 import { PullToRefresh } from '../components/PullToRefresh/PullToRefresh';
-import { ScrollFadeContainer } from '../components/ScrollFadeContainer/ScrollFadeContainer';
-import { BucketNextPickerModal } from '../components/BucketNextPickerModal/BucketNextPickerModal';
 import { BUCKET_CATEGORY_ORDER } from '../lib/bucketCategories';
-import { computeBucketIntent } from '../lib/bucketIntent';
 import { calcDailySummary } from '../lib/bucketDailySummary';
 import { calcPeriodAwareStreak } from '../lib/streakCalculation';
 import { Modal } from '../components/Modal/Modal';
@@ -84,7 +83,6 @@ import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTarge
 import { calcBucketPace } from '../lib/paceCalculation';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { cumulativeAmountSeries, fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
-import { depositSlipMarker } from '../lib/deposit';
 import { formatCurrency } from '../lib/format';
 import { availablePurposeCategoriesForMode, purposeDailyMarkers, purposeFilteredDailySeries, type MomentumPurposeScope } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
@@ -167,14 +165,6 @@ const restrictBucketDragToViewport: Modifier = ({ activeNodeRect, transform, win
 const bucketDragModifiers: Modifiers = [restrictBucketDragToViewport];
 const DEFAULT_BUCKET_CATEGORY = 'flight' as const;
 
-function bucketDragHintDistance(delta: number) {
-  if (delta === 0) return '0px';
-
-  const abs = Math.abs(delta);
-  const distance = `calc(${abs * 100}% + ${abs}rem)`;
-  return delta > 0 ? distance : `calc(-${abs * 100}% - ${abs}rem)`;
-}
-
 export function Dashboard() {
   const navigate = useNavigate();
     const reduceMotion = useReducedMotion();
@@ -185,8 +175,6 @@ export function Dashboard() {
   const { refreshAll, isRefreshing } = data;
   const {
     quickAmounts,
-    profile: dataProfile,
-    loading: profileLoading,
     markBucketDragHintSeen,
   } = data.profile;
   const {
@@ -196,7 +184,7 @@ export function Dashboard() {
     error: goalError,
   } = data.goal;
   useRooms();
-  const { settings: intentSettings, setManualNextBucket, logIntentEvent } = useBucketIntentSettings(activeRoomId);
+  const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
@@ -223,7 +211,6 @@ export function Dashboard() {
 
   // Task 32 plural fields — N-safe other-member data.
   const { memberIds: otherMemberIds } = data.otherMemberIds;
-  const { bucketsByUser: roomMembersBucketsByUser } = data.roomMembersBuckets;
   // First other member by joined_at asc — deterministic source for the
   // legacy single-partner chart props (MomentumChart, BucketSheet
   // trendPreview). At N = 2 this equals today's `partnerEntry.userId`.
@@ -231,8 +218,6 @@ export function Dashboard() {
   const firstOtherEntry = firstOtherMemberByJoinedAt
     ? leaderboard.entries.find(entry => entry.userId === firstOtherMemberByJoinedAt) ?? null
     : null;
-  // Bucket view: 'mine' or a member userId.
-  const [bucketView, setBucketView] = useState<'mine' | string>('mine');
   // Daily Deposit Trend mode (Task 38.1). Default is `room` so 3-7
   // member rooms read as a room total instead of "You vs Others (N)";
   // 2-user rooms still show a clear room/me/compare experience.
@@ -269,10 +254,18 @@ export function Dashboard() {
   const [completedBucketsOpen, setCompletedBucketsOpen] = useState(false);
   const [bucketDragMode, setBucketDragMode] = useState<BucketDragMode>('transfer');
   const [bucketReorderSaving, setBucketReorderSaving] = useState(false);
+  // Optimistic reorder order (ids) so the grid reflects a drag move
+  // immediately; saveBuckets refetches from the server, so without this
+  // the cards would snap back until the refetch lands. Cleared once the
+  // persisted order matches.
+  const [optimisticActiveIds, setOptimisticActiveIds] = useState<string[] | null>(null);
+  // Suppress the click that the browser fires after a drag release so it
+  // doesn't leak into the deposit BucketSheet (dnd-kit pointer-up issue).
+  const justDraggedRef = useRef(false);
+  const dragEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
   const [migrationBannerDismissed, setMigrationBannerDismissed] = useState(false);
   const [manageBucketTransferSheetOpen, setManageBucketTransferSheetOpen] = useState(false);
-  const [nextPickerOpen, setNextPickerOpen] = useState(false);
   const [transferIntent, setTransferIntent] = useState<{
     sourceId: string;
     destinationId: string | null;
@@ -284,7 +277,6 @@ export function Dashboard() {
   // starts. Account-level persistence owns the "never show again"
   // behavior across devices.
   const [bucketDragHintDismissed, setBucketDragHintDismissed] = useState(false);
-  const [bucketDragHintMarkedThisSession, setBucketDragHintMarkedThisSession] = useState(false);
 
   // dnd-kit sensors for the bucket transfer drag shortcut (slice 40.6).
   // Activation thresholds follow plan §12: desktop ~150ms / touch ~250ms so
@@ -308,9 +300,9 @@ export function Dashboard() {
     const destinationIndex = activeIds.indexOf(destinationId);
     if (sourceIndex < 0 || destinationIndex < 0) return;
 
-    const reorderedActiveIds = [...activeIds];
-    const [movedId] = reorderedActiveIds.splice(sourceIndex, 1);
-    reorderedActiveIds.splice(destinationIndex, 0, movedId);
+    const reorderedActiveIds = arrayMove(activeIds, sourceIndex, destinationIndex);
+    // Reflect the new order immediately while the save + refetch happen.
+    setOptimisticActiveIds(reorderedActiveIds);
 
     const bucketById = new Map(buckets.map(bucket => [bucket.id, bucket]));
     const activeIdSet = new Set(activeIds);
@@ -325,6 +317,7 @@ export function Dashboard() {
     ).finally(() => setBucketReorderSaving(false));
 
     if (result.error) {
+      setOptimisticActiveIds(null);
       setMessage(result.code === 'duplicate_name'
         ? copy.bucket.duplicateName(result.duplicateName ?? '')
         : result.error);
@@ -336,6 +329,10 @@ export function Dashboard() {
   }
 
   function handleBucketDragEnd(event: DragEndEvent) {
+    // Open a short window where the post-drag click is ignored.
+    if (dragEndTimerRef.current) clearTimeout(dragEndTimerRef.current);
+    dragEndTimerRef.current = setTimeout(() => { justDraggedRef.current = false; }, 300);
+
     if (bucketDragMode === 'edit') {
       void handleBucketReorderDragEnd(event);
       return;
@@ -371,7 +368,6 @@ export function Dashboard() {
   }
 
   const markBucketDragHintSeenForAccount = useCallback(() => {
-    setBucketDragHintMarkedThisSession(true);
     void markBucketDragHintSeen();
   }, [markBucketDragHintSeen]);
 
@@ -384,18 +380,16 @@ export function Dashboard() {
   }, [markBucketDragHintSeenForAccount]);
 
   function handleBucketDragStart() {
+    justDraggedRef.current = true;
     if (bucketDragMode === 'edit') return;
     if (bucketDragHintDismissed) return;
     dismissBucketDragHint();
   }
 
-  const handleBucketDragHintShown = useCallback(() => {
-    markBucketDragHintSeenForAccount();
-  }, [markBucketDragHintSeenForAccount]);
+  useEffect(() => () => {
+    if (dragEndTimerRef.current) clearTimeout(dragEndTimerRef.current);
+  }, []);
 
-  const handleBucketDragHintDismiss = useCallback(() => {
-    dismissBucketDragHint();
-  }, [dismissBucketDragHint]);
   const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
   const [vaultPreview, setVaultPreview] = useState<{
     prevSaved: number;
@@ -425,21 +419,6 @@ export function Dashboard() {
   });
   const error = goalError ?? logsError;
 
-
-  // Bucket view falls back to 'mine' whenever the selected other
-  // member leaves the room, switches rooms, or empties out their
-  // buckets. Guarded so the effect only fires when a stale selection
-  // exists, preventing an unconditional set + re-render loop.
-  useEffect(() => {
-    if (bucketView === 'mine') return;
-    const stillVisible = otherMemberIds.includes(bucketView)
-      && (roomMembersBucketsByUser[bucketView]?.length ?? 0) > 0;
-    if (!stillVisible) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBucketView('mine');
-      setExpandedBucketId(null);
-    }
-  }, [bucketView, otherMemberIds, roomMembersBucketsByUser]);
 
   // Daily Deposit Trend safety: keep `compareMemberId` aligned with the
   // current `otherMemberIds`. When the selected compare member leaves
@@ -525,15 +504,43 @@ export function Dashboard() {
     && Number.isFinite(newBucketTargetAmount)
     && newBucketTargetAmount > bucketTargetRemaining;
   const selectedBucket = bestMicroGoalBucket(buckets, logs, bucketTransfers, d, formatMoney);
-  const intentResult = computeBucketIntent({
-    buckets,
-    logs,
-    transfers: bucketTransfers,
-    currentUserId: user?.id,
-    settings: intentSettings,
-  });
-  const { doneBucketIds, focusBucketId, nextBucketId, focusStates } = intentResult;
   /* eslint-disable react-hooks/preserve-manual-memoization */
+  // Intent badges follow the manual (drag) order — the single source of
+  // truth since reorder defines the real priority. The first active,
+  // not-yet-complete bucket is the current focus; the second is next.
+  const doneBucketIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const bucket of buckets) {
+      if (bucket.target_amount > 0 && bucketSaved(bucket.id, logs, bucketTransfers) >= bucket.target_amount) {
+        set.add(bucket.id);
+      }
+    }
+    return set;
+  }, [buckets, logs, bucketTransfers]);
+  const orderedActiveNonDoneIds = useMemo(() => {
+    const inOrder = buckets
+      .filter(bucket => bucket.archived_at == null && !doneBucketIds.has(bucket.id))
+      .map(bucket => bucket.id);
+    if (!optimisticActiveIds) return inOrder;
+    const known = new Set(inOrder);
+    const head = optimisticActiveIds.filter(id => known.has(id));
+    const headSet = new Set(head);
+    const tail = inOrder.filter(id => !headSet.has(id));
+    return [...head, ...tail];
+  }, [buckets, doneBucketIds, optimisticActiveIds]);
+  const focusBucketId = orderedActiveNonDoneIds[0] ?? null;
+  const nextBucketId = orderedActiveNonDoneIds[1] ?? null;
+  const focusStates = useMemo(() => {
+    const map = new Map<string, 'focus' | 'next' | 'done' | 'queued'>();
+    for (const bucket of buckets) {
+      if (bucket.archived_at != null) continue;
+      if (doneBucketIds.has(bucket.id)) map.set(bucket.id, 'done');
+      else if (bucket.id === focusBucketId) map.set(bucket.id, 'focus');
+      else if (bucket.id === nextBucketId) map.set(bucket.id, 'next');
+      else map.set(bucket.id, 'queued');
+    }
+    return map;
+  }, [buckets, doneBucketIds, focusBucketId, nextBucketId]);
   const bucketItems = useMemo(() => {
     const statusLabels = copy.bucketIntent.status;
     return buckets.map(bucket => {
@@ -580,7 +587,30 @@ export function Dashboard() {
       .map(bucket => itemById.get(bucket.id))
       .filter((item): item is (typeof bucketItems)[number] => item != null && item.status?.kind !== 'done');
   }, [buckets, bucketItems]);
-  const displayedActiveBucketItems = bucketDragMode === 'edit' ? manualActiveBucketItems : activeBucketItems;
+  // Manual drag order is the single source of truth for display in both
+  // transfer and reorder modes. Intent badges (focus/next/done) stay as
+  // visual-only labels and no longer drive sort order.
+  const displayedActiveBucketItems = optimisticActiveIds
+    ? (() => {
+        const byId = new Map(manualActiveBucketItems.map(b => [b.id, b]));
+        const ordered = optimisticActiveIds
+          .map(id => byId.get(id))
+          .filter((b): b is (typeof manualActiveBucketItems)[number] => Boolean(b));
+        const seen = new Set(optimisticActiveIds);
+        for (const b of manualActiveBucketItems) if (!seen.has(b.id)) ordered.push(b);
+        return ordered;
+      })()
+    : manualActiveBucketItems;
+  // Drop the optimistic order once the refetched buckets reflect it.
+  useEffect(() => {
+    if (!optimisticActiveIds) return;
+    const current = manualActiveBucketItems.map(b => b.id);
+    if (current.length === optimisticActiveIds.length
+        && current.every((id, i) => id === optimisticActiveIds[i])) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOptimisticActiveIds(null);
+    }
+  }, [manualActiveBucketItems, optimisticActiveIds]);
   const actionAlertBuckets = useMemo<ActionAlertBucket[]>(() => buckets
     .filter(bucket => !doneBucketIds.has(bucket.id) && bucket.deadline)
     .map(bucket => {
@@ -605,85 +635,6 @@ export function Dashboard() {
     return `dashboard-action-alert:${activeRoomId ?? 'no-room'}:${user?.id ?? 'anon'}:${signature}`;
   }, [actionAlertBuckets, activeRoomId, user?.id]);
   /* eslint-enable react-hooks/preserve-manual-memoization */
-  // One-time bucket drag hint (Sprint 40.9). The hint is purely
-  // teaching the drag shortcut, so it only makes sense when:
-  //   * the user is on their own active buckets (caller already
-  //     ensures this branch — partner buckets render a different grid),
-  //   * the user has at least two own active buckets to drag between,
-  //   * the account hasn't already seen the hint, and
-  //   * the user hasn't already dismissed it this session.
-  // Profile loading is treated as "not yet eligible" so we don't flash
-  // the hint to a returning user whose profile row is still resolving.
-  const bucketDragHintSeenOnAccount = Boolean(dataProfile?.bucket_drag_hint_seen_at);
-  const showBucketDragHint =
-    bucketDragMode === 'transfer'
-    && activeBucketItems.length >= 2
-    && !profileLoading
-    && !bucketDragHintDismissed
-    && (!bucketDragHintSeenOnAccount || bucketDragHintMarkedThisSession);
-  const bucketDragHintDemo = (() => {
-    if (!showBucketDragHint) return null;
-
-    const sourceIndex = 0;
-    const destinationIndex = 1;
-    const source = activeBucketItems[sourceIndex];
-    const destination = activeBucketItems[destinationIndex];
-    if (!source || !destination) return null;
-
-    const sourceCol = sourceIndex % 2;
-    const sourceRow = Math.floor(sourceIndex / 2);
-    const destinationCol = destinationIndex % 2;
-    const destinationRow = Math.floor(destinationIndex / 2);
-
-    return {
-      sourceId: source.id,
-      destinationId: destination.id,
-      offset: {
-        x: bucketDragHintDistance(destinationCol - sourceCol),
-        y: bucketDragHintDistance(destinationRow - sourceRow),
-      },
-    };
-  })();
-
-  // Per-member grouping for the buckets section. Order follows
-  // `otherMemberIds` (joined_at asc) — stable across re-renders, unlike
-  // leaderboard rank. Members with zero buckets are filtered out so the
-  // tab disappears (matches today's `hasPartnerBuckets` gate).
-  interface OtherMemberBucketGroup {
-    userId: string;
-    name: string;
-    items: {
-      id: string;
-      icon: ReactNode;
-      name: string;
-      saved: number;
-      target: number;
-      status?: { kind: 'focus' | 'next' | 'done' | 'queued' | 'overdue'; label: string };
-    }[];
-  }
-  const otherMemberBucketGroups: OtherMemberBucketGroup[] = otherMemberIds
-    .map(userId => {
-      const memberBuckets = roomMembersBucketsByUser[userId] ?? [];
-      const entry = leaderboard.entries.find(e => e.userId === userId);
-      const name = entry?.displayName ?? d.partnerLabel;
-      const items = memberBuckets.map(bucket => {
-        const saved = bucketSaved(bucket.id, logs);
-        const isDone = bucket.target_amount > 0 && saved >= bucket.target_amount;
-        return {
-          id: bucket.id,
-          icon: bucketIcon(bucket.category),
-          name: bucket.name,
-          saved,
-          target: bucket.target_amount,
-          status: isDone ? { kind: 'done' as const, label: copy.bucketIntent.status.done } : undefined,
-        };
-      });
-      return { userId, name, items };
-    })
-    .filter(group => group.items.length > 0);
-  const activeOtherGroup = bucketView === 'mine'
-    ? null
-    : otherMemberBucketGroups.find(group => group.userId === bucketView) ?? null;
   const activityItems = useMemo(() => logs.map(log => ({
     id: log.id,
     actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? d.youLabel : d.partnerLabel),
@@ -694,8 +645,6 @@ export function Dashboard() {
     hasSlip: Boolean(log.slip_url),
     slipUrl: log.slip_url,
   })), [logs, user?.id, profile?.display_name, d.youLabel, d.partnerLabel, d.savingsFallback]);
-  const hasOtherBuckets = otherMemberBucketGroups.length > 0;
-
   // Saving Plan status — computed once for the primary insight card.
   const todayKey = todayBangkokKey();
   // HOTFIX-007: use the same upcoming-first priority as the SavingPlan
@@ -1028,7 +977,6 @@ export function Dashboard() {
   }, [navigate]);
 
   const handleActionAlertView = useCallback((bucketId: string) => {
-    setBucketView('mine');
     setExpandedBucketId(bucketId);
     haptic('success');
   }, []);
@@ -1050,9 +998,11 @@ export function Dashboard() {
     }
   }, [buckets.length]);
   const handleDepositFromPlan = useCallback(() => {
-    
-    navigate('/dashboard?deposit=true');
-  }, [navigate]);
+    const targetBucketId = focusBucketId ?? activeBucketItems[0]?.id;
+    if (targetBucketId) {
+      setExpandedBucketId(targetBucketId);
+    }
+  }, [focusBucketId, activeBucketItems]);
   function bucketDraftFromExisting(bucket: Bucket) {
     return {
       id: bucket.id,
@@ -1223,8 +1173,11 @@ export function Dashboard() {
     return result;
   }
 
-  if (!isRefreshing && loading && shouldShowSkeleton) return <DashboardSkeleton />;
-  if (!isRefreshing && loading) return null;
+  // A bucket reorder persists via saveBuckets -> fetchBuckets, which
+  // flips bucketsLoading true. The optimistic order already keeps the
+  // grid correct, so don't flash the full skeleton during that save.
+  if (!isRefreshing && !bucketReorderSaving && loading && shouldShowSkeleton) return <DashboardSkeleton />;
+  if (!isRefreshing && !bucketReorderSaving && loading) return null;
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
   const dashboardContainerVariants = reduceMotion ? reducedContainerVariants : containerVariants;
@@ -1369,143 +1322,86 @@ export function Dashboard() {
 
       {/* 4 — Smart Buckets. */}
       <motion.div className="flex min-h-[18rem] flex-col gap-3" variants={dashboardSectionVariants}>
-        {(() => {
-          const memberPicker = hasOtherBuckets ? (
-            <BucketMemberPicker
-              ariaLabel={d.switchBucketOwner}
-              options={[
-                {
-                  value: 'mine',
-                  label: d.youLabel,
-                  themeColor: profile?.theme_color ?? null,
-                },
-                ...otherMemberBucketGroups.map(group => {
-                  const entry = leaderboard.entries.find(e => e.userId === group.userId);
-                  return {
-                    value: group.userId,
-                    label: group.name,
-                    themeColor: entry?.themeColor ?? null,
-                  };
-                }),
-              ]}
-              value={bucketView}
-              onChange={next => {
-                setBucketView(next);
-                setExpandedBucketId(null);
-              }}
-            />
-          ) : null;
-          return activeOtherGroup ? (
-          <BucketGrid
-            title={d.yourBuckets(activeOtherGroup.name)}
-            subtitle={`${d.bucketCount(activeOtherGroup.items.length)} — ${d.bucketReadOnly}`}
-            buckets={activeOtherGroup.items}
-            belowHeader={memberPicker}
-            renderBucket={bucket => (
-              <BucketRow
-                icon={bucket.icon}
-                name={bucket.name}
-                saved={bucket.saved}
-                target={bucket.target}
-                status={bucket.status}
-                deadline={bucket.deadline}
-                pace={bucket.pace}
-              />
-            )}
-          />
-        ) : (
           <DndContext
             sensors={dragSensors}
-            modifiers={bucketDragModifiers}
+            collisionDetection={bucketDragMode === 'edit' ? closestCenter : undefined}
+            modifiers={bucketDragMode === 'edit' ? undefined : bucketDragModifiers}
             onDragStart={handleBucketDragStart}
             onDragEnd={handleBucketDragEnd}
           >
-            <BucketGrid
-              title={d.tripBuckets}
-              subtitle={buckets.length > 0 ? d.bucketCount(displayedActiveBucketItems.length) : undefined}
-              buckets={displayedActiveBucketItems}
-              ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
-              onAddBucket={() => setBucketModalOpen(true)}
-              manageLabel={buckets.length > 0 ? d.manageBuckets : undefined}
-              onManageBuckets={buckets.length > 0 ? () => setManageBucketsOpen(true) : undefined}
-              belowHeader={
-                <div className="flex flex-col gap-3">
-                  {memberPicker}
-                  {activeBucketItems.length >= 2 && (
-                    <div
-                      role="tablist"
-                      aria-label={copy.bucketDragMode.ariaLabel}
-                      className="inline-flex w-fit max-w-full items-center gap-1 rounded-pill bg-well p-1 shadow-neuPressed"
-                    >
-                      {([
-                        { value: 'transfer' as const, label: copy.bucketDragMode.transfer, Icon: IconSwap },
-                        { value: 'edit' as const, label: copy.bucketDragMode.edit, Icon: IconEdit },
-                      ]).map(option => {
-                        const active = bucketDragMode === option.value;
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            role="tab"
-                            aria-selected={active}
-                            disabled={bucketReorderSaving}
-                            onClick={() => setBucketDragMode(option.value)}
-                            className={
-                              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill px-3 font-mono text-[11px] font-bold transition-colors '
-                              + (bucketReorderSaving
-                                ? 'cursor-wait opacity-60 '
-                                : '')
-                              + (active
-                                ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
-                                : 'text-ink-muted hover:bg-surface hover:text-ink')
-                            }
-                          >
-                            <option.Icon size={13} />
-                            <span>{option.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {nextBucketId && (() => {
-                    const nextBucket = bucketItems.find(b => b.id === nextBucketId);
-                    if (!nextBucket) return null;
-                    return (
-                      <div className="flex items-center gap-2 rounded-lg bg-surfaceAlt px-3 py-2">
-                        <span className="min-w-0 flex-1 truncate font-mono text-xs font-bold text-ink-muted">
-                          {copy.bucketIntent.nextStrip(nextBucket.name)}
-                        </span>
-                        <Button variant="link" size="sm" onClick={() => setNextPickerOpen(true)} className="shrink-0">
-                          {copy.bucketIntent.changeNext}
-                        </Button>
-                      </div>
-                    );
-                  })()}
-
-                </div>
-              }
-              renderBucket={bucket => (
-                <BucketDragCard
-                  id={bucket.id}
-                  mode={undefined}
-
+            {(() => {
+              const isEditing = bucketDragMode === 'edit';
+              const editToggle = activeBucketItems.length >= 2 ? (
+                <button
+                  type="button"
+                  disabled={bucketReorderSaving}
+                  aria-pressed={isEditing}
+                  onClick={() => setBucketDragMode(prev => prev === 'edit' ? 'transfer' : 'edit')}
+                  className={
+                    'inline-flex h-8 w-fit shrink-0 items-center gap-1.5 rounded-pill px-3 font-mono text-[11px] font-bold transition-colors '
+                    + (bucketReorderSaving ? 'cursor-wait opacity-60 ' : '')
+                    + (isEditing
+                      ? 'bg-brand-500 text-ink-inverse shadow-haloOrange'
+                      : 'bg-well text-ink-muted shadow-neuPressed hover:text-ink')
+                  }
                 >
-                  <BucketRow
-                    icon={bucket.icon}
-                    name={bucket.name}
-                    saved={bucket.saved}
-                    target={bucket.target}
-                    status={bucket.status}
-                    deadline={bucket.deadline}
-                    pace={bucket.pace}
-                    onClick={() => setExpandedBucketId(bucket.id)}
-                  />
-                </BucketDragCard>
-              )}
-            />
+                  <IconEdit size={13} />
+                  <span>{isEditing ? copy.bucketDragMode.doneButton : copy.bucketDragMode.editButton}</span>
+                </button>
+              ) : null;
+
+              const grid = (
+                <BucketGrid
+                  title={d.tripBuckets}
+                  subtitle={buckets.length > 0 ? d.bucketCount(displayedActiveBucketItems.length) : undefined}
+                  buckets={displayedActiveBucketItems}
+                  ctaLabel={buckets.length > 0 ? d.addBucket : d.createBucket}
+                  onAddBucket={() => setBucketModalOpen(true)}
+                  manageLabel={buckets.length > 0 ? d.manageBuckets : undefined}
+                  onManageBuckets={buckets.length > 0 ? () => setManageBucketsOpen(true) : undefined}
+                  belowHeader={editToggle ? <div className="flex flex-col gap-3">{editToggle}</div> : undefined}
+                  renderBucket={bucket => isEditing ? (
+                    <SortableBucketCard id={bucket.id}>
+                      <BucketRow
+                        icon={bucket.icon}
+                        name={bucket.name}
+                        saved={bucket.saved}
+                        target={bucket.target}
+                        status={bucket.status}
+                        deadline={bucket.deadline}
+                        pace={bucket.pace}
+                      />
+                    </SortableBucketCard>
+                  ) : (
+                    <BucketDragCard id={bucket.id}>
+                      <BucketRow
+                        icon={bucket.icon}
+                        name={bucket.name}
+                        saved={bucket.saved}
+                        target={bucket.target}
+                        status={bucket.status}
+                        deadline={bucket.deadline}
+                        pace={bucket.pace}
+                        onClick={() => {
+                          if (justDraggedRef.current) return;
+                          setExpandedBucketId(bucket.id);
+                        }}
+                      />
+                    </BucketDragCard>
+                  )}
+                />
+              );
+
+              return isEditing ? (
+                <SortableContext
+                  items={displayedActiveBucketItems.map(b => b.id)}
+                  strategy={rectSortingStrategy}
+                >
+                  {grid}
+                </SortableContext>
+              ) : grid;
+            })()}
           </DndContext>
-        );
-        })()}
         {completedBucketItems.length > 0 && (
           <div className="flex flex-col gap-3">
             <button
@@ -1730,27 +1626,6 @@ export function Dashboard() {
           onRemoved={refetchBuckets}
         />
       </Modal>
-
-      <BucketNextPickerModal
-        open={nextPickerOpen}
-        buckets={bucketItems
-          .filter(b => !doneBucketIds.has(b.id) && b.id !== focusBucketId)
-          .map(b => ({ id: b.id, name: b.name, category: b.category, saved: b.saved, target: b.target }))}
-        currentNextBucketId={nextBucketId}
-        onSelect={async (bucketId) => {
-          const result = await setManualNextBucket(bucketId);
-          if (!result.error) {
-            void logIntentEvent({ eventKey: 'next_bucket_selected', bucketId });
-          }
-        }}
-        onClear={async () => {
-          const result = await setManualNextBucket(null);
-          if (!result.error) {
-            void logIntentEvent({ eventKey: 'next_bucket_cleared' });
-          }
-        }}
-        onClose={() => setNextPickerOpen(false)}
-      />
 
       <VerifiedBalanceReminderModal
         open={vbReminder.open}
@@ -2234,129 +2109,6 @@ function bestMicroGoalBucket(
 
 function bucketIcon(category: BucketCategory | undefined): ReactNode {
   return <BucketCategoryIcon category={category} size={22} />;
-}
-
-interface BucketMemberPickerOption {
-  value: string;
-  label: string;
-  themeColor?: string | null;
-}
-
-interface BucketMemberPickerProps {
-  ariaLabel: string;
-  options: BucketMemberPickerOption[];
-  value: string;
-  onChange: (next: string) => void;
-}
-
-const BUCKET_MEMBER_PICKER_HINT_STORAGE_KEY = 'bucket-member-picker-hint-seen-v1';
-
-/** Dashboard-scoped horizontal member picker for the Smart Buckets
- *  section. Replaces the right-aligned `Segmented` control so 3-7
- *  member rooms can scroll cleanly on mobile without clipping the
- *  first option, wrapping tab labels, or detaching from the bucket
- *  section. Selection state mirrors the previous tab-pill look. */
-function BucketMemberPicker({ ariaLabel, options, value, onChange }: BucketMemberPickerProps) {
-  const reduceMotion = useReducedMotion();
-  const [showHint, setShowHint] = useState(false);
-  const shellRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (reduceMotion) return;
-    try {
-      if (window.localStorage.getItem(BUCKET_MEMBER_PICKER_HINT_STORAGE_KEY)) return;
-    } catch {
-      return;
-    }
-    const el = shellRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
-    let startId = 0;
-    let endId = 0;
-    const observer = new IntersectionObserver(entries => {
-      const entry = entries[0];
-      if (!entry?.isIntersecting) return;
-      observer.disconnect();
-      startId = window.setTimeout(() => setShowHint(true), 350);
-      endId = window.setTimeout(() => {
-        setShowHint(false);
-        try { window.localStorage.setItem(BUCKET_MEMBER_PICKER_HINT_STORAGE_KEY, '1'); } catch { /* ignore */ }
-      }, 6400);
-    }, { threshold: 0.5 });
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      window.clearTimeout(startId);
-      window.clearTimeout(endId);
-    };
-  }, [reduceMotion]);
-
-  return (
-    <LayoutGroup id="bucket-member-pill">
-      <div
-        ref={shellRef}
-        className="relative inline-flex w-fit max-w-full self-start overflow-hidden rounded-pill"
-      >
-        {showHint && (
-          <motion.span
-            aria-hidden
-            initial={{ x: '-110%', opacity: 0 }}
-            animate={{ x: '220%', opacity: [0, 1, 1, 0] }}
-            transition={{
-              duration: 2,
-              ease: [0.22, 1, 0.36, 1],
-              times: [0, 0.15, 0.85, 1],
-              repeat: 2,
-              repeatDelay: 0.2,
-            }}
-            className="pointer-events-none absolute inset-y-0 left-0 z-20 w-1/2 rounded-pill mix-blend-screen"
-            style={{
-              background: 'linear-gradient(90deg, transparent 0%, rgba(242,107,26,0.45) 45%, rgba(255,200,140,0.85) 50%, rgba(242,107,26,0.45) 55%, transparent 100%)',
-              filter: 'blur(2px)',
-            }}
-          />
-        )}
-      <ScrollFadeContainer
-        className="inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-pill bg-well p-1 shadow-neuPressed"
-        fadeColor="#F1E7DC"
-        fadeWidth={20}
-      >
-        <div
-          role="tablist"
-          aria-label={ariaLabel}
-          className="inline-flex items-center gap-1"
-        >
-          {options.map(option => {
-            const active = option.value === value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                title={option.label}
-                onClick={() => onChange(option.value)}
-                className={
-                  'relative inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill px-3.5 py-1.5 font-mono text-xs font-bold transition-colors '
-                  + (active ? 'text-ink-inverse' : 'text-ink-muted')
-                }
-              >
-                {active && (
-                  <motion.span
-                    layoutId="bucket-member-active-pill"
-                    className="absolute inset-0 rounded-pill bg-brand-500 shadow-haloOrange"
-                    transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }}
-                  />
-                )}
-                <span className="relative z-10 whitespace-nowrap">
-                  {option.label.length > 11 ? `${option.label.slice(0, 11)}…` : option.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </ScrollFadeContainer>
-      </div>
-    </LayoutGroup>
-  );
 }
 
 interface DailyTrendModeControlProps {

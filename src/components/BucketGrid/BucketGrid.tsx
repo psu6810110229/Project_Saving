@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from 'react';
 import { BucketRow } from '../BucketRow/BucketRow';
 import { Button } from '../Button/Button';
+import type { BucketCategory } from '../../types';
 
 export interface BucketGridItem {
   id: string;
@@ -8,6 +9,7 @@ export interface BucketGridItem {
   name: string;
   saved: number;
   target: number;
+  category?: BucketCategory;
   deadline?: string | null;
   completedAt?: string | null;
   status?: {
@@ -92,6 +94,7 @@ export const BucketGrid = memo(function BucketGrid({
               name={bucket.name}
               saved={bucket.saved}
               target={bucket.target}
+              category={bucket.category}
               status={bucket.status}
               deadline={bucket.deadline}
               completedAt={bucket.completedAt}

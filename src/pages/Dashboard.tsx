@@ -14,6 +14,7 @@ import { BucketEditForm } from '../components/BucketEditForm/BucketEditForm';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
 import { SortableBucketCard } from '../components/SortableBucketCard/SortableBucketCard';
+import { RemoveBucketModal, type RemoveBucketDestination } from '../components/RemoveBucketModal/RemoveBucketModal';
 
 import { BucketTransferSheet } from '../components/BucketTransferSheet/BucketTransferSheet';
 import { ActionAlert, type ActionAlertBucket } from '../components/ActionAlert/ActionAlert';
@@ -33,10 +34,10 @@ import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortab
 import { Button } from '../components/Button/Button';
 import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketForm';
 import { IconBubble } from '../components/IconBubble/IconBubble';
+import { IconButton } from '../components/IconButton/IconButton';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { HeroCard } from '../components/HeroCard/HeroCard';
-import { MiniTimeline } from '../components/MiniTimeline/MiniTimeline';
 import { TeamSection, type TeamSectionMember } from '../components/TeamSection/TeamSection';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { VerifiedBalanceReminderModal } from '../components/VerifiedBalanceReminderModal/VerifiedBalanceReminderModal';
@@ -73,7 +74,7 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useMigrationState } from '../hooks/useMigrationState';
 import { useLogs } from '../hooks/useLogs';
 import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
-import { useExpenseTemplates } from '../hooks/useExpenseTemplates';
+import { type ArchiveErrorHint, useArchiveBucket } from '../hooks/useArchiveBucket';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import { useSavingsTotal } from '../hooks/useSavingsTotal';
@@ -165,6 +166,32 @@ const restrictBucketDragToViewport: Modifier = ({ activeNodeRect, transform, win
 const bucketDragModifiers: Modifiers = [restrictBucketDragToViewport];
 const DEFAULT_BUCKET_CATEGORY = 'flight' as const;
 
+function mapArchiveHintToErrorKey(
+  hint: ArchiveErrorHint,
+): keyof ReturnType<typeof useI18n>['copy']['bucketRemove']['errors'] {
+  switch (hint) {
+    case 'archive_unauthenticated': return 'unauthenticated';
+    case 'archive_invalid_request': return 'invalid_request';
+    case 'archive_bucket_missing': return 'bucket_missing';
+    case 'archive_partner_bucket': return 'partner_bucket';
+    case 'archive_not_room_member': return 'not_room_member';
+    case 'archive_nonzero_balance': return 'nonzero_balance';
+    case 'archive_last_active': return 'last_active';
+    case 'archive_same_bucket': return 'same_bucket';
+    case 'archive_source_missing': return 'source_missing';
+    case 'archive_destination_missing': return 'destination_missing';
+    case 'archive_partner_source': return 'partner_source';
+    case 'archive_partner_destination': return 'partner_destination';
+    case 'archive_source_archived': return 'source_archived';
+    case 'archive_destination_archived': return 'destination_archived';
+    case 'archive_cross_room': return 'cross_room';
+    case 'archive_protected_fields': return 'database_migration';
+    case 'archive_unknown':
+    default:
+      return 'unknown';
+  }
+}
+
 export function Dashboard() {
   const navigate = useNavigate();
     const reduceMotion = useReducedMotion();
@@ -189,7 +216,6 @@ export function Dashboard() {
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
-  const { templates: expenseTemplates, loading: expenseTemplatesLoading } = useExpenseTemplates(activeRoomId);
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = data.leaderboard;
   const {
@@ -264,6 +290,10 @@ export function Dashboard() {
   const justDraggedRef = useRef(false);
   const dragEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editBucketId, setEditBucketId] = useState<string | null>(null);
+  const { archive, pending: removePending } = useArchiveBucket();
+  const [pendingRemove, setPendingRemove] = useState<Bucket | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [removingBucketId, setRemovingBucketId] = useState<string | null>(null);
   const [migrationBannerDismissed, setMigrationBannerDismissed] = useState(false);
   const [transferIntent, setTransferIntent] = useState<{
     sourceId: string;
@@ -984,10 +1014,6 @@ export function Dashboard() {
     navigate('/manage-project');
   }, [navigate]);
 
-  const handleTimelineOpen = useCallback(() => {
-    navigate('/manage-project?modal=buckets');
-  }, [navigate]);
-
   const handleCheckBalance = useCallback(() => navigate('/check-balance'), [navigate]);
   const handleConfigurePlan = useCallback(() => {
     if (buckets.length > 0) {
@@ -1018,6 +1044,52 @@ export function Dashboard() {
       reminder_day: bucket.reminder_day,
       payment_type: bucket.payment_type,
     };
+  }
+
+  function openRemoveBucket(bucket: Bucket) {
+    setRemoveError(null);
+    setPendingRemove(bucket);
+  }
+
+  function closeRemoveBucket() {
+    if (removePending) return;
+    setPendingRemove(null);
+    setRemoveError(null);
+  }
+
+  async function handleArchiveBucket() {
+    if (!pendingRemove) return;
+    setRemoveError(null);
+    const result = await archive({ bucketId: pendingRemove.id });
+    if (result.error) {
+      // Safety net: the bucket gained a balance between opening the modal
+      // and confirming. Route into the transfer sheet instead of failing.
+      if (result.error.hint === 'archive_nonzero_balance' && buckets.some(b => b.id !== pendingRemove.id)) {
+        const sourceId = pendingRemove.id;
+        setPendingRemove(null);
+        setTransferIntent({ sourceId, destinationId: null });
+        return;
+      }
+      setRemoveError(copy.bucketRemove.errors[mapArchiveHintToErrorKey(result.error.hint)]);
+      return;
+    }
+    const removedId = pendingRemove.id;
+    setPendingRemove(null);
+    haptic('success');
+    // Play the "Gone" exit animation on the card before the refetch drops
+    // it from the grid. ~420ms matches the bucket-gone keyframe.
+    setRemovingBucketId(removedId);
+    await new Promise(resolve => setTimeout(resolve, 420));
+    await refreshAll();
+    setRemovingBucketId(null);
+  }
+
+  function handleTransferBeforeRemove() {
+    if (!pendingRemove) return;
+    const sourceId = pendingRemove.id;
+    setPendingRemove(null);
+    setRemoveError(null);
+    setTransferIntent({ sourceId, destinationId: null });
   }
 
   async function handleMigrationStart() {
@@ -1132,10 +1204,9 @@ export function Dashboard() {
     const result = await saveBuckets(
       buckets.map(item => item.id === bucket.id
         ? {
-            id: item.id,
+            ...bucketDraftFromExisting(item),
             name: next.name,
             target_amount: next.target_amount,
-            category: item.category,
             ...(next.deadline !== undefined && { deadline: next.deadline }),
             ...(next.saving_rule_type !== undefined && { saving_rule_type: next.saving_rule_type }),
             ...(next.saving_rule_amount !== undefined && { saving_rule_amount: next.saving_rule_amount }),
@@ -1145,7 +1216,7 @@ export function Dashboard() {
             ...(next.saving_rule_day_count !== undefined && { saving_rule_day_count: next.saving_rule_day_count }),
             ...(next.reminder_day !== undefined && { reminder_day: next.reminder_day }),
           }
-        : { id: item.id, name: item.name, target_amount: item.target_amount, category: item.category }),
+        : bucketDraftFromExisting(item)),
     );
     if (result.error) {
       return {
@@ -1334,7 +1405,7 @@ export function Dashboard() {
           >
             {(() => {
               const isEditing = bucketDragMode === 'edit';
-              const editToggle = activeBucketItems.length >= 2 ? (
+              const editToggle = activeBucketItems.length >= 1 ? (
                 <button
                   type="button"
                   disabled={bucketReorderSaving}
@@ -1365,14 +1436,24 @@ export function Dashboard() {
                   renderBucket={bucket => isEditing ? (
                     <SortableBucketCard
                       id={bucket.id}
-                      onEdit={() => setEditBucketId(bucket.id)}
-                      editAriaLabel={copy.bucket.editAriaLabel(bucket.name)}
+                      onRemove={() => {
+                        const target = buckets.find(b => b.id === bucket.id);
+                        if (target) openRemoveBucket(target);
+                      }}
+                      removeAriaLabel={copy.bucket.deleteAriaLabel(bucket.name)}
+                      onCardClick={() => {
+                        if (justDraggedRef.current) return;
+                        setEditBucketId(bucket.id);
+                      }}
+                      removing={removingBucketId === bucket.id}
+                      hideRemoveButton={pendingRemove?.id === bucket.id}
                     >
                       <BucketRow
                         icon={bucket.icon}
                         name={bucket.name}
                         saved={bucket.saved}
                         target={bucket.target}
+                        category={bucket.category}
                         status={bucket.status}
                         deadline={bucket.deadline}
                         pace={bucket.pace}
@@ -1385,6 +1466,7 @@ export function Dashboard() {
                         name={bucket.name}
                         saved={bucket.saved}
                         target={bucket.target}
+                        category={bucket.category}
                         status={bucket.status}
                         deadline={bucket.deadline}
                         pace={bucket.pace}
@@ -1424,19 +1506,49 @@ export function Dashboard() {
             </button>
             {completedBucketsOpen && (
               <div className="grid grid-cols-2 gap-4 p-1">
-                {completedBucketItems.map(bucket => (
-                  <BucketRow
-                    key={bucket.id}
-                    icon={bucket.icon}
-                    name={bucket.name}
-                    saved={bucket.saved}
-                    target={bucket.target}
-                    status={bucket.status}
-                    completedAt={bucket.completedAt}
-                    variant="completed"
-                    onClick={() => setExpandedBucketId(bucket.id)}
-                  />
-                ))}
+                {completedBucketItems.map(bucket => {
+                  const isEditing = bucketDragMode === 'edit';
+                  const removing = removingBucketId === bucket.id;
+                  const row = (
+                    <BucketRow
+                      icon={bucket.icon}
+                      name={bucket.name}
+                      saved={bucket.saved}
+                      target={bucket.target}
+                      category={bucket.category}
+                      status={bucket.status}
+                      completedAt={bucket.completedAt}
+                      variant="completed"
+                      onClick={isEditing ? undefined : () => setExpandedBucketId(bucket.id)}
+                    />
+                  );
+                  if (!isEditing) return <div key={bucket.id}>{row}</div>;
+                  return (
+                    <div key={bucket.id} className="relative rounded-2xl">
+                      <div
+                        className={removing ? 'bucket-gone' : ''}
+                        onClick={removing ? undefined : () => setEditBucketId(bucket.id)}
+                      >
+                        {row}
+                      </div>
+                      {!removing && pendingRemove?.id !== bucket.id && (
+                        <IconButton
+                          type="button"
+                          variant="solid"
+                          size="sm"
+                          ariaLabel={copy.bucket.deleteAriaLabel(bucket.name)}
+                          className="absolute -left-0 -top-0 z-10 bg-danger/90 text-danger hover:bg-danger/35"
+                          onClick={() => {
+                            const target = buckets.find(b => b.id === bucket.id);
+                            if (target) openRemoveBucket(target);
+                          }}
+                        >
+                          <IconTrash size={15} />
+                        </IconButton>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1449,15 +1561,8 @@ export function Dashboard() {
         {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
       </motion.div>
 
-      {/* 5 - Insights. Timeline first, then the trend chart. */}
+      {/* 5 - Insights. */}
       <motion.div className="flex min-h-[21rem] flex-col gap-3" variants={dashboardSectionVariants}>
-        <MiniTimeline
-          templates={expenseTemplates}
-          todayDateKey={todayKey}
-          loading={expenseTemplatesLoading}
-          onOpenTimeline={handleTimelineOpen}
-          compact
-        />
         <MomentumChart
           series={chartSeries}
           partnerSeries={chartPartnerSeries}
@@ -1626,6 +1731,34 @@ export function Dashboard() {
               />
             )}
           </Modal>
+        );
+      })()}
+
+      {(() => {
+        const savedAmount = pendingRemove
+          ? bucketSaved(pendingRemove.id, logs, bucketTransfers)
+          : 0;
+        const destinations: RemoveBucketDestination[] = pendingRemove
+          ? buckets
+              .filter(b => b.id !== pendingRemove.id)
+              .map(b => ({
+                id: b.id,
+                name: b.name,
+                saved: bucketSaved(b.id, logs, bucketTransfers),
+              }))
+          : [];
+        return (
+          <RemoveBucketModal
+            open={pendingRemove !== null}
+            bucketName={pendingRemove?.name ?? null}
+            savedAmount={savedAmount}
+            destinations={destinations}
+            pending={removePending}
+            errorMessage={removeError}
+            onClose={closeRemoveBucket}
+            onArchive={handleArchiveBucket}
+            onTransferFirst={handleTransferBeforeRemove}
+          />
         );
       })()}
 

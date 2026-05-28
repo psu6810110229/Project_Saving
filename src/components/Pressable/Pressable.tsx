@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { SPRING } from '../../lib/motion';
 
 interface PressableProps {
@@ -8,6 +8,7 @@ interface PressableProps {
   className?: string;
   disabled?: boolean;
   ariaLabel?: string;
+  style?: CSSProperties;
 }
 
 export default function Pressable({
@@ -16,6 +17,7 @@ export default function Pressable({
   className = '',
   disabled = false,
   ariaLabel,
+  style,
 }: PressableProps) {
   const reduceMotion = useReducedMotion();
 
@@ -35,6 +37,7 @@ export default function Pressable({
   return (
     <motion.div
       className={className}
+      style={style}
       onClick={disabled ? undefined : onClick}
       aria-label={ariaLabel}
       aria-disabled={disabled || undefined}

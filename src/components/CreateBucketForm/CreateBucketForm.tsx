@@ -170,7 +170,7 @@ export function CreateBucketForm({
         </div>
         <CategoryRow label={b.categoryLabel} shape="circle" options={options} value={category} onChange={onCategoryChange} />
         <FormField label={b.nameLabel}>
-          <TextInput value={name} placeholder={b.namePlaceholder} leadingIcon={<IconEdit size={16} />} onChange={(event: ChangeEvent<HTMLInputElement>) => onNameChange(event.target.value)} />
+          <TextInput value={name} maxLength={12} placeholder={b.namePlaceholder} leadingIcon={<IconEdit size={16} />} onChange={(event: ChangeEvent<HTMLInputElement>) => onNameChange(event.target.value)} />
         </FormField>
         <FormField label={b.targetLabel} helper={targetHelper} error={targetError}>
           <TextInput value={target} inputMode="numeric" placeholder="30000" leadingIcon={<IconPiggyBank size={16} />} onChange={(event: ChangeEvent<HTMLInputElement>) => onTargetChange(event.target.value)} />

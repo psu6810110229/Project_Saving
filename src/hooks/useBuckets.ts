@@ -147,11 +147,18 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       }
     }
 
-    // Execute updates
-    if (updates.length > 0) {
+    // Execute updates as per-row UPDATEs. An upsert runs as
+    // INSERT ... ON CONFLICT, which fires the BEFORE INSERT
+    // `enforce_bucket_limit` trigger for every row in the batch and
+    // fails once the user has 10 active buckets — even though these
+    // are all updates to existing rows.
+    for (const { id, ...fields } of updates) {
       const { error: upErr } = await supabase
         .from('buckets')
-        .upsert(updates, { onConflict: 'id' });
+        .update(fields)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .eq('room_id', roomId);
       if (upErr) {
         if (upErr.code === '23505') {
           return { error: 'Bucket names must be unique.', code: 'duplicate_name' };

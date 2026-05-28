@@ -196,6 +196,7 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
                   name: bucket.name,
                   saved: snapshot.bucketSavedById[bucket.id] ?? 0,
                   target: bucket.target_amount,
+                  category: bucket.category,
                 }))}
                 titleFn={md.bucketsTitle}
                 subtitleFn={md.bucketsReadOnlyHint}
@@ -398,6 +399,7 @@ function MemberBucketsSection({
           name={bucket.name}
           saved={bucket.saved}
           target={bucket.target}
+          category={bucket.category}
         />
       )}
     />

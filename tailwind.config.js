@@ -96,6 +96,11 @@ export default {
           '0%': { transform: 'scaleY(0)' },
           '100%': { transform: 'scaleY(1)' },
         },
+        'corner-pop': {
+          '0%': { opacity: '0', transform: 'scale(0.85)' },
+          '55%': { opacity: '1', transform: 'scale(1.12)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
       },
       animation: {
         'fade-in-up': 'fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
@@ -105,6 +110,7 @@ export default {
         shimmer: 'shimmer 1.6s ease-in-out infinite',
         'success-ring': 'success-ring 0.5s ease-out both',
         'bar-grow': 'bar-grow 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'corner-pop': 'corner-pop 1.6s cubic-bezier(0.16, 1, 0.3, 1) both',
       },
     },
   },

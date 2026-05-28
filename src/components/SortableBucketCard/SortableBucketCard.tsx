@@ -4,14 +4,20 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Transform } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
 import { IconButton } from '../IconButton/IconButton';
-import { IconEdit } from '../Icon/Icon';
+import { IconTrash } from '../Icon/Icon';
 
 interface SortableBucketCardProps {
   id: string;
   children: ReactNode;
-  /** When set, shows a pencil button (top-left) that opens bucket editing. */
-  onEdit?: () => void;
-  editAriaLabel?: string;
+  /** When set, shows a trash button (top-left) that starts the soft-delete (archive) flow. */
+  onRemove?: () => void;
+  removeAriaLabel?: string;
+  /** Tapping the card body (not the trash button, not a drag) opens bucket editing. */
+  onCardClick?: () => void;
+  /** While true, plays the "Gone" exit (shrink + fade) animation. */
+  removing?: boolean;
+  /** Hide the trash button (e.g. once tapped, while the remove flow is pending). */
+  hideRemoveButton?: boolean;
 }
 
 interface DragBounds {
@@ -60,7 +66,7 @@ function wiggleSeed(id: string): number {
  * transform lives on the root; the iOS-style wiggle `rotate` lives on
  * an inner wrapper so the two transforms never collide.
  */
-export function SortableBucketCard({ id, children, onEdit, editAriaLabel }: SortableBucketCardProps) {
+export function SortableBucketCard({ id, children, onRemove, removeAriaLabel, onCardClick, removing, hideRemoveButton }: SortableBucketCardProps) {
   const reduceMotion = useReducedMotion();
   const [dragBounds, setDragBounds] = useState<DragBounds | null>(null);
   const {
@@ -87,7 +93,7 @@ export function SortableBucketCard({ id, children, onEdit, editAriaLabel }: Sort
     touchAction: 'manipulation',
   };
 
-  const shouldWiggle = !isDragging && !reduceMotion;
+  const shouldWiggle = !isDragging && !reduceMotion && !removing;
   const innerStyle: CSSProperties = shouldWiggle
     ? { animationDelay: `${wiggleSeed(id) * 180}ms` }
     : {};
@@ -101,23 +107,27 @@ export function SortableBucketCard({ id, children, onEdit, editAriaLabel }: Sort
       {...attributes}
       {...listeners}
     >
-      <div className={shouldWiggle ? 'bucket-edit-wiggle' : ''} style={innerStyle}>
+      <div
+        className={removing ? 'bucket-gone' : shouldWiggle ? 'bucket-edit-wiggle' : ''}
+        style={innerStyle}
+        onClick={removing ? undefined : onCardClick}
+      >
         {children}
       </div>
-      {onEdit && (
+      {onRemove && !removing && !hideRemoveButton && (
         <IconButton
           type="button"
           variant="solid"
           size="sm"
-          ariaLabel={editAriaLabel ?? 'Edit bucket'}
-          className="absolute -left-1.5 -top-1.5 z-10"
+          ariaLabel={removeAriaLabel ?? 'Remove bucket'}
+          className="absolute -left-0 -top-0 z-10 bg-danger/90 text-danger hover:bg-danger/35"
           onPointerDown={event => event.stopPropagation()}
           onClick={event => {
             event.stopPropagation();
-            onEdit();
+            onRemove();
           }}
         >
-          <IconEdit size={14} />
+          <IconTrash size={15} />
         </IconButton>
       )}
     </div>

@@ -1,19 +1,19 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { IconBubble } from '../IconBubble/IconBubble';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { formatCurrency } from '../../lib/format';
 import Pressable from '../Pressable/Pressable';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import { useI18n } from '../../i18n/useI18n';
 import { IconArrowUpRight, IconCheckCircle, IconClock, IconClockAlert, IconWarning } from '../Icon/Icon';
-import type { PaceStatus } from '../../types';
+import type { BucketCategory, PaceStatus } from '../../types';
 
 interface BucketRowProps {
   icon: ReactNode;
   name: string;
   saved: number;
   target: number;
+  category?: BucketCategory;
   onClick?: () => void;
   expanded?: boolean;
   status?: {
@@ -29,12 +29,32 @@ interface BucketRowProps {
   } | null;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  focus: 'bg-brand-100 text-brand-700',
-  next: 'bg-blue-50 text-blue-600',
-  done: 'bg-green-100 text-green-700',
-  overdue: 'bg-danger-soft text-danger',
+interface Accent {
+  accent: string;
+  tint: string;
+  border: string;
+}
+
+// Per-card accent driven by the bucket's category, so each purpose reads as its
+// own color family (icon, current amount, badge, border, and progress share it).
+const CATEGORY_ACCENT: Record<BucketCategory, Accent> = {
+  flight:     { accent: '#3F9BB5', tint: '#E8F6FA', border: '#BFE4ED' }, // ฟ้าอม teal
+  stay:       { accent: '#5F9A52', tint: '#EEF7EA', border: '#CBE4C4' }, // โรงแรม = เขียว
+  transport:  { accent: '#F86C08', tint: '#FEF1E2', border: '#FCE0C0' }, // เดินทาง = ส้ม
+  food:       { accent: '#287CF4', tint: '#E8F1FD', border: '#C0D8FC' }, // ของกิน = ฟ้า
+  activities: { accent: '#D98A18', tint: '#FFF2DD', border: '#F2CB8E' }, // กิจกรรม = amber รอง
+  shopping:   { accent: '#8B5CF6', tint: '#F1ECFD', border: '#D9CCFA' }, // ซื้อของ = ม่วง
+  buffer:     { accent: '#D6A21E', tint: '#FFF5D8', border: '#EED28A' }, // emergency = เหลือง
+  home:       { accent: '#D85C8A', tint: '#FCEAF1', border: '#EDB8CC' }, // บ้าน = ชมพู
+  other:      { accent: '#D34A3A', tint: '#FDEAE7', border: '#EDB7AE' }, // อื่นๆ = แดง
 };
+
+const DEFAULT_ACCENT: Accent = CATEGORY_ACCENT.home;
+
+const REDUCED_MOTION =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const PACE_CONFIG: Record<PaceStatus, { className: string; Icon: typeof IconArrowUpRight }> = {
   ahead: { className: 'text-accent-leaf', Icon: IconArrowUpRight },
@@ -56,6 +76,7 @@ export const BucketRow = memo(function BucketRow({
   name,
   saved,
   target,
+  category,
   onClick,
   status,
   deadline,
@@ -67,6 +88,7 @@ export const BucketRow = memo(function BucketRow({
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
   const wasComplete = useRef(target > 0 && saved >= target);
   const { copy, formatShortDateKey } = useI18n();
+  const accent = (category && CATEGORY_ACCENT[category]) || DEFAULT_ACCENT;
 
   useEffect(() => {
     const isComplete = target > 0 && saved >= target;
@@ -88,26 +110,50 @@ export const BucketRow = memo(function BucketRow({
   ] : null;
   const completedDateLabel = completedAt ? formatShortDateKey(completedAt.slice(0, 10)) : status?.label;
 
+  // Focus ("ลำดับปัจจุบัน") and next ("ลำดับถัดไป") cards alternate their corner
+  // between the badge and the percentage every 2s; static if reduced motion is on.
+  const alternateEnabled = !REDUCED_MOTION && (status?.kind === 'focus' || status?.kind === 'next');
+  const [showPct, setShowPct] = useState(false);
+
+  useEffect(() => {
+    if (!alternateEnabled) return;
+    // Percentage lingers longer (4s) than the badge (2s).
+    const delay = showPct ? 4000 : 2000;
+    const id = window.setTimeout(() => setShowPct(v => !v), delay);
+    return () => window.clearTimeout(id);
+  }, [alternateEnabled, showPct]);
+
+  const showBadge = !!status && status.kind !== 'queued' && !(alternateEnabled && showPct);
+
   if (variant === 'completed') {
     return (
       <Pressable
         onClick={onClick}
-        className="relative flex min-h-[8.5rem] w-full flex-col rounded-2xl bg-surface px-4 py-4 text-left shadow-soft"
+        className="relative flex aspect-square w-full flex-col rounded-2xl border-[1.5px] bg-surface p-4 text-left shadow-soft"
+        style={{ borderColor: accent.border }}
       >
-        <div className="flex items-start justify-between gap-3">
-          <IconBubble tone="peach" size="md" className="text-accent-leaf">{icon}</IconBubble>
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
-            <IconCheckCircle size={16} />
-          </span>
-        </div>
-        <div className="mt-3 min-w-0">
+        <span className="absolute right-3 top-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
+          <IconCheckCircle size={16} />
+        </span>
+        <span
+          className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full [&_svg]:h-7 [&_svg]:w-7"
+          style={{ background: accent.tint, color: accent.accent }}
+        >
+          {icon}
+        </span>
+        <div className="mt-3 w-full min-w-0">
           <p className="truncate font-mono text-sm font-bold leading-tight text-ink">{name}</p>
-          <p className="mt-1 font-mono text-xs leading-tight text-ink-muted">
-            {formatCurrency(Math.round(animTarget))}
+          <p className="mt-1 flex min-w-0 items-baseline gap-1 font-mono leading-none">
+            <span className="shrink-0 whitespace-nowrap text-sm font-bold" style={{ color: accent.accent }}>
+              {formatCurrency(Math.round(animSaved))}
+            </span>
+            <span className="truncate text-[11px] text-ink-dim">
+              / {formatCurrency(Math.round(animTarget))}
+            </span>
           </p>
         </div>
         {completedDateLabel && (
-          <p className="mt-auto pt-3 font-mono text-[11px] font-bold leading-tight text-accent-leaf">
+          <p className="mt-auto pt-2 font-mono text-[11px] font-bold leading-tight" style={{ color: accent.accent }}>
             {completedDateLabel}
           </p>
         )}
@@ -118,42 +164,63 @@ export const BucketRow = memo(function BucketRow({
   return (
     <Pressable
       onClick={onClick}
-      className="relative flex aspect-square w-full flex-col items-center rounded-2xl bg-surface px-4 pb-4 pt-7 text-center shadow-soft"
+      className="relative flex aspect-square w-full flex-col rounded-2xl border-[1.5px] bg-surface p-4 text-left shadow-soft"
+      style={{ borderColor: accent.border }}
     >
-      {status && status.kind !== 'queued' ? (
-        <span className={`absolute right-3 top-3 rounded-pill px-2 py-0.5 font-mono text-[10px] font-bold leading-tight ${STATUS_STYLES[status.kind] ?? ''}`}>
-          {status.label}
+      {showBadge ? (
+        <span
+          key="badge"
+          className="absolute right-3 top-3 rounded-pill px-2 py-0.5 font-mono text-[10px] font-bold leading-tight animate-corner-pop"
+          style={{ background: accent.tint, color: accent.accent }}
+        >
+          {status!.label}
         </span>
       ) : (
-        <span className="absolute right-4 top-4 font-mono text-sm font-bold text-brand-500">
+        <span
+          key="pct"
+          className="absolute right-3 top-3 font-mono text-sm font-bold animate-corner-pop"
+          style={{ color: accent.accent }}
+        >
           {Math.round(animPct)}%
         </span>
       )}
 
-      <IconBubble tone="peach" size="md" className="text-brand-500">{icon}</IconBubble>
+      <span
+        className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full [&_svg]:h-7 [&_svg]:w-7"
+        style={{ background: accent.tint, color: accent.accent }}
+      >
+        {icon}
+      </span>
 
-      <div className="mt-3 w-full">
+      <div className="mt-3 w-full min-w-0">
         <p className="truncate font-mono text-sm font-bold leading-tight text-ink">{name}</p>
-        <p className="mt-1.5 font-mono text-xs leading-tight text-ink-muted">
-          {formatCurrency(Math.round(animSaved))} / {formatCurrency(Math.round(animTarget))}
+        <p className="mt-1 flex min-w-0 items-baseline gap-1 font-mono leading-none">
+          <span className="shrink-0 whitespace-nowrap text-lg font-bold" style={{ color: accent.accent }}>
+            {formatCurrency(Math.round(animSaved))}
+          </span>
+          <span className="truncate text-xs text-ink-dim">
+            / {formatCurrency(Math.round(animTarget))}
+          </span>
         </p>
       </div>
 
-      <div className="mt-auto w-full pt-2">
-        {hasDeadlineInfo && paceConfig && (
-          <div className="bucket-card-meta mb-2 flex items-center justify-between gap-1 text-[11px] font-mono leading-tight">
-            <span className="flex min-w-0 items-center gap-1 whitespace-nowrap">
-              <CountdownIcon size={12} className={`shrink-0 ${countdownIconClass}`} />
-              <CountdownLabel remainingDays={pace!.remainingDays} copy={copy} />
-            </span>
-            <span className={`flex min-w-0 items-center gap-0.5 whitespace-nowrap font-bold ${paceConfig.className}`}>
-              <paceConfig.Icon size={12} className="shrink-0" />
-              {paceLabel}
-            </span>
-          </div>
-        )}
-        <ProgressBar value={animPct} tone="primary" size="sm" className="bg-brand-50" />
+      <div className="mt-2 w-full">
+        <ProgressBar value={animPct} tone="theme" themeHex={accent.accent} size="sm" className="bg-well" />
       </div>
+
+      {hasDeadlineInfo && paceConfig && (
+        <div className="bucket-card-meta mt-auto flex w-full items-center justify-between gap-1.5 pt-2 font-mono text-[10px] leading-tight">
+          <span className="flex min-w-0 items-center gap-1 whitespace-nowrap">
+            <CountdownIcon size={12} className={`shrink-0 ${countdownIconClass}`} />
+            <CountdownLabel remainingDays={pace!.remainingDays} copy={copy} />
+          </span>
+          <span aria-hidden="true" className="h-3 w-px shrink-0 bg-well" />
+          <span className={`flex min-w-0 items-center gap-1 whitespace-nowrap font-bold ${paceConfig.className}`}>
+            <paceConfig.Icon size={12} className="shrink-0" />
+            {paceLabel}
+          </span>
+        </div>
+      )}
     </Pressable>
   );
 });

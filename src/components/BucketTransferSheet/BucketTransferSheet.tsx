@@ -11,7 +11,7 @@ import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/moti
 import type { TransferBucketMoneyResult } from '../../types';
 import { Button } from '../Button/Button';
 import { FormField } from '../FormField/FormField';
-import { IconArrowRight, IconPiggyBank, IconSwap } from '../Icon/Icon';
+import { IconArrowRight, IconCheckCircle, IconPiggyBank, IconSwap } from '../Icon/Icon';
 import { IconBubble } from '../IconBubble/IconBubble';
 import Pressable from '../Pressable/Pressable';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
@@ -607,12 +607,14 @@ function BucketPickerRow({
   savedChipBuilder,
   formatMoney,
 }: BucketPickerRowProps) {
+  const { copy } = useI18n();
   const visibleBuckets = buckets.filter(bucket => bucket.id !== disabledId);
 
   return (
     <div className="mt-2 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x">
       {visibleBuckets.map((bucket) => {
         const selected = bucket.id === selectedId;
+        const isComplete = bucket.target > 0 && bucket.saved >= bucket.target;
         return (
           <Pressable
             key={bucket.id}
@@ -628,7 +630,12 @@ function BucketPickerRow({
               <IconBubble tone={selected ? 'solid' : 'peach'} size="sm">
                 {bucket.icon}
               </IconBubble>
-              <span className="truncate font-mono text-sm font-bold text-ink">{bucket.name}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-sm font-bold text-ink">{bucket.name}</span>
+              {isComplete && (
+                <span className="shrink-0 text-accent-teal" title={copy.bucketIntent.status.done}>
+                  <IconCheckCircle size={16} strokeWidth={2.25} />
+                </span>
+              )}
             </div>
             <span className="font-mono text-[11px] text-ink-muted">
               {savedChipBuilder(formatMoney(bucket.saved))}

@@ -264,6 +264,7 @@ export function Dashboard() {
   const justDraggedRef = useRef(false);
   const dragEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
+  const [editHighlightBucketId, setEditHighlightBucketId] = useState<string | null>(null);
   const [migrationBannerDismissed, setMigrationBannerDismissed] = useState(false);
   const [manageBucketTransferSheetOpen, setManageBucketTransferSheetOpen] = useState(false);
   const [transferIntent, setTransferIntent] = useState<{
@@ -992,6 +993,7 @@ export function Dashboard() {
   const handleCheckBalance = useCallback(() => navigate('/check-balance'), [navigate]);
   const handleConfigurePlan = useCallback(() => {
     if (buckets.length > 0) {
+      setEditHighlightBucketId(null);
       setManageBucketsOpen(true);
     } else {
       setBucketModalOpen(true);
@@ -1362,7 +1364,7 @@ export function Dashboard() {
                   renderBucket={bucket => isEditing ? (
                     <SortableBucketCard
                       id={bucket.id}
-                      onEdit={() => setManageBucketsOpen(true)}
+                      onEdit={() => { setEditHighlightBucketId(bucket.id); setManageBucketsOpen(true); }}
                       editAriaLabel={copy.bucket.editAriaLabel(bucket.name)}
                     >
                       <BucketRow
@@ -1603,13 +1605,14 @@ export function Dashboard() {
       <Modal
         open={manageBucketsOpen}
         title={copy.manageProject.manageBucketsModalTitle}
-        onClose={() => { setManageBucketsOpen(false); setManageBucketTransferSheetOpen(false); }}
+        onClose={() => { setManageBucketsOpen(false); setManageBucketTransferSheetOpen(false); setEditHighlightBucketId(null); }}
         hidden={manageBucketTransferSheetOpen}
       >
         <BucketManager
           buckets={buckets}
           logs={logs}
           transfers={bucketTransfers}
+          highlightBucketId={editHighlightBucketId}
           goalTarget={target > 0 ? target : null}
           onUpdate={handleManageBucketUpdate}
           onReviewCategories={async (updates) => {

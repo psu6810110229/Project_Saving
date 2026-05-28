@@ -20,6 +20,8 @@ interface BucketManagerProps {
   logs: SavingsLog[];
   /** Caller's own bucket transfers, for transfer-aware balance display. */
   transfers?: BucketTransfer[];
+  /** Bucket to flash an edge highlight on when the manager opens (e.g. tapped via the edit-mode pencil). */
+  highlightBucketId?: string | null;
   goalTarget?: number | null;
   statusMessage?: string | null;
   onUpdate: (bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; reminder_day?: number | null }) => Promise<{ error?: string; code?: string; duplicateName?: string; deadlineExtensionWarning?: boolean }>;
@@ -79,6 +81,7 @@ export function BucketManager({
   buckets,
   logs,
   transfers,
+  highlightBucketId,
   goalTarget,
   statusMessage,
   onUpdate,
@@ -289,6 +292,7 @@ export function BucketManager({
         transfers={transfers}
         goalTarget={goalTarget}
         totalBucketTargets={totalBucketTargets}
+        highlightBucketId={highlightBucketId}
         editingId={editingId}
         draftName={draftName}
         draftTarget={draftTarget}
@@ -362,6 +366,7 @@ function BucketSummary({
   transfers,
   goalTarget,
   totalBucketTargets,
+  highlightBucketId,
   editingId,
   draftName,
   draftTarget,
@@ -382,6 +387,7 @@ function BucketSummary({
   transfers?: BucketTransfer[];
   goalTarget?: number | null;
   totalBucketTargets: number;
+  highlightBucketId?: string | null;
   editingId: string | null;
   draftName: string;
   draftTarget: string;
@@ -423,7 +429,13 @@ function BucketSummary({
               : undefined;
 
           return (
-            <div key={bucket.id} className="rounded-lg bg-brand-50 px-4 py-3">
+            <div
+              key={bucket.id}
+              className={
+                'rounded-lg bg-brand-50 px-4 py-3'
+                + (bucket.id === highlightBucketId ? ' bucket-highlight-focus' : '')
+              }
+            >
               {editing ? (
                 <div className="flex flex-col gap-3">
                   <FormField label={copy.bucket.editNameLabel}>

@@ -283,49 +283,53 @@ export const HeroCard = memo(function HeroCard({
         </div>
 
         <div className="relative z-10 mt-4 min-[480px]:mt-5">
-          <div className="flex max-w-full items-baseline gap-2 whitespace-nowrap">
-            <span className="font-mono text-[1.75rem] font-bold leading-none tracking-[0.06em] tabular-nums text-white drop-shadow-[0_2px_12px_rgba(116,50,20,0.36)] min-[480px]:text-[2.62rem]">
+          <div className="flex min-w-0 max-w-full items-baseline gap-2 overflow-hidden whitespace-nowrap">
+            <span className="font-mono text-[clamp(1.3rem,6.5vw,2.5rem)] font-bold leading-none tracking-[0.06em] tabular-nums text-white drop-shadow-[0_2px_12px_rgba(116,50,20,0.36)]">
               {formatCurrency(Math.round(animSaved))}
             </span>
-            <span className="font-mono text-[1.25rem] font-semibold leading-none tracking-[0.08em] tabular-nums text-white/82 drop-shadow-[0_2px_8px_rgba(116,50,20,0.28)] min-[480px]:text-[1.48rem]">
+            <span className="font-mono text-[clamp(0.95rem,4.5vw,1.45rem)] font-semibold leading-none tracking-[0.08em] tabular-nums text-white/82 drop-shadow-[0_2px_8px_rgba(116,50,20,0.28)]">
               <span className="mr-2">/</span>{formatCurrency(Math.round(animTarget))}
             </span>
           </div>
 
-          <div
-            className="mt-4 h-2 w-[70%] min-w-[10rem] max-w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(126,55,20,0.22)]"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(clamped)}
-          >
-            <div
-              className="h-full rounded-pill bg-white shadow-[0_0_14px_rgba(255,246,232,0.54)] transition-[width] duration-500"
-              style={{ width: `${clamped}%`, minWidth: clamped > 0 ? '13px' : '0px' }}
-            />
-          </div>
-
-          <div className="absolute right-0 top-1/2 flex -translate-y-1/2 flex-col items-start gap-1.5">
-            <div className="flex items-center gap-2">
-              <CardChip />
-              <ContactlessGlyph />
-            </div>
-            {validThruLabel && (
-              <div className="leading-none">
-                <span className="block font-mono text-[0.45rem] font-bold uppercase tracking-[0.20em] text-white/62">
-                  Valid Thru
-                </span>
-                <span className="mt-0.5 block font-mono text-[0.58rem] font-semibold tabular-nums tracking-[0.08em] text-white/90">
-                  {validThruLabel}
-                </span>
+          <div className="mt-4 flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div
+                className="h-2 w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(126,55,20,0.22)]"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(clamped)}
+              >
+                <div
+                  className="h-full rounded-pill bg-white shadow-[0_0_14px_rgba(255,246,232,0.54)] transition-[width] duration-500"
+                  style={{ width: `${clamped}%`, minWidth: clamped > 0 ? '13px' : '0px' }}
+                />
               </div>
-            )}
-          </div>
 
-          <p className="mt-4 truncate font-mono-th text-[0.85rem] font-semibold leading-snug tracking-[0.03em] text-white/84 drop-shadow-[0_1px_7px_rgba(116,50,20,0.32)] min-[480px]:text-[0.95rem]">
-            เหลืออีก <span className="font-mono tabular-nums">{remainingAmount}</span>
-            {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
-          </p>
+              <p className="mt-2 truncate font-mono-th text-[0.85rem] font-semibold leading-snug tracking-[0.03em] text-white/84 drop-shadow-[0_1px_7px_rgba(116,50,20,0.32)] min-[480px]:text-[0.95rem]">
+                เหลืออีก <span className="font-mono tabular-nums">{remainingAmount}</span>
+                {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
+              </p>
+            </div>
+
+            <div className="flex shrink-0 flex-col items-start gap-1">
+              <div className="flex items-center gap-2">
+                <CardChip />
+                <ContactlessGlyph />
+              </div>
+              {validThruLabel && (
+                <div className="leading-none">
+                  <span className="block font-mono text-[0.45rem] font-bold uppercase tracking-[0.20em] text-white/62">
+                    Valid Thru
+                  </span>
+                  <span className="mt-0.5 block font-mono text-[0.58rem] font-semibold tabular-nums tracking-[0.08em] text-white/90">
+                    {validThruLabel}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="relative z-10 mt-4 grid grid-cols-4 border-t border-white/25 pt-3">

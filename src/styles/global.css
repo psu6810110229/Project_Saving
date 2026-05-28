@@ -233,29 +233,21 @@
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    background:
-      linear-gradient(180deg, rgba(255, 239, 215, 0.18) 0%, rgba(245, 145, 72, 0.1) 48%, rgba(120, 43, 20, 0.3) 100%),
-      linear-gradient(104deg, rgba(255, 220, 184, 0.24) 0%, rgba(208, 89, 35, 0.26) 42%, rgba(255, 145, 58, 0.12) 68%, rgba(116, 42, 20, 0.18) 100%),
-      radial-gradient(72% 82% at 82% 25%, rgba(255, 187, 91, 0.46) 0%, rgba(255, 145, 67, 0.16) 42%, transparent 70%),
-      var(--hero-card-cover, url('/vault-card-japan-clean.jpg'));
-    background-position: center, center, center, 60% 50%;
-    background-size: 100% 100%, 100% 100%, 100% 100%, cover;
+    background: var(--hero-card-cover, url('/vault-card-japan-clean.jpg'));
+    background-position: 60% 50%;
+    background-size: cover;
     border: 0;
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.18) inset,
-      0 -1px 0 rgba(96, 38, 16, 0.18) inset,
-      0 20px 42px -22px rgba(111, 49, 24, 0.5);
+      0 -1px 0 rgba(0, 0, 0, 0.18) inset,
+      0 20px 42px -22px rgba(18, 16, 15, 0.5);
     outline: 0;
   }
 
   .hero-credit-card[data-has-cover='false'] {
-    background:
-      linear-gradient(180deg, rgba(255, 239, 215, 0.18) 0%, rgba(245, 145, 72, 0.1) 48%, rgba(120, 43, 20, 0.3) 100%),
-      linear-gradient(104deg, rgba(255, 220, 184, 0.24) 0%, rgba(208, 89, 35, 0.26) 42%, rgba(255, 145, 58, 0.12) 68%, rgba(116, 42, 20, 0.18) 100%),
-      radial-gradient(72% 82% at 82% 25%, rgba(255, 187, 91, 0.46) 0%, rgba(255, 145, 67, 0.16) 42%, transparent 70%),
-      url('/vault-card-japan-clean.jpg');
-    background-position: center, center, center, 60% 50%;
-    background-size: 100% 100%, 100% 100%, 100% 100%, cover;
+    background: url('/vault-card-japan-clean.jpg');
+    background-position: 60% 50%;
+    background-size: cover;
   }
 
   .hero-credit-card[data-category='gadget'][data-has-cover='false'] {
@@ -282,12 +274,12 @@
       linear-gradient(
         115deg,
         transparent 38%,
-        rgba(255, 245, 231, 0.05) 47%,
-        rgba(255, 245, 231, 0.14) 50%,
-        rgba(255, 245, 231, 0.05) 53%,
+        rgba(255, 255, 255, 0.05) 47%,
+        rgba(255, 255, 255, 0.13) 50%,
+        rgba(255, 255, 255, 0.05) 53%,
         transparent 62%
       ),
-      radial-gradient(90% 55% at 55% -8%, rgba(255, 244, 226, 0.18), transparent 66%);
+      radial-gradient(90% 55% at 55% -8%, rgba(255, 255, 255, 0.15), transparent 66%);
     background-size: 300% 100%, 100% 100%;
     background-position: -200% 0, center;
     mix-blend-mode: screen;
@@ -307,18 +299,35 @@
     background-image: var(--hero-card-cover, url('/vault-card-japan-clean.jpg'));
     background-position: 60% 50%;
     background-size: cover;
-    filter: blur(9px) saturate(1.04);
-    transform: scale(1.1);
+    filter: blur(14px) saturate(1.05);
+    transform: scale(1.16);
     -webkit-mask-image:
-      radial-gradient(120% 100% at 44% 38%, transparent 0 50%, #000 78%),
-      radial-gradient(95% 125% at 61% 54%, transparent 0 48%, #000 80%),
-      radial-gradient(110% 92% at 50% 64%, transparent 0 53%, #000 82%);
+      radial-gradient(60% 54% at 44% 42%, transparent 0 6%, rgba(0, 0, 0, 0.5) 48%, #000 92%),
+      radial-gradient(54% 60% at 60% 46%, transparent 0 5%, rgba(0, 0, 0, 0.5) 46%, #000 94%),
+      radial-gradient(62% 52% at 50% 50%, transparent 0 8%, rgba(0, 0, 0, 0.5) 50%, #000 90%);
     -webkit-mask-composite: source-in;
     mask-image:
-      radial-gradient(120% 100% at 44% 38%, transparent 0 50%, #000 78%),
-      radial-gradient(95% 125% at 61% 54%, transparent 0 48%, #000 80%),
-      radial-gradient(110% 92% at 50% 64%, transparent 0 53%, #000 82%);
+      radial-gradient(60% 54% at 44% 42%, transparent 0 6%, rgba(0, 0, 0, 0.5) 48%, #000 92%),
+      radial-gradient(54% 60% at 60% 46%, transparent 0 5%, rgba(0, 0, 0, 0.5) 46%, #000 94%),
+      radial-gradient(62% 52% at 50% 50%, transparent 0 8%, rgba(0, 0, 0, 0.5) 50%, #000 90%);
     mask-composite: intersect;
+  }
+
+  /* Guilloché / engine-turned texture: crossing fine lines blended as
+     card material so it catches light over the cover and works on the
+     gradient fallbacks too. Sits above the scrim (so a photo cover's
+     scrim can't bury it) but below the text/content layer. */
+  .hero-card-pattern {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.55;
+    mix-blend-mode: soft-light;
+    background-image:
+      repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 5px),
+      repeating-linear-gradient(65deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 6px),
+      repeating-linear-gradient(25deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 7px);
   }
 
   /* Readability scrim: tint shaded from the cover's own palette

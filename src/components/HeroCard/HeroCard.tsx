@@ -165,10 +165,10 @@ function MetricItem({ icon, label, value, helper }: MetricProps) {
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block truncate font-mono text-[0.46rem] font-bold uppercase leading-none tracking-[0.05em] text-[#FFE2B8]/76">
+        <span className="block truncate font-mono text-[0.46rem] font-semibold uppercase leading-none tracking-[0.05em] text-[#FFE2B8]/72">
           {label}
         </span>
-        <span className="mt-1 block truncate font-mono-th text-[0.62rem] font-bold leading-none tracking-[0.03em] text-white/95">
+        <span className="mt-1 block truncate font-mono-th text-[0.62rem] font-medium leading-none tracking-[0.03em] text-white/86">
           {value}
         </span>
         <span className="mt-0.5 block truncate font-mono-th text-[0.42rem] font-medium leading-[0.62rem] tracking-[0.03em] text-white/56">
@@ -247,19 +247,36 @@ export const HeroCard = memo(function HeroCard({
   return (
     <div className="vault-card-frame">
       <section
-        className="hero-credit-card flex w-full flex-col rounded-2xl px-3 py-4 text-white min-[400px]:px-4 min-[480px]:py-5"
+        className="hero-credit-card flex aspect-[1.586/1] w-full flex-col justify-between rounded-2xl px-4 py-3 text-white min-[400px]:px-6 min-[480px]:py-6"
         data-has-cover={coverImageUrl ? 'true' : 'false'}
         data-category={roomCategory ?? undefined}
         style={cardStyle}
       >
         {coverImageUrl && <div className="hero-card-feather" aria-hidden />}
+        <div className="hero-card-pattern" aria-hidden />
+        <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-start gap-1 min-[400px]:right-4">
+          <div className="flex items-center gap-2">
+            <CardChip />
+            <ContactlessGlyph />
+          </div>
+          {validThruLabel && (
+            <div className="leading-none">
+              <span className="block font-mono text-[0.45rem] font-bold uppercase tracking-[0.20em] text-white/62">
+                Valid Thru
+              </span>
+              <span className="mt-0.5 block font-mono text-[0.58rem] font-semibold tabular-nums tracking-[0.08em] text-white/90">
+                {validThruLabel}
+              </span>
+            </div>
+          )}
+        </div>
         <div className="relative z-10 flex items-start justify-between gap-3">
-          <h2 className="min-w-0 truncate py-0.5 font-mono-th text-[1rem] font-semibold leading-tight tracking-[0.04em] text-white drop-shadow-[0_2px_10px_rgba(116,50,20,0.34)] min-[480px]:text-[1.42rem]">
+          <h2 className="min-w-0 truncate py-0.5 font-mono-th text-[0.85rem] font-light leading-tight tracking-[0.12em] text-white drop-shadow-[0_2px_10px_rgba(18,16,15,0.34)] min-[480px]:text-[1.42rem]">
             ยอดเก็บของคุณ
           </h2>
-          <div className="flex shrink-0 items-center gap-1.5 text-white drop-shadow-[0_2px_10px_rgba(116,50,20,0.32)]">
+          <div className="flex shrink-0 items-center gap-1 text-white/85 drop-shadow-[0_2px_10px_rgba(18,16,15,0.5)]">
             <span
-              className="font-mono text-[1.0rem] font-semibold leading-none tracking-[0.04em] tabular-nums min-[480px]:text-[1.42rem]"
+              className="-mt-0.5 mr-1.5 font-mono text-[0.95rem] font-light leading-none tracking-[0.04em] tabular-nums min-[480px]:text-[1.2rem]"
               aria-label={`${pctRounded}%`}
             >
               {pctRounded}%
@@ -273,7 +290,7 @@ export const HeroCard = memo(function HeroCard({
                 onClick={e => { e.stopPropagation(); onChangeCover(); }}
                 className="-mt-1 grid h-8 w-8 place-items-center rounded-full text-white/82 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-wait disabled:opacity-55 "
               >
-                <IconCamera size={21} strokeWidth={1.75} />
+                <IconCamera size={20} strokeWidth={1} />
               </button>
             )}
             {onEdit ? (
@@ -283,30 +300,30 @@ export const HeroCard = memo(function HeroCard({
                 onClick={e => { e.stopPropagation(); onEdit(); }}
                 className="-mt-1 grid h-8 w-8 place-items-center rounded-full text-white/82 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
               >
-                <IconEdit size={20} strokeWidth={1.7} />
+                <IconEdit size={20} strokeWidth={1} />
               </button>
             ) : (
               <span className="-mt-1 grid h-8 w-8 place-items-center text-white/84" aria-hidden>
-                <IconEdit size={20} strokeWidth={1.7} />
+                <IconEdit size={20} strokeWidth={1} />
               </span>
             )}
           </div>
         </div>
 
-        <div className="relative z-10 mt-4 min-[480px]:mt-5">
-          <div className="flex min-w-0 max-w-full items-baseline gap-2 overflow-hidden whitespace-nowrap">
-            <span className="font-mono text-[clamp(1.3rem,6.5vw,2.5rem)] font-bold leading-none tracking-[0.06em] tabular-nums text-white drop-shadow-[0_2px_12px_rgba(116,50,20,0.36)]">
+        <div className="relative z-10 mt-4 min-[480px]:mt-6">
+          <div className="flex min-w-0 max-w-full items-baseline gap-2 whitespace-nowrap">
+            <span className="font-mono text-[clamp(1.3rem,6.5vw,2.5rem)] font-semibold leading-none tracking-[0.02em] tabular-nums text-white/90 drop-shadow-[0_2px_12px_rgba(18,16,15,0.36)]">
               {formatCurrency(Math.round(animSaved))}
             </span>
-            <span className="font-mono text-[clamp(0.95rem,4.5vw,1.45rem)] font-semibold leading-none tracking-[0.08em] tabular-nums text-white/82 drop-shadow-[0_2px_8px_rgba(116,50,20,0.28)]">
+            <span className="font-mono text-[clamp(0.95rem,4.5vw,1.45rem)] font-medium leading-none tracking-[0.04em] tabular-nums text-white/72 drop-shadow-[0_2px_8px_rgba(18,16,15,0.28)]">
               <span className="mr-2">/</span>{formatCurrency(Math.round(animTarget))}
             </span>
           </div>
 
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-1 flex items-center pr-[4.25rem] min-[480px]:pr-[4.75rem]">
             <div className="min-w-0 flex-1">
               <div
-                className="h-2 w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(126,55,20,0.22)]"
+                className="h-2 w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(18,16,15,0.22)]"
                 role="progressbar"
                 aria-valuemin={0}
                 aria-valuemax={100}
@@ -318,27 +335,10 @@ export const HeroCard = memo(function HeroCard({
                 />
               </div>
 
-              <p className="mt-2 truncate font-mono-th text-[0.85rem] font-semibold leading-snug tracking-[0.03em] text-white/84 drop-shadow-[0_1px_7px_rgba(116,50,20,0.32)] min-[480px]:text-[0.95rem]">
-                เหลืออีก <span className="font-mono tabular-nums">{remainingAmount}</span>
+              <p className="mt-2 truncate font-mono-th text-[0.85rem] font-medium leading-snug tracking-[0.03em] text-white/78 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.95rem]">
+                ต้องเก็บ <span className="font-mono tabular-nums">{remainingAmount}</span>
                 {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
               </p>
-            </div>
-
-            <div className="flex shrink-0 flex-col items-start gap-1">
-              <div className="flex items-center gap-2">
-                <CardChip />
-                <ContactlessGlyph />
-              </div>
-              {validThruLabel && (
-                <div className="leading-none">
-                  <span className="block font-mono text-[0.45rem] font-bold uppercase tracking-[0.20em] text-white/62">
-                    Valid Thru
-                  </span>
-                  <span className="mt-0.5 block font-mono text-[0.58rem] font-semibold tabular-nums tracking-[0.08em] text-white/90">
-                    {validThruLabel}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         </div>

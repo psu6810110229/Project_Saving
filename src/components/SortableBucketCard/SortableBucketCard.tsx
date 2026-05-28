@@ -1,6 +1,7 @@
-import { type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { Transform } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
 import { IconButton } from '../IconButton/IconButton';
 import { IconEdit } from '../Icon/Icon';
@@ -8,9 +9,39 @@ import { IconEdit } from '../Icon/Icon';
 interface SortableBucketCardProps {
   id: string;
   children: ReactNode;
-  /** When set, shows a pencil button (top-right) that opens bucket editing. */
+  /** When set, shows a pencil button (top-left) that opens bucket editing. */
   onEdit?: () => void;
   editAriaLabel?: string;
+}
+
+interface DragBounds {
+  card: DOMRect;
+  boundary: DOMRect;
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (min > max) return value;
+  return Math.min(Math.max(value, min), max);
+}
+
+// Keep the dragged card's translate within the grid boundary so it can't be
+// pushed off the screen edge. Mirrors the transfer-mode clamp in BucketDragCard.
+function clampTransformToBounds(transform: Transform, bounds: DragBounds | null): Transform {
+  if (!bounds) return transform;
+  const { card, boundary } = bounds;
+  return {
+    ...transform,
+    x: clamp(transform.x, boundary.left - card.left, boundary.right - card.right),
+    y: clamp(transform.y, boundary.top - card.top, boundary.bottom - card.bottom),
+  };
+}
+
+function readDragBounds(node: HTMLElement): DragBounds {
+  const boundary = node.closest<HTMLElement>('[data-bucket-drag-boundary="true"]');
+  return {
+    card: node.getBoundingClientRect(),
+    boundary: (boundary ?? document.documentElement).getBoundingClientRect(),
+  };
 }
 
 // Deterministic 0..1 seed from the id so each card's wiggle is offset
@@ -31,6 +62,7 @@ function wiggleSeed(id: string): number {
  */
 export function SortableBucketCard({ id, children, onEdit, editAriaLabel }: SortableBucketCardProps) {
   const reduceMotion = useReducedMotion();
+  const [dragBounds, setDragBounds] = useState<DragBounds | null>(null);
   const {
     attributes,
     listeners,
@@ -40,8 +72,14 @@ export function SortableBucketCard({ id, children, onEdit, editAriaLabel }: Sort
     isDragging,
   } = useSortable({ id });
 
+  const handlePointerDownCapture = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    setDragBounds(readDragBounds(event.currentTarget));
+  }, []);
+
+  const displayTransform = isDragging ? clampTransformToBounds(transform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1 }, dragBounds) : transform;
+
   const rootStyle: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Transform.toString(displayTransform),
     transition,
     zIndex: isDragging ? 50 : undefined,
     opacity: isDragging ? 0.85 : 1,
@@ -59,6 +97,7 @@ export function SortableBucketCard({ id, children, onEdit, editAriaLabel }: Sort
       ref={setNodeRef}
       style={rootStyle}
       className={`relative rounded-2xl ${isDragging ? 'shadow-neuRaised' : ''}`.trim()}
+      onPointerDownCapture={handlePointerDownCapture}
       {...attributes}
       {...listeners}
     >
@@ -71,7 +110,7 @@ export function SortableBucketCard({ id, children, onEdit, editAriaLabel }: Sort
           variant="solid"
           size="sm"
           ariaLabel={editAriaLabel ?? 'Edit bucket'}
-          className="absolute -right-1.5 -top-1.5 z-10"
+          className="absolute -left-1.5 -top-1.5 z-10"
           onPointerDown={event => event.stopPropagation()}
           onClick={event => {
             event.stopPropagation();

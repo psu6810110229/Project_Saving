@@ -1,6 +1,13 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { Bucket, BucketCreateRuleData, BucketTransfer, SavingRuleType, SavingsLog } from '../../types';
 import { addDays, daysBetween, todayBangkokKey } from '../../lib/savingPlan';
+import {
+  type RuleChoice,
+  calcDefaultDeadline,
+  calcRuleAmount,
+  initialRuleChoice,
+  recommendedRule,
+} from '../../lib/bucketRuleSuggest';
 import { bucketSaved } from '../../lib/buckets';
 import { Button } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
@@ -9,9 +16,6 @@ import { FormField } from '../FormField/FormField';
 import { ReminderDayPicker } from '../ReminderDayPicker/ReminderDayPicker';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
-
-type RuleChoice = 'fixed_daily' | 'fixed_weekly' | 'fixed_monthly' | 'flexible' | 'custom';
-type FixedRuleChoice = Exclude<RuleChoice, 'flexible' | 'custom'>;
 
 interface MigrationBucketStepProps {
   bucket: Bucket;
@@ -22,72 +26,6 @@ interface MigrationBucketStepProps {
   transfers?: BucketTransfer[];
   onBack?: () => void;
   onSubmit: (bucket: Bucket, ruleData: BucketCreateRuleData) => Promise<{ error?: string }> | { error?: string };
-}
-
-const CATEGORY_MONTH_OFFSETS: Record<string, number> = {
-  flight: -6,
-  stay: -3,
-  activities: -2,
-  transport: -1,
-  food: 0,
-  shopping: 0,
-  buffer: 0,
-  home: 0,
-  other: 0,
-};
-
-function addMonthsClamped(dateKey: string, offsetMonths: number): string {
-  const [year, month, day] = dateKey.split('-').map(Number);
-  const targetMonthIndex = month - 1 + offsetMonths;
-  const firstOfTarget = new Date(Date.UTC(year, targetMonthIndex, 1));
-  const targetYear = firstOfTarget.getUTCFullYear();
-  const targetMonth = firstOfTarget.getUTCMonth();
-  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
-  const clampedDay = Math.min(day, lastDay);
-  const mm = String(targetMonth + 1).padStart(2, '0');
-  const dd = String(clampedDay).padStart(2, '0');
-  return `${targetYear}-${mm}-${dd}`;
-}
-
-function calcDefaultDeadline(bucket: Bucket, roomEndDate: string | null, today: string): string {
-  const roomEnd = roomEndDate?.slice(0, 10);
-  if (!roomEnd) return addDays(today, 30);
-  const offset = CATEGORY_MONTH_OFFSETS[bucket.category ?? 'other'] ?? 0;
-  const suggested = addMonthsClamped(roomEnd, offset);
-  return suggested > today ? suggested : addDays(today, 7);
-}
-
-function recommendedRule(remainingDays: number): RuleChoice {
-  if (remainingDays <= 90) return 'fixed_daily';
-  if (remainingDays <= 365) return 'fixed_weekly';
-  return 'fixed_monthly';
-}
-
-function initialRuleChoice(ruleType: SavingRuleType | null | undefined, remainingDays: number): RuleChoice {
-  if (
-    ruleType === 'fixed_daily'
-    || ruleType === 'fixed_weekly'
-    || ruleType === 'fixed_monthly'
-    || ruleType === 'flexible'
-  ) {
-    return ruleType;
-  }
-  if (ruleType === 'increasing_daily' || ruleType === 'increasing_daily_capped') {
-    return 'custom';
-  }
-  return recommendedRule(remainingDays);
-}
-
-function calcRuleAmount(targetAmount: number, remainingDays: number, rule: FixedRuleChoice): number {
-  if (remainingDays <= 0) return targetAmount;
-  switch (rule) {
-    case 'fixed_daily':
-      return Math.ceil(targetAmount / remainingDays);
-    case 'fixed_weekly':
-      return Math.ceil(targetAmount / Math.max(1, Math.ceil(remainingDays / 7)));
-    case 'fixed_monthly':
-      return Math.ceil(targetAmount / Math.max(1, Math.ceil(remainingDays / 30)));
-  }
 }
 
 export function MigrationBucketStep({

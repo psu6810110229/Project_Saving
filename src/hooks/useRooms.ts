@@ -14,6 +14,7 @@ interface CreateRoomValues {
   target_amount: number;
   end_date: string;
   category: ProjectCategory;
+  cover_image_url?: string | null;
 }
 
 interface ActionResult {
@@ -46,6 +47,7 @@ interface CreateRoomWithTemplatesValues {
   target_amount: number;
   end_date: string;
   category: ProjectCategory;
+  cover_image_url?: string | null;
   expenses: WizardExpense[];
 }
 
@@ -159,6 +161,7 @@ export function useRooms() {
       category: values.category,
       archived_at: null,
       target_amount: values.target_amount,
+      cover_image_url: values.cover_image_url ?? null,
     };
 
     const { error: roomError } = await supabase
@@ -171,6 +174,7 @@ export function useRooms() {
         created_by: room.created_by,
         category: room.category,
         target_amount: values.target_amount,
+        cover_image_url: values.cover_image_url ?? null,
       });
     if (roomError) return { error: roomError.message };
 
@@ -209,6 +213,7 @@ export function useRooms() {
         target_amount: values.target_amount,
         end_date: values.end_date,
         category: values.category,
+        cover_image_url: values.cover_image_url ?? null,
       },
       options,
     );

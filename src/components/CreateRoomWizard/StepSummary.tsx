@@ -15,6 +15,7 @@ interface StepSummaryProps {
   name: string;
   category: ProjectCategory;
   endDate: string;
+  coverImageUrl: string | null;
   totalBudget: number;
   expenses: ExpenseDraftItem[];
   onBack: () => void;
@@ -34,6 +35,7 @@ export function StepSummary({
   name,
   category,
   endDate,
+  coverImageUrl,
   totalBudget,
   expenses,
   onBack,
@@ -84,6 +86,7 @@ export function StepSummary({
       target_amount: totalBudget > 0 ? totalBudget : expenseTotal,
       end_date: endDate,
       category,
+      cover_image_url: coverImageUrl,
       expenses: checked.map(e => ({
         category: e.category,
         nameEn: e.nameEn,
@@ -109,7 +112,7 @@ export function StepSummary({
 
     clearWizardDraft();
     setInviteCode(result.inviteCode ?? null);
-  }, [name, category, endDate, totalBudget, expenseTotal, checked, createRoomWithTemplates]);
+  }, [name, category, endDate, coverImageUrl, totalBudget, expenseTotal, checked, createRoomWithTemplates]);
 
   const handleCopy = useCallback(async () => {
     if (!inviteCode) return;

@@ -1,12 +1,22 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Button } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
-import { IconArrowLeft, IconImage } from '../Icon/Icon';
+import { IconArrowLeft, IconCamera, IconImage, IconTrash } from '../Icon/Icon';
+import { ImageCropper } from '../ImageCropper/ImageCropper';
 import { useI18n } from '../../i18n/useI18n';
+import {
+  useImageUpload,
+  type CropRect,
+  type ImageUploadErrorCode,
+} from '../../hooks/useImageUpload';
+import type { ProjectCategory } from '../../types';
 
 interface StepEventDateProps {
   endDate: string;
+  category: ProjectCategory;
+  coverImageUrl: string | null;
   onEndDateChange: (value: string) => void;
+  onCoverImageChange: (value: string | null) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -37,14 +47,41 @@ function todayKey(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+const DEFAULT_COVER_IMAGES: Record<ProjectCategory, string> = {
+  travel: '/vault-card-japan-clean.jpg',
+  gadget: '/vault-card-japan-clean.jpg',
+  wedding: '/vault-card-japan-clean.jpg',
+  home: '/vault-card-japan-clean.jpg',
+  other: '/vault-card-japan-clean.jpg',
+};
+
+function coverErrorMessage(
+  code: ImageUploadErrorCode,
+  copy: ReturnType<typeof useI18n>['copy']['createRoomWizard'],
+  fallback?: string,
+): string {
+  if (code === 'invalid_type') return copy.coverTypeError;
+  if (code === 'too_large') return copy.coverSizeError;
+  if (code === 'not_authenticated') return copy.coverAuthError;
+  if (code === 'decode_failed' || code === 'canvas_failed') return copy.coverProcessError;
+  return fallback ?? copy.coverUploadError;
+}
+
 export function StepEventDate({
   endDate,
+  category,
+  coverImageUrl,
   onEndDateChange,
+  onCoverImageChange,
   onNext,
   onBack,
 }: StepEventDateProps) {
   const { copy } = useI18n();
   const c = copy.createRoomWizard;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { uploading, validateRoomCoverFile, cropAndResizeRoomCover, uploadRoomCover } = useImageUpload();
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
 
   const today = useMemo(() => todayKey(), []);
   const minDate = useMemo(() => {
@@ -55,6 +92,48 @@ export function StepEventDate({
 
   const countdown = countdownMessage(endDate, today, c.countdownMonths, c.countdownDays);
   const valid = endDate > today;
+  const previewUrl = coverImageUrl ?? DEFAULT_COVER_IMAGES[category];
+
+  function handleChooseCover() {
+    setCoverError(null);
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0] ?? null;
+    event.currentTarget.value = '';
+    if (!file) return;
+
+    const validationError = validateRoomCoverFile(file);
+    if (validationError) {
+      setCoverError(coverErrorMessage(validationError, c));
+      return;
+    }
+
+    setCropFile(file);
+  }
+
+  async function handleApplyCrop(crop: CropRect) {
+    if (!cropFile) return;
+
+    setCoverError(null);
+    try {
+      const blob = await cropAndResizeRoomCover(cropFile, crop);
+      const result = await uploadRoomCover(blob);
+      if (result.errorCode || result.error || !result.url) {
+        setCoverError(coverErrorMessage(result.errorCode ?? 'upload_failed', c, result.error));
+        return;
+      }
+
+      onCoverImageChange(result.url);
+      setCropFile(null);
+    } catch (error) {
+      setCoverError(coverErrorMessage(
+        error instanceof Error && error.message === 'canvas_failed' ? 'canvas_failed' : 'decode_failed',
+        c,
+      ));
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -78,20 +157,65 @@ export function StepEventDate({
       )}
 
       <div className="relative overflow-hidden rounded-xl bg-surfaceAlt shadow-soft">
-        <div className="flex aspect-[16/9] items-center justify-center bg-brand-100/50">
-          <div className="flex flex-col items-center gap-2 text-ink-dim">
-            <IconImage size={32} />
-            <span className="font-mono text-xs">{c.coverImagePlaceholder}</span>
+        <div className="relative aspect-[16/9] bg-brand-100/50">
+          <img
+            src={previewUrl}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/35 via-transparent to-transparent" />
+          <div className="absolute left-3 top-3 flex items-center gap-2 rounded-pill bg-surface/85 px-3 py-1.5 text-ink-muted shadow-soft backdrop-blur-sm">
+            <IconImage size={14} />
+            <span className="font-mono text-xs font-bold">{c.coverImagePlaceholder}</span>
           </div>
         </div>
         <button
           type="button"
-          disabled
+          onClick={handleChooseCover}
           className="absolute bottom-3 right-3 rounded-pill bg-surface/80 px-3 py-1.5 font-mono text-xs font-bold text-ink-muted shadow-soft backdrop-blur-sm disabled:opacity-50"
         >
+          <IconCamera size={14} className="mr-1 inline-block align-[-2px]" />
           {c.changeCoverButton}
         </button>
+        {coverImageUrl && (
+          <button
+            type="button"
+            onClick={() => onCoverImageChange(null)}
+            className="absolute bottom-3 left-3 grid h-8 w-8 place-items-center rounded-full bg-surface/80 text-ink-muted shadow-soft backdrop-blur-sm hover:text-danger"
+            aria-label={c.removeCoverButton}
+          >
+            <IconTrash size={14} />
+          </button>
+        )}
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {coverError && (
+        <p className="rounded-lg bg-danger-soft px-4 py-2 font-mono text-sm text-danger">
+          {coverError}
+        </p>
+      )}
+
+      {cropFile && (
+        <ImageCropper
+          open
+          file={cropFile}
+          saving={uploading}
+          error={coverError}
+          onCancel={() => {
+            if (uploading) return;
+            setCropFile(null);
+          }}
+          onApply={handleApplyCrop}
+        />
+      )}
 
       <div className="flex gap-3">
         <Button variant="ghost" size="lg" onClick={onBack}>

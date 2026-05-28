@@ -126,7 +126,10 @@ export function CreateRoomWizard() {
       stepContent = (
         <StepEventDate
           endDate={draft.endDate}
+          category={draft.category}
+          coverImageUrl={draft.coverImageUrl}
           onEndDateChange={endDate => setDraft(prev => ({ ...prev, endDate }))}
+          onCoverImageChange={coverImageUrl => setDraft(prev => ({ ...prev, coverImageUrl }))}
           onNext={goToStep3}
           onBack={() => goTo(1)}
         />
@@ -162,6 +165,7 @@ export function CreateRoomWizard() {
           name={draft.name}
           category={draft.category}
           endDate={draft.endDate}
+          coverImageUrl={draft.coverImageUrl}
           totalBudget={draft.totalBudget}
           expenses={draft.expenses}
           onBack={() => goTo(4)}

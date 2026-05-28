@@ -95,7 +95,7 @@ export function useRooms() {
 
     const { data, error: err } = await supabase
       .from('room_members')
-      .select('rooms(*)')
+      .select('cover_image_url, rooms(*)')
       .eq('user_id', userId)
       .order('joined_at', { ascending: true })
       .abortSignal(controller.signal);
@@ -109,9 +109,10 @@ export function useRooms() {
     }
 
     const rooms: Room[] = (data ?? [])
-      .map((row: { rooms: Room | Room[] | null }) => {
+      .map((row: { cover_image_url: string | null; rooms: Room | Room[] | null }): Room | null => {
         const r = row.rooms;
-        return Array.isArray(r) ? r[0] : r;
+        const room = Array.isArray(r) ? r[0] : r;
+        return room ? { ...room, member_cover_image_url: row.cover_image_url } : null;
       })
       .filter((room): room is Room => room !== null && !room.archived_at);
 
@@ -429,6 +430,22 @@ export function useRooms() {
     return { roomId };
   }
 
+  async function updateMemberCover(roomId: string, values: UpdateRoomCoverValues): Promise<ActionResult> {
+    if (!userId) return { error: 'Not authenticated' };
+
+    const { error: updateError } = await supabase
+      .from('room_members')
+      .update({ cover_image_url: values.cover_image_url })
+      .eq('room_id', roomId)
+      .eq('user_id', userId);
+    if (updateError) return { error: updateError.message };
+
+    setRooms(prev => prev.map(room => (
+      room.id === roomId ? { ...room, member_cover_image_url: values.cover_image_url } : room
+    )));
+    return { roomId };
+  }
+
   async function transferOwnership(roomId: string, newOwnerId: string): Promise<ActionResult> {
     if (!userId) return { error: 'Not authenticated' };
     const { error: rpcError } = await supabase.rpc('transfer_room_ownership', {
@@ -448,5 +465,5 @@ export function useRooms() {
     fetchRooms({ showLoading: currentRooms.length === 0 });
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
+  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, updateMemberCover, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

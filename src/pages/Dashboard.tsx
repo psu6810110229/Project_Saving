@@ -11,6 +11,7 @@ import { MigrationWizard } from '../components/MigrationWizard/MigrationWizard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { BucketEditForm } from '../components/BucketEditForm/BucketEditForm';
+import { BucketManager } from '../components/BucketManager/BucketManager';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
 import { SortableBucketCard } from '../components/SortableBucketCard/SortableBucketCard';
@@ -213,9 +214,12 @@ export function Dashboard() {
     loading: goalLoading,
     error: goalError,
   } = data.goal;
-  const { updateRoomCover } = useRooms();
+  const { updateMemberCover } = useRooms();
+  // Hero cover is per-user (room_members.cover_image_url), falling back to the
+  // shared room cover when the member has not set their own.
+  const heroCoverUrl = activeRoom?.member_cover_image_url ?? activeRoom?.cover_image_url ?? null;
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
-  const { buckets, loading: bucketsLoading, saveBuckets } = data.buckets;
+  const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
@@ -280,6 +284,8 @@ export function Dashboard() {
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
     const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
+  const [manageTransferSheetOpen, setManageTransferSheetOpen] = useState(false);
   const [completedBucketsOpen, setCompletedBucketsOpen] = useState(false);
   const [bucketDragMode, setBucketDragMode] = useState<BucketDragMode>('transfer');
   const [bucketReorderSaving, setBucketReorderSaving] = useState(false);
@@ -1030,8 +1036,15 @@ export function Dashboard() {
       setBucketModalOpen(true);
     }
   }, [buckets.length, navigate]);
+  const handleOpenManageBuckets = useCallback(() => {
+    if (buckets.length > 0) {
+      setManageBucketsOpen(true);
+    } else {
+      setBucketModalOpen(true);
+    }
+  }, [buckets.length]);
   function handleHeroCoverChoose() {
-    if (!activeRoomId || activeRoom?.created_by !== user?.id || coverSaving || coverUploading) return;
+    if (!activeRoomId || coverSaving || coverUploading) return;
     setCoverError(null);
     coverFileInputRef.current?.click();
   }
@@ -1064,7 +1077,7 @@ export function Dashboard() {
         return;
       }
 
-      const updateResult = await updateRoomCover(activeRoomId, { cover_image_url: result.url });
+      const updateResult = await updateMemberCover(activeRoomId, { cover_image_url: result.url });
       if (updateResult.error) {
         setCoverError(updateResult.error);
         return;
@@ -1382,7 +1395,7 @@ export function Dashboard() {
           target={target}
           roomName={activeRoom?.name ?? null}
           roomCategory={activeRoom?.category ?? null}
-          coverImageUrl={activeRoom?.cover_image_url ?? null}
+          coverImageUrl={heroCoverUrl}
           validThru={activeRoom?.end_date ?? null}
           dailySummaryItem={bucketSummaryItems[0] ?? null}
           hasBuckets={buckets.length > 0}
@@ -1390,9 +1403,9 @@ export function Dashboard() {
           streak={heroStreak}
           streakUnit={heroStreakUnit}
           lastCheckedAt={latestCheckpoint?.checked_at ?? null}
-          onEdit={handleConfigurePlan}
+          onEdit={handleOpenManageBuckets}
           editAriaLabel="แก้ไขเป้าหมาย"
-          onChangeCover={activeRoom?.created_by === user?.id ? handleHeroCoverChoose : undefined}
+          onChangeCover={handleHeroCoverChoose}
           changeCoverAriaLabel={`${copy.createRoomWizard.changeCoverButton} ${copy.createRoomWizard.coverImagePlaceholder}`}
           changingCover={coverSaving || coverUploading}
         />
@@ -1813,6 +1826,37 @@ export function Dashboard() {
         </div>
       </Modal>
 
+      <Modal
+        open={manageBucketsOpen}
+        title={copy.manageProject.manageBucketsModalTitle}
+        onClose={() => setManageBucketsOpen(false)}
+        hidden={manageTransferSheetOpen}
+      >
+        <BucketManager
+          buckets={buckets}
+          logs={logs}
+          transfers={bucketTransfers}
+          goalTarget={target > 0 ? target : null}
+          roomEndDate={activeRoom?.end_date ?? null}
+          onUpdate={handleManageBucketUpdate}
+          onReviewCategories={async (updates) => {
+            const result = await reviewBucketCategories(updates);
+            if (!result.error) {
+              for (const u of updates) {
+                void logIntentEvent({
+                  eventKey: 'category_reviewed',
+                  bucketId: u.id,
+                  payload: { category: u.category },
+                });
+              }
+            }
+            return result;
+          }}
+          onTransferSheetOpenChange={setManageTransferSheetOpen}
+          onRemoved={refetchBuckets}
+        />
+      </Modal>
+
       {(() => {
         const editBucket = editBucketId ? buckets.find(b => b.id === editBucketId) : null;
         return (
@@ -2000,7 +2044,7 @@ export function Dashboard() {
         displayName={youName}
         roomName={activeRoom?.name ?? null}
         roomCategory={activeRoom?.category ?? null}
-        coverImageUrl={activeRoom?.cover_image_url ?? null}
+        coverImageUrl={heroCoverUrl}
         validThru={activeRoom?.end_date ?? null}
         hasBuckets={buckets.length > 0}
         bucketCount={buckets.filter(bucket => bucket.archived_at == null).length}

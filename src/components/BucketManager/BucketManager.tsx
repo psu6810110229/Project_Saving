@@ -7,9 +7,11 @@ import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { BucketCategoryReviewModal } from '../BucketCategoryReviewModal/BucketCategoryReviewModal';
 import { BucketEditForm, type BucketEditFormResult, type BucketEditValues } from '../BucketEditForm/BucketEditForm';
 import { BucketTransferSheet, type TransferBucketOption } from '../BucketTransferSheet/BucketTransferSheet';
+import { CATEGORY_ACCENT, DEFAULT_ACCENT } from '../../lib/bucketAccent';
 import { Button } from '../Button/Button';
 import { IconEdit, IconTrash } from '../Icon/Icon';
 import { IconButton } from '../IconButton/IconButton';
+import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { RemoveBucketModal, type RemoveBucketDestination } from '../RemoveBucketModal/RemoveBucketModal';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { useI18n } from '../../i18n/useI18n';
@@ -211,6 +213,12 @@ export function BucketManager({
 
   return (
     <div className="flex flex-col gap-4">
+      {typeof goalTarget === 'number' && (
+        <TargetCapacitySummary
+          goalTarget={goalTarget}
+          allocated={totalBucketTargets}
+        />
+      )}
       {(statusMessage || localMessage) && (
         <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">
           {localMessage ?? statusMessage}
@@ -250,12 +258,6 @@ export function BucketManager({
         onSaved={handleEdited}
         onAskRemove={openRemove}
       />
-      {typeof goalTarget === 'number' && (
-        <TargetCapacitySummary
-          goalTarget={goalTarget}
-          allocated={totalBucketTargets}
-        />
-      )}
       <RemoveBucketModal
         open={pendingRemove !== null}
         bucketName={pendingRemove?.name ?? null}
@@ -292,12 +294,27 @@ export function BucketManager({
 function TargetCapacitySummary({ goalTarget, allocated }: { goalTarget: number; allocated: number }) {
   const { copy, formatMoney } = useI18n();
   const remaining = Math.max(0, goalTarget - allocated);
+  const pct = goalTarget > 0 ? (allocated / goalTarget) * 100 : 0;
 
   return (
-    <div className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-ink-muted">
-      <p className="font-bold text-ink">{copy.bucket.mainGoalTarget(formatMoney(goalTarget))}</p>
-      <p className="mt-1">{copy.bucket.allocatedOf(formatMoney(allocated), formatMoney(goalTarget))}</p>
-      <p className="mt-1">{copy.bucket.remainingForBuckets(formatMoney(remaining))}</p>
+    <div className="rounded-xl bg-brand-50 px-4 py-3">
+      <div className="flex items-baseline justify-between gap-2 font-mono">
+        <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-ink-muted">
+          {copy.bucket.mainGoalLabel}
+        </span>
+        <span className="text-sm font-bold tabular-nums text-ink">{formatMoney(goalTarget)}</span>
+      </div>
+      <div className="mt-2">
+        <ProgressBar value={pct} tone="primary" size="sm" />
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2 font-mono text-[11px]">
+        <span className="text-ink-muted">
+          {copy.bucket.allocatedLabel} <span className="font-bold tabular-nums text-ink">{formatMoney(allocated)}</span>
+        </span>
+        <span className="text-ink-muted">
+          {copy.bucket.remainingLabel} <span className="font-bold tabular-nums text-ink">{formatMoney(remaining)}</span>
+        </span>
+      </div>
     </div>
   );
 }
@@ -329,88 +346,124 @@ function BucketSummary({
   onSaved: (result: BucketEditFormResult) => void;
   onAskRemove: (bucket: Bucket) => void;
 }) {
-  const { copy, formatMoney } = useI18n();
+  const { copy } = useI18n();
 
   if (buckets.length === 0) {
     return <p className="font-mono text-xs text-ink-muted">{copy.bucket.noBucketsYet}</p>;
   }
 
+  const editingBucket = editingId ? buckets.find(b => b.id === editingId) ?? null : null;
+
   return (
     <div className="rounded-xl bg-surface p-4 shadow-soft">
       <SectionLabel tone="brand">{copy.bucket.currentBuckets}</SectionLabel>
-      <div className="mt-3 flex flex-col gap-3">
-        {buckets.map(bucket => {
-          const saved = bucketSaved(bucket.id, logs, transfers);
-          const remaining = Math.max(0, bucket.target_amount - saved);
-          const editing = editingId === bucket.id;
-
-          return (
-            <div
+      {editingBucket ? (
+        <div className="mt-3 rounded-lg bg-brand-50 px-4 py-3">
+          <BucketEditForm
+            bucket={editingBucket}
+            buckets={buckets}
+            logs={logs}
+            transfers={transfers}
+            goalTarget={goalTarget}
+            roomEndDate={roomEndDate}
+            onCancel={onCancelEdit}
+            onSave={onSave}
+            onSaved={onSaved}
+          />
+        </div>
+      ) : (
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {buckets.map(bucket => (
+            <ManageBucketCard
               key={bucket.id}
-              className={
-                'rounded-lg bg-brand-50 px-4 py-3'
-                + (bucket.id === highlightBucketId ? ' bucket-highlight-focus' : '')
-              }
-            >
-              {editing ? (
-                <BucketEditForm
-                  bucket={bucket}
-                  buckets={buckets}
-                  logs={logs}
-                  transfers={transfers}
-                  goalTarget={goalTarget}
-                  roomEndDate={roomEndDate}
-                  onCancel={onCancelEdit}
-                  onSave={onSave}
-                  onSaved={onSaved}
-                />
-              ) : (
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-mono text-sm font-bold text-ink">{bucket.name}</span>
-                    </div>
-                    <p className="mt-1 font-mono text-xs text-ink-muted">
-                      {copy.bucket.savedOf(formatMoney(saved), formatMoney(bucket.target_amount))}
-                    </p>
-                    <p className="mt-1 font-mono text-xs text-ink-muted">
-                      {copy.bucket.remaining(formatMoney(remaining))}
-                    </p>
-                    {bucket.deadline && (
-                      <p className="mt-1 font-mono text-xs text-ink-dim">
-                        {copy.bucket.editDeadlineLabel}: {bucket.deadline}
-                      </p>
-                    )}
-                    {bucket.saving_rule_type && (
-                      <p className="mt-1 font-mono text-xs text-ink-dim">
-                        {copy.bucket.ruleNames[bucket.saving_rule_type]}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <IconButton
-                      type="button"
-                      size="sm"
-                      ariaLabel={copy.bucket.editAriaLabel(bucket.name)}
-                      onClick={() => onStartEdit(bucket)}
-                    >
-                      <IconEdit size={16} />
-                    </IconButton>
-                    <IconButton
-                      type="button"
-                      size="sm"
-                      ariaLabel={copy.bucket.deleteAriaLabel(bucket.name)}
-                      className="bg-danger-soft text-danger hover:bg-danger-soft/80"
-                      onClick={() => onAskRemove(bucket)}
-                    >
-                      <IconTrash size={16} />
-                    </IconButton>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+              bucket={bucket}
+              saved={bucketSaved(bucket.id, logs, transfers)}
+              highlighted={bucket.id === highlightBucketId}
+              onEdit={() => onStartEdit(bucket)}
+              onAskRemove={() => onAskRemove(bucket)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManageBucketCard({
+  bucket,
+  saved,
+  highlighted,
+  onEdit,
+  onAskRemove,
+}: {
+  bucket: Bucket;
+  saved: number;
+  highlighted: boolean;
+  onEdit: () => void;
+  onAskRemove: () => void;
+}) {
+  const { copy, formatMoney } = useI18n();
+  const accent = (bucket.category && CATEGORY_ACCENT[bucket.category]) || DEFAULT_ACCENT;
+  const pct = bucket.target_amount > 0 ? (saved / bucket.target_amount) * 100 : 0;
+
+  return (
+    <div
+      className={
+        'flex flex-col rounded-2xl border-[1.5px] bg-surface p-3 shadow-soft'
+        + (highlighted ? ' bucket-highlight-focus' : '')
+      }
+      style={{ borderColor: accent.border }}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full [&_svg]:h-[18px] [&_svg]:w-[18px]"
+          style={{ background: accent.tint, color: accent.accent }}
+        >
+          <BucketCategoryIcon category={bucket.category} size={18} />
+        </span>
+        <span className="min-w-0 flex-1 truncate font-mono text-sm font-bold leading-tight text-ink">
+          {bucket.name}
+        </span>
+      </div>
+
+      <p className="mt-2 flex min-w-0 items-baseline gap-1 font-mono leading-none">
+        <span className="shrink-0 whitespace-nowrap text-sm font-bold" style={{ color: accent.accent }}>
+          {formatMoney(saved)}
+        </span>
+        <span className="truncate text-[11px] text-ink-dim">
+          / {formatMoney(bucket.target_amount)}
+        </span>
+      </p>
+
+      <div className="mt-2 flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <ProgressBar value={pct} tone="theme" themeHex={accent.accent} size="sm" className="bg-well" />
+        </div>
+        <span className="shrink-0 font-mono text-[11px] font-bold" style={{ color: accent.accent }}>
+          {Math.round(pct)}%
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <IconButton
+          type="button"
+          variant="solid"
+          size="sm"
+          ariaLabel={copy.bucket.deleteAriaLabel(bucket.name)}
+          className="bg-danger/90 text-danger hover:bg-danger/35"
+          onClick={onAskRemove}
+        >
+          <IconTrash size={15} />
+        </IconButton>
+        <IconButton
+          type="button"
+          variant="solid"
+          size="sm"
+          ariaLabel={copy.bucket.editAriaLabel(bucket.name)}
+          onClick={onEdit}
+        >
+          <IconEdit size={15} />
+        </IconButton>
       </div>
     </div>
   );

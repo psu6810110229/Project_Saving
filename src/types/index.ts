@@ -36,6 +36,12 @@ export interface Room {
   target_amount?: number | null;
   /** Supabase Storage path for custom room cover image. */
   cover_image_url?: string | null;
+  /**
+   * Caller's personal cover image for this room (from room_members,
+   * migration 0075). Visible only to them; the client falls back to
+   * cover_image_url when unset. Populated during fetch, not a column on rooms.
+   */
+  member_cover_image_url?: string | null;
 }
 
 export interface RoomMember {

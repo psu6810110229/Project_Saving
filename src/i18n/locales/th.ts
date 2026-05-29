@@ -3,8 +3,13 @@ import type { Messages } from '../messages';
 export const th: Messages = {
   nav: {
     dashboard: 'หน้าหลัก',
-    add: 'หยอดเงิน',
+    team: 'ทีม',
     profile: 'โปรไฟล์',
+  },
+  team: {
+    pageTitle: 'ทีม',
+    pageSubtitle: 'ดูความคืบหน้าของทุกคน',
+    placeholder: 'กิจกรรมของทีมกำลังย้ายมาที่นี่',
   },
   common: {
     loading: 'สักครู่ รออีกนิดเดียว',

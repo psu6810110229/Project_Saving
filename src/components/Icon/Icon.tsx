@@ -354,6 +354,17 @@ export function IconUser(p: IconProps) {
   );
 }
 
+export function IconUsers(p: IconProps) {
+  return (
+    <svg {...svgProps(p)} aria-hidden>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 21a6.5 6.5 0 0 1 13 0" />
+      <path d="M16 5.5a3.5 3.5 0 0 1 0 6.8" />
+      <path d="M17.5 15.2A6.5 6.5 0 0 1 21.5 21" />
+    </svg>
+  );
+}
+
 export function IconSlip(p: IconProps) {
   return (
     <svg {...svgProps(p)} aria-hidden>

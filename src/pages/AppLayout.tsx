@@ -514,13 +514,13 @@ function StatusCard({
 }
 
 function tabFromPath(pathname: string): BottomNavTab {
-  if (pathname.startsWith('/add')) return 'add';
+  if (pathname.startsWith('/team')) return 'team';
   if (pathname.startsWith('/profile')) return 'profile';
   return 'dashboard';
 }
 
 function pathFromTab(tab: BottomNavTab): string {
-  if (tab === 'add') return '/add';
+  if (tab === 'team') return '/team';
   if (tab === 'profile') return '/profile';
   return '/dashboard';
 }

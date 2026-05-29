@@ -11,6 +11,7 @@ import { CheckBalance } from './pages/CheckBalance';
 import { CreateRoom } from './pages/CreateRoom';
 import { JoinRoom } from './pages/JoinRoom';
 import { Dashboard } from './pages/Dashboard';
+import { Team } from './pages/Team';
 import { SavingPlan } from './pages/SavingPlan';
 import { Login } from './pages/Login';
 import { Maintenance } from './pages/Maintenance';
@@ -56,6 +57,7 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/team" element={<Team />} />
               <Route path="/add" element={<Navigate to="/dashboard" replace />} />
               <Route path="/check-balance" element={<CheckBalance />} />
               <Route path="/saving-plan" element={<SavingPlan />} />

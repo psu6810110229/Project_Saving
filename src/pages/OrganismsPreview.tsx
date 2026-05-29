@@ -84,7 +84,7 @@ export function OrganismsPreview() {
             title="Trip Buckets"
             subtitle="Tap a bucket to open its detail flow."
             buckets={bucketItems}
-            onAddBucket={() => setNav('add')}
+            onAddBucket={() => setNav('team')}
           />
         </Group>
 
@@ -115,7 +115,7 @@ export function OrganismsPreview() {
             mineSeries={[1200, 1500, 2000, 2200, 2800, 3500, 4200]}
             theirSeries={[1500, 1700, 1800, 2400, 2700, 2900, 3100]}
             onPrimary={() => setModalOpen(true)}
-            onSecondary={() => setNav('add')}
+            onSecondary={() => setNav('team')}
           />
         </Group>
 

@@ -1,8 +1,13 @@
 export const en = {
   nav: {
     dashboard: 'Dashboard',
-    add: 'Add',
+    team: 'Team',
     profile: 'Profile',
+  },
+  team: {
+    pageTitle: 'Team',
+    pageSubtitle: 'How everyone is doing',
+    placeholder: 'Team activity is moving here.',
   },
   common: {
     loading: 'Loading…',

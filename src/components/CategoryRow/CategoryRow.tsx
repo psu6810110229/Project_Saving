@@ -57,7 +57,7 @@ export function CategoryRow<T extends string>({
       <div
         className={
           (label ? 'mt-3 ' : '') +
-          'flex gap-3 overflow-x-auto pb-1 ' +
+          'flex gap-3 overflow-x-auto -mx-1 px-1 py-1 ' +
           (shape === 'circle' ? 'justify-start' : 'snap-x snap-mandatory')
         }
       >

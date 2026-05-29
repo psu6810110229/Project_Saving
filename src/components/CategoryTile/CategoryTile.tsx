@@ -49,9 +49,9 @@ export function CategoryTile({
       >
         <span
           className={
-            'w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ' +
+            'w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 [&_svg]:h-7 [&_svg]:w-7 ' +
             (selected
-              ? 'bg-brand-50 text-brand-800 ring-2 ring-brand-500'
+              ? 'bg-brand-50 text-brand-800 ring-2 ring-inset ring-brand-500'
               : 'bg-brand-50/70 text-ink-muted ' + (disabled ? '' : 'hover:bg-brand-50'))
           }
         >

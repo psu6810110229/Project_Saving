@@ -137,7 +137,7 @@ export const en = {
     heatmapTitle: 'Your saving streak',
     heatmapLess: 'Less',
     heatmapMore: 'More',
-    heatmapStartLegend: 'Bucket start',
+    heatmapStartLegend: 'Project start',
     heatmapDueLegend: 'Due date',
     heatmapTodayLegend: 'Today',
     heatmapDueDetailTitle: 'Due',

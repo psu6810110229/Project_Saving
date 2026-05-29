@@ -134,7 +134,7 @@ export const th: Messages = {
     heatmapTitle: 'จังหวะการออมของคุณ',
     heatmapLess: 'น้อย',
     heatmapMore: 'มาก',
-    heatmapStartLegend: 'วันเริ่ม',
+    heatmapStartLegend: 'เริ่มโปรเจกต์',
     heatmapDueLegend: 'วันครบกำหนด',
     heatmapTodayLegend: 'วันนี้',
     heatmapDueDetailTitle: 'ครบกำหนด',

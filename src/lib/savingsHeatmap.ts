@@ -20,8 +20,8 @@ export interface HeatmapCell {
   /** Within the real project window (start..end inclusive). */
   inRange: boolean;
   isFuture: boolean;
-  /** A bucket's start day (bucket created_at). */
-  bucketStart: boolean;
+  /** The room/project start day. */
+  projectStart: boolean;
   /** A bucket's due day (bucket deadline). */
   bucketDue: boolean;
 }
@@ -74,8 +74,8 @@ export interface BuildHeatmapParams {
   /** Project window end day key (inclusive). */
   endKey: string;
   todayKey: string;
-  /** Bucket start day keys (created_at). */
-  bucketStartKeys: Set<string>;
+  /** Room/project start day key. */
+  projectStartKey: string | null;
   /** Bucket due day keys (deadline). */
   bucketDueKeys: Set<string>;
 }
@@ -85,7 +85,7 @@ export function buildSavingsHeatmap({
   startKey,
   endKey,
   todayKey,
-  bucketStartKeys,
+  projectStartKey,
   bucketDueKeys,
 }: BuildHeatmapParams): HeatmapModel {
   // Snap the grid to whole ISO weeks (Mon..Sun) so columns are uniform.
@@ -114,7 +114,7 @@ export function buildSavingsHeatmap({
       isToday: cursor === todayKey,
       inRange,
       isFuture: cursor > todayKey,
-      bucketStart: bucketStartKeys.has(cursor),
+      projectStart: projectStartKey === cursor,
       bucketDue: bucketDueKeys.has(cursor),
     };
     column.push(cell);

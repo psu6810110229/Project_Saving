@@ -5,7 +5,7 @@ import { useI18n } from '../../i18n/useI18n';
 import { todayBangkokKey } from '../../lib/savingPlan';
 import { FADE_TRANSITION, REDUCED_MOTION_TRANSITION, SPRING } from '../../lib/motion';
 import { bucketPercent, bucketSaved } from '../../lib/buckets';
-import { buildSavingsHeatmap, type HeatLevel, type HeatmapCell } from '../../lib/savingsHeatmap';
+import { buildSavingsHeatmap, type HeatLevel } from '../../lib/savingsHeatmap';
 import type { Bucket, BucketTransfer, SavingsLog } from '../../types';
 
 interface SavingsHeatmapProps {
@@ -51,11 +51,11 @@ const COL_PX = CELL_PX + GAP_PX;
 const MIN_LABEL_COLS = 3;
 
 const LEVEL_CLASS: Record<HeatLevel, string> = {
-  0: 'bg-well',
-  1: 'bg-brand-200',
-  2: 'bg-brand-400',
-  3: 'bg-brand-600',
-  4: 'bg-brand-800',
+  0: 'bg-[#F3ECE5]',
+  1: 'bg-[#F2C9A5]',
+  2: 'bg-[#F0A15F]',
+  3: 'bg-[#DF6A22]',
+  4: 'bg-[#9B430D]',
 };
 
 function dayKeyOf(iso: string): string {
@@ -107,14 +107,13 @@ export function SavingsHeatmap({
     }
 
     const activeBuckets = buckets.filter(b => b.archived_at == null);
-    const bucketStartKeys = new Set<string>(activeBuckets.map(b => dayKeyOf(b.created_at)));
+    const projectStartKey = roomStartIso ? dayKeyOf(roomStartIso) : null;
     const bucketDueKeys = new Set<string>(
       activeBuckets.flatMap(b => (b.deadline ? [b.deadline] : [])),
     );
 
     const startCandidates = [
-      ...(roomStartIso ? [dayKeyOf(roomStartIso)] : []),
-      ...bucketStartKeys,
+      ...(projectStartKey ? [projectStartKey] : []),
       ...dailyTotals.keys(),
     ];
     let startKey = minKey(startCandidates) ?? todayKey;
@@ -132,7 +131,7 @@ export function SavingsHeatmap({
       startKey,
       endKey,
       todayKey,
-      bucketStartKeys,
+      projectStartKey,
       bucketDueKeys,
     });
   }, [logs, userId, buckets, roomStartIso, roomEndDateKey, todayKey]);
@@ -160,33 +159,41 @@ export function SavingsHeatmap({
   // months wide enough to fit one without colliding with the next.
   const monthMarks = useMemo(() => {
     const fmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
-    // Calendar month (year*12 + month) of each column's Monday.
-    const monthOf = weeks.map(column => {
-      const key = column[0]?.dateKey;
-      if (!key) return -1;
+    const monthOf = (key: string) => {
       const [y, m] = key.split('-').map(Number);
       return y * 12 + (m - 1);
-    });
-    const labelOf = (column: HeatmapCell[]) => {
-      const key = column[0]?.dateKey;
-      if (!key) return '';
+    };
+    const labelOf = (key: string) => {
       const [y, m, dd] = key.split('-').map(Number);
       return fmt.format(new Date(Date.UTC(y, m - 1, dd)));
     };
 
-    const dividers: number[] = [];
-    const labels: { col: number; text: string }[] = [];
-    for (let i = 0; i < weeks.length; i++) {
-      const isStart = i === 0 || monthOf[i] !== monthOf[i - 1];
-      if (!isStart) continue;
-      if (i > 0) dividers.push(i);
-      // How many columns this month spans before the next boundary.
-      let span = 1;
-      while (i + span < weeks.length && monthOf[i + span] === monthOf[i]) span++;
-      // Only label months with room, so labels never overlap their neighbour.
-      if (span >= MIN_LABEL_COLS) labels.push({ col: i, text: labelOf(weeks[i]) });
+    const starts: { col: number; row: number; text: string }[] = [];
+    let previousMonth: number | null = null;
+    for (let col = 0; col < weeks.length; col++) {
+      const column = weeks[col];
+      for (let row = 0; row < column.length; row++) {
+        const key = column[row].dateKey;
+        const month = monthOf(key);
+        if (previousMonth === null || month !== previousMonth) {
+          starts.push({ col, row, text: labelOf(key) });
+          previousMonth = month;
+        }
+      }
     }
-    return { dividers, labels };
+
+    const boundaries = starts.slice(1);
+    const labels: { col: number; text: string }[] = [];
+    for (let i = 0; i < starts.length; i++) {
+      const start = starts[i];
+      const next = starts[i + 1];
+      const lastCol = next
+        ? next.col - (next.row === 0 ? 1 : 0)
+        : weeks.length - 1;
+      const span = lastCol - start.col + 1;
+      if (span >= MIN_LABEL_COLS) labels.push({ col: start.col, text: start.text });
+    }
+    return { boundaries, labels };
   }, [weeks, locale]);
 
   const gridWidth = weeks.length * COL_PX;
@@ -282,15 +289,45 @@ export function SavingsHeatmap({
           className="min-w-0 flex-1 overflow-x-auto"
         >
           <div className="relative w-max">
-            {/* Month-boundary dividers — span the label row and the grid below. */}
+            {/* Month boundaries follow the real first day, including mid-week starts. */}
             <div aria-hidden className="pointer-events-none absolute inset-0">
-              {monthMarks.dividers.map(col => (
-                <span
-                  key={col}
-                  className="absolute bottom-0 top-0 w-px bg-ink/10"
-                  style={{ left: col * COL_PX - GAP_PX / 2 }}
-                />
-              ))}
+              {monthMarks.boundaries.flatMap(({ col, row }) => {
+                const left = Math.round(col * COL_PX - GAP_PX / 2);
+                const rowTop = Math.round(CELL_PX + row * COL_PX - GAP_PX / 2);
+                const gridTop = CELL_PX;
+                const gridBottom = CELL_PX + 7 * CELL_PX + 6 * GAP_PX;
+                const verticalTop = row === 0 ? gridTop : rowTop;
+                const line = 'linear-gradient(to bottom, rgba(126,104,86,0.06), rgba(126,104,86,0.22) 18%, rgba(126,104,86,0.22) 88%, rgba(126,104,86,0.06))';
+                const parts = [
+                  <span
+                    key={`${col}-${row}-v`}
+                    className="absolute"
+                    style={{
+                      left,
+                      top: verticalTop,
+                      width: 1,
+                      height: gridBottom - verticalTop,
+                      background: line,
+                    }}
+                  />,
+                ];
+                if (row > 0) {
+                  parts.push(
+                    <span
+                      key={`${col}-${row}-h`}
+                      className="absolute"
+                      style={{
+                        left,
+                        top: rowTop,
+                        width: CELL_PX,
+                        height: 1,
+                        background: 'rgba(126,104,86,0.18)',
+                      }}
+                    />,
+                  );
+                }
+                return parts;
+              })}
             </div>
 
             {/* Month labels — placed above each labelled month's first column. */}
@@ -313,20 +350,20 @@ export function SavingsHeatmap({
                 {column.map(cell => {
                   const title = `${formatMoney(cell.amount)} · ${cell.dateKey}`
                     + (cell.bucketDue ? ` · ${d.heatmapDueLegend}` : '')
-                    + (cell.bucketStart ? ` · ${d.heatmapStartLegend}` : '');
+                    + (cell.projectStart ? ` · ${d.heatmapStartLegend}` : '');
                   const cellClass =
-                    'relative rounded-[3px] '
+                    'relative rounded-[4px] shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] '
                     + LEVEL_CLASS[cell.level]
                     + (cell.isFuture ? ' opacity-40' : '')
                     + (!cell.inRange ? ' opacity-30' : '')
-                    + (cell.isToday ? ' ring-2 ring-ink' : '')
-                    + (cell.bucketStart ? ' ring-2 ring-accent-leaf' : '');
+                    + (cell.isToday ? ' ring-2 ring-inset ring-ink' : '')
+                    + (cell.projectStart ? ' ring-2 ring-inset ring-accent-leaf' : '');
                   const flag = cell.bucketDue && (
                     <span
                       className="absolute inset-0 grid place-items-center text-danger"
                       aria-hidden
                     >
-                      <IconFlag size={9} strokeWidth={2.5} />
+                      <IconFlag size={11} strokeWidth={3} />
                     </span>
                   );
 
@@ -341,7 +378,7 @@ export function SavingsHeatmap({
                         onClick={e => handleDueClick(cell.dateKey, e)}
                         className={
                           cellClass
-                          + (popover?.dateKey === cell.dateKey ? ' ring-2 ring-danger' : '')
+                          + (popover?.dateKey === cell.dateKey ? ' ring-2 ring-inset ring-danger' : '')
                         }
                         style={{ height: CELL_PX, width: CELL_PX }}
                       >

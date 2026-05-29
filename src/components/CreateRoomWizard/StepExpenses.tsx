@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { Button } from '../Button/Button';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
-import { IconArrowLeft, IconPlus } from '../Icon/Icon';
+import { IconPlus, IconTrash } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { suggestExpenses } from '../../lib/travelExpenseRules';
@@ -13,8 +12,6 @@ interface StepExpensesProps {
   expenses: ExpenseDraftItem[];
   onTotalBudgetChange: (value: number) => void;
   onExpensesChange: (expenses: ExpenseDraftItem[]) => void;
-  onNext: () => void;
-  onBack: () => void;
 }
 
 function parseBudgetInput(raw: string): number {
@@ -38,8 +35,6 @@ export function StepExpenses({
   expenses,
   onTotalBudgetChange,
   onExpensesChange,
-  onNext,
-  onBack,
 }: StepExpensesProps) {
   const { language, copy } = useI18n();
   const c = copy.createRoomWizard;
@@ -116,7 +111,7 @@ export function StepExpenses({
     [expenses, onExpensesChange],
   );
 
-  const removeCustom = useCallback(
+  const removeExpense = useCallback(
     (id: string) => {
       onExpensesChange(expenses.filter(e => e.id !== id));
     },
@@ -151,6 +146,13 @@ export function StepExpenses({
             />
           </div>
         </label>
+      </div>
+
+      {/* Running total — left-aligned, above the list */}
+      <div className="rounded-xl bg-brand-50 px-4 py-3">
+        <p className="font-mono text-sm font-bold text-brand-800">
+          {c.runningTotal(formatCurrency(checkedTotal))}
+        </p>
       </div>
 
       {/* Expense list */}
@@ -200,7 +202,7 @@ export function StepExpenses({
                   <button
                     type="button"
                     className="self-start font-mono text-[10px] text-danger"
-                    onClick={() => removeCustom(exp.id)}
+                    onClick={() => removeExpense(exp.id)}
                   >
                     ✕
                   </button>
@@ -225,6 +227,18 @@ export function StepExpenses({
                   onChange={e => updateAmount(exp.id, e.target.value)}
                 />
               </div>
+
+              {/* Remove suggested bucket */}
+              {!exp.isCustom && (
+                <button
+                  type="button"
+                  onClick={() => removeExpense(exp.id)}
+                  aria-label={`Remove ${name}`}
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-danger transition-colors hover:bg-danger-soft"
+                >
+                  <IconTrash size={16} />
+                </button>
+              )}
             </div>
           );
         })}
@@ -240,27 +254,10 @@ export function StepExpenses({
         </button>
       </div>
 
-      {/* Running total */}
-      <div className="rounded-xl bg-brand-50 px-4 py-3 text-center">
-        <p className="font-mono text-sm font-bold text-brand-800">
-          {c.runningTotal(formatCurrency(checkedTotal))}
-        </p>
-      </div>
-
       {/* Validation hint */}
       {!hasChecked && (
         <p className="text-center font-mono text-xs text-danger">{c.noExpensesSelected}</p>
       )}
-
-      {/* Navigation */}
-      <div className="flex gap-3">
-        <Button variant="ghost" size="lg" onClick={onBack}>
-          <IconArrowLeft size={16} />
-        </Button>
-        <Button variant="primary" fullWidth disabled={!hasChecked} onClick={onNext}>
-          {c.nextButton}
-        </Button>
-      </div>
     </div>
   );
 }

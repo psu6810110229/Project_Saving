@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Button } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
 import { HeroCard } from '../HeroCard/HeroCard';
-import { IconArrowLeft, IconCamera, IconTrash } from '../Icon/Icon';
+import { IconCamera, IconTrash } from '../Icon/Icon';
 import { ImageCropper } from '../ImageCropper/ImageCropper';
 import { useI18n } from '../../i18n/useI18n';
 import { useProfile } from '../../hooks/useProfile';
@@ -21,8 +21,6 @@ interface StepEventDateProps {
   coverImageUrl: string | null;
   onEndDateChange: (value: string) => void;
   onCoverImageChange: (value: string | null) => void;
-  onNext: () => void;
-  onBack: () => void;
 }
 
 function todayKey(): string {
@@ -44,8 +42,6 @@ export function StepEventDate({
   coverImageUrl,
   onEndDateChange,
   onCoverImageChange,
-  onNext,
-  onBack,
 }: StepEventDateProps) {
   const { copy } = useI18n();
   const c = copy.createRoomWizard;
@@ -63,7 +59,6 @@ export function StepEventDate({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
 
-  const valid = endDate > today;
   const previewUrl = coverImageUrl ?? DEFAULT_COVER_IMAGES[category];
   const previewTint = useMemo(
     () => HERO_COVER_PRESETS.find(preset => preset.url === previewUrl)?.tint ?? null,
@@ -206,14 +201,6 @@ export function StepEventDate({
         />
       )}
 
-      <div className="flex gap-3">
-        <Button variant="ghost" size="lg" onClick={onBack}>
-          <IconArrowLeft size={16} />
-        </Button>
-        <Button variant="primary" fullWidth disabled={!valid} onClick={onNext}>
-          {c.nextButton}
-        </Button>
-      </div>
     </div>
   );
 }

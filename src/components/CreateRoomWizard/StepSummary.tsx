@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../Button/Button';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { ExpenseTimeline } from '../ExpenseTimeline/ExpenseTimeline';
-import { IconArrowLeft } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { useRooms } from '../../hooks/useRooms';
 import { formatCurrency } from '../../lib/format';
@@ -18,7 +17,6 @@ interface StepSummaryProps {
   coverImageUrl: string | null;
   totalBudget: number;
   expenses: ExpenseDraftItem[];
-  onBack: () => void;
 }
 
 function formatDate(dateKey: string, lang: string): string {
@@ -38,7 +36,6 @@ export function StepSummary({
   coverImageUrl,
   totalBudget,
   expenses,
-  onBack,
 }: StepSummaryProps) {
   const navigate = useNavigate();
   const { language, copy } = useI18n();
@@ -255,19 +252,14 @@ export function StepSummary({
           </div>
         </div>
       ) : (
-        <div className="flex gap-3">
-          <Button variant="ghost" size="lg" onClick={onBack} disabled={creating}>
-            <IconArrowLeft size={16} />
-          </Button>
-          <Button
-            variant="action"
-            fullWidth
-            onClick={() => void handleCreate()}
-            disabled={creating}
-          >
-            {creating ? c.creatingProject : c.createProjectButton}
-          </Button>
-        </div>
+        <Button
+          variant="action"
+          fullWidth
+          onClick={() => void handleCreate()}
+          disabled={creating}
+        >
+          {creating ? c.creatingProject : c.createProjectButton}
+        </Button>
       )}
     </div>
   );

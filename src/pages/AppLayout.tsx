@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { Fragment, type ReactNode, useEffect, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AppShell } from '../components/AppShell/AppShell';
 import { Avatar } from '../components/Avatar/Avatar';
 import type { BottomNavTab } from '../components/BottomNav/BottomNav';
@@ -115,14 +115,16 @@ export function AppLayout() {
           onAction={() => void refetch({ showLoading: true })}
         />
       )}
-      {isSetupScreen && (
-        <PageTransition transitionKey="project-setup">
-          <ProjectSetup onJoin={joinRoomByCode} fetchPreview={fetchRoomPreview} />
-        </PageTransition>
-      )}
-      {!loading && !error && !activeRoom && roomlessAllowed && (
-        <PageTransition transitionKey={location.pathname}>
-          {outlet}
+      {!loading && !error && !activeRoom && (
+        // One PageTransition spans the no-room states (setup screen + roomless
+        // routes like /create-room, /join-room) so navigating between them
+        // animates instead of swapping separate transition instances.
+        <PageTransition transitionKey={isSetupScreen ? 'project-setup' : location.pathname}>
+          {isSetupScreen ? (
+            <ProjectSetup onJoin={joinRoomByCode} fetchPreview={fetchRoomPreview} />
+          ) : (
+            outlet
+          )}
         </PageTransition>
       )}
       {!loading && !error && activeRoom && privateDataFree && (
@@ -259,7 +261,17 @@ function ProjectSetup({
 
   if (mode === 'join') {
     return (
-      <div className="flex flex-col gap-6 pt-8 pb-12">
+      <motion.div
+        key="setup-join"
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 32 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={
+          reduceMotion
+            ? REDUCED_MOTION_TRANSITION
+            : { duration: MOTION_DURATION.fade, ease: MOTION_EASE.emphasized }
+        }
+        className="flex flex-col gap-6 px-2 pt-8 pb-12"
+      >
         <button
           type="button"
           onClick={() => {
@@ -291,12 +303,22 @@ function ProjectSetup({
             onJoin={handleJoin}
           />
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 px-2 pt-6 pb-12">
+    <motion.div
+      key="setup-create"
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -32 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={
+        reduceMotion
+          ? REDUCED_MOTION_TRANSITION
+          : { duration: MOTION_DURATION.fade, ease: MOTION_EASE.emphasized }
+      }
+      className="flex flex-col gap-6 px-2 pt-6 pb-12"
+    >
       <motion.header
         initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -355,16 +377,40 @@ function ProjectSetup({
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-surface px-4 py-3 font-mono text-xs font-bold text-ink-muted shadow-soft hover:text-ink"
         >
           {showPreview ? ps.previewHide : ps.previewShow}
-          <IconChevronDown size={16} className={showPreview ? 'rotate-180' : ''} />
+          <motion.span
+            aria-hidden
+            className="inline-flex"
+            animate={{ rotate: showPreview ? 180 : 0 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: MOTION_DURATION.fade, ease: MOTION_EASE.emphasized }}
+          >
+            <IconChevronDown size={16} />
+          </motion.span>
         </button>
-        {showPreview && <ProjectSetupShowcase />}
+        <AnimatePresence initial={false}>
+          {showPreview && (
+            <motion.div
+              key="preview"
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+              animate={reduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+              transition={
+                reduceMotion
+                  ? REDUCED_MOTION_TRANSITION
+                  : { duration: MOTION_DURATION.fade, ease: MOTION_EASE.emphasized }
+              }
+              className="overflow-hidden"
+            >
+              <ProjectSetupShowcase />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <p className="flex items-center justify-center gap-2 px-2 text-center font-mono text-[11px] leading-5 text-ink-muted">
         <IconShield size={16} className="shrink-0 text-ink-dim" />
         {ps.trustLine}
       </p>
-    </div>
+    </motion.div>
   );
 }
 

@@ -1,8 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Button } from '../Button/Button';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { ExpenseTimeline } from '../ExpenseTimeline/ExpenseTimeline';
-import { IconArrowLeft } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { calcSuggestedRule } from '../../lib/travelExpenseRules';
@@ -13,8 +11,6 @@ interface StepTimelineProps {
   eventDate: string;
   expenses: ExpenseDraftItem[];
   onExpensesChange: (expenses: ExpenseDraftItem[]) => void;
-  onNext: () => void;
-  onBack: () => void;
 }
 
 function formatDate(dateKey: string, lang: string): string {
@@ -31,8 +27,6 @@ export function StepTimeline({
   eventDate,
   expenses,
   onExpensesChange,
-  onNext,
-  onBack,
 }: StepTimelineProps) {
   const { language, copy } = useI18n();
   const c = copy.createRoomWizard;
@@ -80,9 +74,6 @@ export function StepTimeline({
         <div className="flex min-h-[200px] items-center justify-center rounded-xl bg-surface p-8 shadow-soft">
           <p className="font-mono text-sm text-ink-dim">{c.noExpensesForTimeline}</p>
         </div>
-        <Button variant="ghost" size="lg" onClick={onBack}>
-          <IconArrowLeft size={16} />
-        </Button>
       </div>
     );
   }
@@ -173,16 +164,6 @@ export function StepTimeline({
             </div>
           );
         })}
-      </div>
-
-      {/* Navigation */}
-      <div className="flex gap-3">
-        <Button variant="ghost" size="lg" onClick={onBack}>
-          <IconArrowLeft size={16} />
-        </Button>
-        <Button variant="primary" fullWidth onClick={onNext}>
-          {c.nextButton}
-        </Button>
       </div>
     </div>
   );

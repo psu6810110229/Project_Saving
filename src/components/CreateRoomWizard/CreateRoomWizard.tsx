@@ -10,6 +10,7 @@ import { StepTimeline } from './StepTimeline';
 import { StepSummary } from './StepSummary';
 import {
   IconArrowLeft,
+  IconArrowRight,
   IconBriefcase,
   IconHeart,
   IconHome,
@@ -23,6 +24,11 @@ import { suggestExpenses } from '../../lib/travelExpenseRules';
 import type { ExpenseDraftItem, WizardDraft } from './wizardTypes';
 
 const TOTAL_STEPS = 5;
+
+function todayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function buildInitialExpenses(endDate: string, totalBudget: number): ExpenseDraftItem[] {
   if (!endDate) return [];
@@ -111,8 +117,33 @@ export function CreateRoomWizard() {
     { id: 'other' as const, label: copy.profile.projectCategories.other, icon: <IconBriefcase size={28} />, disabled: true },
   ], [copy.profile.projectCategories]);
 
-  function handleClose() {
-    navigate(-1);
+  // Top-left arrow walks back one wizard step ("previous page"); only from the
+  // first step does it leave the wizard for the previous page (the welcome
+  // screen). This replaces the per-step Back buttons at the bottom of each step.
+  function handleBack() {
+    if (draft.step > 1) {
+      goTo(draft.step - 1);
+    } else {
+      navigate(-1);
+    }
+  }
+
+  // Whether the current step's input is complete enough to advance. Drives the
+  // disabled state of the Next pill in the header (steps 1–4; step 5 creates).
+  const canAdvance =
+    draft.step === 1 ? draft.name.trim().length > 0
+    : draft.step === 2 ? draft.endDate > todayKey()
+    : draft.step === 3 ? draft.expenses.some(e => e.checked)
+    : draft.step === 4 ? true
+    : false;
+
+  function handleNext() {
+    switch (draft.step) {
+      case 1: goTo(2); break;
+      case 2: goToStep3(); break;
+      case 3: goTo(4); break;
+      case 4: goTo(5); break;
+    }
   }
 
   let stepContent: ReactNode;
@@ -125,7 +156,6 @@ export function CreateRoomWizard() {
           options={categoryOptions}
           onNameChange={name => setDraft(prev => ({ ...prev, name }))}
           onCategoryChange={category => setDraft(prev => ({ ...prev, category }))}
-          onNext={() => goTo(2)}
         />
       );
       break;
@@ -137,8 +167,6 @@ export function CreateRoomWizard() {
           coverImageUrl={draft.coverImageUrl}
           onEndDateChange={endDate => setDraft(prev => ({ ...prev, endDate }))}
           onCoverImageChange={coverImageUrl => setDraft(prev => ({ ...prev, coverImageUrl }))}
-          onNext={goToStep3}
-          onBack={() => goTo(1)}
         />
       );
       break;
@@ -150,8 +178,6 @@ export function CreateRoomWizard() {
           expenses={draft.expenses}
           onTotalBudgetChange={totalBudget => setDraft(prev => ({ ...prev, totalBudget }))}
           onExpensesChange={expenses => setDraft(prev => ({ ...prev, expenses }))}
-          onNext={() => goTo(4)}
-          onBack={() => goTo(2)}
         />
       );
       break;
@@ -161,8 +187,6 @@ export function CreateRoomWizard() {
           eventDate={draft.endDate}
           expenses={draft.expenses}
           onExpensesChange={expenses => setDraft(prev => ({ ...prev, expenses }))}
-          onNext={() => goTo(5)}
-          onBack={() => goTo(3)}
         />
       );
       break;
@@ -175,7 +199,6 @@ export function CreateRoomWizard() {
           coverImageUrl={draft.coverImageUrl}
           totalBudget={draft.totalBudget}
           expenses={draft.expenses}
-          onBack={() => goTo(4)}
         />
       );
       break;
@@ -185,17 +208,30 @@ export function CreateRoomWizard() {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      <header className="sticky top-0 z-10 bg-bg/80 px-5 pb-3 pt-5 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-brand-50 hover:text-ink"
-            aria-label={c.closeLabel}
-          >
-            <IconArrowLeft size={20} />
-          </button>
-          <SectionLabel tone="brand">{c.headerLabel}</SectionLabel>
+      <header className="sticky top-0 z-10 bg-bg/80 px-5 pb-3 pt-9 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-brand-50 hover:text-ink"
+              aria-label={copy.common.back}
+            >
+              <IconArrowLeft size={20} />
+            </button>
+            <SectionLabel tone="brand">{c.headerLabel}</SectionLabel>
+          </div>
+          {draft.step < TOTAL_STEPS && (
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={!canAdvance}
+              className="inline-flex items-center gap-1 rounded-pill bg-brand-500 px-4 py-1.5 font-mono text-sm font-bold text-ink-inverse shadow-soft transition active:scale-95 disabled:opacity-40 disabled:active:scale-100"
+            >
+              {c.nextButton}
+              <IconArrowRight size={16} />
+            </button>
+          )}
         </div>
         <div className="mt-3">
           <WizardProgress current={draft.step} total={TOTAL_STEPS} />

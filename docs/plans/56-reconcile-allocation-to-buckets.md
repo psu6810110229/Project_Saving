@@ -197,12 +197,29 @@ Add a quick grep check in the verification step to confirm none of these read
 - **Allocate exactly to zero:** pool → 0, reminder/affordance disappears.
 
 ## 11. Slices (stop + commit between each)
-1. **0078 migration** — table + RLS + `bucket_balance` extension + RPC +
-   activity event key. (DB only; verify with SQL.)
-2. **Data layer** — extend `useReconcile` (pool + allocate), types.
-3. **Allocate sheet UI** (Mode A + Mode B numeric) + Balance card affordance + i18n.
-4. **(Optional/stretch)** drag-and-drop interaction + activity feed rendering of
-   `balance_allocated`.
+1. ✅ **0078 migration** (`f238b56`) — `balance_allocations` table + RLS +
+   `bucket_balance` extension + `allocate_balance_to_bucket` RPC. **No
+   `activity_events` row** — that table is room-member readable and the
+   amount would leak a private reconcile difference; the owner-only
+   `balance_allocations` table is the audit trail.
+2. ✅ **Data layer** (`4542ffe`) — `BalanceAllocation` types,
+   `useBalanceAllocations` hook, `bucketSaved` allocation term, `useReconcile`
+   `unallocatedPool` + `allocate()`, wired into DataContext.
+3. ✅ **Card + DnD + sheet** — `BalanceCheckStatus` redesigned (settled slim /
+   surplus two-tier with draggable bar) and **relocated into the bucket
+   grid `belowHeader`** (under the "เป้าหมายย่อย" heading, above row 1) so the
+   chip and buckets share the existing transfer-mode `DndContext` — short,
+   natural drag, no section move. Drop is detected in `handleBucketDragEnd`
+   (`active.data.type === 'allocation'`) → opens `AllocateSheet` prefilled.
+   Tap fallback opens the same sheet with a bucket picker. Allocations
+   threaded into all Dashboard `bucketSaved` calls; i18n en/th.
+   **Decision:** per-bucket display includes allocations (so a drop visibly
+   fills the bucket); hero/vault `total` stays Recorded Deposits
+   (`useSavingsTotal`) so it matches Saving Plan and does not mix Verified in.
+
+### Remaining
+- **Apply migration 0078** to Supabase, then runtime-test end-to-end (§12).
+  Until applied, `balance_allocations` queries error at runtime (table absent).
 
 ## 12. Verification
 - `tsc -b` + scoped eslint (build/lint are red on clean checkout per project

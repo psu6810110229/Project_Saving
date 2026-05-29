@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
+import { ALLOCATION_DRAG_ID, BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
+import { AllocateSheet } from '../components/AllocateSheet/AllocateSheet';
 import { CheckBalanceSheet } from '../components/CheckBalanceSheet/CheckBalanceSheet';
 import { MigrationWizard } from '../components/MigrationWizard/MigrationWizard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
@@ -233,12 +234,14 @@ export function Dashboard() {
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
+  const { allocations: balanceAllocations } = data.balanceAllocations;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = data.leaderboard;
   const {
     latest: latestCheckpoint,
-    appBalance: reconciledAppBalance,
+    unallocatedPool,
+    allocate,
     loading: reconcileLoading,
   } = data.reconcile;
   const {
@@ -287,6 +290,11 @@ export function Dashboard() {
     initialAmount?: number | null;
     suggestionReason?: string | null;
   } | null>(null);
+  // Allocation intent: opens the AllocateSheet. `bucketId` is the drop
+  // target (null when opened via the tap fallback → pick a bucket).
+  const [allocationIntent, setAllocationIntent] = useState<{ bucketId: string | null } | null>(null);
+  // Bumped on each open so the AllocateSheet remounts with fresh defaults.
+  const [allocationKey, setAllocationKey] = useState(0);
   // Local "dismissed this render" flag so the hint disappears
   // immediately once it auto-times-out, the user closes it, or a drag
   // starts. Account-level persistence owns the "never show again"
@@ -357,6 +365,17 @@ export function Dashboard() {
     if (!over) return;
     const sourceId = String(active.id);
     const destinationId = String(over.id);
+
+    // Allocation drag: the unallocated-surplus chip dropped onto a bucket.
+    // Opens the AllocateSheet prefilled with that bucket (plan 56 §7.2).
+    if (active.data.current?.type === 'allocation' || sourceId === ALLOCATION_DRAG_ID) {
+      if (bucketItems.some(b => b.id === destinationId)) {
+        setAllocationKey(k => k + 1);
+        setAllocationIntent({ bucketId: destinationId });
+      }
+      return;
+    }
+
     if (sourceId === destinationId) return;
 
     const sourceBucket = bucketItems.find(b => b.id === sourceId);
@@ -482,12 +501,12 @@ export function Dashboard() {
   const doneBucketIds = useMemo(() => {
     const set = new Set<string>();
     for (const bucket of buckets) {
-      if (bucket.target_amount > 0 && bucketSaved(bucket.id, logs, bucketTransfers) >= bucket.target_amount) {
+      if (bucket.target_amount > 0 && bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations) >= bucket.target_amount) {
         set.add(bucket.id);
       }
     }
     return set;
-  }, [buckets, logs, bucketTransfers]);
+  }, [buckets, logs, bucketTransfers, balanceAllocations]);
   const orderedActiveNonDoneIds = useMemo(() => {
     const inOrder = buckets
       .filter(bucket => bucket.archived_at == null && !doneBucketIds.has(bucket.id))
@@ -515,7 +534,7 @@ export function Dashboard() {
   const bucketItems = useMemo(() => {
     const statusLabels = copy.bucketIntent.status;
     return buckets.map(bucket => {
-      const saved = bucketSaved(bucket.id, logs, bucketTransfers);
+      const saved = bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations);
       const focusState = focusStates.get(bucket.id);
       let status: { kind: 'focus' | 'next' | 'done' | 'queued' | 'overdue'; label: string } | undefined;
       if (focusState) {
@@ -549,7 +568,7 @@ export function Dashboard() {
       const pctB = b.target > 0 ? b.saved / b.target : 0;
       return pctB - pctA;
     });
-  }, [buckets, logs, bucketTransfers, focusStates, copy.bucketIntent.status]);
+  }, [buckets, logs, bucketTransfers, balanceAllocations, focusStates, copy.bucketIntent.status]);
   const activeBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind !== 'done'), [bucketItems]);
   const completedBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind === 'done'), [bucketItems]);
   const manualActiveBucketItems = useMemo(() => {
@@ -1080,17 +1099,6 @@ export function Dashboard() {
         )}
       </motion.div>
 
-      {/* 3 — Balance check. Always-visible tracking + action surface:
-              shows verified amount, matched/diff, days since, and a Check
-              CTA that opens the dedicated Check Balance flow. */}
-      <motion.div variants={dashboardSectionVariants} className="relative z-10 -mt-3">
-        <BalanceCheckStatus
-          latest={latestCheckpoint}
-          appBalance={reconciledAppBalance ?? 0}
-          bucketTotal={total}
-          onCheck={handleCheckBalance}
-        />
-      </motion.div>
 
       {actionAlertBuckets.length > 0 && (
         <motion.div variants={dashboardSectionVariants}>
@@ -1149,6 +1157,21 @@ export function Dashboard() {
                   addShortLabel={d.addShort}
                   onAddBucket={() => setBucketModalOpen(true)}
                   headerAction={editToggle}
+                  belowHeader={(
+                    <BalanceCheckStatus
+                      latest={latestCheckpoint}
+                      unallocatedPool={unallocatedPool}
+                      onCheck={handleCheckBalance}
+                      canAllocate={!isEditing && activeBucketItems.length > 0}
+                      onAllocate={() => {
+                        // Ignore the click dnd-kit fires right after a drag
+                        // so a drop doesn't also pop the bucket picker.
+                        if (justDraggedRef.current) return;
+                        setAllocationKey(k => k + 1);
+                        setAllocationIntent({ bucketId: null });
+                      }}
+                    />
+                  )}
                   renderBucket={bucket => isEditing ? (
                     <SortableBucketCard
                       id={bucket.id}
@@ -1420,7 +1443,7 @@ export function Dashboard() {
 
       {(() => {
         const savedAmount = pendingRemove
-          ? bucketSaved(pendingRemove.id, logs, bucketTransfers)
+          ? bucketSaved(pendingRemove.id, logs, bucketTransfers, balanceAllocations)
           : 0;
         const destinations: RemoveBucketDestination[] = pendingRemove
           ? buckets
@@ -1428,7 +1451,7 @@ export function Dashboard() {
               .map(b => ({
                 id: b.id,
                 name: b.name,
-                saved: bucketSaved(b.id, logs, bucketTransfers),
+                saved: bucketSaved(b.id, logs, bucketTransfers, balanceAllocations),
               }))
           : [];
         return (
@@ -1495,6 +1518,17 @@ export function Dashboard() {
           haptic('success');
           setTransferIntent(null);
         }}
+      />
+
+      {/* Allocate unallocated reconcile surplus into a bucket (plan 56). */}
+      <AllocateSheet
+        key={`allocate-${allocationKey}`}
+        open={allocationIntent !== null}
+        onClose={() => setAllocationIntent(null)}
+        pool={unallocatedPool}
+        buckets={bucketItems}
+        initialBucketId={allocationIntent?.bucketId ?? null}
+        allocate={allocate}
       />
 
       {/* Bucket deposit bottom sheet */}

@@ -33,6 +33,8 @@ interface AllocateInput {
 
 interface AllocateResult {
   error?: string;
+  /** Stable RPC HINT token (e.g. `allocation_exceeds_pool`) for copy mapping. */
+  errorHint?: string;
   allocationId?: string;
   destinationBucketId?: string;
   amount?: number;
@@ -275,7 +277,7 @@ export function useReconcile(roomId: string | null) {
       p_client_request_id: input.clientRequestId ?? null,
     });
 
-    if (rpcError) return { error: rpcError.message };
+    if (rpcError) return { error: rpcError.message, errorHint: rpcError.hint ?? undefined };
 
     const row = (Array.isArray(data) ? data[0] : data) as AllocateRpcRow | undefined;
     if (!row) return { error: 'No allocation returned' };

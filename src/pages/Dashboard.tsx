@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
+import { CheckBalanceSheet } from '../components/CheckBalanceSheet/CheckBalanceSheet';
 import { MigrationWizard } from '../components/MigrationWizard/MigrationWizard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
@@ -47,8 +48,8 @@ import {
   IconCheck,
   IconEdit,
   IconRocket,
-  IconTrash,
   IconUser,
+  IconX,
 } from '../components/Icon/Icon';
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
 import { PullToRefresh } from '../components/PullToRefresh/PullToRefresh';
@@ -260,6 +261,7 @@ export function Dashboard() {
     const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
+  const [checkBalanceOpen, setCheckBalanceOpen] = useState(false);
   const [manageTransferSheetOpen, setManageTransferSheetOpen] = useState(false);
   const [completedBucketsOpen, setCompletedBucketsOpen] = useState(false);
   const [bucketDragMode, setBucketDragMode] = useState<BucketDragMode>('transfer');
@@ -660,7 +662,7 @@ export function Dashboard() {
     haptic('success');
   }, []);
 
-  const handleCheckBalance = useCallback(() => navigate('/check-balance'), [navigate]);
+  const handleCheckBalance = useCallback(() => setCheckBalanceOpen(true), []);
   const handleOpenManageBuckets = useCallback(() => {
     if (buckets.length > 0) {
       setManageBucketsOpen(true);
@@ -1055,6 +1057,7 @@ export function Dashboard() {
           bucketCount={buckets.filter(bucket => bucket.archived_at == null).length}
           streak={heroStreak}
           streakUnit={heroStreakUnit}
+          streakTrackable={bucketStreak.trackable}
           lastCheckedAt={latestCheckpoint?.checked_at ?? null}
           onEdit={handleOpenManageBuckets}
           editAriaLabel="แก้ไขเป้าหมาย"
@@ -1077,25 +1080,28 @@ export function Dashboard() {
         )}
       </motion.div>
 
-      <motion.div variants={dashboardSectionVariants}>
-        <ActionAlert
-          buckets={actionAlertBuckets}
-          storageKey={actionAlertStorageKey}
-          formatMoney={formatMoney}
-          onViewBucket={handleActionAlertView}
-        />
-      </motion.div>
-
       {/* 3 — Balance check. Always-visible tracking + action surface:
               shows verified amount, matched/diff, days since, and a Check
               CTA that opens the dedicated Check Balance flow. */}
-      <motion.div variants={dashboardSectionVariants}>
+      <motion.div variants={dashboardSectionVariants} className="relative z-10 -mt-3">
         <BalanceCheckStatus
           latest={latestCheckpoint}
           appBalance={reconciledAppBalance ?? 0}
+          bucketTotal={total}
           onCheck={handleCheckBalance}
         />
       </motion.div>
+
+      {actionAlertBuckets.length > 0 && (
+        <motion.div variants={dashboardSectionVariants}>
+          <ActionAlert
+            buckets={actionAlertBuckets}
+            storageKey={actionAlertStorageKey}
+            formatMoney={formatMoney}
+            onViewBucket={handleActionAlertView}
+          />
+        </motion.div>
+      )}
 
       {/* (Next Win — hidden for now; component preserved.) */}
       {SHOW_NEXT_WIN && (
@@ -1256,13 +1262,13 @@ export function Dashboard() {
                           variant="solid"
                           size="sm"
                           ariaLabel={copy.bucket.deleteAriaLabel(bucket.name)}
-                          className="absolute -left-0 -top-0 z-10 bg-danger/90 text-danger hover:bg-danger/35"
+                          className="absolute right-2 top-2 z-10 !bg-white !text-danger shadow-soft ring-1 ring-danger/10 hover:!bg-danger-soft hover:!text-danger"
                           onClick={() => {
                             const target = buckets.find(b => b.id === bucket.id);
                             if (target) openRemoveBucket(target);
                           }}
                         >
-                          <IconTrash size={15} />
+                          <IconX size={16} strokeWidth={2.75} />
                         </IconButton>
                       )}
                     </div>
@@ -1446,9 +1452,11 @@ export function Dashboard() {
         onClose={closeVbReminder}
         onCheckNow={() => {
           closeVbReminder();
-          navigate('/check-balance');
+          setCheckBalanceOpen(true);
         }}
       />
+
+      <CheckBalanceSheet open={checkBalanceOpen} onClose={() => setCheckBalanceOpen(false)} />
 
       {/* Bucket-to-bucket transfer sheet (drag-shortcut entry, slice 40.6). */}
       <BucketTransferSheet
@@ -1575,10 +1583,12 @@ export function Dashboard() {
         roomCategory={activeRoom?.category ?? null}
         coverImageUrl={heroCoverUrl}
         validThru={activeRoom?.end_date ?? null}
+        dailySummaryItem={bucketSummaryItems[0] ?? null}
         hasBuckets={buckets.length > 0}
         bucketCount={buckets.filter(bucket => bucket.archived_at == null).length}
         streak={heroStreak}
         streakUnit={heroStreakUnit}
+        streakTrackable={bucketStreak.trackable}
         lastCheckedAt={latestCheckpoint?.checked_at ?? null}
         onDone={() => setVaultPreview(null)}
       />

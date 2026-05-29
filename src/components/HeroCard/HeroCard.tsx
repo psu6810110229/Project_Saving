@@ -28,6 +28,7 @@ interface HeroCardProps {
   bucketCount?: number;
   streak: number;
   streakUnit?: 'day' | 'week' | 'month';
+  streakTrackable?: boolean;
   lastCheckedAt?: string | null;
   onEdit?: () => void;
   editAriaLabel?: string;
@@ -153,12 +154,38 @@ function formatPeriodGoal(item?: DailySummaryItem | null): string | null {
   }
 }
 
-function formatStreak(streak: number, unit: HeroCardProps['streakUnit']): string {
+function isIncreasingRule(item?: DailySummaryItem | null): boolean {
+  return item?.ruleType === 'increasing_daily' || item?.ruleType === 'increasing_daily_capped';
+}
+
+function isFlexibleStreak(item?: DailySummaryItem | null, trackable = true): boolean {
+  return item?.ruleType === 'flexible' || (!trackable && Boolean(item));
+}
+
+function formatStreak(
+  streak: number,
+  unit: HeroCardProps['streakUnit'],
+  item?: DailySummaryItem | null,
+  trackable = true,
+): string {
+  if (isFlexibleStreak(item, trackable)) return 'ยืดหยุ่น';
   const value = Math.max(0, Math.round(streak));
   const resolved = unit ?? 'day';
   if (resolved === 'week') return `${value} สัปดาห์`;
   if (resolved === 'month') return `${value} เดือน`;
+  if (isIncreasingRule(item)) return `${value} วันแล้ว`;
   return `${value} วัน`;
+}
+
+function streakHelper(
+  unit: HeroCardProps['streakUnit'],
+  item?: DailySummaryItem | null,
+  trackable = true,
+): string {
+  if (isFlexibleStreak(item, trackable)) return 'ไม่มีสตรีก';
+  if (isIncreasingRule(item)) return 'ตามยอดวันนี้';
+  if (unit === 'week' || unit === 'month') return 'ตามแผน';
+  return 'ติดต่อกัน';
 }
 
 function CardChip() {
@@ -194,7 +221,7 @@ function MetricItem({ icon, label, value, helper }: MetricProps) {
         <span className="block truncate font-mono text-[0.52rem] font-semibold uppercase leading-none tracking-[0.03em] text-[#FFE2B8]/85">
           {label}
         </span>
-        <span className="mt-1 block truncate font-mono-th text-[0.74rem] font-medium leading-none tracking-[0.02em] text-white/85">
+        <span className="mt-1 block truncate font-mono-th text-[0.68rem] font-medium leading-none tracking-[0.02em] text-white/85">
           {value}
         </span>
         <span className="mt-0.5 block truncate font-mono-th text-[0.5rem] font-medium leading-[0.72rem] tracking-[0.02em] text-white/85">
@@ -217,6 +244,7 @@ export const HeroCard = memo(function HeroCard({
   bucketCount,
   streak,
   streakUnit,
+  streakTrackable = true,
   lastCheckedAt,
   onEdit,
   editAriaLabel,
@@ -285,8 +313,8 @@ export const HeroCard = memo(function HeroCard({
     {
       icon: <IconFire size={13} />,
       label: 'STREAK',
-      value: formatStreak(streak, streakUnit),
-      helper: 'ติดต่อกัน',
+      value: formatStreak(streak, streakUnit, dailySummaryItem, streakTrackable),
+      helper: streakHelper(streakUnit, dailySummaryItem, streakTrackable),
     },
     {
       icon: <IconCheckCircle size={13} />,

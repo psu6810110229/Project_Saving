@@ -160,7 +160,7 @@ export const th: Messages = {
     activitySortAriaLabel: 'เรียงลำดับประวัติ',
     activityNoMatchSearch: 'ไม่พบรายการที่ตรงกัน',
     activityNoDeposits: 'ยังไม่มีการออม',
-    verifiedBalanceLabel: 'ยอดที่เช็กแล้ว',
+    verifiedBalanceLabel: 'ยอดที่คุณเช็คแล้ว',
     balanceActivity: 'ประวัติเช็กยอด',
     checkedBalanceMatchedLong: 'เช็กยอดแล้ว - ยอดตรงกัน',
     balanceMatched: 'ตรงกัน',
@@ -983,7 +983,12 @@ export const th: Messages = {
     outcomeMatchedTitle: 'เช็กยอดเรียบร้อย',
     outcomeAdjustmentTitle: 'ปรับยอดเรียบร้อย',
     outcomeMatchedBody: 'ยอดจริงตรงกับยอดที่เช็กไว้แล้ว',
-    outcomeDifferenceBody: (signed: string) => `ปรับยอด ${signed} เรียบร้อยแล้ว`,
+    outcomeDifferenceBody: (signed: string) => {
+      const normalized = signed
+        .replace(/^ปรับเพิ่ม\s*/, 'ปรับเพิ่มขึ้น ')
+        .replace(/^ปรับลด\s*/, 'ปรับลดลง ');
+      return `ยอดใหม่${normalized}เรียบร้อยแล้ว`;
+    },
     outcomeDone: 'เสร็จแล้ว',
     reasons: {
       forgot_to_log:   { label: 'ยังไม่ได้บันทึก',  description: 'เก็บเงินไว้แล้ว แต่ยังไม่ได้เพิ่มในแอป' },

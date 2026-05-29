@@ -136,6 +136,27 @@ const reducedSectionVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0 } },
 };
 
+// First dashboard view of the session plays a richer, strictly sequential
+// entrance — staggerChildren (0.22) > section duration (0.2) so each section
+// finishes before the next begins. Later in-session visits use the quieter
+// variants above.
+const immersiveContainerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.22, delayChildren: 0.12 } },
+};
+
+const immersiveSectionVariants = {
+  hidden: { opacity: 0, y: 16, scale: 0.985 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.2, ease: [0.16, 1, 0.2, 1] },
+  },
+};
+
+const DASHBOARD_IMMERSIVE_SESSION_KEY = 'dashboardImmersiveSeen';
+
 // Toggle to re-enable the "Next Win" micro-goal block without
 // untangling its data preparation. Kept off-canvas while the
 // Dashboard hierarchy focuses on Vault / Race / Plan.
@@ -201,6 +222,22 @@ function mapArchiveHintToErrorKey(
 export function Dashboard() {
   const navigate = useNavigate();
     const reduceMotion = useReducedMotion();
+  // Immersive entrance only on the first dashboard view of the session. Read in
+  // the initializer (pure), mark as seen in an effect (StrictMode-safe).
+  const [immersiveEntrance] = useState(() => {
+    try {
+      return !sessionStorage.getItem(DASHBOARD_IMMERSIVE_SESSION_KEY);
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(DASHBOARD_IMMERSIVE_SESSION_KEY, '1');
+    } catch {
+      // sessionStorage unavailable — entrance just won't be marked seen.
+    }
+  }, []);
   const { user, profile } = useAuth();
   const migration = useMigrationState(user?.id);
   const { activeRoom, activeRoomId } = useRoom();
@@ -1359,8 +1396,16 @@ export function Dashboard() {
   if (!isRefreshing && !bucketReorderSaving && loading) return null;
   if (error) return <DashboardStatusCard title={d.errorTitle} body={error} />;
 
-  const dashboardContainerVariants = reduceMotion ? reducedContainerVariants : containerVariants;
-  const dashboardSectionVariants = reduceMotion ? reducedSectionVariants : sectionVariants;
+  const dashboardContainerVariants = reduceMotion
+    ? reducedContainerVariants
+    : immersiveEntrance
+      ? immersiveContainerVariants
+      : containerVariants;
+  const dashboardSectionVariants = reduceMotion
+    ? reducedSectionVariants
+    : immersiveEntrance
+      ? immersiveSectionVariants
+      : sectionVariants;
 
   return (
     <PullToRefresh onRefresh={refreshAll}>

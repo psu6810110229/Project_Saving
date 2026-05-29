@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconFlag } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { todayBangkokKey } from '../../lib/savingPlan';
+import { bucketPercent, bucketSaved } from '../../lib/buckets';
 import { buildSavingsHeatmap, type HeatLevel } from '../../lib/savingsHeatmap';
-import type { Bucket, SavingsLog } from '../../types';
+import type { Bucket, BucketTransfer, SavingsLog } from '../../types';
 
 interface SavingsHeatmapProps {
   /** All room logs; the component filters to the current user's own deposits. */
@@ -11,6 +12,8 @@ interface SavingsHeatmapProps {
   userId: string | undefined;
   /** The current user's buckets — drive the start / due markers. */
   buckets: Bucket[];
+  /** Same-user bucket transfers — for accurate per-bucket saved totals. */
+  transfers?: BucketTransfer[];
   /** Room created_at (ISO) — project window start. */
   roomStartIso?: string | null;
   /** Room end_date (YYYY-MM-DD) — project window end. */
@@ -18,6 +21,26 @@ interface SavingsHeatmapProps {
   /** sessionStorage key for scroll-position persistence. */
   storageKey: string;
 }
+
+/** One bucket due on a given day, with its progress. */
+interface DueBucketInfo {
+  id: string;
+  name: string;
+  saved: number;
+  target: number;
+  percent: number;
+}
+
+/** A pinned due-marker popover: which day, and where to anchor it. */
+interface DuePopover {
+  dateKey: string;
+  /** Centre x and top y of the tapped cell, relative to the section. */
+  left: number;
+  top: number;
+}
+
+const POPOVER_WIDTH = 192;
+const POPOVER_MARGIN = 8;
 
 const CELL_PX = 14;
 const GAP_PX = 3;
@@ -59,6 +82,7 @@ export function SavingsHeatmap({
   logs,
   userId,
   buckets,
+  transfers,
   roomStartIso,
   roomEndDateKey,
   storageKey,
@@ -108,6 +132,25 @@ export function SavingsHeatmap({
     });
   }, [logs, userId, buckets, roomStartIso, roomEndDateKey, todayKey]);
 
+  // Buckets due on each day, with progress — drives the tappable due-marker popover.
+  const dueByDate = useMemo(() => {
+    const map = new Map<string, DueBucketInfo[]>();
+    for (const b of buckets) {
+      if (b.archived_at != null || !b.deadline) continue;
+      const info: DueBucketInfo = {
+        id: b.id,
+        name: b.name,
+        saved: bucketSaved(b.id, logs, transfers),
+        target: b.target_amount,
+        percent: Math.round(bucketPercent(b, logs, transfers)),
+      };
+      const list = map.get(b.deadline);
+      if (list) list.push(info);
+      else map.set(b.deadline, [info]);
+    }
+    return map;
+  }, [buckets, logs, transfers]);
+
   // Month labels — shown above the first column of each calendar month.
   const monthLabels = useMemo(() => {
     const fmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
@@ -125,7 +168,29 @@ export function SavingsHeatmap({
     ? ['จ', '', 'พ', '', 'ศ', '', '']
     : ['Mon', '', 'Wed', '', 'Fri', '', ''];
 
+  const sectionRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [popover, setPopover] = useState<DuePopover | null>(null);
+
+  const dueDateFmt = useMemo(
+    () => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+    [locale],
+  );
+
+  function handleDueClick(dateKey: string, e: React.MouseEvent<HTMLButtonElement>) {
+    setPopover(prev => {
+      if (prev?.dateKey === dateKey) return null;
+      const section = sectionRef.current;
+      if (!section) return null;
+      const cellRect = e.currentTarget.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      const rawLeft = cellRect.left - sectionRect.left + cellRect.width / 2;
+      const half = POPOVER_WIDTH / 2 + POPOVER_MARGIN;
+      const left = Math.min(Math.max(rawLeft, half), sectionRect.width - half);
+      return { dateKey, left, top: cellRect.top - sectionRect.top };
+    });
+  }
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -147,13 +212,14 @@ export function SavingsHeatmap({
   function handleScroll() {
     const el = scrollRef.current;
     if (!el) return;
+    if (popover) setPopover(null);
     try {
       window.sessionStorage.setItem(storageKey, String(Math.round(el.scrollLeft)));
     } catch { /* ignore */ }
   }
 
   return (
-    <section className="rounded-xl bg-surface p-4 shadow-soft" aria-label={d.heatmapTitle}>
+    <section ref={sectionRef} className="relative rounded-xl bg-surface p-4 shadow-soft" aria-label={d.heatmapTitle}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="font-mono text-sm font-bold text-ink">{d.heatmapTitle}</h2>
         <div className="flex items-center gap-1.5 font-mono text-[10px] text-ink-muted">
@@ -209,29 +275,49 @@ export function SavingsHeatmap({
                   const title = `${formatMoney(cell.amount)} · ${cell.dateKey}`
                     + (cell.bucketDue ? ` · ${d.heatmapDueLegend}` : '')
                     + (cell.bucketStart ? ` · ${d.heatmapStartLegend}` : '');
+                  const cellClass =
+                    'relative rounded-[3px] '
+                    + LEVEL_CLASS[cell.level]
+                    + (cell.isFuture ? ' opacity-40' : '')
+                    + (!cell.inRange ? ' opacity-30' : '')
+                    + (cell.isToday ? ' ring-2 ring-ink' : '')
+                    + (cell.bucketStart ? ' ring-2 ring-accent-leaf' : '');
+                  const flag = cell.bucketDue && (
+                    <span
+                      className="absolute inset-0 grid place-items-center text-danger"
+                      aria-hidden
+                    >
+                      <IconFlag size={9} strokeWidth={2.5} />
+                    </span>
+                  );
+
+                  if (cell.bucketDue) {
+                    return (
+                      <button
+                        key={cell.dateKey}
+                        type="button"
+                        title={title}
+                        aria-label={`${d.heatmapDueLegend} · ${cell.dateKey}`}
+                        aria-expanded={popover?.dateKey === cell.dateKey}
+                        onClick={e => handleDueClick(cell.dateKey, e)}
+                        className={
+                          cellClass
+                          + (popover?.dateKey === cell.dateKey ? ' ring-2 ring-danger' : '')
+                        }
+                        style={{ height: CELL_PX, width: CELL_PX }}
+                      >
+                        {flag}
+                      </button>
+                    );
+                  }
+
                   return (
                     <div
                       key={cell.dateKey}
                       title={title}
-                      className={
-                        'relative rounded-[3px] '
-                        + LEVEL_CLASS[cell.level]
-                        + (cell.isFuture ? ' opacity-40' : '')
-                        + (!cell.inRange ? ' opacity-30' : '')
-                        + (cell.isToday ? ' ring-2 ring-ink' : '')
-                        + (cell.bucketStart ? ' ring-2 ring-accent-leaf' : '')
-                      }
+                      className={cellClass}
                       style={{ height: CELL_PX, width: CELL_PX }}
-                    >
-                      {cell.bucketDue && (
-                        <span
-                          className="absolute inset-0 grid place-items-center text-danger"
-                          aria-hidden
-                        >
-                          <IconFlag size={9} strokeWidth={2.5} />
-                        </span>
-                      )}
-                    </div>
+                    />
                   );
                 })}
               </div>
@@ -257,6 +343,55 @@ export function SavingsHeatmap({
           {d.heatmapTodayLegend}
         </span>
       </div>
+
+      {/* Due-marker popover: tap a flag to see the bucket(s) due that day. */}
+      {popover && (() => {
+        const items = dueByDate.get(popover.dateKey) ?? [];
+        if (items.length === 0) return null;
+        const [py, pm, pd] = popover.dateKey.split('-').map(Number);
+        const dateLabel = dueDateFmt.format(new Date(Date.UTC(py, pm - 1, pd)));
+        return (
+          <>
+            {/* Outside-tap dismiss layer. */}
+            <button
+              type="button"
+              aria-hidden
+              tabIndex={-1}
+              className="fixed inset-0 z-10 cursor-default"
+              onClick={() => setPopover(null)}
+            />
+            <div
+              role="dialog"
+              aria-label={`${d.heatmapDueDetailTitle} · ${dateLabel}`}
+              className="absolute z-20 -translate-x-1/2 rounded-lg bg-surfaceAlt p-2.5 shadow-soft ring-1 ring-ink/10"
+              style={{
+                left: popover.left,
+                top: popover.top,
+                width: POPOVER_WIDTH,
+                transform: 'translate(-50%, calc(-100% - 8px))',
+              }}
+            >
+              <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] font-bold text-danger">
+                <IconFlag size={10} strokeWidth={2.5} />
+                <span>{d.heatmapDueDetailTitle} · {dateLabel}</span>
+              </div>
+              <ul className="flex flex-col gap-1.5">
+                {items.map(item => (
+                  <li key={item.id} className="flex flex-col gap-0.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate font-mono text-[11px] text-ink">{item.name}</span>
+                      <span className="shrink-0 font-mono text-[10px] font-bold text-ink-muted">{item.percent}%</span>
+                    </div>
+                    <span className="font-mono text-[10px] text-ink-dim">
+                      {formatMoney(item.saved)} / {formatMoney(item.target)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        );
+      })()}
     </section>
   );
 }

@@ -140,6 +140,7 @@ export const en = {
     heatmapStartLegend: 'Bucket start',
     heatmapDueLegend: 'Due date',
     heatmapTodayLegend: 'Today',
+    heatmapDueDetailTitle: 'Due',
     // Activity section
     activity: 'Activity',
     viewAll: 'View all',

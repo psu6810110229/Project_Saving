@@ -7,6 +7,7 @@ import iconLightbulb from '../../assets/icons/lightbulb.svg';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { calcSuggestedRule } from '../../lib/travelExpenseRules';
+import { classifyExpenseName, GENERIC_SUGGESTION } from '../../lib/expenseNameClassifier';
 import { expenseTips } from '../../i18n/expenseTips';
 import type { ExpenseDraftItem } from './wizardTypes';
 
@@ -99,8 +100,15 @@ export function StepTimeline({
           const name = language === 'th' ? exp.nameTh : exp.nameEn;
           const rule = calcSuggestedRule(exp.targetAmount, exp.deadline);
           const ruleName = ruleNames[rule.ruleType] ?? rule.ruleType;
-          const tip = exp.tipKey ? expenseTips[exp.tipKey] : null;
-          const tipText = tip ? (language === 'th' ? tip.th : tip.en) : null;
+          // Suggestion sentence: classify by the bucket NAME first (Thai-aware,
+          // budget-refined for generic "ค่าเดินทาง"), then fall back to the
+          // category tip, then a generic line — so every row shows advice.
+          const fallbackTip = exp.tipKey ? expenseTips[exp.tipKey] : null;
+          const suggestion =
+            classifyExpenseName(`${exp.nameEn} ${exp.nameTh}`, exp.targetAmount)
+            ?? fallbackTip
+            ?? GENERIC_SUGGESTION;
+          const tipText = language === 'th' ? suggestion.th : suggestion.en;
           const paymentLabel = c.paymentTypes[exp.paymentType ?? 'flexible'] ?? '';
           const isEditing = editingId === exp.id;
 

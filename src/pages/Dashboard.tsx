@@ -237,7 +237,6 @@ export function Dashboard() {
   const {
     latest: latestCheckpoint,
     appBalance: reconciledAppBalance,
-    createCheckpoint,
     loading: reconcileLoading,
   } = data.reconcile;
   const {
@@ -246,7 +245,6 @@ export function Dashboard() {
   const { count: unreadNotifications } = useUnreadNotificationsCount();
   const { copy, formatMoney } = useI18n();
   const d = copy.dashboard;
-  const c = copy.common;
 
   // Task 32 plural fields — N-safe other-member data.
   const { memberIds: otherMemberIds } = data.otherMemberIds;
@@ -644,30 +642,6 @@ export function Dashboard() {
   };
   const heroStreak = displayedHabitStatus.streak ?? 0;
   const heroStreakUnit = bucketStreak.unit;
-
-  // Pack the Verified Balance slot for the Saving Plan island so
-  // both ideas read as one financial picture; the underlying
-  // BalanceCheckStatus card is only used as a fallback empty state.
-  const checkpointDays = latestCheckpoint ? daysSince(latestCheckpoint.checked_at) : null;
-  const verifiedSinceLabel = checkpointDays === null
-    ? null
-    : checkpointDays === 0
-      ? c.today
-      : c.daysAgoShort(checkpointDays);
-  const handleVbSubmitCb = useCallback(async (actualAmount: number, reason?: Parameters<typeof createCheckpoint>[0]['reason']) => {
-    const result = await createCheckpoint({ actualAmount, reason });
-    if (!result.error) haptic(result.differenceAmount === 0 ? 'success' : 'milestone');
-    return result;
-  }, [createCheckpoint]);
-  const verifiedBalanceSlot = useMemo(() => reconciledAppBalance !== null
-    ? {
-        amount: reconciledAppBalance,
-        sinceLabel: verifiedSinceLabel,
-        matched: latestCheckpoint ? latestCheckpoint.difference_amount === 0 : false,
-        diff: latestCheckpoint?.difference_amount ?? 0,
-        onSubmit: handleVbSubmitCb,
-      }
-    : null, [reconciledAppBalance, verifiedSinceLabel, latestCheckpoint, handleVbSubmitCb]);
 
   const youName = you?.displayName ?? profile?.display_name ?? d.youLabel;
 
@@ -1111,17 +1085,16 @@ export function Dashboard() {
         />
       </motion.div>
 
-      {/* 3 — Balance check entry. Interim placement until the dedicated
-              always-visible Balance Check row lands (slice 4). */}
-      {reconciledAppBalance === null && verifiedBalanceSlot === null && (
-        <motion.div variants={dashboardSectionVariants}>
-          <BalanceCheckStatus
-            latest={latestCheckpoint}
-            appBalance={0}
-            onCheck={handleCheckBalance}
-          />
-        </motion.div>
-      )}
+      {/* 3 — Balance check. Always-visible tracking + action surface:
+              shows verified amount, matched/diff, days since, and a Check
+              CTA that opens the dedicated Check Balance flow. */}
+      <motion.div variants={dashboardSectionVariants}>
+        <BalanceCheckStatus
+          latest={latestCheckpoint}
+          appBalance={reconciledAppBalance ?? 0}
+          onCheck={handleCheckBalance}
+        />
+      </motion.div>
 
       {/* (Next Win — hidden for now; component preserved.) */}
       {SHOW_NEXT_WIN && (

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useBalanceAllocations } from '../../hooks/useBalanceAllocations';
 import { useBuckets } from '../../hooks/useBuckets';
 import { useBucketActivityEvents } from '../../hooks/useBucketActivityEvents';
 import { useBucketTransfers } from '../../hooks/useBucketTransfers';
@@ -24,6 +25,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const profile = useProfile();
   const buckets = useBuckets(roomId);
   const bucketTransfers = useBucketTransfers(roomId);
+  const balanceAllocations = useBalanceAllocations(roomId);
   const bucketActivityEvents = useBucketActivityEvents(roomId);
   const logs = useLogs(100, roomId);
   const streakFreeze = useStreakFreeze(user?.id);
@@ -91,6 +93,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       profile,
       buckets,
       bucketTransfers,
+      balanceAllocations,
       bucketActivityEvents,
       logs,
       leaderboard,
@@ -110,6 +113,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       profile,
       buckets,
       bucketTransfers,
+      balanceAllocations,
       bucketActivityEvents,
       logs,
       leaderboard,

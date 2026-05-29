@@ -25,6 +25,32 @@ interface CreateCheckpointResult {
   reused?: boolean;
 }
 
+interface AllocateInput {
+  bucketId: string;
+  amount: number;
+  clientRequestId?: string;
+}
+
+interface AllocateResult {
+  error?: string;
+  allocationId?: string;
+  destinationBucketId?: string;
+  amount?: number;
+  bucketBalanceAfter?: number;
+  poolAfter?: number;
+  reused?: boolean;
+}
+
+interface AllocateRpcRow {
+  allocation_id: string;
+  destination_bucket_id: string;
+  amount: number | string;
+  bucket_balance_after: number | string;
+  pool_after: number | string;
+  reused: boolean;
+  created_at: string;
+}
+
 interface CreateCheckpointRpcRow {
   checkpoint_id: string;
   adjustment_id: string | null;
@@ -63,6 +89,7 @@ export function useReconcile(roomId: string | null) {
   const [latest, setLatest] = useState<BalanceCheckpoint | null>(null);
   const [activity, setActivity] = useState<BalanceActivityEntry[]>([]);
   const [adjustmentSum, setAdjustmentSum] = useState(0);
+  const [allocationSum, setAllocationSum] = useState(0);
   /**
    * Server-authoritative Verified Balance for the current user in this
    * room (positive deposits + signed adjustments). Loaded via the hardened
@@ -120,6 +147,25 @@ export function useReconcile(roomId: string | null) {
     setAdjustmentSum(rows.reduce((sum, row) => sum + toNum(row.amount), 0));
   }, [user, roomId]);
 
+  const fetchAllocationSum = useCallback(async () => {
+    if (!user || !roomId) {
+      setAllocationSum(0);
+      return;
+    }
+    const { data, error: err } = await supabase
+      .from('balance_allocations')
+      .select('amount')
+      .eq('room_id', roomId)
+      .eq('user_id', user.id);
+
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    const rows = (data ?? []) as { amount: number | string }[];
+    setAllocationSum(rows.reduce((sum, row) => sum + toNum(row.amount), 0));
+  }, [user, roomId]);
+
   const fetchAppBalance = useCallback(async () => {
     if (!user || !roomId) {
       setAppBalance(null);
@@ -165,10 +211,10 @@ export function useReconcile(roomId: string | null) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
-    Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAppBalance()])
+    Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()])
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchAppBalance]);
+  }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchAllocationSum, fetchAppBalance]);
 
   async function createCheckpoint(input: CreateCheckpointInput): Promise<CreateCheckpointResult> {
     if (!user) return { error: 'Not authenticated' };
@@ -191,7 +237,7 @@ export function useReconcile(roomId: string | null) {
     const row = (Array.isArray(data) ? data[0] : data) as CreateCheckpointRpcRow | undefined;
     if (!row) return { error: 'No checkpoint returned' };
 
-    await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAppBalance()]);
+    await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()]);
 
     // Fire-and-forget partner notification. Reuse is no-op on the
     // server side, so retrying the same checkpoint id is safe.
@@ -209,16 +255,63 @@ export function useReconcile(roomId: string | null) {
     };
   }
 
+  /**
+   * Move `amount` of the unallocated reconcile surplus into one of the
+   * caller's own buckets. Verified Balance is unchanged (allocations are
+   * not deposits and not adjustments); only the bucket's balance and the
+   * unallocated pool move. Idempotent via `clientRequestId`.
+   */
+  async function allocate(input: AllocateInput): Promise<AllocateResult> {
+    if (!user) return { error: 'Not authenticated' };
+    if (!roomId) return { error: 'No active room' };
+    if (!Number.isFinite(input.amount) || input.amount <= 0) {
+      return { error: 'Enter an amount greater than zero.' };
+    }
+
+    const { data, error: rpcError } = await supabase.rpc('allocate_balance_to_bucket', {
+      p_room_id: roomId,
+      p_bucket_id: input.bucketId,
+      p_amount: input.amount,
+      p_client_request_id: input.clientRequestId ?? null,
+    });
+
+    if (rpcError) return { error: rpcError.message };
+
+    const row = (Array.isArray(data) ? data[0] : data) as AllocateRpcRow | undefined;
+    if (!row) return { error: 'No allocation returned' };
+
+    await Promise.all([fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()]);
+
+    return {
+      allocationId: row.allocation_id,
+      destinationBucketId: row.destination_bucket_id,
+      amount: toNum(row.amount),
+      bucketBalanceAfter: toNum(row.bucket_balance_after),
+      poolAfter: toNum(row.pool_after),
+      reused: row.reused,
+    };
+  }
+
   return {
     latest,
     activity,
     adjustmentSum,
+    allocationSum,
     appBalance,
+    /**
+     * Reconcile surplus not yet placed in any bucket
+     * (Verified Balance − bucketTotal = Σ adjustments − Σ allocations).
+     * Clamped to ≥ 0; a negative pool means buckets currently exceed the
+     * verified balance, which is surfaced as a downward difference, not an
+     * allocatable amount.
+     */
+    unallocatedPool: Math.max(0, Math.round((adjustmentSum - allocationSum) * 100) / 100),
     loading,
     error,
     createCheckpoint,
+    allocate,
     refetch: useCallback(async () => {
-      await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAppBalance()]);
-    }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchAppBalance]),
+      await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()]);
+    }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchAllocationSum, fetchAppBalance]),
   };
 }

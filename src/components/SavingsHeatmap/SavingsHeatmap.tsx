@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { IconFlag } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { todayBangkokKey } from '../../lib/savingPlan';
+import { FADE_TRANSITION, REDUCED_MOTION_TRANSITION, SPRING } from '../../lib/motion';
 import { bucketPercent, bucketSaved } from '../../lib/buckets';
-import { buildSavingsHeatmap, type HeatLevel } from '../../lib/savingsHeatmap';
+import { buildSavingsHeatmap, type HeatLevel, type HeatmapCell } from '../../lib/savingsHeatmap';
 import type { Bucket, BucketTransfer, SavingsLog } from '../../types';
 
 interface SavingsHeatmapProps {
@@ -45,6 +47,8 @@ const POPOVER_MARGIN = 8;
 const CELL_PX = 14;
 const GAP_PX = 3;
 const COL_PX = CELL_PX + GAP_PX;
+/** A month needs at least this many week-columns to show its name label. */
+const MIN_LABEL_COLS = 3;
 
 const LEVEL_CLASS: Record<HeatLevel, string> = {
   0: 'bg-well',
@@ -91,6 +95,7 @@ export function SavingsHeatmap({
   const d = copy.dashboard;
   const todayKey = todayBangkokKey();
   const locale = language === 'th' ? 'th-TH' : 'en-US';
+  const reduceMotion = useReducedMotion();
 
   const { weeks, todayColumnIndex } = useMemo(() => {
     const dailyTotals = new Map<string, number>();
@@ -151,18 +156,40 @@ export function SavingsHeatmap({
     return map;
   }, [buckets, logs, transfers]);
 
-  // Month labels — shown above the first column of each calendar month.
-  const monthLabels = useMemo(() => {
+  // Month markers — a divider at every month boundary, plus a name label for
+  // months wide enough to fit one without colliding with the next.
+  const monthMarks = useMemo(() => {
     const fmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
-    const months = weeks.map(column => {
-      const mondayKey = column[0]?.dateKey;
-      if (!mondayKey) return '';
-      const [y, m, dd] = mondayKey.split('-').map(Number);
-      return fmt.format(new Date(Date.UTC(y, m - 1, dd)));
+    // Calendar month (year*12 + month) of each column's Monday.
+    const monthOf = weeks.map(column => {
+      const key = column[0]?.dateKey;
+      if (!key) return -1;
+      const [y, m] = key.split('-').map(Number);
+      return y * 12 + (m - 1);
     });
-    // Label only the first column of each month.
-    return months.map((month, i) => (month && month !== months[i - 1] ? month : ''));
+    const labelOf = (column: HeatmapCell[]) => {
+      const key = column[0]?.dateKey;
+      if (!key) return '';
+      const [y, m, dd] = key.split('-').map(Number);
+      return fmt.format(new Date(Date.UTC(y, m - 1, dd)));
+    };
+
+    const dividers: number[] = [];
+    const labels: { col: number; text: string }[] = [];
+    for (let i = 0; i < weeks.length; i++) {
+      const isStart = i === 0 || monthOf[i] !== monthOf[i - 1];
+      if (!isStart) continue;
+      if (i > 0) dividers.push(i);
+      // How many columns this month spans before the next boundary.
+      let span = 1;
+      while (i + span < weeks.length && monthOf[i + span] === monthOf[i]) span++;
+      // Only label months with room, so labels never overlap their neighbour.
+      if (span >= MIN_LABEL_COLS) labels.push({ col: i, text: labelOf(weeks[i]) });
+    }
+    return { dividers, labels };
   }, [weeks, locale]);
+
+  const gridWidth = weeks.length * COL_PX;
 
   const weekdayLabels = language === 'th'
     ? ['จ', '', 'พ', '', 'ศ', '', '']
@@ -178,17 +205,17 @@ export function SavingsHeatmap({
   );
 
   function handleDueClick(dateKey: string, e: React.MouseEvent<HTMLButtonElement>) {
-    setPopover(prev => {
-      if (prev?.dateKey === dateKey) return null;
-      const section = sectionRef.current;
-      if (!section) return null;
-      const cellRect = e.currentTarget.getBoundingClientRect();
-      const sectionRect = section.getBoundingClientRect();
-      const rawLeft = cellRect.left - sectionRect.left + cellRect.width / 2;
-      const half = POPOVER_WIDTH / 2 + POPOVER_MARGIN;
-      const left = Math.min(Math.max(rawLeft, half), sectionRect.width - half);
-      return { dateKey, left, top: cellRect.top - sectionRect.top };
-    });
+    // Read DOM rects synchronously here — the synthetic event is reused and
+    // its currentTarget is null by the time a setState updater runs.
+    const section = sectionRef.current;
+    if (!section) return;
+    const cellRect = e.currentTarget.getBoundingClientRect();
+    const sectionRect = section.getBoundingClientRect();
+    const rawLeft = cellRect.left - sectionRect.left + cellRect.width / 2;
+    const half = POPOVER_WIDTH / 2 + POPOVER_MARGIN;
+    const left = Math.min(Math.max(rawLeft, half), sectionRect.width - half);
+    const top = cellRect.top - sectionRect.top;
+    setPopover(prev => (prev?.dateKey === dateKey ? null : { dateKey, left, top }));
   }
 
   useEffect(() => {
@@ -224,7 +251,7 @@ export function SavingsHeatmap({
         <h2 className="font-mono text-sm font-bold text-ink">{d.heatmapTitle}</h2>
         <div className="flex items-center gap-1.5 font-mono text-[10px] text-ink-muted">
           <span>{d.heatmapLess}</span>
-          {([0, 1, 2, 3, 4] as HeatLevel[]).map(level => (
+          {([0, 2, 3, 4] as HeatLevel[]).map(level => (
             <span
               key={level}
               className={`h-[10px] w-[10px] rounded-[2px] ${LEVEL_CLASS[level]}`}
@@ -254,21 +281,33 @@ export function SavingsHeatmap({
           onScroll={handleScroll}
           className="min-w-0 flex-1 overflow-x-auto"
         >
-          {/* Month labels */}
-          <div className="flex" style={{ gap: GAP_PX, height: CELL_PX }}>
-            {monthLabels.map((label, col) => (
-              <div
-                key={col}
-                className="font-mono text-[9px] leading-none text-ink-muted"
-                style={{ width: CELL_PX }}
-              >
-                {label}
-              </div>
-            ))}
-          </div>
+          <div className="relative w-max">
+            {/* Month-boundary dividers — span the label row and the grid below. */}
+            <div aria-hidden className="pointer-events-none absolute inset-0">
+              {monthMarks.dividers.map(col => (
+                <span
+                  key={col}
+                  className="absolute bottom-0 top-0 w-px bg-ink/10"
+                  style={{ left: col * COL_PX - GAP_PX / 2 }}
+                />
+              ))}
+            </div>
 
-          {/* Week columns */}
-          <div className="flex" style={{ gap: GAP_PX }}>
+            {/* Month labels — placed above each labelled month's first column. */}
+            <div className="relative" style={{ height: CELL_PX, width: gridWidth }}>
+              {monthMarks.labels.map(({ col, text }) => (
+                <span
+                  key={col}
+                  className="absolute top-0 whitespace-nowrap font-mono text-[9px] leading-none text-ink-muted"
+                  style={{ left: col * COL_PX + 1 }}
+                >
+                  {text}
+                </span>
+              ))}
+            </div>
+
+            {/* Week columns */}
+            <div className="flex" style={{ gap: GAP_PX }}>
             {weeks.map((column, col) => (
               <div key={col} className="flex flex-col" style={{ gap: GAP_PX }}>
                 {column.map(cell => {
@@ -322,6 +361,7 @@ export function SavingsHeatmap({
                 })}
               </div>
             ))}
+            </div>
           </div>
         </div>
       </div>
@@ -344,54 +384,73 @@ export function SavingsHeatmap({
         </span>
       </div>
 
+      {/* Outside-tap dismiss layer. */}
+      {popover && (
+        <button
+          type="button"
+          aria-hidden
+          tabIndex={-1}
+          className="fixed inset-0 z-10 cursor-default"
+          onClick={() => setPopover(null)}
+        />
+      )}
+
       {/* Due-marker popover: tap a flag to see the bucket(s) due that day. */}
-      {popover && (() => {
-        const items = dueByDate.get(popover.dateKey) ?? [];
-        if (items.length === 0) return null;
-        const [py, pm, pd] = popover.dateKey.split('-').map(Number);
-        const dateLabel = dueDateFmt.format(new Date(Date.UTC(py, pm - 1, pd)));
-        return (
-          <>
-            {/* Outside-tap dismiss layer. */}
-            <button
-              type="button"
-              aria-hidden
-              tabIndex={-1}
-              className="fixed inset-0 z-10 cursor-default"
-              onClick={() => setPopover(null)}
-            />
-            <div
-              role="dialog"
-              aria-label={`${d.heatmapDueDetailTitle} · ${dateLabel}`}
-              className="absolute z-20 -translate-x-1/2 rounded-lg bg-surfaceAlt p-2.5 shadow-soft ring-1 ring-ink/10"
+      <AnimatePresence>
+        {popover && (() => {
+          const items = dueByDate.get(popover.dateKey) ?? [];
+          if (items.length === 0) return null;
+          const [py, pm, pd] = popover.dateKey.split('-').map(Number);
+          const dateLabel = dueDateFmt.format(new Date(Date.UTC(py, pm - 1, pd)));
+          return (
+            // Outer layer holds the static positioning transform and fades;
+            // the inner layer animates scale/slide from the tapped cell.
+            <motion.div
+              key={popover.dateKey}
+              className="absolute z-20"
               style={{
                 left: popover.left,
                 top: popover.top,
                 width: POPOVER_WIDTH,
                 transform: 'translate(-50%, calc(-100% - 8px))',
               }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={reduceMotion ? REDUCED_MOTION_TRANSITION : FADE_TRANSITION}
             >
-              <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] font-bold text-danger">
-                <IconFlag size={10} strokeWidth={2.5} />
-                <span>{d.heatmapDueDetailTitle} · {dateLabel}</span>
-              </div>
-              <ul className="flex flex-col gap-1.5">
-                {items.map(item => (
-                  <li key={item.id} className="flex flex-col gap-0.5">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="truncate font-mono text-[11px] text-ink">{item.name}</span>
-                      <span className="shrink-0 font-mono text-[10px] font-bold text-ink-muted">{item.percent}%</span>
-                    </div>
-                    <span className="font-mono text-[10px] text-ink-dim">
-                      {formatMoney(item.saved)} / {formatMoney(item.target)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </>
-        );
-      })()}
+              <motion.div
+                role="dialog"
+                aria-label={`${d.heatmapDueDetailTitle} · ${dateLabel}`}
+                className="rounded-lg bg-surfaceAlt p-2.5 shadow-soft ring-1 ring-ink/10"
+                style={{ transformOrigin: 'bottom center' }}
+                initial={reduceMotion ? false : { scale: 0.92, y: 4 }}
+                animate={reduceMotion ? {} : { scale: 1, y: 0 }}
+                exit={reduceMotion ? {} : { scale: 0.92, y: 4 }}
+                transition={reduceMotion ? REDUCED_MOTION_TRANSITION : SPRING.content}
+              >
+                <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] font-bold text-danger">
+                  <IconFlag size={10} strokeWidth={2.5} />
+                  <span>{d.heatmapDueDetailTitle} · {dateLabel}</span>
+                </div>
+                <ul className="flex flex-col gap-1.5">
+                  {items.map(item => (
+                    <li key={item.id} className="flex flex-col gap-0.5">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="truncate font-mono text-[11px] text-ink">{item.name}</span>
+                        <span className="shrink-0 font-mono text-[10px] font-bold text-ink-muted">{item.percent}%</span>
+                      </div>
+                      <span className="font-mono text-[10px] text-ink-dim">
+                        {formatMoney(item.saved)} / {formatMoney(item.target)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </section>
   );
 }

@@ -31,7 +31,7 @@ export interface HeatmapModel {
   weeks: HeatmapCell[][];
   /** Column index whose week contains today, or -1 when out of range. */
   todayColumnIndex: number;
-  /** Quartile thresholds of non-zero days, for the legend. */
+  /** Amount cutoffs between colour levels (⅓ and ⅔ of the biggest day). */
   thresholds: number[];
 }
 
@@ -51,17 +51,18 @@ function mondayOf(key: string): string {
   return addDays(key, 1 - isoDow(key));
 }
 
-function percentile(sortedAsc: number[], p: number): number {
-  if (sortedAsc.length === 0) return 0;
-  const idx = Math.min(sortedAsc.length - 1, Math.max(0, Math.round((sortedAsc.length - 1) * p)));
-  return sortedAsc[idx];
-}
-
-function levelFor(amount: number, q1: number, q2: number, q3: number): HeatLevel {
-  if (amount <= 0) return 0;
-  if (amount <= q1) return 1;
-  if (amount <= q2) return 2;
-  if (amount <= q3) return 3;
+/**
+ * Colour level for a day's deposit total, scaled against the member's own
+ * biggest day. Any deposit floors at level 2 — a solid, encouraging tone — so
+ * infrequent savers (once a week / once a month) never see faint cells, while
+ * bigger days still climb toward the darkest. A member who always saves the
+ * same amount has every day at the top level.
+ */
+function levelFor(amount: number, maxDaily: number): HeatLevel {
+  if (amount <= 0 || maxDaily <= 0) return 0;
+  const ratio = amount / maxDaily;
+  if (ratio <= 1 / 3) return 2;
+  if (ratio <= 2 / 3) return 3;
   return 4;
 }
 
@@ -92,14 +93,11 @@ export function buildSavingsHeatmap({
   // Last column ends on the Sunday of the end week.
   const gridEnd = addDays(mondayOf(endKey), 6);
 
-  const nonZero: number[] = [];
+  // Intensity scales against the member's own biggest deposit day.
+  let maxDaily = 0;
   for (const value of dailyTotals.values()) {
-    if (value > 0) nonZero.push(value);
+    if (value > maxDaily) maxDaily = value;
   }
-  nonZero.sort((a, b) => a - b);
-  const q1 = percentile(nonZero, 0.25);
-  const q2 = percentile(nonZero, 0.5);
-  const q3 = percentile(nonZero, 0.75);
 
   const weeks: HeatmapCell[][] = [];
   let column: HeatmapCell[] = [];
@@ -112,7 +110,7 @@ export function buildSavingsHeatmap({
     const cell: HeatmapCell = {
       dateKey: cursor,
       amount,
-      level: levelFor(amount, q1, q2, q3),
+      level: levelFor(amount, maxDaily),
       isToday: cursor === todayKey,
       inRange,
       isFuture: cursor > todayKey,
@@ -129,5 +127,5 @@ export function buildSavingsHeatmap({
   }
   if (column.length > 0) weeks.push(column);
 
-  return { weeks, todayColumnIndex, thresholds: [q1, q2, q3] };
+  return { weeks, todayColumnIndex, thresholds: [maxDaily / 3, (maxDaily * 2) / 3] };
 }

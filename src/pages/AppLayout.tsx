@@ -9,7 +9,7 @@ import { LoadingState } from '../components/LoadingState/LoadingState';
 import { MilestoneCelebrationModal } from '../components/MilestoneCelebrationModal/MilestoneCelebrationModal';
 import { PageTransition } from '../components/PageTransition/PageTransition';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
-import { IconChevronRight, IconRocket, IconUserPlus } from '../components/Icon/Icon';
+import { IconArrowLeft, IconChevronRight, IconRocket, IconUserPlus } from '../components/Icon/Icon';
 import { useAuth } from '../hooks/useAuth';
 import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useMilestoneCrossings } from '../hooks/useMilestoneCrossings';
@@ -229,6 +229,20 @@ function ProjectSetup({
 
   return (
     <div className="flex flex-col gap-6 pt-8">
+      {mode === 'join' && (
+        <button
+          type="button"
+          onClick={() => {
+            setMode('create');
+            setMessage(null);
+          }}
+          aria-label={copy.common.back}
+          className="self-start -ml-2 inline-flex items-center gap-2 rounded-pill px-4 py-2.5 font-mono text-base font-bold text-ink-muted hover:text-ink hover:bg-well transition-colors"
+        >
+          <IconArrowLeft size={24} />
+          {copy.common.back}
+        </button>
+      )}
       <header>
         <SectionLabel tone="brand">GO-OUT</SectionLabel>
         <h1 className="mt-2 font-mono text-3xl font-bold text-ink">{ps.title}</h1>
@@ -248,16 +262,6 @@ function ProjectSetup({
             onCodeChange={setCode}
             onJoin={handleJoin}
           />
-          <button
-            type="button"
-            onClick={() => {
-              setMode('create');
-              setMessage(null);
-            }}
-            className="self-start font-mono text-xs font-bold text-ink-muted hover:text-ink"
-          >
-            ← {copy.common.back}
-          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-3">

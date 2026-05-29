@@ -468,6 +468,12 @@ export const th: Messages = {
       `วางแผน ${count} รายจ่าย`,
     createProjectButton: 'สร้างโปรเจกต์',
     creatingProject: 'กำลังสร้าง...',
+    creatingTitle: 'กำลังสร้างโปรเจกต์',
+    creatingMessages: [
+      'กำลังตั้งค่าโปรเจกต์…',
+      'กำลังเตรียมถังออมเงิน…',
+      'ใกล้เสร็จแล้ว…',
+    ],
     conflictMessage: (name: string): string =>
       `คุณมีโปรเจกต์ที่ใช้งานอยู่แล้ว “${name}” การสร้างโปรเจกต์นี้จะเก็บโปรเจกต์เดิมเข้าคลัง`,
     conflictArchiveButton: 'เก็บเข้าคลังแล้วสร้าง',

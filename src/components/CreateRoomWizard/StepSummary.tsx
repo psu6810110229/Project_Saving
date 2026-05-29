@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../Button/Button';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
+import { CreateProjectLoader } from './CreateProjectLoader';
 import { ExpenseTimeline } from '../ExpenseTimeline/ExpenseTimeline';
 import iconCelebrate from '../../assets/icons/celebrate.svg';
 import iconLightbulb from '../../assets/icons/lightbulb.svg';
@@ -50,6 +51,14 @@ export function StepSummary({
   const [conflictName, setConflictName] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Bumped per create attempt so the loader remounts with a fresh progress run.
+  const [createAttempt, setCreateAttempt] = useState(0);
+
+  // The result is revealed only once BOTH the create request resolves and the
+  // loader animation finishes, so the progress bar never snaps shut early.
+  type CreateResult = Awaited<ReturnType<typeof createRoomWithTemplates>>;
+  const pendingResultRef = useRef<CreateResult | null>(null);
+  const animationDoneRef = useRef(false);
 
   const checked = useMemo(
     () =>
@@ -77,11 +86,40 @@ export function StepSummary({
     [checked],
   );
 
-  const handleCreate = useCallback(async (archiveExisting = false) => {
+  const finishCreate = useCallback(() => {
+    if (!animationDoneRef.current || !pendingResultRef.current) return;
+    const result = pendingResultRef.current;
+    pendingResultRef.current = null;
+    animationDoneRef.current = false;
+    setCreating(false);
+
+    if (result.conflict) {
+      setConflictName(result.conflict.existingName);
+      return;
+    }
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    clearWizardDraft();
+    setConflictName(null);
+    setInviteCode(result.inviteCode ?? null);
+  }, []);
+
+  const handleLoaderDone = useCallback(() => {
+    animationDoneRef.current = true;
+    finishCreate();
+  }, [finishCreate]);
+
+  const handleCreate = useCallback((archiveExisting = false) => {
     setCreating(true);
     setError(null);
+    setCreateAttempt(n => n + 1);
+    animationDoneRef.current = false;
+    pendingResultRef.current = null;
 
-    const result = await createRoomWithTemplates({
+    void createRoomWithTemplates({
       name,
       target_amount: totalBudget > 0 ? totalBudget : expenseTotal,
       end_date: endDate,
@@ -99,23 +137,16 @@ export function StepSummary({
         savingRuleType: e.savingRuleType ?? null,
         savingRuleAmount: e.savingRuleAmount ?? null,
       })),
-    }, { archiveExisting });
-
-    setCreating(false);
-
-    if (result.conflict) {
-      setConflictName(result.conflict.existingName);
-      return;
-    }
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-
-    clearWizardDraft();
-    setConflictName(null);
-    setInviteCode(result.inviteCode ?? null);
-  }, [name, category, endDate, coverImageUrl, totalBudget, expenseTotal, checked, createRoomWithTemplates]);
+    }, { archiveExisting })
+      .then(result => {
+        pendingResultRef.current = result;
+        finishCreate();
+      })
+      .catch(() => {
+        pendingResultRef.current = { error: copy.common.somethingWrong };
+        finishCreate();
+      });
+  }, [name, category, endDate, coverImageUrl, totalBudget, expenseTotal, checked, createRoomWithTemplates, finishCreate, copy.common.somethingWrong]);
 
   const handleCopy = useCallback(async () => {
     if (!inviteCode) return;
@@ -266,6 +297,8 @@ export function StepSummary({
           {creating ? c.creatingProject : c.createProjectButton}
         </Button>
       )}
+
+      <CreateProjectLoader key={createAttempt} open={creating} onDone={handleLoaderDone} />
     </div>
   );
 }

@@ -481,6 +481,12 @@ export const en = {
       `${count} expense${count === 1 ? '' : 's'} planned`,
     createProjectButton: 'Create Project',
     creatingProject: 'Creating...',
+    creatingTitle: 'Creating your project',
+    creatingMessages: [
+      'Setting things up…',
+      'Creating your buckets…',
+      'Almost ready…',
+    ],
     conflictMessage: (name: string): string =>
       `You already have an active project “${name}”. Creating this one will archive it.`,
     conflictArchiveButton: 'Archive & create',

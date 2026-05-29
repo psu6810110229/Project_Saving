@@ -229,6 +229,23 @@ export const en = {
     tripBuckets: 'Trip Buckets',
     yourBuckets: (name: string) => `${name}'s Buckets`,
     bucketCount: (n: number) => `${n} active bucket${n === 1 ? '' : 's'}`,
+    actionAlert: {
+      stateBehind: 'is behind schedule',
+      stateCritical: 'is critical',
+      singleTitlePerDay: (name: string, state: string, perDay: string) =>
+        `${name} ${state} — save ${perDay}/day to catch up`,
+      singleTitleNeeded: (name: string, state: string, amount: string) =>
+        `${name} ${state} — ${amount} still needed`,
+      singleTitlePlain: (name: string, state: string) => `${name} ${state}`,
+      multiTitle: (count: number) => `${count} goals need attention`,
+      bodySingleCritical: 'Deadline pressure is high. A quick top-up keeps this goal alive.',
+      bodySingleBehind: 'You can still bring it back on pace with a focused deposit.',
+      bodyMultiCritical: 'At least one goal is critical. Review the most urgent one first.',
+      bodyMultiBehind: 'A few goals are drifting behind schedule. Pick one to catch up.',
+      viewButton: 'View',
+      viewDetailsButton: 'View details',
+      dismissAria: 'Dismiss alert',
+    },
     bucketReadOnly: 'read-only',
     addBucket: 'Add Bucket',
     addShort: 'Add',

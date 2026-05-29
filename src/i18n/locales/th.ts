@@ -219,6 +219,23 @@ export const th: Messages = {
     tripBuckets: 'เป้าหมายย่อย',
     yourBuckets: (name: string) => `เป้าหมายย่อยของ ${name}`,
     bucketCount: (n: number) => `มี ${n} เป้าหมายย่อย`,
+    actionAlert: {
+      stateBehind: 'ตามแผนไม่ทัน',
+      stateCritical: 'ใกล้พลาดเป้า',
+      singleTitlePerDay: (name: string, state: string, perDay: string) =>
+        `${name} ${state} · ออม ${perDay}/วันเพื่อตามให้ทัน`,
+      singleTitleNeeded: (name: string, state: string, amount: string) =>
+        `${name} ${state} · ยังต้องการอีก ${amount}`,
+      singleTitlePlain: (name: string, state: string) => `${name} ${state}`,
+      multiTitle: (count: number) => `มี ${count} เป้าหมายที่ต้องดูแล`,
+      bodySingleCritical: 'ใกล้ถึงกำหนดแล้ว เติมอีกนิดช่วยรักษาเป้านี้ไว้',
+      bodySingleBehind: 'ยังดึงกลับมาตามแผนได้ด้วยการออมสักก้อน',
+      bodyMultiCritical: 'มีอย่างน้อยหนึ่งเป้าที่ใกล้พลาด ดูอันด่วนสุดก่อน',
+      bodyMultiBehind: 'มีบางเป้ากำลังตามแผนไม่ทัน เลือกมาจัดการสักอัน',
+      viewButton: 'ดู',
+      viewDetailsButton: 'ดูรายละเอียด',
+      dismissAria: 'ปิดการแจ้งเตือน',
+    },
     bucketReadOnly: '',
     addBucket: 'เพิ่มเป้าหมายย่อย',
     addShort: 'เพิ่ม',

@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
+import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { IconEdit, IconPlus, IconTrash } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
@@ -68,6 +69,19 @@ export function StepExpenses({
 }: StepExpensesProps) {
   const { language, copy } = useI18n();
   const c = copy.createRoomWizard;
+
+  // Removal is confirmed via a modal, then the row plays the "Gone" (bucket-gone)
+  // exit before it's actually dropped from state.
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const removeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (removeTimer.current) clearTimeout(removeTimer.current);
+    },
+    [],
+  );
 
   const checkedTotal = useMemo(
     () => expenses.filter(e => e.checked).reduce((sum, e) => sum + e.targetAmount, 0),
@@ -152,6 +166,17 @@ export function StepExpenses({
     [expenses, onExpensesChange],
   );
 
+  const confirmRemove = useCallback(() => {
+    const id = pendingRemoveId;
+    setPendingRemoveId(null);
+    if (!id) return;
+    setRemovingId(id);
+    removeTimer.current = setTimeout(() => {
+      removeExpense(id);
+      setRemovingId(null);
+    }, 420);
+  }, [pendingRemoveId, removeExpense]);
+
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -192,7 +217,7 @@ export function StepExpenses({
               key={exp.id}
               className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors ${
                 exp.checked ? 'bg-surface shadow-soft' : 'bg-surfaceAlt opacity-60'
-              }`}
+              } ${removingId === exp.id ? 'bucket-gone' : ''}`}
             >
               {/* Checkbox */}
               <button
@@ -249,7 +274,7 @@ export function StepExpenses({
               {/* Remove */}
               <button
                 type="button"
-                onClick={() => removeExpense(exp.id)}
+                onClick={() => setPendingRemoveId(exp.id)}
                 aria-label={`Remove ${name}`}
                 className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-danger transition-colors hover:bg-danger-soft"
               >
@@ -274,6 +299,16 @@ export function StepExpenses({
       {!hasChecked && (
         <p className="text-center font-mono text-xs text-danger">{c.noExpensesSelected}</p>
       )}
+
+      <ConfirmModal
+        open={pendingRemoveId !== null}
+        title={c.removeBucketTitle}
+        body={c.removeBucketBody}
+        confirmLabel={c.removeBucketConfirm}
+        danger
+        onCancel={() => setPendingRemoveId(null)}
+        onConfirm={confirmRemove}
+      />
     </div>
   );
 }

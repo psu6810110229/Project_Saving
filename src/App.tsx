@@ -12,7 +12,6 @@ import { CreateRoom } from './pages/CreateRoom';
 import { JoinRoom } from './pages/JoinRoom';
 import { Dashboard } from './pages/Dashboard';
 import { Team } from './pages/Team';
-import { SavingPlan } from './pages/SavingPlan';
 import { Login } from './pages/Login';
 import { Maintenance } from './pages/Maintenance';
 import { ManageProject } from './pages/ManageProject';
@@ -60,7 +59,7 @@ function App() {
               <Route path="/team" element={<Team />} />
               <Route path="/add" element={<Navigate to="/dashboard" replace />} />
               <Route path="/check-balance" element={<CheckBalance />} />
-              <Route path="/saving-plan" element={<SavingPlan />} />
+              <Route path="/saving-plan" element={<Navigate to="/dashboard" replace />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/manage-project" element={<ManageProject />} />
               <Route path="/members/:userId" element={<MemberDetail />} />

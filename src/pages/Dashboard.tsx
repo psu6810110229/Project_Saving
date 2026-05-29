@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
-import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { MigrationWizard } from '../components/MigrationWizard/MigrationWizard';
 import { BucketRow } from '../components/BucketRow/BucketRow';
 import { BucketGrid } from '../components/BucketGrid/BucketGrid';
@@ -75,21 +74,14 @@ import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { calcBucketPace } from '../lib/paceCalculation';
 import { cumulativeAmountSeries } from '../lib/dashboardStats';
-import { formatCurrency } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import { roomCoverErrorMessage } from '../lib/roomCoverImage';
 import { supabase } from '../lib/supabase';
 import { daysSince } from '../lib/reconcile';
 import {
-  activeRevisionAt,
   daysBetween,
-  habitStatusFromDeposits,
-  isPausedOnDate,
-  moneyStatusFor,
-  nextUpcomingRevision,
   todayBangkokKey,
 } from '../lib/savingPlan';
-import type { SavingPlanRevision } from '../types';
 import type { Bucket, BucketCategory, BucketCreateRuleData, BucketTransfer, SavingRuleType } from '../types';
 
 /** Framer Motion stagger variants for the Dashboard cascade. */
@@ -248,10 +240,8 @@ export function Dashboard() {
     createCheckpoint,
     loading: reconcileLoading,
   } = data.reconcile;
-  const { plan: savingPlan, deposits: planDeposits } = data.savingPlan;
   const {
     frozenDates: streakFrozenDates,
-    lastFreezeDate: lastStreakFreezeDate,
   } = data.streakFreeze;
   const { count: unreadNotifications } = useUnreadNotificationsCount();
   const { copy, formatMoney } = useI18n();
@@ -615,55 +605,7 @@ export function Dashboard() {
     return `dashboard-action-alert:${activeRoomId ?? 'no-room'}:${user?.id ?? 'anon'}:${signature}`;
   }, [actionAlertBuckets, activeRoomId, user?.id]);
   /* eslint-enable react-hooks/preserve-manual-memoization */
-  // Saving Plan status — computed once for the primary insight card.
   const todayKey = todayBangkokKey();
-  // HOTFIX-007: use the same upcoming-first priority as the SavingPlan
-  // edit page so the dashboard summary card shows the user's saved
-  // upcoming revision (e.g. a future-start plan) instead of the
-  // currently active one. Today's active revision is only needed for
-  // accrual / history calculations which `moneyStatusFor` resolves
-  // internally via `activeRevisionAt`.
-  const displayRevision = savingPlan
-    ? (nextUpcomingRevision(savingPlan.revisions, todayKey)
-       ?? activeRevisionAt(savingPlan.revisions, todayKey))
-    : null;
-  // Today's active revision is kept for habit cadence checks (weekly /
-  // monthly rules widen the "active" window). When no revision is
-  // active yet the display revision provides a safe fallback.
-  const accrualRevision = savingPlan
-    ? (activeRevisionAt(savingPlan.revisions, todayKey) ?? displayRevision)
-    : null;
-  const planPauses = savingPlan?.pauses ?? [];
-  const isPausedToday = savingPlan ? isPausedOnDate(planPauses, todayKey) : false;
-  const openPause = planPauses.find(p => p.resumed_from === null) ?? null;
-  const pausedSince = openPause?.paused_from ?? null;
-  const planSummary = displayRevision ? buildPlanSummary(displayRevision, d) : null;
-  // HOTFIX-008: when the displayRevision is a future-start revision
-  // (effective_from_date > todayKey), compute moneyStatus against only
-  // that single revision so the card reads "Not started" with
-  // expectedToday = 0.  Using all revisions would leak the currently
-  // active revision's accrual figures into the dashboard summary card.
-  const displayIsFuture = displayRevision
-    ? displayRevision.effective_from_date > todayKey
-    : false;
-  const moneyStatus = savingPlan
-    ? moneyStatusFor(
-        displayIsFuture && displayRevision
-          ? [displayRevision]
-          : savingPlan.revisions,
-        displayIsFuture ? 0 : planDeposits.total,
-        todayKey,
-        planPauses,
-      )
-    : null;
-  const habitStatus = habitStatusFromDeposits(
-    accrualRevision?.rule_type ?? null,
-    planDeposits.deposit_day_keys,
-    todayKey,
-    isPausedToday,
-    streakFrozenDates,
-  );
-  const hasBucketRules = buckets.some(bucket => Boolean(bucket.deadline && bucket.saving_rule_type));
   const bucketSummaryItems = useMemo(
     () => calcDailySummary(buckets, logs, todayKey, bucketTransfers),
     [buckets, logs, todayKey, bucketTransfers],
@@ -683,44 +625,25 @@ export function Dashboard() {
   const showMigrationBanner = migrationNeedsSetup
     && migration.state.dismissed
     && !migrationBannerDismissed;
-  const displayedHabitStatus = hasBucketRules
-    ? {
-        state: bucketStreak.trackable
-          ? bucketStreak.hasMetCurrentPeriod
-            ? 'active' as const
-            : 'at_risk' as const
-          : 'no_deposits_yet' as const,
-        lastDepositDateKey: bucketStreak.lastDepositDateKey,
-        daysSinceLastDeposit: bucketStreak.lastDepositDateKey
-          ? Math.max(0, daysBetween(bucketStreak.lastDepositDateKey, todayKey))
-          : null,
-        hasDepositedToday: bucketStreak.hasLoggedToday,
-        streak: bucketStreak.streak,
-        streakUnit: bucketStreak.unit,
-      }
-    : habitStatus;
+  // Habit / streak is derived entirely from per-bucket plans (deadline +
+  // saving rule). The legacy room-level Saving Plan no longer feeds the
+  // dashboard.
+  const displayedHabitStatus = {
+    state: bucketStreak.trackable
+      ? bucketStreak.hasMetCurrentPeriod
+        ? 'active' as const
+        : 'at_risk' as const
+      : 'no_deposits_yet' as const,
+    lastDepositDateKey: bucketStreak.lastDepositDateKey,
+    daysSinceLastDeposit: bucketStreak.lastDepositDateKey
+      ? Math.max(0, daysBetween(bucketStreak.lastDepositDateKey, todayKey))
+      : null,
+    hasDepositedToday: bucketStreak.hasLoggedToday,
+    streak: bucketStreak.streak,
+    streakUnit: bucketStreak.unit,
+  };
   const heroStreak = displayedHabitStatus.streak ?? 0;
-  const heroStreakUnit = hasBucketRules
-    ? bucketStreak.unit
-    : ('streakUnit' in displayedHabitStatus ? displayedHabitStatus.streakUnit : undefined);
-
-  // Saving Plan card meta — prefer the active plan revision's end date,
-  // otherwise fall back to the room/goal end date. Some plans run in
-  // target-reach mode (no revision end_date), so the room date is the
-  // usual source.
-
-  const planEndDateKey = displayRevision?.end_date ?? activeRoom?.end_date ?? null;
-  const planDaysRemaining = planEndDateKey
-    ? Math.max(
-        0,
-        Math.round(
-          (Date.parse(planEndDateKey + 'T00:00:00Z') - Date.parse(todayKey + 'T00:00:00Z')) / 86_400_000,
-        ),
-      )
-    : null;
-  const planProgressPct = moneyStatus && moneyStatus.targetAmount > 0
-    ? (moneyStatus.recordedDeposits / moneyStatus.targetAmount) * 100
-    : 0;
+  const heroStreakUnit = bucketStreak.unit;
 
   // Pack the Verified Balance slot for the Saving Plan island so
   // both ideas read as one financial picture; the underlying
@@ -763,13 +686,6 @@ export function Dashboard() {
   }, []);
 
   const handleCheckBalance = useCallback(() => navigate('/check-balance'), [navigate]);
-  const handleConfigurePlan = useCallback(() => {
-    if (buckets.length > 0) {
-      navigate('/manage-project?modal=buckets');
-    } else {
-      setBucketModalOpen(true);
-    }
-  }, [buckets.length, navigate]);
   const handleOpenManageBuckets = useCallback(() => {
     if (buckets.length > 0) {
       setManageBucketsOpen(true);
@@ -855,12 +771,6 @@ export function Dashboard() {
     }
   }
 
-  const handleDepositFromPlan = useCallback(() => {
-    const targetBucketId = focusBucketId ?? activeBucketItems[0]?.id;
-    if (targetBucketId) {
-      setExpandedBucketId(targetBucketId);
-    }
-  }, [focusBucketId, activeBucketItems]);
   function bucketDraftFromExisting(bucket: Bucket) {
     return {
       id: bucket.id,
@@ -1201,40 +1111,17 @@ export function Dashboard() {
         />
       </motion.div>
 
-      {/* 3 — Saving Plan island (with embedded Verified Balance). */}
-      <motion.div variants={dashboardSectionVariants}>
-        {reconciledAppBalance === null && verifiedBalanceSlot === null && (
-          // Fallback row only when there is no Verified Balance to fold
-          // into the Saving Plan island — kept lightweight so it still
-          // doesn't compete with the Saving Plan headline.
-          <div className="mb-3">
-            <BalanceCheckStatus
-              latest={latestCheckpoint}
-              appBalance={0}
-              onCheck={handleCheckBalance}
-            />
-          </div>
-        )}
-        <SavingPlanCard
-          ruleType={displayRevision?.rule_type ?? null}
-          money={moneyStatus}
-          habit={displayedHabitStatus}
-          onConfigure={handleConfigurePlan}
-          verifiedBalance={verifiedBalanceSlot}
-          isPaused={isPausedToday}
-          pausedSince={pausedSince}
-          planSummary={planSummary}
-          lastFreezeDateKey={lastStreakFreezeDate}
-          todayDateKey={todayKey}
-          planStartDateKey={displayRevision?.effective_from_date ?? null}
-          daysRemaining={planDaysRemaining}
-          progressPct={planProgressPct}
-          bucketSummaryItems={bucketSummaryItems}
-          hasBucketRules={hasBucketRules}
-          onDeposit={handleDepositFromPlan}
-          compact
-        />
-      </motion.div>
+      {/* 3 — Balance check entry. Interim placement until the dedicated
+              always-visible Balance Check row lands (slice 4). */}
+      {reconciledAppBalance === null && verifiedBalanceSlot === null && (
+        <motion.div variants={dashboardSectionVariants}>
+          <BalanceCheckStatus
+            latest={latestCheckpoint}
+            appBalance={0}
+            onCheck={handleCheckBalance}
+          />
+        </motion.div>
+      )}
 
       {/* (Next Win — hidden for now; component preserved.) */}
       {SHOW_NEXT_WIN && (
@@ -1915,30 +1802,4 @@ function bestMicroGoalBucket(
 
 function bucketIcon(category: BucketCategory | undefined): ReactNode {
   return <BucketCategoryIcon category={category} size={22} />;
-}
-
-interface PlanSummaryMessages {
-  planFixedDaily: (amount: string) => string;
-  planFixedWeekly: (amount: string) => string;
-  planFixedMonthly: (amount: string) => string;
-  planIncreasingDaily: (startAmount: string) => string;
-  planIncreasingDailyCapped: (capAmount: string) => string;
-}
-
-/** Short human-readable plan rule summary for display in the Plan card. */
-function buildPlanSummary(rev: SavingPlanRevision, msg: PlanSummaryMessages): string {
-  switch (rev.rule_type) {
-    case 'fixed_daily':
-      return msg.planFixedDaily(formatCurrency(Math.round(Number(rev.amount ?? 0))));
-    case 'fixed_weekly':
-      return msg.planFixedWeekly(formatCurrency(Math.round(Number(rev.amount ?? 0))));
-    case 'fixed_monthly':
-      return msg.planFixedMonthly(formatCurrency(Math.round(Number(rev.amount ?? 0))));
-    case 'increasing_daily':
-      return msg.planIncreasingDaily(String(Math.round(Number(rev.start_amount ?? 0))));
-    case 'increasing_daily_capped':
-      return msg.planIncreasingDailyCapped(formatCurrency(Math.round(Number(rev.cap_amount ?? 0))));
-    default:
-      return '';
-  }
 }

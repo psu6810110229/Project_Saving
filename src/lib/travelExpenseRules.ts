@@ -176,3 +176,26 @@ export function suggestExpenses(
     };
   });
 }
+
+/**
+ * Split a total budget across the catalog categories so the per-category
+ * amounts sum **exactly** to the budget. Each share is rounded to the nearest
+ * ฿100 and any leftover is absorbed by the largest-share category, so the
+ * auto-split never overshoots the budget (which would otherwise trip the
+ * wizard's "budget < expenses" guard for odd/small budgets).
+ */
+export function splitBudget(totalBudget: number): Partial<Record<BucketCategory, number>> {
+  const rules = TRAVEL_EXPENSE_RULES;
+  const rounded = rules.map(r => Math.round((totalBudget * r.budgetPercent) / 100) * 100);
+  const diff = totalBudget - rounded.reduce((sum, amount) => sum + amount, 0);
+  let largestIdx = 0;
+  rules.forEach((r, i) => {
+    if (r.budgetPercent > rules[largestIdx].budgetPercent) largestIdx = i;
+  });
+  rounded[largestIdx] = rounded[largestIdx] + diff;
+  const out: Partial<Record<BucketCategory, number>> = {};
+  rules.forEach((r, i) => {
+    out[r.category] = Math.max(0, rounded[i]);
+  });
+  return out;
+}

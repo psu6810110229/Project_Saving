@@ -18,27 +18,32 @@ import {
   IconSmartphone,
 } from '../Icon/Icon';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { Button } from '../Button/Button';
+import { Modal } from '../Modal/Modal';
 import { useI18n } from '../../i18n/useI18n';
 import { WIZARD_DRAFT_KEY } from '../../lib/wizardDraft';
 import { suggestExpenses } from '../../lib/travelExpenseRules';
 import type { ExpenseDraftItem, WizardDraft } from './wizardTypes';
 
 const TOTAL_STEPS = 5;
+const MIN_BUDGET = 500;
 
 function todayKey(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function buildInitialExpenses(endDate: string, totalBudget: number): ExpenseDraftItem[] {
+function buildInitialExpenses(endDate: string): ExpenseDraftItem[] {
   if (!endDate) return [];
-  const suggested = suggestExpenses(totalBudget || 50_000, endDate);
+  // No budget yet → suggested categories appear with empty amounts; the user's
+  // budget entry on step 3 fills them in (StepExpenses.handleBudgetChange).
+  const suggested = suggestExpenses(0, endDate);
   return suggested.map(s => ({
     id: s.category,
     category: s.category,
     nameEn: s.nameEn,
     nameTh: s.nameTh,
-    targetAmount: s.targetAmount,
+    targetAmount: 0,
     deadline: s.deadline,
     checked: true,
     isCustom: false,
@@ -86,6 +91,7 @@ export function CreateRoomWizard() {
 
   const [draft, setDraft] = useState(loadDraft);
   const [direction, setDirection] = useState(1);
+  const [validationMsg, setValidationMsg] = useState<string | null>(null);
 
   useEffect(() => {
     saveDraft(draft);
@@ -101,7 +107,7 @@ export function CreateRoomWizard() {
     setDraft(prev => {
       const needsInit = prev.expenses.length === 0 && prev.endDate;
       const expenses = needsInit
-        ? buildInitialExpenses(prev.endDate, prev.totalBudget)
+        ? buildInitialExpenses(prev.endDate)
         : prev.expenses;
       return { ...prev, step: 3, expenses };
     });
@@ -133,15 +139,38 @@ export function CreateRoomWizard() {
   const canAdvance =
     draft.step === 1 ? draft.name.trim().length > 0
     : draft.step === 2 ? draft.endDate > todayKey()
-    : draft.step === 3 ? draft.expenses.some(e => e.checked)
+    : draft.step === 3 ? draft.totalBudget > 0
     : draft.step === 4 ? true
     : false;
+
+  // Step-3 guardrails surfaced as a popup on Next (the Next pill is already
+  // disabled until a budget is entered). Returns the message to show, or null.
+  function validateStep3(): string | null {
+    if (draft.totalBudget < MIN_BUDGET) return c.validationMinBudget;
+    const checked = draft.expenses.filter(e => e.checked);
+    if (checked.length === 0) return c.validationNoBucket;
+    if (checked.some(e => e.nameEn.trim().length === 0 || e.nameTh.trim().length === 0)) {
+      return c.validationBlankBucket;
+    }
+    const sum = checked.reduce((acc, e) => acc + e.targetAmount, 0);
+    if (sum === 0) return c.validationNoAmounts;
+    if (sum > draft.totalBudget) return c.validationBudgetExceeded;
+    return null;
+  }
 
   function handleNext() {
     switch (draft.step) {
       case 1: goTo(2); break;
       case 2: goToStep3(); break;
-      case 3: goTo(4); break;
+      case 3: {
+        const msg = validateStep3();
+        if (msg) {
+          setValidationMsg(msg);
+          return;
+        }
+        goTo(4);
+        break;
+      }
       case 4: goTo(5); break;
     }
   }
@@ -252,6 +281,19 @@ export function CreateRoomWizard() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      <Modal
+        open={validationMsg !== null}
+        title={c.validationTitle}
+        onClose={() => setValidationMsg(null)}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="font-mono text-sm leading-6 text-ink-muted">{validationMsg}</p>
+          <Button variant="primary" fullWidth onClick={() => setValidationMsg(null)}>
+            {c.validationOkButton}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

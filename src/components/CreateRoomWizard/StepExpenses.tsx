@@ -3,7 +3,7 @@ import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { IconEdit, IconPlus, IconTrash } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
-import { suggestExpenses } from '../../lib/travelExpenseRules';
+import { splitBudget, suggestExpenses } from '../../lib/travelExpenseRules';
 import type { ExpenseDraftItem } from './wizardTypes';
 
 interface StepExpensesProps {
@@ -81,11 +81,16 @@ export function StepExpenses({
       onTotalBudgetChange(newBudget);
       if (newBudget > 0 && endDate) {
         const suggested = suggestExpenses(newBudget, endDate);
+        const split = splitBudget(newBudget);
         const updated = expenses.map(exp => {
           if (exp.isCustom) return exp;
           const match = suggested.find(s => s.category === exp.category);
           if (!match) return exp;
-          return { ...exp, targetAmount: match.targetAmount, deadline: match.deadline };
+          return {
+            ...exp,
+            targetAmount: split[exp.category] ?? match.targetAmount,
+            deadline: match.deadline,
+          };
         });
         onExpensesChange(updated);
       }

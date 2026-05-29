@@ -1624,12 +1624,22 @@ function DashboardSkeleton() {
         <Spinner size="sm" tone="neutral" />
       </div>
       <HeroCardSkeleton />
-      <TeamSectionSkeleton />
-      <SavingPlanSkeleton />
+      <Skeleton className="h-16 rounded-xl" />
       <BucketZoneSkeleton />
-      <InsightsSkeleton />
-      <ActivitySkeleton />
+      <HeatmapSkeleton />
     </div>
+  );
+}
+
+function HeatmapSkeleton() {
+  return (
+    <section className="rounded-xl bg-surface p-4 shadow-soft">
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-28 rounded-pill" />
+      </div>
+      <Skeleton className="mt-4 h-[120px] rounded-lg" />
+    </section>
   );
 }
 
@@ -1658,45 +1668,6 @@ function HeroCardSkeleton() {
   );
 }
 
-function TeamSectionSkeleton() {
-  return (
-    <section className="min-h-[15.75rem] rounded-xl bg-surface p-4 shadow-soft">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <Skeleton className="h-6 w-20" />
-          <Skeleton className="mt-2 h-3 w-24 rounded-pill" />
-        </div>
-        <Skeleton className="mt-1 h-3 w-28 rounded-pill" />
-      </div>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        {Array.from({ length: 3 }, (_, index) => (
-          <div key={index} className="flex min-h-[9.75rem] flex-col items-center rounded-xl bg-well px-2 py-3">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <Skeleton className="mt-3 h-3 w-14 rounded-pill" />
-            <Skeleton className="mt-3 h-5 w-10 rounded-pill" />
-            <Skeleton className="mt-3 h-1.5 w-full rounded-pill" />
-            <Skeleton className="mt-auto h-3 w-3 rounded-full" />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SavingPlanSkeleton() {
-  return (
-    <section className="rounded-2xl bg-surface p-4 shadow-soft">
-      <Skeleton className="h-3 w-28 rounded-pill" />
-      <Skeleton className="mt-3 h-7 w-44" />
-      <Skeleton className="mt-3 h-3 w-full rounded-pill" />
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <Skeleton className="h-20 rounded-xl" />
-        <Skeleton className="h-20 rounded-xl" />
-      </div>
-    </section>
-  );
-}
-
 function BucketZoneSkeleton() {
   return (
     <section className="flex min-h-[18rem] flex-col gap-4">
@@ -1711,46 +1682,6 @@ function BucketZoneSkeleton() {
         {Array.from({ length: 4 }, (_, index) => (
           <Skeleton key={index} className="aspect-square rounded-2xl" />
         ))}
-      </div>
-    </section>
-  );
-}
-
-function InsightsSkeleton() {
-  return (
-    <section className="flex min-h-[21rem] flex-col gap-3">
-      <div className="rounded-xl bg-surface p-4 shadow-soft">
-        <div className="flex items-center justify-between gap-3">
-          <Skeleton className="h-5 w-28" />
-          <Skeleton className="h-6 w-24 rounded-pill" />
-        </div>
-        <div className="mt-4 flex gap-3">
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} className="h-16 flex-1 rounded-xl" />
-          ))}
-        </div>
-      </div>
-      <div className="rounded-[2rem] bg-surface p-4 shadow-soft">
-        <Skeleton className="h-6 w-44" />
-        <Skeleton className="mt-3 h-8 w-32" />
-        <Skeleton className="mt-4 h-10 w-52 rounded-pill" />
-        <Skeleton className="mt-4 h-[200px] rounded-xl" />
-      </div>
-    </section>
-  );
-}
-
-function ActivitySkeleton() {
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-6 w-24" />
-        <Skeleton className="h-5 w-14 rounded-pill" />
-      </div>
-      <div className="rounded-xl bg-surface px-4 shadow-soft">
-        <Skeleton className="my-4 h-12 rounded-lg" />
-        <Skeleton className="my-4 h-12 rounded-lg" />
-        <Skeleton className="my-4 h-12 rounded-lg" />
       </div>
     </section>
   );

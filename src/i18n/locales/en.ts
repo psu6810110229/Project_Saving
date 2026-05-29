@@ -7,7 +7,6 @@ export const en = {
   team: {
     pageTitle: 'Team',
     pageSubtitle: 'How everyone is doing',
-    placeholder: 'Team activity is moving here.',
   },
   common: {
     loading: 'Loading…',

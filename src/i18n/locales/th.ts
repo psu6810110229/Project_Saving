@@ -9,7 +9,6 @@ export const th: Messages = {
   team: {
     pageTitle: 'ทีม',
     pageSubtitle: 'ดูความคืบหน้าของทุกคน',
-    placeholder: 'กิจกรรมของทีมกำลังย้ายมาที่นี่',
   },
   common: {
     loading: 'สักครู่ รออีกนิดเดียว',

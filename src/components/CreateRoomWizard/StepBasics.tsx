@@ -12,6 +12,7 @@ interface CategoryOption {
   id: ProjectCategory;
   label: string;
   icon: ReactNode;
+  disabled?: boolean;
 }
 
 interface StepBasicsProps {
@@ -60,6 +61,7 @@ export function StepBasics({
           options={options}
           value={category}
           onChange={onCategoryChange}
+          maxVisible={options.length}
         />
         <p className="mt-2 font-mono text-xs text-ink-dim">{c.categoryHint}</p>
       </div>

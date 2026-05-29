@@ -20,6 +20,8 @@ interface Option<T extends string> {
   id: T;
   label: string;
   icon: ReactNode;
+  /** When true the option is shown but cannot be selected ("coming soon"). */
+  disabled?: boolean;
 }
 
 interface CategoryRowProps<T extends string> {
@@ -66,6 +68,8 @@ export function CategoryRow<T extends string>({
               label={opt.label}
               icon={opt.icon}
               selected={value === opt.id}
+              disabled={opt.disabled}
+              badge={opt.disabled ? copy.sharedControls.comingSoon : undefined}
               onClick={() => onChange(opt.id)}
             />
           </div>
@@ -90,6 +94,8 @@ export function CategoryRow<T extends string>({
               label={opt.label}
               icon={opt.icon}
               selected={value === opt.id}
+              disabled={opt.disabled}
+              badge={opt.disabled ? copy.sharedControls.comingSoon : undefined}
               onClick={() => handleSelect(opt.id)}
             />
           ))}

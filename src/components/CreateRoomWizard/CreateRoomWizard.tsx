@@ -44,7 +44,12 @@ function buildInitialExpenses(endDate: string, totalBudget: number): ExpenseDraf
 
 function loadDraft(): WizardDraft {
   try {
-    const raw = localStorage.getItem(WIZARD_DRAFT_KEY);
+    // Purge any draft left in localStorage by older builds — the draft is now
+    // session-scoped, so a leftover localStorage entry would only be stale.
+    localStorage.removeItem(WIZARD_DRAFT_KEY);
+  } catch { /* ignore */ }
+  try {
+    const raw = sessionStorage.getItem(WIZARD_DRAFT_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.step === 'number') {
@@ -57,7 +62,7 @@ function loadDraft(): WizardDraft {
 
 function saveDraft(draft: WizardDraft) {
   try {
-    localStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(draft));
+    sessionStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(draft));
   } catch { /* storage full — non-critical */ }
 }
 
@@ -96,12 +101,14 @@ export function CreateRoomWizard() {
     });
   }, []);
 
+  // Only Travel and Gadget are live today; the rest are shown as "coming soon"
+  // so users see the roadmap without being able to pick an unsupported flow.
   const categoryOptions = useMemo(() => [
     { id: 'travel' as const, label: copy.profile.projectCategories.travel, icon: <IconPlane size={28} /> },
     { id: 'gadget' as const, label: copy.profile.projectCategories.gadget, icon: <IconSmartphone size={28} /> },
-    { id: 'wedding' as const, label: copy.profile.projectCategories.wedding, icon: <IconHeart size={28} /> },
-    { id: 'home' as const, label: copy.profile.projectCategories.home, icon: <IconHome size={28} /> },
-    { id: 'other' as const, label: copy.profile.projectCategories.other, icon: <IconBriefcase size={28} /> },
+    { id: 'wedding' as const, label: copy.profile.projectCategories.wedding, icon: <IconHeart size={28} />, disabled: true },
+    { id: 'home' as const, label: copy.profile.projectCategories.home, icon: <IconHome size={28} />, disabled: true },
+    { id: 'other' as const, label: copy.profile.projectCategories.other, icon: <IconBriefcase size={28} />, disabled: true },
   ], [copy.profile.projectCategories]);
 
   function handleClose() {

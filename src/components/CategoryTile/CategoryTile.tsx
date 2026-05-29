@@ -23,6 +23,10 @@ interface CategoryTileProps {
   selected?: boolean;
   onClick?: () => void;
   className?: string;
+  /** When true the tile is dimmed, non-interactive, and may show a badge. */
+  disabled?: boolean;
+  /** Short corner label shown when `disabled` (e.g. "Coming soon"). */
+  badge?: string;
 }
 
 export function CategoryTile({
@@ -32,20 +36,23 @@ export function CategoryTile({
   selected = false,
   onClick,
   className = '',
+  disabled = false,
+  badge,
 }: CategoryTileProps) {
   if (shape === 'circle') {
     return (
       <button
         type="button"
         onClick={onClick}
-        className={`flex flex-col items-center gap-2 ${className}`}
+        disabled={disabled}
+        className={`flex flex-col items-center gap-2 ${disabled ? 'opacity-50' : ''} ${className}`}
       >
         <span
           className={
             'w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ' +
             (selected
               ? 'bg-brand-50 text-brand-800 ring-2 ring-brand-500'
-              : 'bg-brand-50/70 text-ink-muted hover:bg-brand-50')
+              : 'bg-brand-50/70 text-ink-muted ' + (disabled ? '' : 'hover:bg-brand-50'))
           }
         >
           {icon}
@@ -64,16 +71,24 @@ export function CategoryTile({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={
-        'flex flex-col items-center justify-center gap-2 ' +
+        'relative flex flex-col items-center justify-center gap-2 ' +
         'min-w-[88px] aspect-square rounded-lg px-3 transition-all duration-200 ' +
         (selected
           ? 'bg-brand-800 text-ink-inverse shadow-soft'
-          : 'bg-surface text-ink-muted shadow-soft hover:bg-brand-50') +
+          : 'bg-surface text-ink-muted shadow-soft ' +
+            (disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-brand-50')) +
         ` ${className}`
       }
       aria-pressed={selected}
+      aria-disabled={disabled}
     >
+      {disabled && badge && (
+        <span className="absolute right-1 top-1 rounded-pill bg-brand-100 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-brand-800">
+          {badge}
+        </span>
+      )}
       <span className={selected ? 'text-ink-inverse' : 'text-ink'}>{icon}</span>
       <span className="text-[11px] tracking-widest font-mono font-bold uppercase">{label}</span>
     </button>

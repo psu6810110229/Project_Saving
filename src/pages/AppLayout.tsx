@@ -1,6 +1,8 @@
 import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
-import { type ReactNode, useEffect, useState } from 'react';
+import { Fragment, type ReactNode, useEffect, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { AppShell } from '../components/AppShell/AppShell';
+import { Avatar } from '../components/Avatar/Avatar';
 import type { BottomNavTab } from '../components/BottomNav/BottomNav';
 import { Button } from '../components/Button/Button';
 import { DataProvider } from '../components/DataContext/DataContext';
@@ -8,8 +10,19 @@ import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { LoadingState } from '../components/LoadingState/LoadingState';
 import { MilestoneCelebrationModal } from '../components/MilestoneCelebrationModal/MilestoneCelebrationModal';
 import { PageTransition } from '../components/PageTransition/PageTransition';
+import { ProjectSetupShowcase } from '../components/ProjectSetupShowcase/ProjectSetupShowcase';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
-import { IconArrowLeft, IconChevronRight, IconRocket, IconUserPlus } from '../components/Icon/Icon';
+import {
+  IconArrowLeft,
+  IconChevronDown,
+  IconChevronRight,
+  IconFlag,
+  IconPiggyBank,
+  IconRocket,
+  IconShield,
+  IconUserPlus,
+} from '../components/Icon/Icon';
+import { MOTION_DURATION, MOTION_EASE, REDUCED_MOTION_TRANSITION } from '../lib/motion';
 import { useAuth } from '../hooks/useAuth';
 import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useMilestoneCrossings } from '../hooks/useMilestoneCrossings';
@@ -60,10 +73,20 @@ export function AppLayout() {
   const outlet = useOutlet();
   const roomlessAllowed = isRoomlessRoute(location.pathname);
   const privateDataFree = isPrivateDataFreeRoute(location.pathname);
+  // The dedicated no-project setup view is full-screen onboarding — hide the
+  // bottom nav there (there is no room to deposit into or dashboard to show).
+  // Nav stays visible while loading/erroring, on roomless routes, and whenever
+  // a room exists.
+  const isSetupScreen = !loading && !error && !activeRoom && !roomlessAllowed;
+  // The create-room wizard is its own focused, multi-step flow with its own
+  // header/back control — the bottom nav has no place there.
+  const isCreateWizard = location.pathname.startsWith('/create-room');
+  const hideNav = isSetupScreen || isCreateWizard;
 
   return (
     <AppShell
       activeTab={activeTab}
+      showNav={!hideNav}
       onTabChange={tab => {
         const nextPath = pathFromTab(tab);
         if (nextPath === location.pathname) return;
@@ -92,7 +115,7 @@ export function AppLayout() {
           onAction={() => void refetch({ showLoading: true })}
         />
       )}
-      {!loading && !error && !activeRoom && !roomlessAllowed && (
+      {isSetupScreen && (
         <PageTransition transitionKey="project-setup">
           <ProjectSetup onJoin={joinRoomByCode} fetchPreview={fetchRoomPreview} />
         </PageTransition>
@@ -195,11 +218,18 @@ function ProjectSetup({
 }) {
   const navigate = useNavigate();
   const { copy } = useI18n();
+  const { profile } = useProfile();
+  const reduceMotion = useReducedMotion();
   const ps = copy.projectSetup;
+  const displayName = profile?.display_name?.trim();
+  // Greet by first name only — full display names overflow the heading.
+  const firstName = displayName ? displayName.split(/\s+/)[0] : undefined;
+  const greeting = firstName ? ps.greeting(firstName) : ps.greetingNoName;
   const [mode, setMode] = useState<SetupMode>('create');
   const [code, setCode] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState<RoomPreviewResult | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Fetch the real room behind a completed code (debounced). The
   // preview card and Join button both read from this single source.
@@ -227,9 +257,9 @@ function ProjectSetup({
     }
   }
 
-  return (
-    <div className="flex flex-col gap-6 pt-8">
-      {mode === 'join' && (
+  if (mode === 'join') {
+    return (
+      <div className="flex flex-col gap-6 pt-8 pb-12">
         <button
           type="button"
           onClick={() => {
@@ -242,18 +272,16 @@ function ProjectSetup({
           <IconArrowLeft size={24} />
           {copy.common.back}
         </button>
-      )}
-      <header>
-        <SectionLabel tone="brand">GO-OUT</SectionLabel>
-        <h1 className="mt-2 font-mono text-3xl font-bold text-ink">{ps.title}</h1>
-        <p className="mt-2 font-mono text-xs text-ink-muted">{ps.subtitle}</p>
-      </header>
+        <header>
+          <SectionLabel tone="brand">GO-OUT</SectionLabel>
+          <h1 className="mt-2 font-mono text-3xl font-bold text-ink">{ps.joinCardTitle}</h1>
+          <p className="mt-2 font-mono text-xs text-ink-muted">{ps.joinCardBody}</p>
+        </header>
 
-      {message && (
-        <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>
-      )}
+        {message && (
+          <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>
+        )}
 
-      {mode === 'join' ? (
         <div className="flex flex-col gap-4">
           <JoinProjectFlow
             code={code}
@@ -263,22 +291,111 @@ function ProjectSetup({
             onJoin={handleJoin}
           />
         </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          <SetupChoiceCard
-            icon={<IconRocket size={22} />}
-            title={ps.createCardTitle}
-            body={ps.createCardBody}
-            onClick={() => navigate('/create-room')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6 px-2 pt-6 pb-12">
+      <motion.header
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={
+          reduceMotion
+            ? REDUCED_MOTION_TRANSITION
+            : { duration: MOTION_DURATION.page, ease: MOTION_EASE.emphasized }
+        }
+        className="pt-2"
+      >
+        <div className="flex items-center gap-3">
+          <Avatar
+            size="md"
+            imageUrl={profile?.avatar_url}
+            fallback={firstName?.charAt(0).toUpperCase() || 'G'}
+            ring="theme"
+            className="shrink-0"
           />
-          <SetupChoiceCard
-            icon={<IconUserPlus size={22} />}
-            title={ps.joinCardTitle}
-            body={ps.joinCardBody}
-            onClick={() => setMode('join')}
-          />
+          <div className="min-w-0">
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-brand-700">
+              GO-OUT
+            </p>
+            <h1 className="truncate font-mono text-2xl font-bold leading-tight text-ink">{greeting}</h1>
+          </div>
         </div>
+        <p className="mt-3 font-mono text-sm leading-5 text-ink-muted">{ps.tagline}</p>
+      </motion.header>
+
+      {message && (
+        <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>
       )}
+
+      <div className="grid auto-rows-fr gap-3">
+        <SetupChoiceCard
+          emphasis
+          icon={<IconUserPlus size={22} />}
+          title={ps.joinCardTitle}
+          body={ps.joinCardBody}
+          onClick={() => setMode('join')}
+        />
+        <SetupChoiceCard
+          icon={<IconRocket size={22} />}
+          title={ps.createCardTitle}
+          body={ps.createCardBody}
+          onClick={() => navigate('/create-room')}
+        />
+      </div>
+
+      <HowItWorks />
+
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => setShowPreview(v => !v)}
+          aria-expanded={showPreview}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-surface px-4 py-3 font-mono text-xs font-bold text-ink-muted shadow-soft hover:text-ink"
+        >
+          {showPreview ? ps.previewHide : ps.previewShow}
+          <IconChevronDown size={16} className={showPreview ? 'rotate-180' : ''} />
+        </button>
+        {showPreview && <ProjectSetupShowcase />}
+      </div>
+
+      <p className="flex items-center justify-center gap-2 px-2 text-center font-mono text-[11px] leading-5 text-ink-muted">
+        <IconShield size={16} className="shrink-0 text-ink-dim" />
+        {ps.trustLine}
+      </p>
+    </div>
+  );
+}
+
+function HowItWorks() {
+  const { copy } = useI18n();
+  const ps = copy.projectSetup;
+  const steps = [
+    { icon: <IconUserPlus size={18} />, label: ps.step1 },
+    { icon: <IconFlag size={18} />, label: ps.step2 },
+    { icon: <IconPiggyBank size={18} />, label: ps.step3 },
+  ];
+  return (
+    <div>
+      <SectionLabel tone="brand">{ps.howItWorksLabel}</SectionLabel>
+      <div className="mt-2 flex items-center gap-1.5">
+        {steps.map((step, i) => (
+          <Fragment key={i}>
+            <div className="flex flex-1 flex-col items-center justify-center gap-1.5 text-center">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                {step.icon}
+              </span>
+              <span className="font-mono text-xs font-bold leading-tight text-ink">{step.label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <span aria-hidden className="shrink-0 text-ink-dim">
+                <IconChevronRight size={16} />
+              </span>
+            )}
+          </Fragment>
+        ))}
+      </div>
     </div>
   );
 }
@@ -288,26 +405,32 @@ function SetupChoiceCard({
   title,
   body,
   onClick,
+  emphasis = false,
 }: {
   icon: ReactNode;
   title: string;
   body: string;
   onClick: () => void;
+  emphasis?: boolean;
 }) {
+  // Both cards are white; the emphasised (Join) card keeps a subtle brand ring
+  // so it still reads as the primary action without an orange fill.
+  const containerClasses = emphasis
+    ? 'group flex h-full w-full items-center gap-4 rounded-2xl bg-surface p-5 text-left shadow-soft ring-2 ring-brand-200 transition-transform active:scale-[0.99]'
+    : 'group flex h-full w-full items-center gap-4 rounded-2xl bg-surface p-5 text-left shadow-soft transition-transform active:scale-[0.99]';
+  const iconClasses = 'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700';
+  const titleClasses = 'block font-mono text-base font-bold text-ink';
+  const bodyClasses = 'mt-0.5 block font-mono text-xs leading-5 text-ink-muted';
+  const chevronClasses = 'flex-shrink-0 text-ink-dim transition-colors group-hover:text-brand-600';
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex w-full items-center gap-4 rounded-2xl bg-surface p-5 text-left shadow-soft transition-transform active:scale-[0.99]"
-    >
-      <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-        {icon}
-      </span>
+    <button type="button" onClick={onClick} className={containerClasses}>
+      <span className={iconClasses}>{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block font-mono text-base font-bold text-ink">{title}</span>
-        <span className="mt-0.5 block font-mono text-xs leading-5 text-ink-muted">{body}</span>
+        <span className={titleClasses}>{title}</span>
+        <span className={bodyClasses}>{body}</span>
       </span>
-      <span className="flex-shrink-0 text-ink-dim transition-colors group-hover:text-brand-600">
+      <span className={chevronClasses}>
         <IconChevronRight size={20} />
       </span>
     </button>

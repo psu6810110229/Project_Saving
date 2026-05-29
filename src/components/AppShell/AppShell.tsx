@@ -7,9 +7,14 @@ interface AppShellProps {
   activeTab: BottomNavTab;
   onTabChange: (tab: BottomNavTab) => void;
   children: ReactNode;
+  /**
+   * Whether to render the bottom navigation. Hidden on the focused
+   * no-project setup screen so it reads as full-screen onboarding.
+   */
+  showNav?: boolean;
 }
 
-export function AppShell({ activeTab, onTabChange, children }: AppShellProps) {
+export function AppShell({ activeTab, onTabChange, children, showNav = true }: AppShellProps) {
   return (
     <div className="flex h-[100dvh] flex-col text-ink">
       <div
@@ -27,7 +32,7 @@ export function AppShell({ activeTab, onTabChange, children }: AppShellProps) {
       </div>
       <ReleaseUpdateModal />
       <AppUpdateAvailableModal />
-      <BottomNav activeTab={activeTab} onChange={onTabChange} />
+      {showNav && <BottomNav activeTab={activeTab} onChange={onTabChange} />}
     </div>
   );
 }

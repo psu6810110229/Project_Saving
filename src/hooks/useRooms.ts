@@ -233,22 +233,27 @@ export function useRooms() {
     const roomId = result.roomId;
 
     if (values.expenses.length > 0) {
-      const templates = values.expenses.map(e => {
-        const rule = calcSuggestedRule(e.targetAmount, e.deadline);
-        return {
-          room_id: roomId,
-          category: e.category,
-          name: e.nameEn,
-          target_amount: e.targetAmount,
-          payment_type: e.paymentType ?? 'flexible',
-          deadline: e.deadline,
-          suggested_rule_type: rule.ruleType,
-          suggested_rule_amount: rule.amount > 0 ? rule.amount : null,
-          priority: e.priority,
-          tip_key: e.tipKey ?? null,
-          created_by: userId,
-        };
-      });
+      // Compute the suggested saving rule once per expense and reuse it
+      // for both the shared template and the creator's own bucket so the
+      // bucket isn't left deadline-only (no rule = no save-today amount).
+      const withRules = values.expenses.map(e => ({
+        e,
+        rule: calcSuggestedRule(e.targetAmount, e.deadline),
+      }));
+
+      const templates = withRules.map(({ e, rule }) => ({
+        room_id: roomId,
+        category: e.category,
+        name: e.nameEn,
+        target_amount: e.targetAmount,
+        payment_type: e.paymentType ?? 'flexible',
+        deadline: e.deadline,
+        suggested_rule_type: rule.ruleType,
+        suggested_rule_amount: rule.amount > 0 ? rule.amount : null,
+        priority: e.priority,
+        tip_key: e.tipKey ?? null,
+        created_by: userId,
+      }));
 
       const { error: tplError } = await supabase
         .from('expense_templates')
@@ -257,7 +262,7 @@ export function useRooms() {
         console.warn('[useRooms] expense_templates insert failed', tplError);
       }
 
-      const buckets = values.expenses.map((e, i) => ({
+      const buckets = withRules.map(({ e, rule }, i) => ({
         user_id: userId,
         room_id: roomId,
         name: e.nameEn,
@@ -266,6 +271,8 @@ export function useRooms() {
         position: i,
         deadline: e.deadline,
         payment_type: e.paymentType ?? 'flexible',
+        saving_rule_type: rule.ruleType,
+        saving_rule_amount: rule.amount > 0 ? rule.amount : null,
       }));
 
       const { error: bucketError } = await supabase

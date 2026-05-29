@@ -31,6 +31,29 @@ interface ActionResult {
   conflict?: { existingRoomId: string; existingName: string };
 }
 
+export type RoomPreviewStatus = 'found' | 'already_member' | 'full' | 'not_found';
+
+export interface RoomPreview {
+  roomId: string;
+  name: string;
+  category: ProjectCategory;
+  targetAmount: number;
+  endDate: string | null;
+  coverImageUrl: string | null;
+  memberCount: number;
+  creatorName: string | null;
+  creatorAvatarUrl: string | null;
+  status: Exclude<RoomPreviewStatus, 'not_found'>;
+}
+
+/**
+ * Result of looking up a room by invite code. A matched room carries
+ * its metadata; `not_found` means the code was complete but matched no
+ * active room (the UI shows an explicit "no project found" card). A
+ * bare null means we didn't look up (short code) or the call errored.
+ */
+export type RoomPreviewResult = RoomPreview | { status: 'not_found' };
+
 interface WizardExpense {
   category: string;
   nameEn: string;
@@ -321,6 +344,42 @@ export function useRooms() {
     return { roomId, joinStatus };
   }
 
+  /**
+   * Read-only lookup of a room by its invite code, used to render a
+   * real preview in the Join Project flow before the user commits.
+   * Backed by the security-definer RPC `room_preview_by_code`
+   * (migration 0077), which is the only way a non-member can see a
+   * room's metadata under RLS. Returns null on error or empty code.
+   */
+  async function fetchRoomPreview(code: string): Promise<RoomPreviewResult | null> {
+    if (!userId) return null;
+    const cleaned = code.trim().toUpperCase();
+    if (cleaned.length < 6) return null;
+
+    const { data, error: previewError } = await supabase
+      .rpc('room_preview_by_code', { code: cleaned });
+    if (previewError) {
+      if (typeof console !== 'undefined') console.warn('[useRooms] room_preview_by_code failed', previewError);
+      return null;
+    }
+
+    const row = Array.isArray(data) ? data[0] : null;
+    if (!row || row.status === 'not_found' || !row.room_id) return { status: 'not_found' };
+
+    return {
+      roomId: row.room_id,
+      name: row.name,
+      category: row.category as ProjectCategory,
+      targetAmount: Number(row.target_amount ?? 0),
+      endDate: row.end_date ?? null,
+      coverImageUrl: row.cover_image_url ?? null,
+      memberCount: Number(row.member_count ?? 0),
+      creatorName: row.creator_name ?? null,
+      creatorAvatarUrl: row.creator_avatar_url ?? null,
+      status: row.status as Exclude<RoomPreviewStatus, 'not_found'>,
+    };
+  }
+
   async function archiveRoom(roomId: string): Promise<ActionResult> {
     if (!userId) return { error: 'Not authenticated' };
     // Use the security-definer RPC introduced in migration 0020 so the
@@ -481,5 +540,5 @@ export function useRooms() {
     fetchRooms({ showLoading: currentRooms.length === 0 });
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, updateMemberCover, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
+  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, fetchRoomPreview, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, updateMemberCover, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

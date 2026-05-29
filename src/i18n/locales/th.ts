@@ -365,7 +365,6 @@ export const th: Messages = {
     joinCardTitle: 'เข้าร่วมโปรเจกต์',
     joinCardBody: 'ใส่รหัสเชิญ 6 ตัวจากเพื่อนของคุณ',
     joinCodeValidation: 'ใส่รหัสเข้าร่วม 6 ตัวให้ครบ',
-    inviteName: (code: string) => `รหัส ${code}`,
     projectOwner: 'เจ้าของโปรเจกต์',
   },
   createProject: {
@@ -464,6 +463,14 @@ export const th: Messages = {
     createdBy: (name: string) => `สร้างโดย ${name}`,
     members: (count: number) => `${count} สมาชิก`,
     capacityHint: 'รองรับสมาชิกสูงสุด 7 คน',
+    goalLabel: 'เป้าหมาย',
+    targetDateLabel: 'วันครบกำหนด',
+    membersLabel: 'สมาชิก',
+    slotsLeft: (count: number) => `เหลืออีก ${count} ที่`,
+    alreadyMemberHint: 'คุณอยู่ในโปรเจกต์นี้แล้ว',
+    fullHint: 'โปรเจกต์นี้เต็มแล้ว',
+    notFoundTitle: 'ไม่พบโปรเจกต์',
+    notFoundBody: 'เราไม่พบโปรเจกต์ที่ตรงกับรหัสนี้ กรุณาตรวจสอบรหัสแล้วลองใหม่อีกครั้ง',
     roomFullError: 'ห้องนี้มีสมาชิกครบ 7 คนแล้ว',
   },
   sharedControls: {

@@ -9,12 +9,13 @@ import { LoadingState } from '../components/LoadingState/LoadingState';
 import { MilestoneCelebrationModal } from '../components/MilestoneCelebrationModal/MilestoneCelebrationModal';
 import { PageTransition } from '../components/PageTransition/PageTransition';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
-import { IconChevronRight, IconPlane, IconRocket, IconUserPlus } from '../components/Icon/Icon';
+import { IconChevronRight, IconRocket, IconUserPlus } from '../components/Icon/Icon';
 import { useAuth } from '../hooks/useAuth';
 import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useMilestoneCrossings } from '../hooks/useMilestoneCrossings';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
+import type { RoomPreviewResult } from '../hooks/useRooms';
 import { useProfile } from '../hooks/useProfile';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
@@ -48,7 +49,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { activeRoom } = useRoom();
-  const { loading, error, refetch, joinRoomByCode } = useRooms();
+  const { loading, error, refetch, joinRoomByCode, fetchRoomPreview } = useRooms();
   const { copy } = useI18n();
   const al = copy.appLayout;
   const { shouldShowLoader, fakeLoadingExpired } = useLoadingGate({
@@ -93,7 +94,7 @@ export function AppLayout() {
       )}
       {!loading && !error && !activeRoom && !roomlessAllowed && (
         <PageTransition transitionKey="project-setup">
-          <ProjectSetup onJoin={joinRoomByCode} />
+          <ProjectSetup onJoin={joinRoomByCode} fetchPreview={fetchRoomPreview} />
         </PageTransition>
       )}
       {!loading && !error && !activeRoom && roomlessAllowed && (
@@ -187,8 +188,10 @@ function ProfileLanguageSync() {
 
 function ProjectSetup({
   onJoin,
+  fetchPreview,
 }: {
   onJoin: ReturnType<typeof useRooms>['joinRoomByCode'];
+  fetchPreview: ReturnType<typeof useRooms>['fetchRoomPreview'];
 }) {
   const navigate = useNavigate();
   const { copy } = useI18n();
@@ -196,6 +199,21 @@ function ProjectSetup({
   const [mode, setMode] = useState<SetupMode>('create');
   const [code, setCode] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [preview, setPreview] = useState<RoomPreviewResult | null>(null);
+
+  // Fetch the real room behind a completed code (debounced). The
+  // preview card and Join button both read from this single source.
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const result = code.length < 6 ? null : await fetchPreview(code);
+      if (!cancelled) setPreview(result);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [code, fetchPreview]);
 
   async function handleJoin() {
     const result = await onJoin(code);
@@ -226,7 +244,7 @@ function ProjectSetup({
           <JoinProjectFlow
             code={code}
             error={code.length > 0 && code.length < 6 ? ps.joinCodeValidation : undefined}
-            preview={code.length >= 6 ? joinPreview(code, copy) : null}
+            preview={code.length >= 6 ? preview : null}
             onCodeChange={setCode}
             onJoin={handleJoin}
           />
@@ -332,13 +350,4 @@ function pathFromTab(tab: BottomNavTab): string {
   if (tab === 'add') return '/add';
   if (tab === 'profile') return '/profile';
   return '/dashboard';
-}
-
-function joinPreview(code: string, copy: ReturnType<typeof useI18n>['copy']) {
-  return {
-    icon: <IconPlane size={32} />,
-    name: copy.projectSetup.inviteName(code.toUpperCase()),
-    creatorName: copy.projectSetup.projectOwner,
-    creatorFallback: 'P',
-  };
 }

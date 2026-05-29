@@ -228,11 +228,16 @@ const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
 }));
 
 const joinPreview = {
-  icon: <IconPlane size={32} />,
+  roomId: 'preview-room',
   name: 'Japan 2027',
-  creatorName: 'Art',
-  creatorFallback: 'A',
+  category: 'travel' as const,
+  targetAmount: 100000,
+  endDate: '2027-11-01',
+  coverImageUrl: null,
   memberCount: 2,
+  creatorName: 'Art',
+  creatorAvatarUrl: null,
+  status: 'found' as const,
 };
 
 function activityItems(now: number) {

@@ -378,7 +378,6 @@ export const en = {
     joinCardTitle: 'Join a project',
     joinCardBody: 'Enter a 6-character invite code from a friend.',
     joinCodeValidation: 'Enter the full 6-character code.',
-    inviteName: (code: string) => `Invite ${code}`,
     projectOwner: 'Project owner',
   },
   createProject: {
@@ -477,6 +476,14 @@ export const en = {
     createdBy: (name: string) => `Created by ${name}`,
     members: (count: number) => `${count} member${count === 1 ? '' : 's'}`,
     capacityHint: 'Up to 7 members',
+    goalLabel: 'Goal',
+    targetDateLabel: 'Target date',
+    membersLabel: 'Members',
+    slotsLeft: (count: number) => `${count} slot${count === 1 ? '' : 's'} left`,
+    alreadyMemberHint: "You're already in this project",
+    fullHint: 'This project is full',
+    notFoundTitle: 'No project found',
+    notFoundBody: "We couldn't find a project with that code. Double-check it and try again.",
     roomFullError: 'This project already has 7 members.',
   },
   sharedControls: {

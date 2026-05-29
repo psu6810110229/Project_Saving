@@ -1029,6 +1029,8 @@ export const en = {
       cardCheckedLabel: 'Checked balance',
       cardMatched: 'Matches your buckets',
       cardNeverChecked: 'Not checked yet',
+      cardShortfallLabel: 'Less than your buckets',
+      cardShortfallNudge: 'Tap to adjust · saving & streak safe',
       cardCheckCta: 'Check',
       surplusLabel: 'Extra money found',
       dragHint: 'Drag into a bucket',

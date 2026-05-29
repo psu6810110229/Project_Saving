@@ -308,6 +308,13 @@ export function useReconcile(roomId: string | null) {
      * allocatable amount.
      */
     unallocatedPool: Math.max(0, Math.round((adjustmentSum - allocationSum) * 100) / 100),
+    /**
+     * Allocations currently exceeding the verified surplus
+     * (Σ allocations − Σ adjustments). Clamped to ≥ 0. Positive means
+     * buckets claim more than the verified balance (a shortfall the user
+     * can sync down); at most one of `unallocatedPool`/`overAllocated` is > 0.
+     */
+    overAllocated: Math.max(0, Math.round((allocationSum - adjustmentSum) * 100) / 100),
     loading,
     error,
     createCheckpoint,

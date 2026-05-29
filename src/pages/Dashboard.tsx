@@ -241,9 +241,16 @@ export function Dashboard() {
   const {
     latest: latestCheckpoint,
     unallocatedPool,
+    overAllocated,
+    allocationSum,
     allocate,
     loading: reconcileLoading,
   } = data.reconcile;
+  // Option A (plan 56 slice 4a): the hero number equals the sum of the
+  // user's bucket cards (Recorded Deposits + signed allocations), so hero =
+  // buckets = Verified Balance right after a check — never three competing
+  // totals. Recorded Deposits stays inside the Saving Plan card only.
+  const heroSaved = total + allocationSum;
   const {
     frozenDates: streakFrozenDates,
   } = data.streakFreeze;
@@ -1065,7 +1072,7 @@ export function Dashboard() {
       <motion.div variants={dashboardSectionVariants} className="min-h-[14rem]">
         <HeroCard
           displayName={youName}
-          saved={total}
+          saved={heroSaved}
           target={target}
           roomName={activeRoom?.name ?? null}
           roomCategory={activeRoom?.category ?? null}
@@ -1161,6 +1168,7 @@ export function Dashboard() {
                     <BalanceCheckStatus
                       latest={latestCheckpoint}
                       unallocatedPool={unallocatedPool}
+                      overAllocated={overAllocated}
                       onCheck={handleCheckBalance}
                       canAllocate={!isEditing && activeBucketItems.length > 0}
                       onAllocate={() => {
@@ -1589,8 +1597,8 @@ export function Dashboard() {
                 haptic(reached ? 'milestone' : 'success');
                 if (selectedBucketItem) {
                   setVaultPreview({
-                    prevSaved: total,
-                    newSaved: total + amount,
+                    prevSaved: heroSaved,
+                    newSaved: heroSaved + amount,
                     target,
                     depositAmount: amount,
                     bucketName: selectedBucketItem.name,

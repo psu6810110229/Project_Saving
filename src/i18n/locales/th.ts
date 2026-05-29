@@ -1019,6 +1019,8 @@ export const th: Messages = {
       cardCheckedLabel: 'ยอดที่เช็ก',
       cardMatched: 'ตรงกับเป้าหมายย่อย',
       cardNeverChecked: 'ยังไม่เคยเช็กยอด',
+      cardShortfallLabel: 'เงินจริงน้อยกว่าที่จด',
+      cardShortfallNudge: 'แตะเพื่อปรับให้ตรง · การออม & streak ยังอยู่ครบ',
       cardCheckCta: 'เช็กยอด',
       surplusLabel: 'เงินเกินที่จด',
       dragHint: 'ลากลงเป้าหมายย่อย',

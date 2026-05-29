@@ -13,6 +13,11 @@ interface BalanceCheckStatusProps {
   latest: BalanceCheckpoint | null;
   /** Verified surplus not yet placed in any bucket (≥ 0). */
   unallocatedPool: number;
+  /**
+   * Allocations exceeding the verified balance (≥ 0) — buckets currently
+   * claim more than the real money. Triggers the calm shortfall nudge.
+   */
+  overAllocated?: number;
   onCheck: () => void;
   /** When true the surplus bar is draggable (bucket transfer mode, not edit). */
   canAllocate?: boolean;
@@ -44,6 +49,7 @@ function GripDots() {
 export const BalanceCheckStatus = memo(function BalanceCheckStatus({
   latest,
   unallocatedPool,
+  overAllocated = 0,
   onCheck,
   canAllocate = false,
   onAllocate,
@@ -52,6 +58,7 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
   const a = copy.reconcile.allocate;
   const reduceMotion = useReducedMotion();
   const hasSurplus = unallocatedPool > 0.005;
+  const hasShortfall = !hasSurplus && overAllocated > 0.005;
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: ALLOCATION_DRAG_ID,
@@ -72,6 +79,38 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
       <IconArrowRight size={20} className="transition-transform group-hover:translate-x-0.5" strokeWidth={2.6} />
     </button>
   );
+
+  // ── Shortfall state: buckets claim more than the verified balance. ──
+  // Calm, neutral tone (never danger); tapping reopens the Check Balance
+  // flow, where the sync/write-down panel lives (plan 56 slice 4b).
+  if (hasShortfall) {
+    return (
+      <button
+        type="button"
+        onClick={onCheck}
+        aria-label={`${a.cardShortfallLabel} ${formatCurrency(overAllocated)} · ${a.cardShortfallNudge}`}
+        className="relative z-10 flex w-full items-center gap-3 rounded-xl bg-surface px-4 py-3 text-left shadow-soft transition-transform active:scale-[0.99]"
+      >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-well text-ink-muted">
+          <IconVault size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-mono-th text-[12px] font-semibold text-ink-muted">
+            {a.cardShortfallLabel}
+          </p>
+          <p className="mt-0.5 truncate font-mono-th text-xs text-ink-dim">
+            {a.cardShortfallNudge}
+          </p>
+        </div>
+        <span className="shrink-0 font-mono text-base font-bold text-ink-muted">
+          −{formatCurrency(overAllocated)}
+        </span>
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-well text-ink-muted">
+          <IconArrowRight size={16} strokeWidth={2.4} />
+        </span>
+      </button>
+    );
+  }
 
   // ── Settled state: slim single row. ──
   if (!hasSurplus) {

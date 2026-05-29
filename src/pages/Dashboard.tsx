@@ -33,6 +33,7 @@ import { CreateBucketForm } from '../components/CreateBucketForm/CreateBucketFor
 import { IconButton } from '../components/IconButton/IconButton';
 import { MicroGoalCard } from '../components/MicroGoalCard/MicroGoalCard';
 import { HeroCard } from '../components/HeroCard/HeroCard';
+import { SavingsHeatmap } from '../components/SavingsHeatmap/SavingsHeatmap';
 import { HeroCoverPicker } from '../components/HeroCoverPicker/HeroCoverPicker';
 import type { HeroCoverPreset } from '../lib/heroCovers';
 import { ImageCropper } from '../components/ImageCropper/ImageCropper';
@@ -1279,6 +1280,18 @@ export function Dashboard() {
           </Button>
         )}
         {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
+      </motion.div>
+
+      {/* 5 — My saving streak (me-only contributions heatmap). */}
+      <motion.div variants={dashboardSectionVariants}>
+        <SavingsHeatmap
+          logs={logs}
+          userId={user?.id}
+          buckets={buckets}
+          roomStartIso={activeRoom?.created_at ?? null}
+          roomEndDateKey={activeRoom?.end_date ?? null}
+          storageKey={`savings-heatmap-scroll:${activeRoomId ?? 'no-room'}:${user?.id ?? 'anon'}`}
+        />
       </motion.div>
 
       <MigrationWizard

@@ -134,6 +134,13 @@ export const en = {
     invitePartnerHint: 'Invite someone to start the race.',
     viewYourProfile: 'View your profile',
     viewMemberAria: (name: string) => `View ${name}'s details`,
+    // Savings heatmap
+    heatmapTitle: 'Your saving streak',
+    heatmapLess: 'Less',
+    heatmapMore: 'More',
+    heatmapStartLegend: 'Bucket start',
+    heatmapDueLegend: 'Due date',
+    heatmapTodayLegend: 'Today',
     // Activity section
     activity: 'Activity',
     viewAll: 'View all',

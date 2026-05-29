@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { ExpenseTimeline } from '../ExpenseTimeline/ExpenseTimeline';
+import iconCalendar from '../../assets/icons/calendar.svg';
+import iconCoins from '../../assets/icons/coins.svg';
+import iconLightbulb from '../../assets/icons/lightbulb.svg';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { calcSuggestedRule } from '../../lib/travelExpenseRules';
@@ -126,7 +129,7 @@ export function StepTimeline({
 
               {/* Deadline */}
               <div className="mt-3 flex items-center gap-2">
-                <span className="font-mono text-xs text-ink-dim">📅</span>
+                <img src={iconCalendar} alt="" aria-hidden className="h-4 w-4 shrink-0" />
                 {isEditing ? (
                   <input
                     type="date"
@@ -146,7 +149,7 @@ export function StepTimeline({
               {/* Suggested saving rule */}
               {rule.amount > 0 && (
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="font-mono text-xs text-ink-dim">💰</span>
+                  <img src={iconCoins} alt="" aria-hidden className="h-4 w-4 shrink-0" />
                   <span className="font-mono text-xs text-ink-muted">
                     {c.suggestedRule(ruleName, formatCurrency(rule.amount))}
                   </span>
@@ -155,9 +158,10 @@ export function StepTimeline({
 
               {/* Tip */}
               {tipText && (
-                <div className="mt-3 rounded-lg bg-brand-50/60 px-3 py-2">
+                <div className="mt-3 flex items-start gap-2 rounded-lg bg-brand-50/60 px-3 py-2">
+                  <img src={iconLightbulb} alt="" aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
                   <p className="font-mono text-[11px] leading-relaxed text-brand-700">
-                    💡 {tipText}
+                    {tipText}
                   </p>
                 </div>
               )}

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../Button/Button';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { ExpenseTimeline } from '../ExpenseTimeline/ExpenseTimeline';
+import iconCelebrate from '../../assets/icons/celebrate.svg';
+import iconLightbulb from '../../assets/icons/lightbulb.svg';
 import { useI18n } from '../../i18n/useI18n';
 import { useRooms } from '../../hooks/useRooms';
 import { formatCurrency } from '../../lib/format';
@@ -129,7 +131,7 @@ export function StepSummary({
       <div className="flex flex-col gap-5">
         <div className="text-center">
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-brand-100">
-            <span className="text-3xl">🎉</span>
+            <img src={iconCelebrate} alt="" aria-hidden className="h-8 w-8" />
           </div>
           <h2 className="font-mono text-2xl font-bold text-ink">{c.successTitle}</h2>
           <p className="mt-1 font-mono text-sm text-ink-muted">{c.successSubtitle}</p>
@@ -153,9 +155,10 @@ export function StepSummary({
           </div>
         </div>
 
-        <div className="rounded-lg bg-brand-50/60 px-4 py-3">
+        <div className="flex items-start gap-2 rounded-lg bg-brand-50/60 px-4 py-3">
+          <img src={iconLightbulb} alt="" aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           <p className="font-mono text-xs leading-relaxed text-brand-700">
-            💡 {c.friendsTip}
+            {c.friendsTip}
           </p>
         </div>
 

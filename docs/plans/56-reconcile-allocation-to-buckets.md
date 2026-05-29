@@ -38,6 +38,33 @@ how much to put where.
    still-unallocated difference. **Allocation is a drag-and-drop gesture**
    (drag the unallocated chip onto a bucket), **not a button**. Running the
    Check Balance flow stays a **CTA** (the existing round arrow button).
+5. **(Option A — confirmed) Hero/vault = bucket total** (deposits + signed
+   allocations), NOT Recorded Deposits. This makes hero = bucket cards =
+   Verified Balance (right after a check) so the user never sees three
+   conflicting totals. Recorded Deposits stays *inside* the Saving Plan card
+   (deposit discipline / streak) and is no longer a competing headline number.
+6. **(Shortfall — confirmed) Verified < buckets → "sync down" write-down.**
+   When the real balance is *less* than the buckets claim (e.g. spent /
+   miscounted), the user trims a bucket to match reality via a **signed
+   (negative) allocation**. Framed as "ปรับเป้าให้ตรงกับเงินจริง", never as
+   loss/blame. `savings_logs` and streak are untouched (past saving stays
+   real). This is the approved **bucket-correction** path (CLAUDE.md gate).
+
+### Shortfall UX (locked)
+- **No extra step.** In the Check Balance flow, when actual < app, the final
+  "done" panel *becomes* the sync panel — same step count as today.
+  Minimal copy (3 lines), a **pre-selected smart bucket** (one-tap confirm),
+  and a reassurance line "การออม & streak ยังอยู่ครบ ✓". Done → "เป้าตรงกับเงินจริงแล้ว ✓".
+- **Skip ("ไว้ก่อน") → calm card nudge** (neutral tone, not danger):
+  "ยอดจริงน้อยกว่าเป้า ฿X · แตะเพื่อปรับให้ตรง" → reopens the sync panel.
+- **Smart default bucket:** `buffer` category first, else the bucket with the
+  farthest deadline (least urgent). User can change via a dropdown.
+- **Auto-spill, silent:** if the shortfall exceeds one bucket's balance, the
+  client trims across buckets automatically (one tap), showing only a small
+  "ปรับจาก N เป้า" note. Never below a bucket's balance (no negative bucket).
+- **Asymmetry is intentional:** gain = playful drag-in on the dashboard;
+  shortfall = calm guided sync in the flow (no "drag money to trash" gesture,
+  which would read as throwing money away).
 
 ## 3. Money-state model — why a dedicated `balance_allocations` table
 
@@ -217,9 +244,79 @@ Add a quick grep check in the verification step to confirm none of these read
    fills the bucket); hero/vault `total` stays Recorded Deposits
    (`useSavingsTotal`) so it matches Saving Plan and does not mix Verified in.
 
+4. **Option A + shortfall write-down (closes the money-state loop)** — see §14.
+   - 4a: Hero/vault `saved` = bucket total (deposits + signed allocations);
+     balance-card settled state must not claim "matched" when buckets overstate.
+   - 4b: signed allocations (migration 0079) + `deallocate_balance_from_bucket`
+     RPC; `useReconcile` `overAllocated` + `deallocate()`; Check Balance flow
+     sync panel; calm card nudge; i18n.
+
 ### Remaining
-- **Apply migration 0078** to Supabase, then runtime-test end-to-end (§12).
-  Until applied, `balance_allocations` queries error at runtime (table absent).
+- **Apply migrations 0078 + 0079** to Supabase, then runtime-test end-to-end
+  (§12). Until applied, `balance_allocations` queries error at runtime.
+
+## 14. Slice 4 — Option A + shortfall write-down (design)
+
+### Money model with signed allocations
+```
+D    = Σ savings_logs            (Recorded Deposits — Saving Plan / streak only)
+ADJ  = Σ balance_adjustments     (signed; from reconcile checkpoints)
+ALLOC= Σ balance_allocations     (NOW SIGNED: + into a bucket, − write-down)
+Verified   = D + ADJ
+BucketTotal= D + ALLOC           (= hero/vault under Option A)
+pool       = Verified − BucketTotal = ADJ − ALLOC
+  pool > 0 → surplus  → allocate INTO a bucket (positive)   [built]
+  pool < 0 → shortfall→ trim a bucket (negative allocation) [slice 4]
+```
+After the user fully reconciles, ALLOC tracks ADJ and pool → 0, so
+hero = buckets = Verified. Symmetric and self-consistent.
+
+### 4a — Hero = bucket total (Option A)
+- Dashboard: `heroSaved = total + allocationSum` (allocationSum is signed) →
+  equals Σ bucketSaved over own buckets. Pass `heroSaved` to `HeroCard saved`.
+- `useReconcile`: expose `overAllocated = max(0, ALLOC − ADJ)` alongside
+  `unallocatedPool = max(0, ADJ − ALLOC)`. Exactly one is > 0 (or both 0).
+- `BalanceCheckStatus` settled state: only show "ตรงกับเป้าหมายย่อย ✓" when
+  both pool and overAllocated are ~0. When `overAllocated > 0`, show the calm
+  shortfall nudge (neutral tone) that opens the sync panel.
+
+### 4b — Shortfall write-down
+**DB — migration 0079:**
+- Relax `balance_allocations.amount` check from `> 0` to `<> 0` (drop the
+  inline check dynamically, add `check (amount <> 0)`). `bucket_balance`
+  already sums allocations, so signed values just work.
+- `deallocate_balance_from_bucket(p_room_id, p_bucket_id, p_amount, p_client_request_id)`
+  (mirror `allocate_balance_to_bucket`): `security definer`, advisory lock per
+  user+room. Validate: amount > 0, bucket owned/active/in-room; **available to
+  trim** `= ALLOC − ADJ` (the overAllocated) `≥ amount`; **bucket_balance ≥
+  amount** (no negative bucket). Insert a row with `amount = −p_amount`.
+  Idempotent on `client_request_id`. Stable HINT tokens
+  (`deallocation_exceeds_shortfall`, `deallocation_insufficient_bucket`, …).
+  Still **no `activity_events`** (owner-only privacy).
+
+**Client:**
+- `useReconcile`: `deallocate({ bucketId, amount, clientRequestId })`;
+  refetch on success; `overAllocated` derived value.
+- **Check Balance flow** (`CheckBalanceSheet`): when the saved difference is
+  negative, the final panel becomes the **sync panel** — pre-selected smart
+  bucket (buffer → farthest deadline), one-tap "ปรับให้ตรง", reassurance line,
+  "ไว้ก่อน". Auto-spill: client computes per-bucket trim = min(remaining,
+  bucket_balance) and calls `deallocate` once per bucket (each idempotent);
+  shows "ปรับจาก N เป้า" only when it spills. Success → "เป้าตรงกับเงินจริงแล้ว ✓".
+- **Card nudge** (`BalanceCheckStatus`): neutral-tone shortfall row when
+  `overAllocated > 0`, tap → reopen the sync panel.
+- Thread the signed `allocationSum` into hero; allocations already flow into
+  `bucketSaved` / pace.
+
+**i18n:** extend `reconcile.allocate` (or a new `reconcile.sync`) with the
+shortfall copy (sync title, "เงินจริงน้อยกว่าที่จด ฿X", confirm "ปรับให้ตรง",
+reassurance, card nudge, success, error-hint map).
+
+### Guardrail note
+Bucket write-down is the CLAUDE.md-gated "bucket correction" — explicitly
+approved for this slice. It never mutates `savings_logs` or past records
+(append-only signed allocation), so streak / Saving Plan / financial history
+stay intact; only the live bucket balance (real money) moves.
 
 ## 12. Verification
 - `tsc -b` + scoped eslint (build/lint are red on clean checkout per project

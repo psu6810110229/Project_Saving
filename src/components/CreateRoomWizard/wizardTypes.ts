@@ -1,4 +1,4 @@
-import type { BucketCategory, PaymentType, ProjectCategory } from '../../types';
+import type { BucketCategory, PaymentType, ProjectCategory, SavingRuleType } from '../../types';
 
 export interface ExpenseDraftItem {
   id: string;
@@ -12,6 +12,9 @@ export interface ExpenseDraftItem {
   tipKey: string | null;
   priority: number;
   paymentType?: PaymentType;
+  /** User-chosen saving rule from step 4. Unset = use the auto suggestion. */
+  savingRuleType?: SavingRuleType | null;
+  savingRuleAmount?: number | null;
 }
 
 export interface WizardDraft {

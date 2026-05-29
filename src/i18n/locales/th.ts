@@ -456,6 +456,7 @@ export const th: Messages = {
       flexible: 'ยืดหยุ่น',
     } as Record<string, string>,
     suggestedRule: (type: string, amount: string): string => `${type} · ${amount}`,
+    flexiblePlanHint: 'ยืดหยุ่น — ออมเมื่อไหร่ก็ได้ตามสะดวก',
     noExpensesForTimeline: 'กลับไปเลือกรายจ่ายก่อน',
     stepSummaryTitle: 'แผนของคุณพร้อมแล้ว',
     stepSummarySubtitle: 'ตรวจสอบทุกอย่างก่อนสร้างโปรเจกต์',

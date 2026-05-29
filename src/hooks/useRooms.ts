@@ -5,7 +5,7 @@ import { useRoom } from './useRoom';
 import { generateInviteCode } from '../lib/inviteCode';
 import { notifyRoomJoined, notifyRoomLeft } from '../lib/notifyEvents';
 import { useI18n } from '../i18n/useI18n';
-import type { CoverTint, ProjectCategory, Room } from '../types';
+import type { CoverTint, ProjectCategory, Room, SavingRuleType } from '../types';
 import { ROOM_NAME_MAX_LENGTH } from '../lib/roomName';
 import { calcSuggestedRule } from '../lib/travelExpenseRules';
 
@@ -63,6 +63,9 @@ interface WizardExpense {
   priority: number;
   paymentType?: string;
   tipKey?: string | null;
+  /** User-chosen saving rule from step 4 (overrides the auto suggestion). */
+  savingRuleType?: SavingRuleType | null;
+  savingRuleAmount?: number | null;
 }
 
 interface CreateRoomWithTemplatesValues {
@@ -259,10 +262,14 @@ export function useRooms() {
       // Compute the suggested saving rule once per expense and reuse it
       // for both the shared template and the creator's own bucket so the
       // bucket isn't left deadline-only (no rule = no save-today amount).
-      const withRules = values.expenses.map(e => ({
-        e,
-        rule: calcSuggestedRule(e.targetAmount, e.deadline),
-      }));
+      const withRules = values.expenses.map(e => {
+        // Prefer the user's chosen rule (step-4 picker); otherwise fall back to
+        // the auto suggestion so the bucket still gets a save-today amount.
+        const fallback = calcSuggestedRule(e.targetAmount, e.deadline);
+        const ruleType = e.savingRuleType ?? fallback.ruleType;
+        const amount = e.savingRuleType != null ? e.savingRuleAmount ?? 0 : fallback.amount;
+        return { e, rule: { ruleType, amount } };
+      });
 
       const templates = withRules.map(({ e, rule }) => ({
         room_id: roomId,

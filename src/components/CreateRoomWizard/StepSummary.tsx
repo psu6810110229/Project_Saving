@@ -96,6 +96,8 @@ export function StepSummary({
         priority: e.priority,
         paymentType: e.paymentType,
         tipKey: e.tipKey,
+        savingRuleType: e.savingRuleType ?? null,
+        savingRuleAmount: e.savingRuleAmount ?? null,
       })),
     }, { archiveExisting });
 

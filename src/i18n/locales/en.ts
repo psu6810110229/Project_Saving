@@ -469,6 +469,7 @@ export const en = {
       flexible: 'Flexible',
     } as Record<string, string>,
     suggestedRule: (type: string, amount: string): string => `${type} · ${amount}`,
+    flexiblePlanHint: 'Flexible — save whenever you can.',
     noExpensesForTimeline: 'Go back and select expenses first.',
     stepSummaryTitle: "Here's your plan",
     stepSummarySubtitle: 'Review everything before creating your project.',

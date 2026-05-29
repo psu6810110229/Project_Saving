@@ -1,4 +1,4 @@
-import type { Bucket, BucketPace, BucketTransfer, PaceStatus, SavingsLog } from '../types';
+import type { BalanceAllocation, Bucket, BucketPace, BucketTransfer, PaceStatus, SavingsLog } from '../types';
 import { addDays, daysBetween, todayBangkokKey } from './savingPlan';
 import { bucketSaved } from './buckets';
 
@@ -79,11 +79,15 @@ export function calcBucketPace(
   logs: SavingsLog[],
   today?: string,
   transfers?: BucketTransfer[],
+  allocations?: BalanceAllocation[],
 ): BucketPace {
   const todayKey = today ?? todayBangkokKey();
   const deadline = bucket.deadline;
   const target = bucket.target_amount;
-  const saved = bucketSaved(bucket.id, logs, transfers);
+  // Balance must match the displayed bucket total (bucketSaved): deposits +
+  // transfers + allocations. Omitting allocations made a "allocate in → transfer
+  // out" round-trip look like a net loss and falsely flagged the bucket behind.
+  const saved = bucketSaved(bucket.id, logs, transfers, allocations);
   const percentSaved = target > 0 ? (saved / target) * 100 : 0;
 
   if (!deadline) {

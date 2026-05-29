@@ -542,7 +542,7 @@ export function Dashboard() {
         status = { kind: focusState, label };
       }
       const paceResult = bucket.deadline
-        ? calcBucketPace(bucket, logs, undefined, bucketTransfers)
+        ? calcBucketPace(bucket, logs, undefined, bucketTransfers, balanceAllocations)
         : null;
       return {
         id: bucket.id,
@@ -604,7 +604,7 @@ export function Dashboard() {
   const actionAlertBuckets = useMemo<ActionAlertBucket[]>(() => buckets
     .filter(bucket => !doneBucketIds.has(bucket.id) && bucket.deadline)
     .map(bucket => {
-      const pace = calcBucketPace(bucket, logs, undefined, bucketTransfers);
+      const pace = calcBucketPace(bucket, logs, undefined, bucketTransfers, balanceAllocations);
       if (pace.status !== 'behind' && pace.status !== 'critical') return null;
       return {
         id: bucket.id,
@@ -619,7 +619,7 @@ export function Dashboard() {
     .sort((a, b) => {
       if (a.status !== b.status) return a.status === 'critical' ? -1 : 1;
       return (b.requiredPerDay ?? 0) - (a.requiredPerDay ?? 0);
-    }), [buckets, doneBucketIds, logs, bucketTransfers]);
+    }), [buckets, doneBucketIds, logs, bucketTransfers, balanceAllocations]);
   const actionAlertStorageKey = useMemo(() => {
     const signature = actionAlertBuckets.map(bucket => `${bucket.id}:${bucket.status}`).join('|') || 'none';
     return `dashboard-action-alert:${activeRoomId ?? 'no-room'}:${user?.id ?? 'anon'}:${signature}`;

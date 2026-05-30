@@ -53,7 +53,7 @@ export function JoinProjectFlow({
           </div>
         </section>
       )}
-      <Button variant="primary" fullWidth disabled={!canJoin} onClick={onJoin}>
+      <Button variant="primary" fullWidth size="md" disabled={!canJoin} onClick={onJoin}>
         {jp.submitButton}
       </Button>
     </section>

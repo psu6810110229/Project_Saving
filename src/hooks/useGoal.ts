@@ -26,14 +26,16 @@ export function useGoal(roomId: string | null = null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchGoal = useCallback(async () => {
+  const fetchGoal = useCallback(async (opts?: { silent?: boolean }) => {
     if (!user || !roomId) {
       setPersonalGoal(null);
       setRoomGoal({ target_amount: null, end_date: null });
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Silent refetches (realtime-driven) skip the loading flag so the goal
+    // updates in place instead of flashing the full dashboard skeleton.
+    if (!opts?.silent) setLoading(true);
     setError(null);
     const [{ data: personalData, error: personalErr }, { data: roomData, error: roomErr }] = await Promise.all([
       supabase
@@ -75,13 +77,13 @@ export function useGoal(roomId: string | null = null) {
         payload => {
           const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as Partial<Goal>;
           if (row.user_id !== user.id) return;
-          void fetchGoal();
+          void fetchGoal({ silent: true });
         },
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
-        () => { void fetchGoal(); },
+        () => { void fetchGoal({ silent: true }); },
       )
       .subscribe();
 

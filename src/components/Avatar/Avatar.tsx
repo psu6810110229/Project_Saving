@@ -48,7 +48,7 @@ export function Avatar({
       >
         {hasImage && !imageFailed ? (
           <img
-            src={imageUrl}
+            src={imageUrl ?? undefined}
             alt=""
             className="w-full h-full object-cover"
             onError={() => setImageFailedUrl(imageUrl ?? null)}

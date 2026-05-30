@@ -1056,7 +1056,7 @@ export function Dashboard() {
         <div aria-hidden className="dashboard-mesh-bg pointer-events-none fixed inset-0 -z-10" />,
         document.body,
       )}
-    <motion.div className="flex flex-col gap-6 pt-8 pb-6" variants={dashboardContainerVariants} initial="hidden" animate="visible">
+    <motion.div className="flex flex-col gap-6 px-5 pt-8 pb-6" variants={dashboardContainerVariants} initial="hidden" animate="visible">
       {/* Project header. Compact, no heavy card. */}
       <motion.header
         className="flex items-start justify-between gap-3"

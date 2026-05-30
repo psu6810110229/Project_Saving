@@ -32,13 +32,13 @@ export function Login() {
     <div className="relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-bg px-6 pb-10 pt-6">
       <AuroraBackdrop
         live
-        contrast={1.5}
+        contrast={1}
         motionSpeed={0.36}
         palette={{
-          primary: 'bg-brand-300/[0.54]',
-          secondary: 'bg-brand-200/[0.60]',
-          center: 'bg-accent-gold/[0.48]',
-          glow: 'bg-brand-500/[0.66]',
+          primary: 'bg-white/[0.24]',
+          secondary: 'bg-white/[0.18]',
+          center: 'bg-white/[0.15]',
+          glow: 'bg-white/[0.27]',
         }}
         scatter
         reduceMotion={Boolean(reduceMotion)}

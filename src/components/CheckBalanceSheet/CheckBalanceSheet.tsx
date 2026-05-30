@@ -46,7 +46,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   const { buckets } = data.buckets;
   const { logs } = data.logs;
   const { transfers: bucketTransfers } = data.bucketTransfers;
-  const { allocations: balanceAllocations } = data.balanceAllocations;
+  const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
   const { copy } = useI18n();
   const r = copy.reconcile;
   const sync = r.allocate.sync;
@@ -144,9 +144,13 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
       if (result.error) {
         setSyncing(false);
         setSyncError(syncErrorCopy(result.errorHint));
+        await refetchAllocations();
         return;
       }
     }
+    // Re-pull the ledger so bucket balances / progress reflect the trim
+    // immediately (the balance card already updated via useReconcile).
+    await refetchAllocations();
     setSyncSpillCount(plan.length);
     setSyncing(false);
     setSyncDone(true);

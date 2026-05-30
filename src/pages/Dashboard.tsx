@@ -234,7 +234,7 @@ export function Dashboard() {
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
-  const { allocations: balanceAllocations } = data.balanceAllocations;
+  const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = data.leaderboard;
@@ -1551,6 +1551,7 @@ export function Dashboard() {
         buckets={bucketItems}
         initialBucketId={allocationIntent?.bucketId ?? null}
         allocate={allocate}
+        onAllocated={() => { void refetchAllocations(); }}
       />
 
       {/* Bucket deposit bottom sheet */}

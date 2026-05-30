@@ -32,6 +32,8 @@ export interface UseBalanceAllocationsResult {
   loading: boolean;
   error: string | null;
   upsertAllocation: (allocation: BalanceAllocation) => void;
+  /** Re-pull the ledger from the server (after an allocate / write-down). */
+  refetch: () => Promise<void>;
 }
 
 /**
@@ -64,6 +66,32 @@ export function useBalanceAllocations(roomId: string | null): UseBalanceAllocati
     });
   }, []);
 
+  // Authoritative re-pull. Exposed as `refetch` and used after writes so
+  // bucket balances update immediately without depending on the realtime
+  // subscription (which requires the table to be in the publication).
+  const fetchAllocations = useCallback(async () => {
+    if (!roomId || !userId) {
+      setAllocations([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    const { data, error: err } = await supabase
+      .from('balance_allocations')
+      .select('id, room_id, user_id, destination_bucket_id, amount, client_request_id, created_at')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: false })
+      .limit(LIMIT);
+    if (err) {
+      setError(err.message);
+      setLoading(false);
+      return;
+    }
+    setAllocations(((data ?? []) as RawAllocationRow[]).map(normalize));
+    setError(null);
+    setLoading(false);
+  }, [roomId, userId]);
+
   useEffect(() => {
     if (!roomId || !userId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -74,24 +102,6 @@ export function useBalanceAllocations(roomId: string | null): UseBalanceAllocati
     }
 
     let cancelled = false;
-
-    async function fetchAllocations() {
-      const { data, error: err } = await supabase
-        .from('balance_allocations')
-        .select('id, room_id, user_id, destination_bucket_id, amount, client_request_id, created_at')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: false })
-        .limit(LIMIT);
-      if (cancelled) return;
-      if (err) {
-        setError(err.message);
-        setLoading(false);
-        return;
-      }
-      setAllocations(((data ?? []) as RawAllocationRow[]).map(normalize));
-      setError(null);
-      setLoading(false);
-    }
 
     setLoading(true);
     void fetchAllocations();
@@ -132,7 +142,7 @@ export function useBalanceAllocations(roomId: string | null): UseBalanceAllocati
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [roomId, upsertAllocation, userId]);
+  }, [roomId, upsertAllocation, userId, fetchAllocations]);
 
-  return { allocations, loading, error, upsertAllocation };
+  return { allocations, loading, error, upsertAllocation, refetch: fetchAllocations };
 }

@@ -53,6 +53,34 @@ interface AllocateRpcRow {
   created_at: string;
 }
 
+interface DeallocateInput {
+  bucketId: string;
+  amount: number;
+  clientRequestId?: string;
+}
+
+interface DeallocateResult {
+  error?: string;
+  /** Stable RPC HINT token (e.g. `deallocation_exceeds_shortfall`). */
+  errorHint?: string;
+  deallocationId?: string;
+  sourceBucketId?: string;
+  amount?: number;
+  bucketBalanceAfter?: number;
+  overAllocatedAfter?: number;
+  reused?: boolean;
+}
+
+interface DeallocateRpcRow {
+  deallocation_id: string;
+  source_bucket_id: string;
+  amount: number | string;
+  bucket_balance_after: number | string;
+  over_allocated_after: number | string;
+  reused: boolean;
+  created_at: string;
+}
+
 interface CreateCheckpointRpcRow {
   checkpoint_id: string;
   adjustment_id: string | null;
@@ -294,6 +322,43 @@ export function useReconcile(roomId: string | null) {
     };
   }
 
+  /**
+   * Trim `amount` of an over-allocated bucket back down to match the
+   * verified balance (shortfall write-down — plan 56 slice 4b). Appends a
+   * signed (negative) allocation; `savings_logs`, streak and Verified
+   * Balance are untouched. Idempotent via `clientRequestId`.
+   */
+  async function deallocate(input: DeallocateInput): Promise<DeallocateResult> {
+    if (!user) return { error: 'Not authenticated' };
+    if (!roomId) return { error: 'No active room' };
+    if (!Number.isFinite(input.amount) || input.amount <= 0) {
+      return { error: 'Enter an amount greater than zero.' };
+    }
+
+    const { data, error: rpcError } = await supabase.rpc('deallocate_balance_from_bucket', {
+      p_room_id: roomId,
+      p_bucket_id: input.bucketId,
+      p_amount: input.amount,
+      p_client_request_id: input.clientRequestId ?? null,
+    });
+
+    if (rpcError) return { error: rpcError.message, errorHint: rpcError.hint ?? undefined };
+
+    const row = (Array.isArray(data) ? data[0] : data) as DeallocateRpcRow | undefined;
+    if (!row) return { error: 'No write-down returned' };
+
+    await Promise.all([fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()]);
+
+    return {
+      deallocationId: row.deallocation_id,
+      sourceBucketId: row.source_bucket_id,
+      amount: toNum(row.amount),
+      bucketBalanceAfter: toNum(row.bucket_balance_after),
+      overAllocatedAfter: toNum(row.over_allocated_after),
+      reused: row.reused,
+    };
+  }
+
   return {
     latest,
     activity,
@@ -319,6 +384,7 @@ export function useReconcile(roomId: string | null) {
     error,
     createCheckpoint,
     allocate,
+    deallocate,
     refetch: useCallback(async () => {
       await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()]);
     }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchAllocationSum, fetchAppBalance]),

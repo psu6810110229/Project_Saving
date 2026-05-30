@@ -19,6 +19,8 @@ interface BalanceCheckStatusProps {
    */
   overAllocated?: number;
   onCheck: () => void;
+  /** Tap handler for the shortfall row — opens the sync panel directly. */
+  onSync?: () => void;
   /** When true the surplus bar is draggable (bucket transfer mode, not edit). */
   canAllocate?: boolean;
   /** Tap fallback for allocation (keyboard/touch/reduced-motion). */
@@ -51,6 +53,7 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
   unallocatedPool,
   overAllocated = 0,
   onCheck,
+  onSync,
   canAllocate = false,
   onAllocate,
 }: BalanceCheckStatusProps) {
@@ -87,7 +90,7 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
     return (
       <button
         type="button"
-        onClick={onCheck}
+        onClick={onSync ?? onCheck}
         aria-label={`${a.cardShortfallLabel} ${formatCurrency(overAllocated)} · ${a.cardShortfallNudge}`}
         className="relative z-10 flex w-full items-center gap-3 rounded-xl bg-surface px-4 py-3 text-left shadow-soft transition-transform active:scale-[0.99]"
       >

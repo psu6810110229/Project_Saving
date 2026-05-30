@@ -272,6 +272,7 @@ export function Dashboard() {
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
   const [checkBalanceOpen, setCheckBalanceOpen] = useState(false);
+  const [checkBalanceMode, setCheckBalanceMode] = useState<'check' | 'sync'>('check');
   const [manageTransferSheetOpen, setManageTransferSheetOpen] = useState(false);
   const [completedBucketsOpen, setCompletedBucketsOpen] = useState(false);
   const [bucketDragMode, setBucketDragMode] = useState<BucketDragMode>('transfer');
@@ -688,7 +689,14 @@ export function Dashboard() {
     haptic('success');
   }, []);
 
-  const handleCheckBalance = useCallback(() => setCheckBalanceOpen(true), []);
+  const handleCheckBalance = useCallback(() => {
+    setCheckBalanceMode('check');
+    setCheckBalanceOpen(true);
+  }, []);
+  const handleSyncShortfall = useCallback(() => {
+    setCheckBalanceMode('sync');
+    setCheckBalanceOpen(true);
+  }, []);
   const handleOpenManageBuckets = useCallback(() => {
     if (buckets.length > 0) {
       setManageBucketsOpen(true);
@@ -1170,6 +1178,7 @@ export function Dashboard() {
                       unallocatedPool={unallocatedPool}
                       overAllocated={overAllocated}
                       onCheck={handleCheckBalance}
+                      onSync={handleSyncShortfall}
                       canAllocate={!isEditing && activeBucketItems.length > 0}
                       onAllocate={() => {
                         // Ignore the click dnd-kit fires right after a drag
@@ -1483,11 +1492,16 @@ export function Dashboard() {
         onClose={closeVbReminder}
         onCheckNow={() => {
           closeVbReminder();
+          setCheckBalanceMode('check');
           setCheckBalanceOpen(true);
         }}
       />
 
-      <CheckBalanceSheet open={checkBalanceOpen} onClose={() => setCheckBalanceOpen(false)} />
+      <CheckBalanceSheet
+        open={checkBalanceOpen}
+        onClose={() => setCheckBalanceOpen(false)}
+        initialMode={checkBalanceMode}
+      />
 
       {/* Bucket-to-bucket transfer sheet (drag-shortcut entry, slice 40.6). */}
       <BucketTransferSheet

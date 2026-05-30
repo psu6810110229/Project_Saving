@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from '../Button/Button';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { IconCheck, IconVault } from '../Icon/Icon';
@@ -10,12 +10,26 @@ import { useSharedData } from '../../hooks/useSharedData';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
-import { formatDirectionalAdjustment, formatSignedCurrency, RECONCILE_REASONS } from '../../lib/reconcile';
+import { bucketSaved } from '../../lib/buckets';
+import {
+  formatDirectionalAdjustment,
+  formatSignedCurrency,
+  RECONCILE_REASONS,
+  shortfallSpillPlan,
+  smartShortfallBucketId,
+  type ShortfallBucket,
+} from '../../lib/reconcile';
 import type { BalanceAdjustmentReason } from '../../types';
 
 interface CheckBalanceSheetProps {
   open: boolean;
   onClose: () => void;
+  /**
+   * `'sync'` opens straight on the shortfall write-down panel (the card
+   * nudge entry), using the already-stored overAllocated — no new
+   * checkpoint needed. Defaults to the full Check Balance flow.
+   */
+  initialMode?: 'check' | 'sync';
 }
 
 type Step = 'enter' | 'difference' | 'done';
@@ -26,10 +40,16 @@ type Step = 'enter' | 'difference' | 'done';
  * writes checkpoints through the shared reconcile data layer, which
  * refetches on success so the Dashboard row updates automatically.
  */
-export function CheckBalanceSheet({ open, onClose }: CheckBalanceSheetProps) {
-  const { appBalance, createCheckpoint } = useSharedData().reconcile;
+export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: CheckBalanceSheetProps) {
+  const data = useSharedData();
+  const { appBalance, createCheckpoint, overAllocated, deallocate } = data.reconcile;
+  const { buckets } = data.buckets;
+  const { logs } = data.logs;
+  const { transfers: bucketTransfers } = data.bucketTransfers;
+  const { allocations: balanceAllocations } = data.balanceAllocations;
   const { copy } = useI18n();
   const r = copy.reconcile;
+  const sync = r.allocate.sync;
 
   const [step, setStep] = useState<Step>('enter');
   const [actualValue, setActualValue] = useState('');
@@ -38,6 +58,45 @@ export function CheckBalanceSheet({ open, onClose }: CheckBalanceSheetProps) {
   const [error, setError] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<null | { matched: boolean; diff: number }>(null);
   const clientRequestIdRef = useRef<string | null>(null);
+
+  // Shortfall write-down (plan 56 slice 4b): when the verified balance ends
+  // up below what the buckets claim, the done panel becomes a sync panel.
+  const [syncBucketId, setSyncBucketId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncDone, setSyncDone] = useState(false);
+  const [syncSpillCount, setSyncSpillCount] = useState(0);
+
+  // Own active buckets that currently hold money, as write-down candidates.
+  const shortfallBuckets = useMemo<ShortfallBucket[]>(() => buckets
+    .filter(b => b.archived_at == null)
+    .map(b => ({
+      id: b.id,
+      category: b.category,
+      deadline: b.deadline,
+      balance: bucketSaved(b.id, logs, bucketTransfers, balanceAllocations),
+    }))
+    .filter(b => b.balance > 0.005),
+    [buckets, logs, bucketTransfers, balanceAllocations]);
+
+  const smartDefaultBucketId = useMemo(
+    () => smartShortfallBucketId(shortfallBuckets),
+    [shortfallBuckets],
+  );
+  const effectiveSyncBucketId = syncBucketId ?? smartDefaultBucketId;
+
+  // Card-nudge entry: on the closed→open transition in sync mode, jump
+  // straight to the shortfall panel using the stored overAllocated (no new
+  // checkpoint). Adjusting state during render on a prop change is the
+  // recommended React pattern — no effect, no cascading render.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open && initialMode === 'sync') {
+      setStep('done');
+      setOutcome({ matched: false, diff: 0 });
+    }
+  }
 
   const displayedAppBalance = appBalance ?? 0;
   const actualNumber = Number(actualValue);
@@ -55,7 +114,51 @@ export function CheckBalanceSheet({ open, onClose }: CheckBalanceSheetProps) {
       setOutcome(null);
       setSubmitting(false);
       clientRequestIdRef.current = null;
+      setSyncBucketId(null);
+      setSyncing(false);
+      setSyncError(null);
+      setSyncDone(false);
+      setSyncSpillCount(0);
     }, 350);
+  }
+
+  /**
+   * Trim the buckets back down to the verified balance via signed
+   * write-downs (auto-spill across buckets, starting from the chosen one).
+   * Each call uses a fresh request id; the server recomputes the remaining
+   * shortfall under lock, so a retry after a partial failure can never
+   * over-trim. `savings_logs` / streak are untouched.
+   */
+  async function handleSync() {
+    if (syncing) return;
+    const plan = shortfallSpillPlan(shortfallBuckets, overAllocated, effectiveSyncBucketId);
+    if (plan.length === 0) return;
+    setSyncing(true);
+    setSyncError(null);
+    for (const trim of plan) {
+      const result = await deallocate({
+        bucketId: trim.bucketId,
+        amount: trim.amount,
+        clientRequestId: crypto.randomUUID(),
+      });
+      if (result.error) {
+        setSyncing(false);
+        setSyncError(syncErrorCopy(result.errorHint));
+        return;
+      }
+    }
+    setSyncSpillCount(plan.length);
+    setSyncing(false);
+    setSyncDone(true);
+    haptic('success');
+  }
+
+  function syncErrorCopy(hint: string | undefined): string {
+    switch (hint) {
+      case 'deallocation_exceeds_shortfall': return sync.errorExceedsShortfall;
+      case 'deallocation_insufficient_bucket': return sync.errorInsufficientBucket;
+      default: return sync.errorGeneric;
+    }
   }
 
   async function handleConfirmMatch() {
@@ -200,20 +303,76 @@ export function CheckBalanceSheet({ open, onClose }: CheckBalanceSheetProps) {
             </section>
           )}
 
-          {step === 'done' && outcome && (
+          {step === 'done' && outcome && !syncDone && (overAllocated > 0.005 || syncing) && (
+            // ── Shortfall sync panel: buckets claim more than the verified
+            //    balance. Calm, guided, one tap (smart-default bucket). ──
+            <section className="flex flex-col gap-4 rounded-xl bg-surface p-5 shadow-soft">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <IconBubble tone="peach" size="md"><IconVault size={22} /></IconBubble>
+                <div className="flex flex-col gap-1">
+                  <p className="font-mono-th text-lg font-bold text-ink">{sync.title}</p>
+                  <p className="font-mono-th text-sm leading-6 text-ink-muted">
+                    {sync.body(formatCurrency(overAllocated))}
+                  </p>
+                  <p className="font-mono-th text-xs font-semibold text-accent-leaf">{sync.reassurance}</p>
+                </div>
+              </div>
+
+              {shortfallBuckets.length > 1 && (
+                <label className="block">
+                  <span className="mb-1.5 block font-mono-th text-xs font-semibold text-ink-muted">
+                    {sync.bucketLabel}
+                  </span>
+                  <select
+                    value={effectiveSyncBucketId ?? ''}
+                    onChange={event => { setSyncBucketId(event.target.value); setSyncError(null); }}
+                    disabled={syncing}
+                    className="w-full rounded-lg bg-surfaceAlt px-3 py-2.5 font-mono-th text-sm font-semibold text-ink shadow-soft"
+                  >
+                    {shortfallBuckets.map(b => {
+                      const bucket = buckets.find(x => x.id === b.id);
+                      return (
+                        <option key={b.id} value={b.id}>
+                          {bucket?.name ?? ''} · {formatCurrency(b.balance)}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+              )}
+
+              {syncError && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono-th text-xs text-danger">{syncError}</p>}
+
+              <div className="flex flex-col gap-2">
+                <Button variant="action" fullWidth onClick={handleSync} disabled={syncing}>
+                  {syncing ? sync.confirmingButton : sync.confirmButton}
+                </Button>
+                <Button variant="ghost" fullWidth size="md" onClick={handleClose} disabled={syncing}>
+                  {sync.skipButton}
+                </Button>
+              </div>
+            </section>
+          )}
+
+          {step === 'done' && outcome && (syncDone || (overAllocated <= 0.005 && !syncing)) && (
             <section className="flex flex-col items-center gap-4 rounded-xl bg-surface p-5 text-center shadow-soft">
-              <IconBubble tone={outcome.matched ? 'solid' : 'peach'} size="md">
-                {outcome.matched ? <IconCheck size={22} /> : <IconVault size={22} />}
+              <IconBubble tone={outcome.matched || syncDone ? 'solid' : 'peach'} size="md">
+                {outcome.matched || syncDone ? <IconCheck size={22} /> : <IconVault size={22} />}
               </IconBubble>
               <div className="flex flex-col gap-1">
-                <p className="font-mono text-lg font-bold text-ink">
-                  {outcome.matched ? r.outcomeMatchedTitle : r.outcomeAdjustmentTitle}
+                <p className="font-mono-th text-lg font-bold text-ink">
+                  {syncDone ? sync.successTitle : outcome.matched ? r.outcomeMatchedTitle : r.outcomeAdjustmentTitle}
                 </p>
-                <p className="font-mono text-sm leading-6 text-ink-muted">
-                  {outcome.matched
-                    ? r.outcomeMatchedBody
-                    : r.outcomeDifferenceBody(formatDirectionalAdjustment(outcome.diff, r.statAdjustedUp, r.statAdjustedDown))}
+                <p className="font-mono-th text-sm leading-6 text-ink-muted">
+                  {syncDone
+                    ? sync.successBody
+                    : outcome.matched
+                      ? r.outcomeMatchedBody
+                      : r.outcomeDifferenceBody(formatDirectionalAdjustment(outcome.diff, r.statAdjustedUp, r.statAdjustedDown))}
                 </p>
+                {syncDone && syncSpillCount > 1 && (
+                  <p className="font-mono-th text-xs text-ink-dim">{sync.spillNote(syncSpillCount)}</p>
+                )}
               </div>
               <Button variant="action" fullWidth onClick={handleClose}>
                 {r.outcomeDone}

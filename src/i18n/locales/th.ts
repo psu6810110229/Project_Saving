@@ -166,6 +166,7 @@ export const th: Messages = {
     balanceMatched: 'ตรงกัน',
     checkedSince: (since: string) => `เช็กแล้ว · ${since}`,
     checkButton: 'เช็กยอด',
+    heroEditAriaLabel: 'จัดการเป้าหมายย่อย',
     savingPlanLabel: 'แผนเก็บเงิน',
     noPlanYet: 'ยังไม่มีแผน',
     setUpPlan: 'วางแผนเลย',

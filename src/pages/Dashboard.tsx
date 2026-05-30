@@ -1125,7 +1125,7 @@ export function Dashboard() {
           streakTrackable={bucketStreak.trackable}
           lastCheckedAt={latestCheckpoint?.checked_at ?? null}
           onEdit={handleOpenManageBuckets}
-          editAriaLabel="แก้ไขเป้าหมาย"
+          editAriaLabel={d.heroEditAriaLabel}
           onChangeCover={handleHeroCoverChoose}
           changeCoverAriaLabel={`${copy.createRoomWizard.changeCoverButton} ${copy.createRoomWizard.coverImagePlaceholder}`}
           changingCover={coverSaving || coverUploading}

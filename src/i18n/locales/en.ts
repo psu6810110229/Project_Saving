@@ -173,6 +173,7 @@ export const en = {
     balanceMatched: 'Matched',
     checkedSince: (since: string) => `checked ${since}`,
     checkButton: 'Check',
+    heroEditAriaLabel: 'Manage buckets',
     // Saving Plan card
     savingPlanLabel: 'Saving Plan',
     noPlanYet: 'No plan yet',

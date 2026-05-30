@@ -22,7 +22,7 @@ import { Button } from '../Button/Button';
 import { Modal } from '../Modal/Modal';
 import { useI18n } from '../../i18n/useI18n';
 import { WIZARD_DRAFT_KEY } from '../../lib/wizardDraft';
-import { suggestExpenses } from '../../lib/travelExpenseRules';
+import { cascadeExpenseSchedule, suggestExpenses } from '../../lib/travelExpenseRules';
 import type { ExpenseDraftItem, WizardDraft } from './wizardTypes';
 
 const TOTAL_STEPS = 5;
@@ -113,6 +113,31 @@ export function CreateRoomWizard() {
     });
   }, []);
 
+  // Entering step 4: lay the selected buckets on one sequential timeline so the
+  // suggested deadlines spread evenly across the runway (collect-first order),
+  // keeping every bucket's daily amount affordable instead of cramming the
+  // nearest deadline into a tiny, impossible window.
+  const goToStep4 = useCallback(() => {
+    setDirection(1);
+    setDraft(prev => {
+      const checked = prev.expenses.filter(e => e.checked);
+      if (checked.length === 0 || !prev.endDate) {
+        return { ...prev, step: 4 };
+      }
+      const { legs } = cascadeExpenseSchedule(
+        checked.map(e => ({ id: e.id, targetAmount: e.targetAmount, priority: e.priority })),
+        prev.endDate,
+      );
+      const byId = new Map(legs.map(leg => [leg.id, leg]));
+      const expenses = prev.expenses.map(e => {
+        const leg = byId.get(e.id);
+        if (!leg) return e;
+        return { ...e, deadline: leg.deadline, savingWindowStart: leg.startDate };
+      });
+      return { ...prev, step: 4, expenses };
+    });
+  }, []);
+
   // Only Travel and Gadget are live today; the rest are shown as "coming soon"
   // so users see the roadmap without being able to pick an unsupported flow.
   const categoryOptions = useMemo(() => [
@@ -168,7 +193,7 @@ export function CreateRoomWizard() {
           setValidationMsg(msg);
           return;
         }
-        goTo(4);
+        goToStep4();
         break;
       }
       case 4: goTo(5); break;

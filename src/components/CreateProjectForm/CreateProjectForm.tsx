@@ -52,7 +52,7 @@ export function CreateProjectForm(props: CreateProjectFormProps) {
       <FormField label={c.endDateLabel}>
         <TextInput value={props.endDate} type="date" leadingIcon={<IconCalendar size={16} />} onChange={(event: ChangeEvent<HTMLInputElement>) => props.onEndDateChange(event.target.value)} />
       </FormField>
-      <Button variant="primary" fullWidth type="submit">{c.submitButton}</Button>
+      <Button variant="primary" fullWidth size="md" type="submit">{c.submitButton}</Button>
     </form>
   );
 }

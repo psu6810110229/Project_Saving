@@ -6,7 +6,7 @@ import { IconCheck } from '../Icon/Icon';
 import { HeroCard } from '../HeroCard/HeroCard';
 import { FADE_TRANSITION, SPRING } from '../../lib/motion';
 import { useI18n } from '../../i18n/useI18n';
-import type { ProjectCategory } from '../../types';
+import type { DailySummaryItem, ProjectCategory } from '../../types';
 
 interface VaultUpdatePreviewModalProps {
   open: boolean;
@@ -21,10 +21,12 @@ interface VaultUpdatePreviewModalProps {
   roomCategory?: ProjectCategory | null;
   coverImageUrl?: string | null;
   validThru?: string | null;
+  dailySummaryItem?: DailySummaryItem | null;
   hasBuckets: boolean;
   bucketCount?: number;
   streak: number;
   streakUnit?: 'day' | 'week' | 'month';
+  streakTrackable?: boolean;
   lastCheckedAt?: string | null;
   onDone: () => void;
 }
@@ -42,10 +44,12 @@ export function VaultUpdatePreviewModal({
   roomCategory,
   coverImageUrl,
   validThru,
+  dailySummaryItem,
   hasBuckets,
   bucketCount,
   streak,
   streakUnit,
+  streakTrackable,
   lastCheckedAt,
   onDone,
 }: VaultUpdatePreviewModalProps) {
@@ -82,10 +86,12 @@ export function VaultUpdatePreviewModal({
               roomCategory={roomCategory}
               coverImageUrl={coverImageUrl}
               validThru={validThru}
+              dailySummaryItem={dailySummaryItem}
               hasBuckets={hasBuckets}
               bucketCount={bucketCount}
               streak={streak}
               streakUnit={streakUnit}
+              streakTrackable={streakTrackable}
               lastCheckedAt={lastCheckedAt}
               onDone={onDone}
             />
@@ -109,10 +115,12 @@ interface PreviewBodyProps {
   roomCategory?: ProjectCategory | null;
   coverImageUrl?: string | null;
   validThru?: string | null;
+  dailySummaryItem?: DailySummaryItem | null;
   hasBuckets: boolean;
   bucketCount?: number;
   streak: number;
   streakUnit?: 'day' | 'week' | 'month';
+  streakTrackable?: boolean;
   lastCheckedAt?: string | null;
   onDone: () => void;
 }
@@ -132,10 +140,12 @@ function PreviewBody({
   roomCategory,
   coverImageUrl,
   validThru,
+  dailySummaryItem,
   hasBuckets,
   bucketCount,
   streak,
   streakUnit,
+  streakTrackable,
   lastCheckedAt,
   onDone,
 }: PreviewBodyProps) {
@@ -181,10 +191,12 @@ function PreviewBody({
         roomCategory={roomCategory}
         coverImageUrl={coverImageUrl}
         validThru={validThru}
+        dailySummaryItem={dailySummaryItem}
         hasBuckets={hasBuckets}
         bucketCount={bucketCount}
         streak={streak}
         streakUnit={streakUnit}
+        streakTrackable={streakTrackable}
         lastCheckedAt={lastCheckedAt}
       />
       <div className="flex items-center justify-center gap-2 rounded-xl bg-surface px-4 py-3 shadow-soft">
@@ -198,6 +210,7 @@ function PreviewBody({
       <Button
         variant="action"
         fullWidth
+        size="md"
         disabled={!canDismiss}
         onClick={onDone}
         aria-live="polite"

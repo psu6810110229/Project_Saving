@@ -1,4 +1,4 @@
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconArrowRight, IconTrash } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
 import { useI18n } from '../../i18n/useI18n';
@@ -104,41 +104,52 @@ function RemoveBucketBody({
         </p>
       )}
 
-      <div className="flex flex-col gap-2">
-        {isEmpty ? (
-          <Button
-            variant="dangerSoft"
-            size="md"
-            leadingIcon={<IconTrash size={16} />}
-            disabled={pending}
-            onClick={onArchive}
-            fullWidth
-          >
-            {pending ? c.removingButton : c.removeEmptyButton}
-          </Button>
-        ) : noDestinations ? null : (
-          <Button
-            variant="primary"
-            size="md"
-            leadingIcon={<IconArrowRight size={16} />}
-            disabled={pending}
-            onClick={onTransferFirst}
-            fullWidth
-          >
-            {c.transferFirstButton}
-          </Button>
-        )}
-
+      {noDestinations && !isEmpty ? (
         <Button
           variant="ghost"
           size="md"
+          className={MODAL_SECONDARY_BUTTON_CLASS}
           disabled={pending}
           onClick={onClose}
           fullWidth
         >
           {c.keepBucketButton}
         </Button>
-      </div>
+      ) : (
+        <div className={MODAL_ACTION_ROW_CLASS}>
+          {isEmpty ? (
+            <Button
+              variant="dangerSoft"
+              size="md"
+              leadingIcon={<IconTrash size={16} />}
+              disabled={pending}
+              onClick={onArchive}
+            >
+              {pending ? c.removingButton : c.removeEmptyButton}
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="md"
+              leadingIcon={<IconArrowRight size={16} />}
+              disabled={pending}
+              onClick={onTransferFirst}
+            >
+              {c.transferFirstButton}
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            size="md"
+            className={MODAL_SECONDARY_BUTTON_CLASS}
+            disabled={pending}
+            onClick={onClose}
+          >
+            {c.keepBucketButton}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

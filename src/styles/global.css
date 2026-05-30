@@ -173,17 +173,7 @@
   }
 
   .vault-card-frame::after {
-    content: '';
-    position: absolute;
-    left: 9%;
-    right: 9%;
-    bottom: -16px;
-    z-index: -1;
-    height: 40px;
-    border-radius: 999px;
-    background: rgba(138, 81, 45, 0.2);
-    filter: blur(22px);
-    pointer-events: none;
+    content: none;
   }
 
   .vault-credit-card {

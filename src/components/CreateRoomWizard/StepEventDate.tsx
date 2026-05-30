@@ -1,14 +1,18 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Button } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
-import { IconArrowLeft, IconCamera, IconImage, IconTrash } from '../Icon/Icon';
+import { HeroCard } from '../HeroCard/HeroCard';
+import { IconCamera, IconTrash } from '../Icon/Icon';
 import { ImageCropper } from '../ImageCropper/ImageCropper';
 import { useI18n } from '../../i18n/useI18n';
+import { useProfile } from '../../hooks/useProfile';
 import {
   useImageUpload,
   type CropRect,
 } from '../../hooks/useImageUpload';
 import { roomCoverErrorMessage } from '../../lib/roomCoverImage';
+import { HeroCoverPicker } from '../HeroCoverPicker/HeroCoverPicker';
+import { HERO_COVER_PRESETS, type HeroCoverPreset } from '../../lib/heroCovers';
 import type { ProjectCategory } from '../../types';
 
 interface StepEventDateProps {
@@ -17,29 +21,6 @@ interface StepEventDateProps {
   coverImageUrl: string | null;
   onEndDateChange: (value: string) => void;
   onCoverImageChange: (value: string | null) => void;
-  onNext: () => void;
-  onBack: () => void;
-}
-
-function countdownMessage(
-  endDate: string,
-  today: string,
-  formatter: (months: number) => string,
-  formatterDays: (days: number) => string,
-): string | null {
-  if (!endDate) return null;
-  const end = new Date(endDate + 'T00:00:00');
-  const now = new Date(today + 'T00:00:00');
-  if (isNaN(end.getTime())) return null;
-
-  const diffMs = end.getTime() - now.getTime();
-  if (diffMs <= 0) return null;
-
-  const totalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  const months = Math.floor(totalDays / 30);
-
-  if (months >= 1) return formatter(months);
-  return formatterDays(totalDays);
 }
 
 function todayKey(): string {
@@ -61,15 +42,15 @@ export function StepEventDate({
   coverImageUrl,
   onEndDateChange,
   onCoverImageChange,
-  onNext,
-  onBack,
 }: StepEventDateProps) {
   const { copy } = useI18n();
   const c = copy.createRoomWizard;
+  const { profile } = useProfile();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { uploading, validateRoomCoverFile, cropAndResizeRoomCover, uploadRoomCover } = useImageUpload();
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const today = useMemo(() => todayKey(), []);
   const minDate = useMemo(() => {
@@ -78,13 +59,27 @@ export function StepEventDate({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
 
-  const countdown = countdownMessage(endDate, today, c.countdownMonths, c.countdownDays);
-  const valid = endDate > today;
   const previewUrl = coverImageUrl ?? DEFAULT_COVER_IMAGES[category];
+  const previewTint = useMemo(
+    () => HERO_COVER_PRESETS.find(preset => preset.url === previewUrl)?.tint ?? null,
+    [previewUrl],
+  );
+  const previewName = profile?.display_name?.trim() || copy.profile.youFallback;
 
   function handleChooseCover() {
     setCoverError(null);
+    setPickerOpen(true);
+  }
+
+  function handleUploadOwn() {
+    setPickerOpen(false);
+    setCoverError(null);
     fileInputRef.current?.click();
+  }
+
+  function handleSelectPreset(preset: HeroCoverPreset) {
+    onCoverImageChange(preset.url);
+    setPickerOpen(false);
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -138,41 +133,34 @@ export function StepEventDate({
         />
       </div>
 
-      {countdown && (
-        <div className="rounded-xl bg-brand-50 px-4 py-3 text-center">
-          <p className="font-mono text-sm font-bold text-brand-800">{countdown}</p>
-        </div>
-      )}
-
-      <div className="relative overflow-hidden rounded-xl bg-surfaceAlt shadow-soft">
-        <div className="relative aspect-[16/9] bg-brand-100/50">
-          <img
-            src={previewUrl}
-            alt=""
-            className="h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-ink/35 via-transparent to-transparent" />
-          <div className="absolute left-3 top-3 flex items-center gap-2 rounded-pill bg-surface/85 px-3 py-1.5 text-ink-muted shadow-soft backdrop-blur-sm">
-            <IconImage size={14} />
-            <span className="font-mono text-xs font-bold">{c.coverImagePlaceholder}</span>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={handleChooseCover}
-          className="absolute bottom-3 right-3 rounded-pill bg-surface/80 px-3 py-1.5 font-mono text-xs font-bold text-ink-muted shadow-soft backdrop-blur-sm disabled:opacity-50"
-        >
-          <IconCamera size={14} className="mr-1 inline-block align-[-2px]" />
-          {c.changeCoverButton}
-        </button>
+      <div className="flex flex-col gap-3">
+        <p className="font-mono-th text-xs leading-5 text-ink-muted">{c.coverPreviewHint}</p>
+        <HeroCard
+          displayName={previewName}
+          saved={32000}
+          target={100000}
+          roomCategory={category}
+          coverImageUrl={previewUrl}
+          validThru={endDate || null}
+          hasBuckets
+          bucketCount={4}
+          streak={5}
+          streakUnit="day"
+          lastCheckedAt={today}
+          coverTint={previewTint}
+        />
+        <Button variant="secondary" fullWidth onClick={handleChooseCover}>
+          <IconCamera size={16} className="mr-2 inline-block align-[-3px]" />
+          {c.chooseCoverButton}
+        </Button>
         {coverImageUrl && (
           <button
             type="button"
             onClick={() => onCoverImageChange(null)}
-            className="absolute bottom-3 left-3 grid h-8 w-8 place-items-center rounded-full bg-surface/80 text-ink-muted shadow-soft backdrop-blur-sm hover:text-danger"
-            aria-label={c.removeCoverButton}
+            className="inline-flex items-center gap-1.5 self-center font-mono text-xs font-bold text-ink-muted hover:text-danger"
           >
             <IconTrash size={14} />
+            {c.removeCoverButton}
           </button>
         )}
       </div>
@@ -191,6 +179,14 @@ export function StepEventDate({
         </p>
       )}
 
+      <HeroCoverPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelectPreset={handleSelectPreset}
+        onUploadOwn={handleUploadOwn}
+        selectedUrl={coverImageUrl}
+      />
+
       {cropFile && (
         <ImageCropper
           open
@@ -205,14 +201,6 @@ export function StepEventDate({
         />
       )}
 
-      <div className="flex gap-3">
-        <Button variant="ghost" size="lg" onClick={onBack}>
-          <IconArrowLeft size={16} />
-        </Button>
-        <Button variant="primary" fullWidth disabled={!valid} onClick={onNext}>
-          {c.nextButton}
-        </Button>
-      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { createContext } from 'react';
+import type { useBalanceAllocations } from '../../hooks/useBalanceAllocations';
 import type { useBuckets } from '../../hooks/useBuckets';
 import type { useBucketActivityEvents } from '../../hooks/useBucketActivityEvents';
 import type { useBucketTransfers } from '../../hooks/useBucketTransfers';
@@ -19,6 +20,7 @@ export interface DataContextValue {
   profile: ReturnType<typeof useProfile>;
   buckets: ReturnType<typeof useBuckets>;
   bucketTransfers: ReturnType<typeof useBucketTransfers>;
+  balanceAllocations: ReturnType<typeof useBalanceAllocations>;
   bucketActivityEvents: ReturnType<typeof useBucketActivityEvents>;
   logs: ReturnType<typeof useLogs>;
   leaderboard: ReturnType<typeof useLeaderboard>;

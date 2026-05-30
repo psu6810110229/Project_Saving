@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BucketManager } from '../components/BucketManager/BucketManager';
-import { Button } from '../components/Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../components/Button/Button';
 import { Chip } from '../components/Chip/Chip';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { FormField } from '../components/FormField/FormField';
@@ -549,12 +549,12 @@ export function ManageProject() {
               {renameError && (
                 <p className="rounded-lg bg-danger-soft px-3 py-2 font-mono text-xs text-danger">{renameError}</p>
               )}
-              <div className="flex gap-2">
-                <Button variant="ghost" fullWidth onClick={closeModal}>
-                  {copy.manageProject.renameCancel}
-                </Button>
-                <Button variant="action" fullWidth disabled={disabled} onClick={handleRenameSave}>
+              <div className={MODAL_ACTION_ROW_CLASS}>
+                <Button variant="action" fullWidth size="md" disabled={disabled} onClick={handleRenameSave}>
                   {copy.manageProject.renameSave}
+                </Button>
+                <Button variant="ghost" fullWidth size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={closeModal}>
+                  {copy.manageProject.renameCancel}
                 </Button>
               </div>
             </div>
@@ -584,7 +584,7 @@ export function ManageProject() {
               onChange={event => setRoomGoalAmount(event.target.value.replace(/[^0-9]/g, ''))}
             />
           </FormField>
-          <Button variant="primary" fullWidth onClick={handleRoomGoalSubmit}>
+          <Button variant="primary" fullWidth size="md" onClick={handleRoomGoalSubmit}>
             {copy.manageProject.saveButton}
           </Button>
         </div>
@@ -618,7 +618,7 @@ export function ManageProject() {
               onChange={event => setPersonalGoalAmount(event.target.value.replace(/[^0-9]/g, ''))}
             />
           </FormField>
-          <Button variant="primary" fullWidth onClick={handlePersonalGoalSubmit}>
+          <Button variant="primary" fullWidth size="md" onClick={handlePersonalGoalSubmit}>
             {copy.manageProject.personalGoalSaveButton}
           </Button>
         </div>
@@ -629,6 +629,7 @@ export function ManageProject() {
           <Button
             variant="action"
             fullWidth
+            size="md"
             onClick={() => {
               navigator.clipboard?.writeText(activeRoom.invite_code);
               setMessage(copy.manageProject.copiedMessage);
@@ -711,6 +712,7 @@ export function ManageProject() {
           <Button
             variant="primary"
             fullWidth
+            size="md"
             disabled={!selectedTransferMember}
             onClick={() => setConfirmingTransfer(true)}
           >

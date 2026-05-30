@@ -23,7 +23,7 @@ export function BucketHeader({ icon, name, saved, target, pendingDeposit = 0 }: 
   return (
     <section className="rounded-[22px] border border-white/80 bg-surface p-5 shadow-[0_14px_34px_rgba(58,42,31,0.10),0_2px_6px_rgba(58,42,31,0.05)]">
       <div className="flex items-center gap-4">
-        <IconBubble tone="solid" size="xl" className="shrink-0">{icon}</IconBubble>
+        <IconBubble tone="solid" size="xl" className="shrink-0 [&_svg]:h-9 [&_svg]:w-9">{icon}</IconBubble>
         <div className="flex-1 min-w-0">
           <h2 className="truncate font-mono text-xl font-bold leading-tight text-ink">{name}</h2>
           <div className="mt-2 font-mono text-sm font-medium text-ink-muted">

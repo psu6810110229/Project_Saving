@@ -12,10 +12,11 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  headerAccessory?: ReactNode;
   hidden?: boolean;
 }
 
-export function Modal({ open, title, children, onClose, hidden = false }: ModalProps) {
+export function Modal({ open, title, children, onClose, headerAccessory, hidden = false }: ModalProps) {
   const { copy } = useI18n();
   useBodyScrollLock(open && !hidden);
 
@@ -69,10 +70,13 @@ export function Modal({ open, title, children, onClose, hidden = false }: ModalP
             >
               <div>
                 <header className="mb-4 flex items-center justify-between gap-3">
-                  <h2 id="modal-title" className="font-mono text-xl font-bold text-ink">{title}</h2>
-                  <IconButton ariaLabel={copy.common.close} size="sm" onClick={onClose}>
-                    <IconX size={18} />
-                  </IconButton>
+                  <h2 id="modal-title" className="min-w-0 flex-1 font-mono text-xl font-semibold text-ink">{title}</h2>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {headerAccessory}
+                    <IconButton ariaLabel={copy.common.close} size="sm" onClick={onClose}>
+                      <IconX size={18} />
+                    </IconButton>
+                  </div>
                 </header>
                 <div>{children}</div>
               </div>

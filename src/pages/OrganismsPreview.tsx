@@ -84,7 +84,7 @@ export function OrganismsPreview() {
             title="Trip Buckets"
             subtitle="Tap a bucket to open its detail flow."
             buckets={bucketItems}
-            onAddBucket={() => setNav('add')}
+            onAddBucket={() => setNav('team')}
           />
         </Group>
 
@@ -115,7 +115,7 @@ export function OrganismsPreview() {
             mineSeries={[1200, 1500, 2000, 2200, 2800, 3500, 4200]}
             theirSeries={[1500, 1700, 1800, 2400, 2700, 2900, 3100]}
             onPrimary={() => setModalOpen(true)}
-            onSecondary={() => setNav('add')}
+            onSecondary={() => setNav('team')}
           />
         </Group>
 
@@ -228,11 +228,16 @@ const bucketOptions = BUCKET_CATEGORY_ORDER.map((id) => ({
 }));
 
 const joinPreview = {
-  icon: <IconPlane size={32} />,
+  roomId: 'preview-room',
   name: 'Japan 2027',
-  creatorName: 'Art',
-  creatorFallback: 'A',
+  category: 'travel' as const,
+  targetAmount: 100000,
+  endDate: '2027-11-01',
+  coverImageUrl: null,
   memberCount: 2,
+  creatorName: 'Art',
+  creatorAvatarUrl: null,
+  status: 'found' as const,
 };
 
 function activityItems(now: number) {

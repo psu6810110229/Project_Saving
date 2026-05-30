@@ -1,36 +1,42 @@
 import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { Fragment, type ReactNode, useEffect, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AppShell } from '../components/AppShell/AppShell';
+import { Avatar } from '../components/Avatar/Avatar';
 import type { BottomNavTab } from '../components/BottomNav/BottomNav';
 import { Button } from '../components/Button/Button';
-import { CreateProjectForm } from '../components/CreateProjectForm/CreateProjectForm';
 import { DataProvider } from '../components/DataContext/DataContext';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { LoadingState } from '../components/LoadingState/LoadingState';
 import { MilestoneCelebrationModal } from '../components/MilestoneCelebrationModal/MilestoneCelebrationModal';
 import { PageTransition } from '../components/PageTransition/PageTransition';
+import { ProjectSetupShowcase } from '../components/ProjectSetupShowcase/ProjectSetupShowcase';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
-  IconBriefcase,
-  IconHeart,
-  IconHome,
-  IconPlane,
-  IconSmartphone,
+  IconArrowLeft,
+  IconChevronDown,
+  IconChevronRight,
+  IconFlag,
+  IconPiggyBank,
+  IconRocket,
+  IconShield,
+  IconUserPlus,
 } from '../components/Icon/Icon';
+import { MOTION_DURATION, MOTION_EASE, REDUCED_MOTION_TRANSITION } from '../lib/motion';
 import { useAuth } from '../hooks/useAuth';
 import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useMilestoneCrossings } from '../hooks/useMilestoneCrossings';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
+import type { RoomPreviewResult } from '../hooks/useRooms';
 import { useProfile } from '../hooks/useProfile';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { LANGUAGE_STORAGE_KEY, isLanguage } from '../i18n/languages';
-import type { ProjectCategory } from '../types';
 
 type SetupMode = 'create' | 'join';
 
-const ROOMLESS_ROUTES = ['/archived-projects', '/profile'];
+const ROOMLESS_ROUTES = ['/archived-projects', '/profile', '/create-room', '/join-room'];
 
 function isRoomlessRoute(pathname: string): boolean {
   return ROOMLESS_ROUTES.some(
@@ -56,7 +62,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { activeRoom } = useRoom();
-  const { loading, error, refetch, createRoom, joinRoomByCode } = useRooms();
+  const { loading, error, refetch, joinRoomByCode, fetchRoomPreview } = useRooms();
   const { copy } = useI18n();
   const al = copy.appLayout;
   const { shouldShowLoader, fakeLoadingExpired } = useLoadingGate({
@@ -67,10 +73,20 @@ export function AppLayout() {
   const outlet = useOutlet();
   const roomlessAllowed = isRoomlessRoute(location.pathname);
   const privateDataFree = isPrivateDataFreeRoute(location.pathname);
+  // The dedicated no-project setup view is full-screen onboarding — hide the
+  // bottom nav there (there is no room to deposit into or dashboard to show).
+  // Nav stays visible while loading/erroring, on roomless routes, and whenever
+  // a room exists.
+  const isSetupScreen = !loading && !error && !activeRoom && !roomlessAllowed;
+  // The create-room wizard is its own focused, multi-step flow with its own
+  // header/back control — the bottom nav has no place there.
+  const isCreateWizard = location.pathname.startsWith('/create-room');
+  const hideNav = isSetupScreen || isCreateWizard;
 
   return (
     <AppShell
       activeTab={activeTab}
+      showNav={!hideNav}
       onTabChange={tab => {
         const nextPath = pathFromTab(tab);
         if (nextPath === location.pathname) return;
@@ -99,14 +115,16 @@ export function AppLayout() {
           onAction={() => void refetch({ showLoading: true })}
         />
       )}
-      {!loading && !error && !activeRoom && !roomlessAllowed && (
-        <PageTransition transitionKey="project-setup">
-          <ProjectSetup onCreate={createRoom} onJoin={joinRoomByCode} />
-        </PageTransition>
-      )}
-      {!loading && !error && !activeRoom && roomlessAllowed && (
-        <PageTransition transitionKey={location.pathname}>
-          {outlet}
+      {!loading && !error && !activeRoom && (
+        // One PageTransition spans the no-room states (setup screen + roomless
+        // routes like /create-room, /join-room) so navigating between them
+        // animates instead of swapping separate transition instances.
+        <PageTransition transitionKey={isSetupScreen ? 'project-setup' : location.pathname}>
+          {isSetupScreen ? (
+            <ProjectSetup onJoin={joinRoomByCode} fetchPreview={fetchRoomPreview} />
+          ) : (
+            outlet
+          )}
         </PageTransition>
       )}
       {!loading && !error && activeRoom && privateDataFree && (
@@ -194,38 +212,40 @@ function ProfileLanguageSync() {
 }
 
 function ProjectSetup({
-  onCreate,
   onJoin,
+  fetchPreview,
 }: {
-  onCreate: ReturnType<typeof useRooms>['createRoom'];
   onJoin: ReturnType<typeof useRooms>['joinRoomByCode'];
+  fetchPreview: ReturnType<typeof useRooms>['fetchRoomPreview'];
 }) {
   const navigate = useNavigate();
   const { copy } = useI18n();
+  const { profile } = useProfile();
+  const reduceMotion = useReducedMotion();
   const ps = copy.projectSetup;
+  const displayName = profile?.display_name?.trim();
+  // Greet by first name only — full display names overflow the heading.
+  const firstName = displayName ? displayName.split(/\s+/)[0] : undefined;
+  const greeting = firstName ? ps.greeting(firstName) : ps.greetingNoName;
   const [mode, setMode] = useState<SetupMode>('create');
-  const [category, setCategory] = useState<ProjectCategory | null>('travel');
-  const [name, setName] = useState('Japan 2027');
-  const [target, setTarget] = useState('100000');
-  const [endDate, setEndDate] = useState('2027-11-01');
   const [code, setCode] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const projectOptions = projectOptionIcons.map(({ id, icon }) => ({
-    id,
-    icon,
-    label: copy.profile.projectCategories[id],
-  }));
+  const [preview, setPreview] = useState<RoomPreviewResult | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
-  async function handleCreate() {
-    const targetAmount = Number(target);
-    if (!category || !name.trim() || !endDate || targetAmount <= 0) {
-      setMessage(ps.createValidation);
-      return;
-    }
-    const result = await onCreate({ name, target_amount: targetAmount, end_date: endDate, category });
-    if (result.error) setMessage(result.error);
-    else navigate('/dashboard');
-  }
+  // Fetch the real room behind a completed code (debounced). The
+  // preview card and Join button both read from this single source.
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const result = code.length < 6 ? null : await fetchPreview(code);
+      if (!cancelled) setPreview(result);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [code, fetchPreview]);
 
   async function handleJoin() {
     const result = await onJoin(code);
@@ -239,45 +259,227 @@ function ProjectSetup({
     }
   }
 
+  if (mode === 'join') {
+    return (
+      <motion.div
+        key="setup-join"
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 32 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={
+          reduceMotion
+            ? REDUCED_MOTION_TRANSITION
+            : { duration: MOTION_DURATION.fade, ease: MOTION_EASE.emphasized }
+        }
+        className="flex flex-col gap-6 px-2 pt-8 pb-12"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setMode('create');
+            setMessage(null);
+          }}
+          aria-label={copy.common.back}
+          className="self-start -ml-2 inline-flex items-center gap-2 rounded-pill px-4 py-2.5 font-mono text-base font-bold text-ink-muted hover:text-ink hover:bg-well transition-colors"
+        >
+          <IconArrowLeft size={24} />
+          {copy.common.back}
+        </button>
+        <header>
+          <SectionLabel tone="brand">GO-OUT</SectionLabel>
+          <h1 className="mt-2 font-mono text-3xl font-bold text-ink">{ps.joinCardTitle}</h1>
+          <p className="mt-2 font-mono text-xs text-ink-muted">{ps.joinCardBody}</p>
+        </header>
+
+        {message && (
+          <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>
+        )}
+
+        <div className="flex flex-col gap-4">
+          <JoinProjectFlow
+            code={code}
+            error={code.length > 0 && code.length < 6 ? ps.joinCodeValidation : undefined}
+            preview={code.length >= 6 ? preview : null}
+            onCodeChange={setCode}
+            onJoin={handleJoin}
+          />
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4 pt-8">
-      <header>
-        <SectionLabel tone="brand">GO-OUT</SectionLabel>
-        <h1 className="mt-2 font-mono text-3xl font-bold text-ink">{ps.title}</h1>
-        <p className="mt-2 font-mono text-xs text-ink-muted">{ps.subtitle}</p>
-      </header>
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant={mode === 'create' ? 'primary' : 'ghost'} size="md" onClick={() => setMode('create')}>
-          {ps.createTab}
-        </Button>
-        <Button variant={mode === 'join' ? 'primary' : 'ghost'} size="md" onClick={() => setMode('join')}>
-          {ps.joinTab}
-        </Button>
-      </div>
-      {message && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>}
-      {mode === 'create' ? (
-        <CreateProjectForm
-          category={category}
-          options={projectOptions}
-          name={name}
-          target={target}
-          endDate={endDate}
-          onCategoryChange={setCategory}
-          onNameChange={setName}
-          onTargetChange={value => setTarget(value.replace(/[^0-9]/g, ''))}
-          onEndDateChange={setEndDate}
-          onSubmit={handleCreate}
-        />
-      ) : (
-        <JoinProjectFlow
-          code={code}
-          error={code.length > 0 && code.length < 6 ? ps.joinCodeValidation : undefined}
-          preview={code.length >= 6 ? joinPreview(code, copy) : null}
-          onCodeChange={setCode}
-          onJoin={handleJoin}
-        />
+    <motion.div
+      key="setup-create"
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -32 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={
+        reduceMotion
+          ? REDUCED_MOTION_TRANSITION
+          : { duration: MOTION_DURATION.fade, ease: MOTION_EASE.emphasized }
+      }
+      className="flex flex-col gap-6 px-2 pt-6 pb-12"
+    >
+      <motion.header
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={
+          reduceMotion
+            ? REDUCED_MOTION_TRANSITION
+            : { duration: MOTION_DURATION.page, ease: MOTION_EASE.emphasized }
+        }
+        className="pt-2"
+      >
+        <div className="flex items-center gap-3">
+          <Avatar
+            size="md"
+            imageUrl={profile?.avatar_url}
+            fallback={firstName?.charAt(0).toUpperCase() || 'G'}
+            ring="theme"
+            className="shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-brand-700">
+              GO-OUT
+            </p>
+            <h1 className="truncate font-mono text-2xl font-bold leading-tight text-ink">{greeting}</h1>
+          </div>
+        </div>
+        <p className="mt-3 font-mono text-sm leading-5 text-ink-muted">{ps.tagline}</p>
+      </motion.header>
+
+      {message && (
+        <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{message}</p>
       )}
+
+      <div className="grid auto-rows-fr gap-3">
+        <SetupChoiceCard
+          emphasis
+          icon={<IconUserPlus size={22} />}
+          title={ps.joinCardTitle}
+          body={ps.joinCardBody}
+          onClick={() => setMode('join')}
+        />
+        <SetupChoiceCard
+          icon={<IconRocket size={22} />}
+          title={ps.createCardTitle}
+          body={ps.createCardBody}
+          onClick={() => navigate('/create-room')}
+        />
+      </div>
+
+      <HowItWorks />
+
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => setShowPreview(v => !v)}
+          aria-expanded={showPreview}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-surface px-4 py-3 font-mono text-xs font-bold text-ink-muted shadow-soft hover:text-ink"
+        >
+          {showPreview ? ps.previewHide : ps.previewShow}
+          <motion.span
+            aria-hidden
+            className="inline-flex"
+            animate={{ rotate: showPreview ? 180 : 0 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: MOTION_DURATION.fade, ease: MOTION_EASE.emphasized }}
+          >
+            <IconChevronDown size={16} />
+          </motion.span>
+        </button>
+        <AnimatePresence initial={false}>
+          {showPreview && (
+            <motion.div
+              key="preview"
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+              animate={reduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+              transition={
+                reduceMotion
+                  ? REDUCED_MOTION_TRANSITION
+                  : { duration: MOTION_DURATION.fade, ease: MOTION_EASE.emphasized }
+              }
+              className="overflow-hidden"
+            >
+              <ProjectSetupShowcase />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <p className="flex items-center justify-center gap-2 px-2 text-center font-mono text-[11px] leading-5 text-ink-muted">
+        <IconShield size={16} className="shrink-0 text-ink-dim" />
+        {ps.trustLine}
+      </p>
+    </motion.div>
+  );
+}
+
+function HowItWorks() {
+  const { copy } = useI18n();
+  const ps = copy.projectSetup;
+  const steps = [
+    { icon: <IconUserPlus size={18} />, label: ps.step1 },
+    { icon: <IconFlag size={18} />, label: ps.step2 },
+    { icon: <IconPiggyBank size={18} />, label: ps.step3 },
+  ];
+  return (
+    <div>
+      <SectionLabel tone="brand">{ps.howItWorksLabel}</SectionLabel>
+      <div className="mt-2 flex items-center gap-1.5">
+        {steps.map((step, i) => (
+          <Fragment key={i}>
+            <div className="flex flex-1 flex-col items-center justify-center gap-1.5 text-center">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                {step.icon}
+              </span>
+              <span className="font-mono text-xs font-bold leading-tight text-ink">{step.label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <span aria-hidden className="shrink-0 text-ink-dim">
+                <IconChevronRight size={16} />
+              </span>
+            )}
+          </Fragment>
+        ))}
+      </div>
     </div>
+  );
+}
+
+function SetupChoiceCard({
+  icon,
+  title,
+  body,
+  onClick,
+  emphasis = false,
+}: {
+  icon: ReactNode;
+  title: string;
+  body: string;
+  onClick: () => void;
+  emphasis?: boolean;
+}) {
+  // Both cards are white; the emphasised (Join) card keeps a subtle brand ring
+  // so it still reads as the primary action without an orange fill.
+  const containerClasses = emphasis
+    ? 'group flex h-full w-full items-center gap-4 rounded-2xl bg-surface p-5 text-left shadow-soft ring-2 ring-brand-200 transition-transform active:scale-[0.99]'
+    : 'group flex h-full w-full items-center gap-4 rounded-2xl bg-surface p-5 text-left shadow-soft transition-transform active:scale-[0.99]';
+  const iconClasses = 'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700';
+  const titleClasses = 'block font-mono text-base font-bold text-ink';
+  const bodyClasses = 'mt-0.5 block font-mono text-xs leading-5 text-ink-muted';
+  const chevronClasses = 'flex-shrink-0 text-ink-dim transition-colors group-hover:text-brand-600';
+
+  return (
+    <button type="button" onClick={onClick} className={containerClasses}>
+      <span className={iconClasses}>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className={titleClasses}>{title}</span>
+        <span className={bodyClasses}>{body}</span>
+      </span>
+      <span className={chevronClasses}>
+        <IconChevronRight size={20} />
+      </span>
+    </button>
   );
 }
 
@@ -312,30 +514,13 @@ function StatusCard({
 }
 
 function tabFromPath(pathname: string): BottomNavTab {
-  if (pathname.startsWith('/add')) return 'add';
+  if (pathname.startsWith('/team')) return 'team';
   if (pathname.startsWith('/profile')) return 'profile';
   return 'dashboard';
 }
 
 function pathFromTab(tab: BottomNavTab): string {
-  if (tab === 'add') return '/add';
+  if (tab === 'team') return '/team';
   if (tab === 'profile') return '/profile';
   return '/dashboard';
-}
-
-const projectOptionIcons = [
-  { id: 'travel' as const, icon: <IconPlane size={28} /> },
-  { id: 'gadget' as const, icon: <IconSmartphone size={28} /> },
-  { id: 'wedding' as const, icon: <IconHeart size={28} /> },
-  { id: 'home' as const, icon: <IconHome size={28} /> },
-  { id: 'other' as const, icon: <IconBriefcase size={28} /> },
-];
-
-function joinPreview(code: string, copy: ReturnType<typeof useI18n>['copy']) {
-  return {
-    icon: <IconPlane size={32} />,
-    name: copy.projectSetup.inviteName(code.toUpperCase()),
-    creatorName: copy.projectSetup.projectOwner,
-    creatorFallback: 'P',
-  };
 }

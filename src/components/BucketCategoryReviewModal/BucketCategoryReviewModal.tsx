@@ -3,7 +3,7 @@ import type { Bucket, BucketCategory } from '../../types';
 import { BUCKET_CATEGORY_ORDER } from '../../lib/bucketCategories';
 import { isLowConfidenceCategory, normalizeBucketCategory } from '../../lib/bucketCategories';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { Modal } from '../Modal/Modal';
 import { useI18n } from '../../i18n/useI18n';
 
@@ -127,16 +127,7 @@ export function BucketCategoryReviewModal({
           </p>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="md"
-            onClick={handleSkip}
-            disabled={saving}
-          >
-            {copy.bucket.categoryReview.skip}
-          </Button>
+        <div className={MODAL_ACTION_ROW_CLASS}>
           <Button
             type="button"
             variant="primary"
@@ -145,6 +136,16 @@ export function BucketCategoryReviewModal({
             disabled={saving}
           >
             {isLast ? copy.bucket.categoryReview.save : copy.bucket.categoryReview.save}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="md"
+            className={MODAL_SECONDARY_BUTTON_CLASS}
+            onClick={handleSkip}
+            disabled={saving}
+          >
+            {copy.bucket.categoryReview.skip}
           </Button>
         </div>
       </div>

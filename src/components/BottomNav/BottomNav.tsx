@@ -1,9 +1,9 @@
 import { type ReactNode, useRef } from 'react';
 import { BottomTabItem } from '../BottomTabItem/BottomTabItem';
-import { IconGrid, IconPlus, IconUser } from '../Icon/Icon';
+import { IconGrid, IconUsers, IconUser } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 
-export type BottomNavTab = 'dashboard' | 'add' | 'profile';
+export type BottomNavTab = 'dashboard' | 'team' | 'profile';
 
 interface BottomNavProps {
   activeTab: BottomNavTab;
@@ -12,7 +12,7 @@ interface BottomNavProps {
 
 const TAB_ICONS: { id: BottomNavTab; icon: ReactNode }[] = [
   { id: 'dashboard', icon: <IconGrid size={22} /> },
-  { id: 'add', icon: <IconPlus size={22} /> },
+  { id: 'team', icon: <IconUsers size={22} /> },
   { id: 'profile', icon: <IconUser size={22} /> },
 ];
 

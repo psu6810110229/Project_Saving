@@ -65,7 +65,7 @@ export function MilestoneCelebrationModal({
       title={m.title(t)}
       body={m.body(t)}
     >
-      <Button variant="action" fullWidth onClick={onAcknowledge}>
+      <Button variant="action" fullWidth size="md" onClick={onAcknowledge}>
         {m.cta}
       </Button>
     </OutcomeModal>

@@ -50,6 +50,11 @@ const SIZES: Record<Size, string> = {
   lg: 'px-6 py-4 text-base tracking-wide',
 };
 
+export const MODAL_SECONDARY_BUTTON_CLASS =
+  'bg-surface text-ink font-semibold shadow-soft ring-1 ring-brand-100 hover:bg-brand-50 hover:ring-brand-200';
+
+export const MODAL_ACTION_ROW_CLASS = 'grid grid-cols-2 gap-2.5';
+
 export function Button({
   variant = 'primary',
   size = 'lg',

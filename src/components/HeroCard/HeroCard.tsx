@@ -1,4 +1,5 @@
-import { memo, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   IconCamera,
   IconCheckCircle,
@@ -10,6 +11,9 @@ import {
 import { formatCurrency } from '../../lib/format';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import type { CoverTint, DailySummaryItem, ProjectCategory } from '../../types';
+
+// How long each hero goal line stays before the ticker swaps to the next.
+const HERO_LINE_INTERVAL_MS = 4000;
 
 interface HeroCardProps {
   displayName: string;
@@ -24,6 +28,7 @@ interface HeroCardProps {
   bucketCount?: number;
   streak: number;
   streakUnit?: 'day' | 'week' | 'month';
+  streakTrackable?: boolean;
   lastCheckedAt?: string | null;
   onEdit?: () => void;
   editAriaLabel?: string;
@@ -116,7 +121,7 @@ function formatLastChecked(iso?: string | null): string {
 }
 
 function formatBucketCount(count: number): string {
-  return `${Math.max(0, count)} เป้าหมาย`;
+  return `${Math.max(0, count)} เป้า`;
 }
 
 function formatValidThru(date?: string | null): string | null {
@@ -127,12 +132,60 @@ function formatValidThru(date?: string | null): string | null {
   return `${mm}/${yy}`;
 }
 
-function formatStreak(streak: number, unit: HeroCardProps['streakUnit']): string {
+// Period-goal line derived from the focus bucket's saving rule, so the
+// wording follows the plan cadence the user is actually on: daily rules read
+// "วันนี้ต้องเก็บ", weekly "สัปดาห์นี้ต้องเก็บ", monthly "เดือนนี้ต้องเก็บ".
+// Returns null when there is nothing left to save this period (or no rule),
+// so the hero line stays static instead of rotating into an empty message.
+function formatPeriodGoal(item?: DailySummaryItem | null): string | null {
+  if (!item || item.amountDue == null || item.amountDue <= 0) return null;
+  const amount = formatCurrency(Math.round(item.amountDue));
+  switch (item.ruleType) {
+    case 'fixed_daily':
+    case 'increasing_daily':
+    case 'increasing_daily_capped':
+      return `วันนี้ต้องเก็บ ${amount}`;
+    case 'fixed_weekly':
+      return `สัปดาห์นี้ต้องเก็บ ${amount}`;
+    case 'fixed_monthly':
+      return `เดือนนี้ต้องเก็บ ${amount}`;
+    default:
+      return null;
+  }
+}
+
+function isIncreasingRule(item?: DailySummaryItem | null): boolean {
+  return item?.ruleType === 'increasing_daily' || item?.ruleType === 'increasing_daily_capped';
+}
+
+function isFlexibleStreak(item?: DailySummaryItem | null, trackable = true): boolean {
+  return item?.ruleType === 'flexible' || (!trackable && Boolean(item));
+}
+
+function formatStreak(
+  streak: number,
+  unit: HeroCardProps['streakUnit'],
+  item?: DailySummaryItem | null,
+  trackable = true,
+): string {
+  if (isFlexibleStreak(item, trackable)) return 'ยืดหยุ่น';
   const value = Math.max(0, Math.round(streak));
   const resolved = unit ?? 'day';
   if (resolved === 'week') return `${value} สัปดาห์`;
   if (resolved === 'month') return `${value} เดือน`;
+  if (isIncreasingRule(item)) return `${value} วันแล้ว`;
   return `${value} วัน`;
+}
+
+function streakHelper(
+  unit: HeroCardProps['streakUnit'],
+  item?: DailySummaryItem | null,
+  trackable = true,
+): string {
+  if (isFlexibleStreak(item, trackable)) return 'ไม่มีสตรีก';
+  if (isIncreasingRule(item)) return 'ตามยอดวันนี้';
+  if (unit === 'week' || unit === 'month') return 'ตามแผน';
+  return 'ติดต่อกัน';
 }
 
 function CardChip() {
@@ -150,7 +203,7 @@ function CardChip() {
 
 function ContactlessGlyph() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="text-white/70">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="text-white/85">
       <path d="M8.5 8a6 6 0 0 1 0 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M12 5.5a10 10 0 0 1 0 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M15.5 3a14 14 0 0 1 0 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -160,18 +213,18 @@ function ContactlessGlyph() {
 
 function MetricItem({ icon, label, value, helper }: MetricProps) {
   return (
-    <div className="flex min-w-0 items-center gap-1.5 px-1">
-      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[#FFE2B8]/48 bg-[#FFE2B8]/10 text-[#FFE2B8] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+    <div className="flex min-w-0 items-center gap-1 px-0.5">
+      <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border border-[#FFE2B8]/48 bg-[#FFE2B8]/10 text-[#FFE2B8] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block truncate font-mono text-[0.46rem] font-semibold uppercase leading-none tracking-[0.05em] text-[#FFE2B8]/72">
+        <span className="block truncate font-mono text-[0.52rem] font-semibold uppercase leading-none tracking-[0.03em] text-[#FFE2B8]/85">
           {label}
         </span>
-        <span className="mt-1 block truncate font-mono-th text-[0.62rem] font-medium leading-none tracking-[0.03em] text-white/86">
+        <span className="mt-1 block truncate font-mono-th text-[0.68rem] font-medium leading-none tracking-[0.02em] text-white/85">
           {value}
         </span>
-        <span className="mt-0.5 block truncate font-mono-th text-[0.42rem] font-medium leading-[0.62rem] tracking-[0.03em] text-white/56">
+        <span className="mt-0.5 block truncate font-mono-th text-[0.5rem] font-medium leading-[0.72rem] tracking-[0.02em] text-white/85">
           {helper}
         </span>
       </span>
@@ -186,10 +239,12 @@ export const HeroCard = memo(function HeroCard({
   roomCategory,
   coverImageUrl,
   validThru,
+  dailySummaryItem,
   hasBuckets,
   bucketCount,
   streak,
   streakUnit,
+  streakTrackable = true,
   lastCheckedAt,
   onEdit,
   editAriaLabel,
@@ -208,6 +263,31 @@ export const HeroCard = memo(function HeroCard({
   const validThruLabel = formatValidThru(validThru);
   const latestLabel = formatLastChecked(lastCheckedAt);
   const resolvedBucketCount = bucketCount ?? (hasBuckets ? 1 : 0);
+  const reduceMotion = useReducedMotion();
+  // The hero "what's left" line rotates between the overall goal and the
+  // current saving-plan period goal (today / this week / this month). When
+  // there is no active period goal it stays a single static line.
+  const goalLines = useMemo<ReactNode[]>(() => {
+    const overall: ReactNode = (
+      <>
+        ต้องเก็บ <span className="font-mono tabular-nums">{remainingAmount}</span>
+        {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
+      </>
+    );
+    const periodGoal = formatPeriodGoal(dailySummaryItem);
+    return periodGoal ? [overall, periodGoal] : [overall];
+  }, [remainingAmount, timeLeft, dailySummaryItem]);
+  const [lineIndex, setLineIndex] = useState(0);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLineIndex(0);
+    if (goalLines.length < 2) return;
+    const id = window.setInterval(() => {
+      setLineIndex(prev => (prev + 1) % goalLines.length);
+    }, HERO_LINE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [goalLines.length]);
+  const activeLineIndex = lineIndex % goalLines.length;
   const cardStyle = useMemo<HeroStyle>(() => {
     const style: HeroStyle = {};
     if (coverImageUrl) style['--hero-card-cover'] = cssUrl(coverImageUrl);
@@ -233,8 +313,8 @@ export const HeroCard = memo(function HeroCard({
     {
       icon: <IconFire size={13} />,
       label: 'STREAK',
-      value: formatStreak(streak, streakUnit),
-      helper: 'ติดต่อกัน',
+      value: formatStreak(streak, streakUnit, dailySummaryItem, streakTrackable),
+      helper: streakHelper(streakUnit, dailySummaryItem, streakTrackable),
     },
     {
       icon: <IconCheckCircle size={13} />,
@@ -247,32 +327,32 @@ export const HeroCard = memo(function HeroCard({
   return (
     <div className="vault-card-frame">
       <section
-        className="hero-credit-card flex aspect-[1.586/1] w-full flex-col justify-between rounded-2xl px-4 py-3 text-white min-[400px]:px-6 min-[480px]:py-6"
+        className="hero-credit-card flex aspect-[1.586/1] w-full flex-col justify-between rounded-2xl px-6 py-5 text-white min-[400px]:px-6 min-[480px]:py-8"
         data-has-cover={coverImageUrl ? 'true' : 'false'}
         data-category={roomCategory ?? undefined}
         style={cardStyle}
       >
         {coverImageUrl && <div className="hero-card-feather" aria-hidden />}
         <div className="hero-card-pattern" aria-hidden />
-        <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-start gap-1 min-[400px]:right-4">
+        <div className="absolute right-3 top-[46%] z-20 flex -translate-y-1/2 flex-col items-start gap-1 min-[400px]:right-4">
           <div className="flex items-center gap-2">
             <CardChip />
             <ContactlessGlyph />
           </div>
           {validThruLabel && (
             <div className="leading-none">
-              <span className="block font-mono text-[0.45rem] font-bold uppercase tracking-[0.20em] text-white/62">
+              <span className="block font-mono text-[0.45rem] font-bold uppercase tracking-[0.20em] text-white/85">
                 Valid Thru
               </span>
-              <span className="mt-0.5 block font-mono text-[0.58rem] font-semibold tabular-nums tracking-[0.08em] text-white/90">
+              <span className="mt-0.5 block font-mono text-[0.58rem] font-semibold tabular-nums tracking-[0.08em] text-white/85">
                 {validThruLabel}
               </span>
             </div>
           )}
         </div>
         <div className="relative z-10 flex items-start justify-between gap-3">
-          <h2 className="min-w-0 truncate py-0.5 font-mono-th text-[0.85rem] font-light leading-tight tracking-[0.12em] text-white drop-shadow-[0_2px_10px_rgba(18,16,15,0.34)] min-[480px]:text-[1.42rem]">
-            ยอดเก็บของคุณ
+          <h2 className="min-w-0 truncate py-0.5 font-mono-th text-[0.85rem] font-light leading-tight tracking-[0.12em] text-white/85 drop-shadow-[0_2px_10px_rgba(18,16,15,0.34)] min-[480px]:text-[1.42rem]">
+            สวัสดี {displayName}
           </h2>
           <div className="flex shrink-0 items-center gap-1 text-white/85 drop-shadow-[0_2px_10px_rgba(18,16,15,0.5)]">
             <span
@@ -310,17 +390,17 @@ export const HeroCard = memo(function HeroCard({
           </div>
         </div>
 
-        <div className="relative z-10 mt-4 min-[480px]:mt-6">
+        <div className="relative z-10 mt-2">
           <div className="flex min-w-0 max-w-full items-baseline gap-2 whitespace-nowrap">
-            <span className="font-mono text-[clamp(1.3rem,6.5vw,2.5rem)] font-semibold leading-none tracking-[0.02em] tabular-nums text-white/90 drop-shadow-[0_2px_12px_rgba(18,16,15,0.36)]">
+            <span className="font-mono text-[clamp(1.1rem,5.2vw,2rem)] font-semibold leading-none tracking-[0.02em] tabular-nums text-white/85 drop-shadow-[0_2px_12px_rgba(18,16,15,0.36)]">
               {formatCurrency(Math.round(animSaved))}
             </span>
-            <span className="font-mono text-[clamp(0.95rem,4.5vw,1.45rem)] font-medium leading-none tracking-[0.04em] tabular-nums text-white/72 drop-shadow-[0_2px_8px_rgba(18,16,15,0.28)]">
+            <span className="font-mono text-[clamp(0.8rem,3.6vw,1.2rem)] font-medium leading-none tracking-[0.04em] tabular-nums text-white/85 drop-shadow-[0_2px_8px_rgba(18,16,15,0.28)]">
               <span className="mr-2">/</span>{formatCurrency(Math.round(animTarget))}
             </span>
           </div>
 
-          <div className="mt-1 flex items-center pr-[4.25rem] min-[480px]:pr-[4.75rem]">
+          <div className="mt-3 flex items-center pr-[4.25rem] min-[480px]:pr-[4.75rem]">
             <div className="min-w-0 flex-1">
               <div
                 className="h-2 w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(18,16,15,0.22)]"
@@ -335,17 +415,27 @@ export const HeroCard = memo(function HeroCard({
                 />
               </div>
 
-              <p className="mt-2 truncate font-mono-th text-[0.85rem] font-medium leading-snug tracking-[0.03em] text-white/78 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.95rem]">
-                ต้องเก็บ <span className="font-mono tabular-nums">{remainingAmount}</span>
-                {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
-              </p>
+              <div className="relative mt-3 h-[1rem] overflow-hidden min-[480px]:h-[1.15rem]">
+                <AnimatePresence initial={false}>
+                  <motion.p
+                    key={activeLineIndex}
+                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: '100%' }}
+                    animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: '-100%' }}
+                    transition={{ duration: reduceMotion ? 0.2 : 0.45, ease: [0.16, 1, 0.2, 1] }}
+                    className="absolute inset-x-0 top-0 truncate font-mono-th text-[0.72rem] font-medium leading-snug tracking-[0.03em] text-white/85 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.82rem]"
+                  >
+                    {goalLines[activeLineIndex]}
+                  </motion.p>
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="relative z-10 mt-4 grid grid-cols-4 border-t border-white/25 pt-3">
           {metrics.map((metric, index) => (
-            <div key={metric.label} className={index === 0 ? 'min-w-0' : 'min-w-0 border-l border-white/50'}>
+            <div key={metric.label} className={index === 0 ? 'min-w-0' : 'min-w-0 border-l border-white/50 pl-1.5'}>
               <MetricItem {...metric} />
             </div>
           ))}

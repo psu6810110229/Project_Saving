@@ -1,488 +1,129 @@
-import type { SVGProps } from 'react';
+import {
+  AirplaneTilt,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  ArrowsLeftRight,
+  Bed,
+  Bell,
+  Briefcase,
+  Calendar,
+  CalendarDots,
+  Camera,
+  CaretDown,
+  CaretLeft,
+  CaretRight,
+  Check,
+  CheckCircle,
+  Clock,
+  ClockCountdown,
+  Crown,
+  DeviceMobile,
+  DotsThreeVertical,
+  Fire,
+  Flag,
+  ForkKnife,
+  Gear,
+  Heart,
+  House,
+  Image,
+  MagnifyingGlassMinus,
+  MagnifyingGlassPlus,
+  Palette,
+  PencilSimple,
+  PiggyBank,
+  Plus,
+  Pulse,
+  QrCode,
+  Receipt,
+  RocketLaunch,
+  ShieldCheck,
+  SquaresFour,
+  Stack,
+  Ticket,
+  Trash,
+  TrendUp,
+  User,
+  UserPlus,
+  Users,
+  Vault,
+  Warning,
+  X,
+  type Icon as PhosphorIcon,
+  type IconProps as PhosphorIconProps,
+  type IconWeight,
+} from '@phosphor-icons/react';
 
-/**
- * Shared inline SVG icon set. All icons take standard SVG props and inherit
- * stroke/fill from `currentColor`, so they recolor with `text-*` utilities.
- *
- * Default `strokeWidth={1.75}` matches the slightly chunky line weight from
- * the mockups. Override per-instance with `strokeWidth={...}` if needed.
- */
+type IconDefaultWeight = Extract<IconWeight, 'regular' | 'duotone' | 'fill'>;
 
-interface IconProps extends SVGProps<SVGSVGElement> {
+interface IconProps extends Omit<PhosphorIconProps, 'size' | 'weight'> {
   size?: number;
+  weight?: IconDefaultWeight;
 }
 
-function svgProps({ size = 20, className, ...rest }: IconProps) {
-  return {
-    width: size,
-    height: size,
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.75,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    className: ['icon-stroke-crisp', className].filter(Boolean).join(' '),
-    ...rest,
-  };
-}
+const make = (Phosphor: PhosphorIcon, defaultWeight: IconDefaultWeight) => {
+  function AppIcon({ size = 20, weight, className, ...rest }: IconProps) {
+    return (
+      <Phosphor
+        size={size}
+        weight={weight ?? defaultWeight}
+        className={className}
+        {...rest}
+        aria-hidden
+      />
+    );
+  }
 
-export function IconPlane(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M17.8 19.2 16 11l3.5-3.5a2.121 2.121 0 0 0-3-3L13 8 4.8 6.2c-.5-.1-.9.2-.9.7v.6c0 .2.1.4.3.5L9 11l-2 2H4l-1 1 4 1 1 4 1-1v-3l2-2 3.5 4.8c.1.2.3.3.5.3h.6c.5 0 .8-.4.7-.9z" />
-    </svg>
-  );
-}
+  return AppIcon;
+};
 
-export function IconBed(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M2 4v16" />
-      <path d="M2 8h18a2 2 0 0 1 2 2v10" />
-      <path d="M2 17h20" />
-      <circle cx="8" cy="12" r="2" />
-    </svg>
-  );
-}
-
-export function IconFork(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M3 3v6a3 3 0 0 0 3 3" />
-      <path d="M9 3v6a3 3 0 0 1-3 3" />
-      <path d="M6 12v9" />
-      <path d="M17 3c-2 0-3 2-3 5s1 5 3 5v6" />
-    </svg>
-  );
-}
-
-export function IconTicket(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z" />
-      <path d="M9 6v12" />
-    </svg>
-  );
-}
-
-export function IconHome(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
-    </svg>
-  );
-}
-
-export function IconBriefcase(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <rect x="2.5" y="7" width="19" height="13" rx="2" />
-      <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-    </svg>
-  );
-}
-
-export function IconSmartphone(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <rect x="5" y="2" width="14" height="20" rx="3" />
-      <path d="M11 18h2" />
-    </svg>
-  );
-}
-
-export function IconHeart(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M12 20s-7-4.35-9.5-9C1 7 3 4 6 4c1.7 0 3.2.9 4 2 .8-1.1 2.3-2 4-2 3 0 5 3 3.5 7-2.5 4.65-9.5 9-9.5 9z" />
-    </svg>
-  );
-}
-
-export function IconPiggyBank(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M19 11.5h2v3h-2" />
-      <path d="M16 7c.5-1 1.5-2 3-2-1 1.5-1 3 0 4" />
-      <path d="M3 14a7 7 0 0 1 7-7h3a6 6 0 0 1 6 6v3a4 4 0 0 1-4 4h-1l-1 2h-2l-1-2h-2l-1 2H6l-1-2A4 4 0 0 1 3 16z" />
-      <circle cx="8" cy="13" r="1" />
-    </svg>
-  );
-}
-
-export function IconRocket(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M4.5 16.5c-1.5 1.5-1.5 4-1.5 4s2.5 0 4-1.5l-2.5-2.5z" />
-      <path d="M9.5 17c-2-2-3.5-4-3.5-7 0-4 4-8 8-8 4 0 8 4 8 8 0 3-1.5 5-3.5 7l-2 2-4-1-2 1-1-2z" />
-      <circle cx="14" cy="9" r="2" />
-    </svg>
-  );
-}
-
-export function IconPalette(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M12 21a9 9 0 1 1 9-9c0 1.7-1.3 3-3 3h-2a2 2 0 0 0-2 2v.5a2.5 2.5 0 0 1-2 2.5z" />
-      <circle cx="7.5" cy="10.5" r="1" />
-      <circle cx="12" cy="7.5" r="1" />
-      <circle cx="16.5" cy="10.5" r="1" />
-    </svg>
-  );
-}
-
-export function IconBell(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M6 8a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7z" />
-      <path d="M10 21a2 2 0 0 0 4 0" />
-    </svg>
-  );
-}
-
-export function IconGear(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M19.4 13.4a7.6 7.6 0 0 0 0-2.8l2-1.5-2-3.4-2.4.8a7.6 7.6 0 0 0-2.4-1.4L14 2.5h-4l-.6 2.6a7.6 7.6 0 0 0-2.4 1.4L4.6 5.7l-2 3.4 2 1.5a7.6 7.6 0 0 0 0 2.8l-2 1.5 2 3.4 2.4-.8a7.6 7.6 0 0 0 2.4 1.4l.6 2.6h4l.6-2.6a7.6 7.6 0 0 0 2.4-1.4l2.4.8 2-3.4z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-export function IconChevronDown(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
-
-export function IconChevronLeft(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-export function IconChevronRight(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-export function IconArrowLeft(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M19 12H5" />
-      <path d="M12 19l-7-7 7-7" />
-    </svg>
-  );
-}
-
-export function IconArrowRight(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M5 12h14" />
-      <path d="M12 5l7 7-7 7" />
-    </svg>
-  );
-}
-
-export function IconSwap(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M7 7h11" />
-      <path d="M15 4l3 3-3 3" />
-      <path d="M17 17H6" />
-      <path d="M9 14l-3 3 3 3" />
-    </svg>
-  );
-}
-
-export function IconPlus(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-export function IconCheck(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M5 12l5 5L20 7" />
-    </svg>
-  );
-}
-
-export function IconX(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M6 6l12 12M6 18 18 6" />
-    </svg>
-  );
-}
-
-export function IconCalendar(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M3 10h18" />
-      <path d="M8 3v4M16 3v4" />
-    </svg>
-  );
-}
-
-export function IconFlag(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M5 21V4" />
-      <path d="M5 5.5c3-1.6 5.6 1.5 9.2 0 1.6-.7 3-.8 4.8-.1v9c-1.8-.7-3.2-.6-4.8.1-3.6 1.5-6.2-1.6-9.2 0" />
-    </svg>
-  );
-}
-
-export function IconUserPlus(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <circle cx="9" cy="8" r="4" />
-      <path d="M2 21a7 7 0 0 1 14 0" />
-      <path d="M19 8v6M16 11h6" />
-    </svg>
-  );
-}
-
-export function IconTrash(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M4 7h16" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" />
-      <path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" />
-    </svg>
-  );
-}
-
-export function IconEdit(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
-    </svg>
-  );
-}
-
-export function IconQrCode(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1" />
-    </svg>
-  );
-}
-
-export function IconTrendingUp(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M3 17l6-6 4 4 8-8" />
-      <path d="M14 7h7v7" />
-    </svg>
-  );
-}
-
-export function IconMoreVertical(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <circle cx="12" cy="5" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-export function IconGrid(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
-    </svg>
-  );
-}
-
-export function IconLayers(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="m12 3 8 4-8 4-8-4 8-4z" />
-      <path d="m4 12 8 4 8-4" />
-      <path d="m4 17 8 4 8-4" />
-    </svg>
-  );
-}
-
-export function IconVault(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 8v1M12 15v1M8 12h1M15 12h1" />
-    </svg>
-  );
-}
-
-export function IconActivity(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M3 12h4l3-8 4 16 3-8h4" />
-    </svg>
-  );
-}
-
-export function IconUser(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21a8 8 0 0 1 16 0" />
-    </svg>
-  );
-}
-
-export function IconSlip(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
-      <path d="M14 3v5h5" />
-      <path d="M8 13h8M8 17h6" />
-    </svg>
-  );
-}
-
-export function IconClock(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 6v6l4 2" />
-    </svg>
-  );
-}
-
-export function IconClockAlert(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 6v6l3 2" />
-      <path d="M18 3.8 20.2 2" />
-      <path d="M18 8.2 20.2 10" />
-      <path d="M19.5 6h2.5" />
-    </svg>
-  );
-}
-
-export function IconWarning(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-      <path d="M12 9v4M12 17h.01" />
-    </svg>
-  );
-}
-
-export function IconCheckCircle(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M9 12l2 2 4-4" />
-    </svg>
-  );
-}
-
-export function IconFire(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M12 12c0-3 2.5-6 2.5-6S17 9 17 12a5 5 0 0 1-10 0c0-2 1.5-4 3-5 0 2 1 4 2 5z" />
-    </svg>
-  );
-}
-
-export function IconCrown(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M2 17l3-11 5 5 2-7 2 7 5-5 3 11z" />
-      <path d="M2 17h20" />
-    </svg>
-  );
-}
-
-export function IconCalendarClock(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M3 10h18" />
-      <path d="M8 3v4M16 3v4" />
-      <circle cx="15.5" cy="15.5" r="3.5" />
-      <path d="M15.5 13.8v1.9l1.3.8" />
-    </svg>
-  );
-}
-
-export function IconArrowUpRight(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M7 17 17 7" />
-      <path d="M9 7h8v8" />
-    </svg>
-  );
-}
-
-export function IconShield(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <path d="M9 12l2 2 4-5" />
-    </svg>
-  );
-}
-
-export function IconImage(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <polyline points="21 15 16 10 5 21" />
-    </svg>
-  );
-}
-
-export function IconCamera(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-      <circle cx="12" cy="13" r="4" />
-    </svg>
-  );
-}
-
-export function IconZoomIn(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.35-4.35M11 8v6M8 11h6" />
-    </svg>
-  );
-}
-
-export function IconZoomOut(p: IconProps) {
-  return (
-    <svg {...svgProps(p)} aria-hidden>
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.35-4.35M8 11h6" />
-    </svg>
-  );
-}
+export const IconPlane = make(AirplaneTilt, 'duotone');
+export const IconBed = make(Bed, 'duotone');
+export const IconFork = make(ForkKnife, 'duotone');
+export const IconTicket = make(Ticket, 'duotone');
+export const IconHome = make(House, 'duotone');
+export const IconBriefcase = make(Briefcase, 'duotone');
+export const IconSmartphone = make(DeviceMobile, 'duotone');
+export const IconHeart = make(Heart, 'duotone');
+export const IconPiggyBank = make(PiggyBank, 'duotone');
+export const IconRocket = make(RocketLaunch, 'duotone');
+export const IconPalette = make(Palette, 'duotone');
+export const IconBell = make(Bell, 'duotone');
+export const IconGear = make(Gear, 'duotone');
+export const IconChevronDown = make(CaretDown, 'regular');
+export const IconChevronLeft = make(CaretLeft, 'regular');
+export const IconChevronRight = make(CaretRight, 'regular');
+export const IconArrowLeft = make(ArrowLeft, 'regular');
+export const IconArrowRight = make(ArrowRight, 'regular');
+export const IconSwap = make(ArrowsLeftRight, 'regular');
+export const IconPlus = make(Plus, 'regular');
+export const IconCheck = make(Check, 'regular');
+export const IconX = make(X, 'regular');
+export const IconCalendar = make(Calendar, 'duotone');
+export const IconFlag = make(Flag, 'duotone');
+export const IconUserPlus = make(UserPlus, 'duotone');
+export const IconTrash = make(Trash, 'regular');
+export const IconEdit = make(PencilSimple, 'regular');
+export const IconQrCode = make(QrCode, 'duotone');
+export const IconTrendingUp = make(TrendUp, 'duotone');
+export const IconMoreVertical = make(DotsThreeVertical, 'regular');
+export const IconGrid = make(SquaresFour, 'duotone');
+export const IconLayers = make(Stack, 'duotone');
+export const IconVault = make(Vault, 'duotone');
+export const IconActivity = make(Pulse, 'duotone');
+export const IconUser = make(User, 'duotone');
+export const IconUsers = make(Users, 'duotone');
+export const IconSlip = make(Receipt, 'duotone');
+export const IconClock = make(Clock, 'duotone');
+export const IconClockAlert = make(ClockCountdown, 'duotone');
+export const IconWarning = make(Warning, 'duotone');
+export const IconCheckCircle = make(CheckCircle, 'duotone');
+export const IconFire = make(Fire, 'duotone');
+export const IconCrown = make(Crown, 'duotone');
+export const IconCalendarClock = make(CalendarDots, 'duotone');
+export const IconArrowUpRight = make(ArrowUpRight, 'regular');
+export const IconShield = make(ShieldCheck, 'duotone');
+export const IconImage = make(Image, 'duotone');
+export const IconCamera = make(Camera, 'duotone');
+export const IconZoomIn = make(MagnifyingGlassPlus, 'regular');
+export const IconZoomOut = make(MagnifyingGlassMinus, 'regular');

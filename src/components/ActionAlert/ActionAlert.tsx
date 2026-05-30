@@ -1,6 +1,9 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { Button } from '../Button/Button';
 import { IconArrowRight, IconWarning, IconX } from '../Icon/Icon';
+import { useI18n } from '../../i18n/useI18n';
+
+type ActionAlertCopy = ReturnType<typeof useI18n>['copy']['dashboard']['actionAlert'];
 
 export interface ActionAlertBucket {
   id: string;
@@ -24,6 +27,8 @@ export const ActionAlert = memo(function ActionAlert({
   formatMoney,
   onViewBucket,
 }: ActionAlertProps) {
+  const { copy } = useI18n();
+  const t = copy.dashboard.actionAlert;
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -44,15 +49,13 @@ export const ActionAlert = memo(function ActionAlert({
 
   const critical = sortedBuckets.some(bucket => bucket.status === 'critical');
   const title = sortedBuckets.length === 1
-    ? singleBucketTitle(primary, formatMoney)
-    : `${sortedBuckets.length} goals need attention`;
+    ? singleBucketTitle(primary, formatMoney, t)
+    : t.multiTitle(sortedBuckets.length);
   const body = sortedBuckets.length === 1
-    ? (primary.status === 'critical'
-        ? 'Deadline pressure is high. A quick top-up keeps this goal alive.'
-        : 'You can still bring it back on pace with a focused deposit.')
+    ? (primary.status === 'critical' ? t.bodySingleCritical : t.bodySingleBehind)
     : critical
-      ? 'At least one goal is critical. Review the most urgent one first.'
-      : 'A few goals are drifting behind schedule. Pick one to catch up.';
+      ? t.bodyMultiCritical
+      : t.bodyMultiBehind;
   const toneClasses = critical
     ? 'border-danger/20 bg-danger-soft text-danger'
     : 'border-brand-100 bg-brand-50 text-brand-800';
@@ -85,13 +88,13 @@ export const ActionAlert = memo(function ActionAlert({
               trailingIcon={<IconArrowRight size={14} />}
               onClick={() => onViewBucket(primary.id)}
             >
-              {sortedBuckets.length === 1 ? 'View' : 'View details'}
+              {sortedBuckets.length === 1 ? t.viewButton : t.viewDetailsButton}
             </Button>
           </div>
         </div>
         <button
           type="button"
-          aria-label="Dismiss alert"
+          aria-label={t.dismissAria}
           onClick={dismiss}
           className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-ink-muted transition hover:bg-surface/80 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
         >
@@ -105,13 +108,14 @@ export const ActionAlert = memo(function ActionAlert({
 function singleBucketTitle(
   bucket: ActionAlertBucket,
   formatMoney: (amount: number) => string,
+  t: ActionAlertCopy,
 ): string {
-  const state = bucket.status === 'critical' ? 'critical' : 'behind schedule';
+  const state = bucket.status === 'critical' ? t.stateCritical : t.stateBehind;
   if (bucket.requiredPerDay && bucket.requiredPerDay > 0) {
-    return `${bucket.name} is ${state} - save ${formatMoney(Math.ceil(bucket.requiredPerDay))}/day to catch up`;
+    return t.singleTitlePerDay(bucket.name, state, formatMoney(Math.ceil(bucket.requiredPerDay)));
   }
   if (bucket.remainingDays <= 0 && bucket.remainingAmount > 0) {
-    return `${bucket.name} is ${state} - ${formatMoney(Math.ceil(bucket.remainingAmount))} still needed`;
+    return t.singleTitleNeeded(bucket.name, state, formatMoney(Math.ceil(bucket.remainingAmount)));
   }
-  return `${bucket.name} is ${state}`;
+  return t.singleTitlePlain(bucket.name, state);
 }

@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useRef } from 'react';
-import { Button } from '../Button/Button';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
-import { IconArrowLeft, IconPlus } from '../Icon/Icon';
+import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
+import { IconEdit, IconPlus, IconTrash } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
-import { suggestExpenses } from '../../lib/travelExpenseRules';
+import { splitBudget, suggestExpenses } from '../../lib/travelExpenseRules';
 import type { ExpenseDraftItem } from './wizardTypes';
 
 interface StepExpensesProps {
@@ -13,23 +13,51 @@ interface StepExpensesProps {
   expenses: ExpenseDraftItem[];
   onTotalBudgetChange: (value: number) => void;
   onExpensesChange: (expenses: ExpenseDraftItem[]) => void;
-  onNext: () => void;
-  onBack: () => void;
-}
-
-function parseBudgetInput(raw: string): number {
-  const cleaned = raw.replace(/[^0-9]/g, '');
-  return cleaned ? parseInt(cleaned, 10) : 0;
-}
-
-function formatBudgetDisplay(value: number): string {
-  if (value === 0) return '';
-  return value.toLocaleString('th-TH');
 }
 
 let customIdCounter = 0;
 function nextCustomId(): string {
   return `custom-${Date.now()}-${++customIdCounter}`;
+}
+
+/**
+ * Digit-only money field. While focused it shows the raw digits (no commas)
+ * so the caret stays put and mid-string edits/deletes work; on blur it shows
+ * the comma-grouped value. This fixes the "can only delete from the end" bug
+ * caused by reformatting the value on every keystroke.
+ */
+interface MoneyInputProps {
+  value: number;
+  onChange: (value: number) => void;
+  className: string;
+  placeholder?: string;
+  ariaLabel?: string;
+}
+
+function MoneyInput({ value, onChange, className, placeholder, ariaLabel }: MoneyInputProps) {
+  const [focused, setFocused] = useState(false);
+  const [raw, setRaw] = useState('');
+  const display = focused ? raw : value > 0 ? value.toLocaleString('th-TH') : '';
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      className={className}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      value={display}
+      onFocus={() => {
+        setRaw(value > 0 ? String(value) : '');
+        setFocused(true);
+      }}
+      onChange={e => {
+        const digits = e.target.value.replace(/[^0-9]/g, '');
+        setRaw(digits);
+        onChange(digits ? parseInt(digits, 10) : 0);
+      }}
+      onBlur={() => setFocused(false)}
+    />
+  );
 }
 
 export function StepExpenses({
@@ -38,12 +66,22 @@ export function StepExpenses({
   expenses,
   onTotalBudgetChange,
   onExpensesChange,
-  onNext,
-  onBack,
 }: StepExpensesProps) {
   const { language, copy } = useI18n();
   const c = copy.createRoomWizard;
-  const budgetInputRef = useRef<HTMLInputElement>(null);
+
+  // Removal is confirmed via a modal, then the row plays the "Gone" (bucket-gone)
+  // exit before it's actually dropped from state.
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const removeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (removeTimer.current) clearTimeout(removeTimer.current);
+    },
+    [],
+  );
 
   const checkedTotal = useMemo(
     () => expenses.filter(e => e.checked).reduce((sum, e) => sum + e.targetAmount, 0),
@@ -53,16 +91,20 @@ export function StepExpenses({
   const hasChecked = expenses.some(e => e.checked);
 
   const handleBudgetChange = useCallback(
-    (raw: string) => {
-      const newBudget = parseBudgetInput(raw);
+    (newBudget: number) => {
       onTotalBudgetChange(newBudget);
       if (newBudget > 0 && endDate) {
         const suggested = suggestExpenses(newBudget, endDate);
+        const split = splitBudget(newBudget);
         const updated = expenses.map(exp => {
           if (exp.isCustom) return exp;
           const match = suggested.find(s => s.category === exp.category);
           if (!match) return exp;
-          return { ...exp, targetAmount: match.targetAmount, deadline: match.deadline };
+          return {
+            ...exp,
+            targetAmount: split[exp.category] ?? match.targetAmount,
+            deadline: match.deadline,
+          };
         });
         onExpensesChange(updated);
       }
@@ -80,8 +122,7 @@ export function StepExpenses({
   );
 
   const updateAmount = useCallback(
-    (id: string, raw: string) => {
-      const amount = parseBudgetInput(raw);
+    (id: string, amount: number) => {
       onExpensesChange(
         expenses.map(e => (e.id === id ? { ...e, targetAmount: amount } : e)),
       );
@@ -105,7 +146,9 @@ export function StepExpenses({
     onExpensesChange([...expenses, custom]);
   }, [c, endDate, expenses, onExpensesChange]);
 
-  const updateCustomName = useCallback(
+  // Names are editable for every row (suggested + custom). Editing overwrites
+  // both language variants so the typed name sticks regardless of UI language.
+  const updateName = useCallback(
     (id: string, name: string) => {
       onExpensesChange(
         expenses.map(e =>
@@ -116,12 +159,23 @@ export function StepExpenses({
     [expenses, onExpensesChange],
   );
 
-  const removeCustom = useCallback(
+  const removeExpense = useCallback(
     (id: string) => {
       onExpensesChange(expenses.filter(e => e.id !== id));
     },
     [expenses, onExpensesChange],
   );
+
+  const confirmRemove = useCallback(() => {
+    const id = pendingRemoveId;
+    setPendingRemoveId(null);
+    if (!id) return;
+    setRemovingId(id);
+    removeTimer.current = setTimeout(() => {
+      removeExpense(id);
+      setRemovingId(null);
+    }, 420);
+  }, [pendingRemoveId, removeExpense]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -130,27 +184,28 @@ export function StepExpenses({
         <p className="mt-1 font-mono text-sm text-ink-muted">{c.stepExpensesSubtitle}</p>
       </div>
 
-      {/* Budget input */}
-      <div className="rounded-xl bg-surface p-4 shadow-soft">
+      {/* Budget input + running total — one compact card */}
+      <div className="rounded-xl bg-surface p-3 shadow-soft">
         <label className="block">
           <span className="font-mono text-xs font-bold uppercase tracking-wider text-ink-muted">
             {c.totalBudgetLabel}
           </span>
-          <div className="relative mt-2">
+          <div className="relative mt-1.5">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm font-bold text-ink-muted">
               ฿
             </span>
-            <input
-              ref={budgetInputRef}
-              type="text"
-              inputMode="numeric"
-              className="w-full rounded-lg border border-brand-200 bg-bg py-3 pl-8 pr-4 font-mono text-base font-bold text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
-              value={formatBudgetDisplay(totalBudget)}
+            <MoneyInput
+              value={totalBudget}
+              onChange={handleBudgetChange}
               placeholder={c.totalBudgetPlaceholder}
-              onChange={e => handleBudgetChange(e.target.value)}
+              ariaLabel={c.totalBudgetLabel}
+              className="w-full rounded-lg border border-brand-200 bg-bg py-2.5 pl-8 pr-4 font-mono text-base font-bold text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
             />
           </div>
         </label>
+        <p className="mt-2 text-right font-mono text-xs font-bold text-brand-800">
+          {c.runningTotal(formatCurrency(checkedTotal))}
+        </p>
       </div>
 
       {/* Expense list */}
@@ -160,9 +215,9 @@ export function StepExpenses({
           return (
             <div
               key={exp.id}
-              className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors ${
                 exp.checked ? 'bg-surface shadow-soft' : 'bg-surfaceAlt opacity-60'
-              }`}
+              } ${removingId === exp.id ? 'bucket-gone' : ''}`}
             >
               {/* Checkbox */}
               <button
@@ -187,44 +242,44 @@ export function StepExpenses({
                 <BucketCategoryIcon category={exp.category} size={18} />
               </div>
 
-              {/* Name (editable for custom) */}
-              {exp.isCustom ? (
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <input
-                    type="text"
-                    className="w-full rounded-md border-0 bg-transparent font-mono text-sm font-bold text-ink outline-none placeholder:text-ink-dim"
-                    value={name}
-                    placeholder={c.customExpenseName}
-                    onChange={e => updateCustomName(exp.id, e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="self-start font-mono text-[10px] text-danger"
-                    onClick={() => removeCustom(exp.id)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <span className="min-w-0 flex-1 truncate font-mono text-sm font-bold text-ink">
-                  {name}
-                </span>
-              )}
+              {/* Editable name with pencil hint */}
+              <div className="relative min-w-0 flex-1">
+                <input
+                  type="text"
+                  className="w-full rounded-md border-0 bg-transparent py-1 pr-5 font-mono text-sm font-bold text-ink outline-none placeholder:text-ink-dim"
+                  value={name}
+                  placeholder={c.customExpenseName}
+                  onChange={e => updateName(exp.id, e.target.value)}
+                />
+                <IconEdit
+                  size={12}
+                  className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-ink-dim"
+                />
+              </div>
 
               {/* Amount input */}
               <div className="relative w-24 flex-shrink-0">
                 <span className="absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[10px] text-ink-dim">
                   ฿
                 </span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className="w-full rounded-lg border border-brand-100 bg-bg py-2 pl-5 pr-2 text-right font-mono text-xs font-bold text-ink outline-none focus:border-brand-400"
-                  value={exp.targetAmount > 0 ? exp.targetAmount.toLocaleString('th-TH') : ''}
+                <MoneyInput
+                  value={exp.targetAmount}
+                  onChange={amount => updateAmount(exp.id, amount)}
                   placeholder="0"
-                  onChange={e => updateAmount(exp.id, e.target.value)}
+                  ariaLabel={`${name} amount`}
+                  className="w-full rounded-lg border border-brand-100 bg-bg py-2 pl-5 pr-2 text-right font-mono text-xs font-bold text-ink outline-none focus:border-brand-400"
                 />
               </div>
+
+              {/* Remove */}
+              <button
+                type="button"
+                onClick={() => setPendingRemoveId(exp.id)}
+                aria-label={`Remove ${name}`}
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-danger transition-colors hover:bg-danger-soft"
+              >
+                <IconTrash size={16} />
+              </button>
             </div>
           );
         })}
@@ -240,27 +295,20 @@ export function StepExpenses({
         </button>
       </div>
 
-      {/* Running total */}
-      <div className="rounded-xl bg-brand-50 px-4 py-3 text-center">
-        <p className="font-mono text-sm font-bold text-brand-800">
-          {c.runningTotal(formatCurrency(checkedTotal))}
-        </p>
-      </div>
-
       {/* Validation hint */}
       {!hasChecked && (
         <p className="text-center font-mono text-xs text-danger">{c.noExpensesSelected}</p>
       )}
 
-      {/* Navigation */}
-      <div className="flex gap-3">
-        <Button variant="ghost" size="lg" onClick={onBack}>
-          <IconArrowLeft size={16} />
-        </Button>
-        <Button variant="primary" fullWidth disabled={!hasChecked} onClick={onNext}>
-          {c.nextButton}
-        </Button>
-      </div>
+      <ConfirmModal
+        open={pendingRemoveId !== null}
+        title={c.removeBucketTitle}
+        body={c.removeBucketBody}
+        confirmLabel={c.removeBucketConfirm}
+        danger
+        onCancel={() => setPendingRemoveId(null)}
+        onConfirm={confirmRemove}
+      />
     </div>
   );
 }

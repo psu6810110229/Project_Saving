@@ -73,10 +73,24 @@ export function JoinRoomWizard({ roomId, roomGoalTarget, isRejoin, restoredBucke
   const [draft, setDraft] = useState(() => loadDraft(roomId));
   const [direction, setDirection] = useState(1);
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
+  // The room's event date is needed to re-lay this member's buckets on a fresh
+  // affordable timeline from their own join date (see StepReady).
+  const [roomEndDate, setRoomEndDate] = useState<string | null>(null);
 
   useEffect(() => {
     saveDraft(roomId, draft);
   }, [roomId, draft]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase.from('rooms').select('end_date').eq('id', roomId).single();
+      if (!cancelled) {
+        setRoomEndDate((data?.end_date as string | null)?.slice(0, 10) ?? null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [roomId]);
 
   useEffect(() => {
     if (templatesLoaded || draft.buckets.length > 0) {
@@ -200,6 +214,7 @@ export function JoinRoomWizard({ roomId, roomGoalTarget, isRejoin, restoredBucke
           roomId={roomId}
           personalGoal={draft.personalGoal}
           buckets={draft.buckets}
+          roomEndDate={roomEndDate}
           onBack={() => goTo(2)}
         />
       );

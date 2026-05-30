@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { Button } from '../components/Button/Button';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { CreateProjectForm } from '../components/CreateProjectForm/CreateProjectForm';
-import { FormField } from '../components/FormField/FormField';
 import {
   IconBell,
   IconBriefcase,
   IconCalendar,
-  IconEdit,
   IconHeart,
   IconHome,
+  IconPalette,
   IconPlane,
   IconSmartphone,
   IconTrash,
@@ -20,13 +18,12 @@ import {
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { Modal } from '../components/Modal/Modal';
 import { PageHeader } from '../components/PageHeader/PageHeader';
+import { ProfileEditForm } from '../components/ProfileEditForm/ProfileEditForm';
 import { ProfileHeader } from '../components/ProfileHeader/ProfileHeader';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import { SettingsList } from '../components/SettingsList/SettingsList';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
-import { TextInput } from '../components/TextInput/TextInput';
-import { ThemeSwatchPicker } from '../components/ThemeSwatchPicker/ThemeSwatchPicker';
 import { VersionBadge } from '../components/VersionBadge/VersionBadge';
 import { useAuth } from '../hooks/useAuth';
 import { useLoadingGate } from '../hooks/useLoadingGate';
@@ -35,12 +32,13 @@ import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
 import type { RoomPreviewResult } from '../hooks/useRooms';
 import { useI18n } from '../i18n/useI18n';
+import { LANGUAGE_NATIVE_LABEL, SUPPORTED_LANGUAGES, type Language } from '../i18n/languages';
 import { fallbackInitial } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
 import type { ThemeSwatch } from '../lib/theme';
 import type { ProjectCategory } from '../types';
 
-type ProfileModal = 'profile' | 'create-project' | 'join-project' | null;
+type ProfileModal = 'profile' | 'language' | 'create-project' | 'join-project' | null;
 
 export function Profile() {
   const navigate = useNavigate();
@@ -48,8 +46,8 @@ export function Profile() {
   const { user, signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
   const { createRoom, joinRoomByCode, fetchRoomPreview, leaveRoom } = useRooms();
-  const { profile, loading, error, themeColor, updateProfile, uploadAvatar } = useProfile();
-  const { copy } = useI18n();
+  const { profile, loading, error, themeColor, updateProfile, uploadAvatar, updateLanguage } = useProfile();
+  const { copy, language, setLanguage } = useI18n();
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
@@ -191,10 +189,26 @@ export function Profile() {
     navigate('/profile');
   }
 
+  async function handleLanguageChange(next: Language) {
+    if (next === language) {
+      closeModal();
+      return;
+    }
+    const previous = language;
+    setLanguage(next);
+    const result = await updateLanguage(next);
+    if (result.error) {
+      setLanguage(previous);
+      setMessage(result.error);
+      return;
+    }
+    closeModal();
+  }
+
 
 
   return (
-    <div className="flex flex-col gap-6 pt-8">
+    <div className="flex flex-col gap-6 px-5 pt-8">
       <PageHeader eyebrow={copy.profile.pageEyebrow} title={copy.profile.pageTitle} subtitle={activeRoom?.name ?? copy.profile.pageSubtitleFallback} showBack={!activeRoom} />
       <ProfileHeader
         name={profile?.display_name ?? copy.profile.youFallback}
@@ -207,6 +221,7 @@ export function Profile() {
       {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList
         items={[
+          { id: 'language', icon: <IconPalette size={18} />, label: copy.profile.languageLabel, description: `${copy.profile.languageDescription} · ${LANGUAGE_NATIVE_LABEL[language]}`, onClick: () => openModal('language') },
           { id: 'notifications', icon: <IconBell size={18} />, label: copy.profile.notificationSettingsLabel, description: copy.profile.notificationSettingsDescription, locked: !activeRoom, onClick: () => (activeRoom ? navigate('/notifications/settings') : setRoomRequiredOpen(true)) },
           { id: 'manage-project', icon: <IconCalendar size={18} />, label: copy.profile.manageProjectLabel, description: copy.profile.manageProjectDescription(activeRoom?.name ?? copy.profile.noActiveProject), locked: !activeRoom, onClick: () => (activeRoom ? navigate('/manage-project') : setRoomRequiredOpen(true)) },
           { id: 'archived-projects', icon: <IconBriefcase size={18} />, label: copy.profile.archivedProjectsLabel, description: copy.profile.archivedProjectsDescription, onClick: () => navigate('/archived-projects') },
@@ -222,18 +237,43 @@ export function Profile() {
         archiveItem={{ id: 'signout', icon: <IconUser size={18} />, label: copy.profile.signOutLabel, onClick: () => setConfirmingSignOut(true) }}
       />
       <VersionBadge />
-      <Modal open={activeModal === 'profile'} title={copy.profile.editProfileModalTitle} onClose={closeModal}>
-        <div className="flex flex-col gap-4">
-          <AvatarUpload
-            avatarUrl={profile?.avatar_url ?? null}
-            fallback={fallbackInitial(profile?.display_name)}
-            onUpload={handleAvatarUpload}
-          />
-          <FormField label={copy.profile.displayNameLabel}>
-            <TextInput value={displayName} leadingIcon={<IconEdit size={16} />} onChange={event => setDisplayNameDraft(event.target.value)} />
-          </FormField>
-          <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
-          <Button variant="primary" fullWidth size="md" onClick={handleProfileSave}>{copy.profile.saveProfileButton}</Button>
+      <Modal
+        open={activeModal === 'profile'}
+        title={copy.profile.editProfileModalTitle}
+        onClose={closeModal}
+        closeOnBackdrop={false}
+        panelClassName="bg-bg/95 p-5 shadow-[0_24px_80px_-32px_rgba(42,26,14,0.45)] md:rounded-3xl"
+        headerClassName="mb-5"
+      >
+        <ProfileEditForm
+          avatarUrl={profile?.avatar_url ?? null}
+          fallback={fallbackInitial(profile?.display_name)}
+          displayName={displayName}
+          displayNameLabel={copy.profile.displayNameLabel}
+          saveLabel={copy.profile.saveProfileButton}
+          onAvatarUpload={handleAvatarUpload}
+          onDisplayNameChange={setDisplayNameDraft}
+          onSave={handleProfileSave}
+          themeValue={theme}
+          onThemeChange={setThemeDraft}
+        />
+      </Modal>
+      <Modal open={activeModal === 'language'} title={copy.profile.languageModalTitle} onClose={closeModal}>
+        <div className="flex flex-col gap-3">
+          {SUPPORTED_LANGUAGES.map(option => {
+            const selected = option === language;
+            return (
+              <Button
+                key={option}
+                variant={selected ? 'primary' : 'secondary'}
+                fullWidth
+                size="md"
+                onClick={() => void handleLanguageChange(option)}
+              >
+                {LANGUAGE_NATIVE_LABEL[option]}
+              </Button>
+            );
+          })}
         </div>
       </Modal>
       <Modal open={activeModal === 'create-project'} title={copy.createProject.sectionLabel} onClose={closeModal}>

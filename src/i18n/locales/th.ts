@@ -1023,6 +1023,7 @@ export const th: Messages = {
       cardCheckedLabel: 'ยอดที่เช็ก',
       cardMatched: 'ตรงกับเป้าหมายย่อย',
       cardNeverChecked: 'ยังไม่เคยเช็กยอด',
+      cardCheckIntro: 'เช็กว่าเงินจริงตรงกับที่จดไว้ไหม — แค่ความสบายใจ ไม่ใช่การสอบ',
       cardShortfallLabel: 'เงินจริงน้อยกว่าที่จด',
       cardShortfallNudge: 'แตะเพื่อปรับให้ตรงกับเงินจริง',
       cardCheckCta: 'เช็กยอด',

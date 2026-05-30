@@ -146,6 +146,14 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
               <p className="truncate font-mono-th text-xs text-ink-dim">{a.cardNeverChecked}</p>
             )}
           </div>
+          {/* First-time explainer: only before the user has ever checked, so
+              the concept (and its reassuring framing) lands once, then the
+              row stays slim afterwards. */}
+          {!checkedText && (
+            <p className="mt-1 font-mono-th text-[11px] leading-snug text-ink-muted">
+              {a.cardCheckIntro}
+            </p>
+          )}
         </div>
         {checkButton}
       </section>

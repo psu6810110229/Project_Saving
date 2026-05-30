@@ -1033,6 +1033,7 @@ export const en = {
       cardCheckedLabel: 'Checked balance',
       cardMatched: 'Matches your buckets',
       cardNeverChecked: 'Not checked yet',
+      cardCheckIntro: 'Check that your real money matches what you recorded — just peace of mind, not a test.',
       cardShortfallLabel: 'Less than your buckets',
       cardShortfallNudge: 'Tap to match your real money',
       cardCheckCta: 'Check',

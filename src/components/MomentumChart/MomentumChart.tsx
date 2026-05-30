@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { palette } from '../../lib/theme';
 import { useI18n } from '../../i18n/useI18n';
@@ -276,7 +276,7 @@ export const MomentumChart = memo(function MomentumChart({
   const hasPartner = Array.isArray(partnerSeries) && partnerSeries.length === series.length;
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const chartRootRef = useRef<HTMLDivElement | null>(null);
-  const dateLabelFormatter = useRef(new Intl.DateTimeFormat(
+  const dateLabelFormatter = useMemo(() => new Intl.DateTimeFormat(
     language === 'th' ? 'th-TH' : 'en-US',
     {
       weekday: 'long',
@@ -285,17 +285,7 @@ export const MomentumChart = memo(function MomentumChart({
       year: 'numeric',
       timeZone: 'UTC',
     },
-  ));
-  dateLabelFormatter.current = new Intl.DateTimeFormat(
-    language === 'th' ? 'th-TH' : 'en-US',
-    {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    },
-  );
+  ), [language]);
 
   // Retain the last non-null compare chips while collapsing so the
   // grid-template-rows transition has real content to shrink from
@@ -764,7 +754,7 @@ export const MomentumChart = memo(function MomentumChart({
               : null;
             const fullDateLabel = formatDateKeyLabel(
               dateKeys?.[i],
-              dateLabelFormatter.current,
+              dateLabelFormatter,
               labels?.[i] ?? d.last7Days,
             );
             const footerLines = hasPartner

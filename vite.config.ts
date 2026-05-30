@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => ({
       filename: 'sw.ts',
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),
   ],

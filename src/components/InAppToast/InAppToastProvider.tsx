@@ -176,6 +176,7 @@ export function InAppToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
   const value = useContext(ToastContext);
   if (!value) {

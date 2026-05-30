@@ -95,7 +95,7 @@ export function useProfile() {
     return () => {
       cancelled = true;
     };
-  }, [user, authProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, authProfile]);
 
   async function updateProfile(values: ProfileUpdateValues): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };

@@ -82,17 +82,11 @@ export function ImageCropper({
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
 
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const imageUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
 
-  useEffect(() => {
-    if (!file) {
-      setImageUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setImageUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  useEffect(() => () => {
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+  }, [imageUrl]);
 
   useEffect(() => {
     if (!open || !frameRef.current) return;

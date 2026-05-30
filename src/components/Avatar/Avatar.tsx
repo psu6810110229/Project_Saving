@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { ThemeSwatch } from '../../lib/theme';
 
 /**
@@ -35,11 +35,9 @@ export function Avatar({
   badge,
   className = '',
 }: AvatarProps) {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  useEffect(() => {
-    setImageFailed(false);
-  }, [imageUrl]);
+  const [imageFailedUrl, setImageFailedUrl] = useState<string | null>(null);
+  const hasImage = Boolean(imageUrl);
+  const imageFailed = hasImage && imageFailedUrl === imageUrl;
 
   const dims = SIZES[size];
 
@@ -48,12 +46,12 @@ export function Avatar({
       <div
         className={`${dims.box} rounded-full overflow-hidden bg-brand-100 flex items-center justify-center`}
       >
-        {imageUrl && !imageFailed ? (
+        {hasImage && !imageFailed ? (
           <img
             src={imageUrl}
             alt=""
             className="w-full h-full object-cover"
-            onError={() => setImageFailed(true)}
+            onError={() => setImageFailedUrl(imageUrl ?? null)}
           />
         ) : (
           <span className={`font-mono font-bold text-brand-800 ${dims.text}`}>{fallback}</span>

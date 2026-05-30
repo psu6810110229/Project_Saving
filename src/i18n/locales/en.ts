@@ -1030,7 +1030,7 @@ export const en = {
       cardMatched: 'Matches your buckets',
       cardNeverChecked: 'Not checked yet',
       cardShortfallLabel: 'Less than your buckets',
-      cardShortfallNudge: 'Tap to adjust · saving & streak safe',
+      cardShortfallNudge: 'Tap to match your real money',
       cardCheckCta: 'Check',
       surplusLabel: 'Extra money found',
       dragHint: 'Drag into a bucket',

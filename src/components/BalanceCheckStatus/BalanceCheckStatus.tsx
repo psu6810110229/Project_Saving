@@ -84,34 +84,42 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
   );
 
   // ── Shortfall state: buckets claim more than the verified balance. ──
-  // Calm, neutral tone (never danger); tapping reopens the Check Balance
-  // flow, where the sync/write-down panel lives (plan 56 slice 4b).
+  // Two-tier (mirrors the surplus state): the top row keeps the round
+  // Check CTA so a balance check is always reachable; the bar below is a
+  // calm, neutral sync action that opens the write-down panel (slice 4b).
   if (hasShortfall) {
     return (
-      <button
-        type="button"
-        onClick={onSync ?? onCheck}
-        aria-label={`${a.cardShortfallLabel} ${formatCurrency(overAllocated)} · ${a.cardShortfallNudge}`}
-        className="relative z-10 flex w-full items-center gap-3 rounded-xl bg-surface px-4 py-3 text-left shadow-soft transition-transform active:scale-[0.99]"
-      >
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-well text-ink-muted">
-          <IconVault size={18} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-mono-th text-[12px] font-semibold text-ink-muted">
-            {a.cardShortfallLabel}
-          </p>
-          <p className="mt-0.5 truncate font-mono-th text-xs text-ink-dim">
-            {a.cardShortfallNudge}
-          </p>
+      <section className="relative z-10 flex flex-col gap-2 rounded-xl bg-surface p-3 shadow-soft">
+        <div className="flex items-center gap-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-well text-ink-muted">
+            <IconVault size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-mono-th text-[11px] font-semibold text-ink-muted">
+              {a.cardShortfallLabel}
+            </p>
+            <p className="truncate font-mono text-sm font-bold text-ink-muted">
+              −{formatCurrency(overAllocated)}
+            </p>
+          </div>
+          {checkButton}
         </div>
-        <span className="shrink-0 font-mono text-base font-bold text-ink-muted">
-          −{formatCurrency(overAllocated)}
-        </span>
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-well text-ink-muted">
-          <IconArrowRight size={16} strokeWidth={2.4} />
-        </span>
-      </button>
+
+        <button
+          type="button"
+          onClick={onSync ?? onCheck}
+          aria-label={`${a.cardShortfallNudge} · ${formatCurrency(overAllocated)}`}
+          className="flex w-full items-center gap-2.5 rounded-lg bg-well px-3 py-2.5 text-left shadow-soft ring-1 ring-black/5 transition-transform active:scale-[0.99]"
+        >
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-surface text-ink-muted">
+            <IconVault size={16} />
+          </span>
+          <span className="min-w-0 flex-1 font-mono-th text-xs font-semibold leading-snug text-ink-muted">
+            {a.cardShortfallNudge}
+          </span>
+          <IconArrowRight size={16} strokeWidth={2.4} className="shrink-0 text-ink-muted" />
+        </button>
+      </section>
     );
   }
 

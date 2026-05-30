@@ -1,7 +1,7 @@
 import { type ChangeEvent, type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { BucketCategory, BucketCreateRuleData, SavingRuleType } from '../../types';
 import { addDays, daysBetween, todayBangkokKey } from '../../lib/savingPlan';
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
 import { CategoryRow } from '../CategoryRow/CategoryRow';
 import { FormField } from '../FormField/FormField';
@@ -197,12 +197,12 @@ export function CreateBucketForm({
           onChange={setDeadline}
           minDate={addDays(today, 1)}
         />
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="ghost" size="md" onClick={() => { setStep(0); setStepError(null); }}>
-            {copy.common.back}
-          </Button>
+        <div className={MODAL_ACTION_ROW_CLASS}>
           <Button variant="action" size="md" onClick={handleDeadlineNext}>
             {b.nextButton}
+          </Button>
+          <Button variant="ghost" size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={() => { setStep(0); setStepError(null); }}>
+            {copy.common.back}
           </Button>
         </div>
       </div>
@@ -310,12 +310,12 @@ export function CreateBucketForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="ghost" size="md" onClick={() => setStep(1)}>
-          {copy.common.back}
-        </Button>
+      <div className={MODAL_ACTION_ROW_CLASS}>
         <Button variant="action" size="md" disabled={!ruleChoice} onClick={handleFinalSubmit}>
           {b.createButton}
+        </Button>
+        <Button variant="ghost" size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={() => setStep(1)}>
+          {copy.common.back}
         </Button>
       </div>
     </div>

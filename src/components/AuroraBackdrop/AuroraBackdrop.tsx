@@ -33,8 +33,9 @@ export function AuroraBackdrop({
   reduceMotion,
   scatter = false,
 }: AuroraBackdropProps) {
+  const animateAurora = false;
   const drift = (offsets: { x: number[]; y: number[] }, duration: number) =>
-    reduceMotion || !live
+    reduceMotion || !live || !animateAurora
       ? undefined
       : {
           animate: { x: offsets.x, y: offsets.y },
@@ -122,7 +123,7 @@ export function AuroraBackdrop({
               className={bloom.className}
               initial={reduceMotion ? { opacity: 0.2, scale: 0.92 } : undefined}
               animate={
-                reduceMotion || !live
+                reduceMotion || !live || !animateAurora
                   ? undefined
                   : {
                       x: bloom.x,
@@ -132,7 +133,7 @@ export function AuroraBackdrop({
                     }
               }
               transition={
-                reduceMotion || !live
+                reduceMotion || !live || !animateAurora
                   ? undefined
                   : {
                       duration: bloom.duration / motionSpeed,

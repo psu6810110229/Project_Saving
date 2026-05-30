@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Button } from '../Button/Button';
 import { CategoryRow } from '../CategoryRow/CategoryRow';
 import { FormField } from '../FormField/FormField';
 import { IconEdit } from '../Icon/Icon';
@@ -12,6 +11,7 @@ interface CategoryOption {
   id: ProjectCategory;
   label: string;
   icon: ReactNode;
+  disabled?: boolean;
 }
 
 interface StepBasicsProps {
@@ -20,7 +20,6 @@ interface StepBasicsProps {
   options: CategoryOption[];
   onNameChange: (value: string) => void;
   onCategoryChange: (value: ProjectCategory) => void;
-  onNext: () => void;
 }
 
 export function StepBasics({
@@ -29,12 +28,9 @@ export function StepBasics({
   options,
   onNameChange,
   onCategoryChange,
-  onNext,
 }: StepBasicsProps) {
   const { copy } = useI18n();
   const c = copy.createRoomWizard;
-
-  const valid = name.trim().length > 0 && category !== null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -60,13 +56,10 @@ export function StepBasics({
           options={options}
           value={category}
           onChange={onCategoryChange}
+          maxVisible={options.length}
         />
         <p className="mt-2 font-mono text-xs text-ink-dim">{c.categoryHint}</p>
       </div>
-
-      <Button variant="primary" fullWidth disabled={!valid} onClick={onNext}>
-        {c.nextButton}
-      </Button>
     </div>
   );
 }

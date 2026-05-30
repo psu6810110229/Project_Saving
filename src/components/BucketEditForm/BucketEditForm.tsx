@@ -9,7 +9,7 @@ import {
   recommendedRule,
 } from '../../lib/bucketRuleSuggest';
 import { bucketSaved, hasDuplicateBucketName, sumTargets } from '../../lib/buckets';
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
 import { FormField } from '../FormField/FormField';
 import { IconCheck, IconEdit, IconPiggyBank, IconX } from '../Icon/Icon';
@@ -318,17 +318,7 @@ export function BucketEditForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="md"
-          leadingIcon={<IconX size={16} />}
-          onClick={onCancel}
-          disabled={submitting}
-        >
-          {copy.bucket.editCancel}
-        </Button>
+      <div className={MODAL_ACTION_ROW_CLASS}>
         <Button
           type="button"
           variant="primary"
@@ -338,6 +328,17 @@ export function BucketEditForm({
           disabled={submitting}
         >
           {copy.bucket.editSave}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="md"
+          className={MODAL_SECONDARY_BUTTON_CLASS}
+          leadingIcon={<IconX size={16} />}
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          {copy.bucket.editCancel}
         </Button>
       </div>
     </div>

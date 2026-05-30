@@ -371,6 +371,34 @@ export interface BalanceActivityEntry {
   reason: BalanceAdjustmentReason | null;
 }
 
+/**
+ * One owner-only balance allocation: moving unallocated reconcile
+ * surplus (actual > app) into a bucket. Append-only ledger
+ * (migration 0078), RLS-scoped to `user_id = auth.uid()`. Contributes
+ * to `bucket_balance` but never to Recorded Deposits (`savings_logs`),
+ * so Saving Plan / streak / momentum are unaffected.
+ */
+export interface BalanceAllocation {
+  id: string;
+  room_id: string;
+  user_id: string;
+  destination_bucket_id: string;
+  amount: number;
+  client_request_id: string;
+  created_at: string;
+}
+
+/** Return shape of the `allocate_balance_to_bucket` RPC. */
+export interface AllocateBalanceResult {
+  allocation_id: string;
+  destination_bucket_id: string;
+  amount: number;
+  bucket_balance_after: number;
+  pool_after: number;
+  reused: boolean;
+  created_at: string;
+}
+
 /* ──────────────────────────────────────────────────────────────────────
  * Saving Plan (Task 22.1, migration 0030).
  * ──────────────────────────────────────────────────────────────────── */

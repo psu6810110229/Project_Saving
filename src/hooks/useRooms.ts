@@ -5,7 +5,7 @@ import { useRoom } from './useRoom';
 import { generateInviteCode } from '../lib/inviteCode';
 import { notifyRoomJoined, notifyRoomLeft } from '../lib/notifyEvents';
 import { useI18n } from '../i18n/useI18n';
-import type { CoverTint, ProjectCategory, Room } from '../types';
+import type { CoverTint, ProjectCategory, Room, SavingRuleType } from '../types';
 import { ROOM_NAME_MAX_LENGTH } from '../lib/roomName';
 import { calcSuggestedRule } from '../lib/travelExpenseRules';
 
@@ -31,6 +31,29 @@ interface ActionResult {
   conflict?: { existingRoomId: string; existingName: string };
 }
 
+export type RoomPreviewStatus = 'found' | 'already_member' | 'full' | 'not_found';
+
+export interface RoomPreview {
+  roomId: string;
+  name: string;
+  category: ProjectCategory;
+  targetAmount: number;
+  endDate: string | null;
+  coverImageUrl: string | null;
+  memberCount: number;
+  creatorName: string | null;
+  creatorAvatarUrl: string | null;
+  status: Exclude<RoomPreviewStatus, 'not_found'>;
+}
+
+/**
+ * Result of looking up a room by invite code. A matched room carries
+ * its metadata; `not_found` means the code was complete but matched no
+ * active room (the UI shows an explicit "no project found" card). A
+ * bare null means we didn't look up (short code) or the call errored.
+ */
+export type RoomPreviewResult = RoomPreview | { status: 'not_found' };
+
 interface WizardExpense {
   category: string;
   nameEn: string;
@@ -40,6 +63,9 @@ interface WizardExpense {
   priority: number;
   paymentType?: string;
   tipKey?: string | null;
+  /** User-chosen saving rule from step 4 (overrides the auto suggestion). */
+  savingRuleType?: SavingRuleType | null;
+  savingRuleAmount?: number | null;
 }
 
 interface CreateRoomWithTemplatesValues {
@@ -233,22 +259,31 @@ export function useRooms() {
     const roomId = result.roomId;
 
     if (values.expenses.length > 0) {
-      const templates = values.expenses.map(e => {
-        const rule = calcSuggestedRule(e.targetAmount, e.deadline);
-        return {
-          room_id: roomId,
-          category: e.category,
-          name: e.nameEn,
-          target_amount: e.targetAmount,
-          payment_type: e.paymentType ?? 'flexible',
-          deadline: e.deadline,
-          suggested_rule_type: rule.ruleType,
-          suggested_rule_amount: rule.amount > 0 ? rule.amount : null,
-          priority: e.priority,
-          tip_key: e.tipKey ?? null,
-          created_by: userId,
-        };
+      // Compute the suggested saving rule once per expense and reuse it
+      // for both the shared template and the creator's own bucket so the
+      // bucket isn't left deadline-only (no rule = no save-today amount).
+      const withRules = values.expenses.map(e => {
+        // Prefer the user's chosen rule (step-4 picker); otherwise fall back to
+        // the auto suggestion so the bucket still gets a save-today amount.
+        const fallback = calcSuggestedRule(e.targetAmount, e.deadline);
+        const ruleType = e.savingRuleType ?? fallback.ruleType;
+        const amount = e.savingRuleType != null ? e.savingRuleAmount ?? 0 : fallback.amount;
+        return { e, rule: { ruleType, amount } };
       });
+
+      const templates = withRules.map(({ e, rule }) => ({
+        room_id: roomId,
+        category: e.category,
+        name: e.nameEn,
+        target_amount: e.targetAmount,
+        payment_type: e.paymentType ?? 'flexible',
+        deadline: e.deadline,
+        suggested_rule_type: rule.ruleType,
+        suggested_rule_amount: rule.amount > 0 ? rule.amount : null,
+        priority: e.priority,
+        tip_key: e.tipKey ?? null,
+        created_by: userId,
+      }));
 
       const { error: tplError } = await supabase
         .from('expense_templates')
@@ -257,7 +292,7 @@ export function useRooms() {
         console.warn('[useRooms] expense_templates insert failed', tplError);
       }
 
-      const buckets = values.expenses.map((e, i) => ({
+      const buckets = withRules.map(({ e, rule }, i) => ({
         user_id: userId,
         room_id: roomId,
         name: e.nameEn,
@@ -266,6 +301,8 @@ export function useRooms() {
         position: i,
         deadline: e.deadline,
         payment_type: e.paymentType ?? 'flexible',
+        saving_rule_type: rule.ruleType,
+        saving_rule_amount: rule.amount > 0 ? rule.amount : null,
       }));
 
       const { error: bucketError } = await supabase
@@ -312,6 +349,42 @@ export function useRooms() {
     notifyRoomJoined(roomId);
     const joinStatus = status === 'rejoined' ? 'rejoined' as const : 'joined' as const;
     return { roomId, joinStatus };
+  }
+
+  /**
+   * Read-only lookup of a room by its invite code, used to render a
+   * real preview in the Join Project flow before the user commits.
+   * Backed by the security-definer RPC `room_preview_by_code`
+   * (migration 0077), which is the only way a non-member can see a
+   * room's metadata under RLS. Returns null on error or empty code.
+   */
+  async function fetchRoomPreview(code: string): Promise<RoomPreviewResult | null> {
+    if (!userId) return null;
+    const cleaned = code.trim().toUpperCase();
+    if (cleaned.length < 6) return null;
+
+    const { data, error: previewError } = await supabase
+      .rpc('room_preview_by_code', { code: cleaned });
+    if (previewError) {
+      if (typeof console !== 'undefined') console.warn('[useRooms] room_preview_by_code failed', previewError);
+      return null;
+    }
+
+    const row = Array.isArray(data) ? data[0] : null;
+    if (!row || row.status === 'not_found' || !row.room_id) return { status: 'not_found' };
+
+    return {
+      roomId: row.room_id,
+      name: row.name,
+      category: row.category as ProjectCategory,
+      targetAmount: Number(row.target_amount ?? 0),
+      endDate: row.end_date ?? null,
+      coverImageUrl: row.cover_image_url ?? null,
+      memberCount: Number(row.member_count ?? 0),
+      creatorName: row.creator_name ?? null,
+      creatorAvatarUrl: row.creator_avatar_url ?? null,
+      status: row.status as Exclude<RoomPreviewStatus, 'not_found'>,
+    };
   }
 
   async function archiveRoom(roomId: string): Promise<ActionResult> {
@@ -474,5 +547,5 @@ export function useRooms() {
     fetchRooms({ showLoading: currentRooms.length === 0 });
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, updateMemberCover, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
+  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, fetchRoomPreview, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, updateMemberCover, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

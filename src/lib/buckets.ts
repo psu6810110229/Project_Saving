@@ -1,4 +1,4 @@
-import type { Bucket, BucketTransfer, SavingsLog } from '../types';
+import type { BalanceAllocation, Bucket, BucketTransfer, SavingsLog } from '../types';
 
 type BucketNameCandidate = {
   id?: string;
@@ -70,27 +70,34 @@ export function validateBuckets(
 
 /**
  * Saved amount for a bucket. Mirrors the SQL `bucket_balance` helper
- * (migration 0059):
- *   deposits + incoming transfers − outgoing transfers
+ * (migration 0078):
+ *   deposits + incoming transfers − outgoing transfers + allocations
  *
- * Transfers are owner-only (RLS `bucket_transfers_select_own`), so this
- * helper only produces a transfer-aware total when the caller has a
- * visible transfer list — i.e. for the current user's own buckets.
- * For partner-owned buckets, callers should omit `transfers` and the
- * legacy deposit-only sum is returned.
+ * Transfers and allocations are owner-only (RLS `bucket_transfers_select_own`
+ * / `balance_allocations_select_own`), so this helper only produces a
+ * transfer/allocation-aware total when the caller has those lists — i.e.
+ * for the current user's own buckets. For partner-owned buckets, callers
+ * should omit them and the legacy deposit-only sum is returned.
  */
 export function bucketSaved(
   bucketId: string,
   logs: SavingsLog[],
   transfers?: BucketTransfer[],
+  allocations?: BalanceAllocation[],
 ): number {
   const deposits = logs.filter(l => l.bucket_id === bucketId).reduce((s, l) => s + l.amount, 0);
-  if (!transfers || transfers.length === 0) return deposits;
   let incoming = 0;
   let outgoing = 0;
-  for (const t of transfers) {
-    if (t.destination_bucket_id === bucketId) incoming += t.amount;
-    if (t.source_bucket_id === bucketId) outgoing += t.amount;
+  if (transfers) {
+    for (const t of transfers) {
+      if (t.destination_bucket_id === bucketId) incoming += t.amount;
+      if (t.source_bucket_id === bucketId) outgoing += t.amount;
+    }
+  }
+  if (allocations) {
+    for (const a of allocations) {
+      if (a.destination_bucket_id === bucketId) incoming += a.amount;
+    }
   }
   return deposits + incoming - outgoing;
 }
@@ -99,7 +106,8 @@ export function bucketPercent(
   bucket: Bucket,
   logs: SavingsLog[],
   transfers?: BucketTransfer[],
+  allocations?: BalanceAllocation[],
 ): number {
   if (bucket.target_amount <= 0) return 0;
-  return Math.min(100, (bucketSaved(bucket.id, logs, transfers) / bucket.target_amount) * 100);
+  return Math.min(100, (bucketSaved(bucket.id, logs, transfers, allocations) / bucket.target_amount) * 100);
 }

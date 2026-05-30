@@ -9,7 +9,7 @@ import {
 import { useI18n } from '../../i18n/useI18n';
 import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/motion';
 import type { TransferBucketMoneyResult } from '../../types';
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { FormField } from '../FormField/FormField';
 import { IconArrowRight, IconCheckCircle, IconPiggyBank, IconSwap } from '../Icon/Icon';
 import { IconBubble } from '../IconBubble/IconBubble';
@@ -483,10 +483,7 @@ function BucketTransferSheetInner({
                       </motion.p>
                     )}
 
-                    <motion.div variants={itemVariants} className="grid grid-cols-2 gap-2">
-                      <Button variant="ghost" size="md" onClick={handleClose}>
-                        {buckCopy.cancelButton}
-                      </Button>
+                    <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_CLASS}>
                       <Button
                         variant="action"
                         size="md"
@@ -494,6 +491,9 @@ function BucketTransferSheetInner({
                         onClick={handleReview}
                       >
                         {buckCopy.reviewButton}
+                      </Button>
+                      <Button variant="ghost" size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={handleClose}>
+                        {buckCopy.cancelButton}
                       </Button>
                     </motion.div>
                   </>
@@ -539,15 +539,7 @@ function BucketTransferSheetInner({
                       </motion.p>
                     )}
 
-                    <motion.div variants={itemVariants} className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="ghost"
-                        size="md"
-                        disabled={pending}
-                        onClick={() => setStep('edit')}
-                      >
-                        {buckCopy.changeDetailsButton}
-                      </Button>
+                    <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_CLASS}>
                       <Button
                         variant="action"
                         size="md"
@@ -559,6 +551,15 @@ function BucketTransferSheetInner({
                           : errorKey
                             ? buckCopy.tryAgainButton
                             : buckCopy.moveAmountButton(formatMoney(amountNumber))}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="md"
+                        className={MODAL_SECONDARY_BUTTON_CLASS}
+                        disabled={pending}
+                        onClick={() => setStep('edit')}
+                      >
+                        {buckCopy.changeDetailsButton}
                       </Button>
                     </motion.div>
                   </>

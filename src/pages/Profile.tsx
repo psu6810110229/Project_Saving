@@ -33,6 +33,7 @@ import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useProfile } from '../hooks/useProfile';
 import { useRoom } from '../hooks/useRoom';
 import { useRooms } from '../hooks/useRooms';
+import type { RoomPreviewResult } from '../hooks/useRooms';
 import { useI18n } from '../i18n/useI18n';
 import { fallbackInitial } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
@@ -46,7 +47,7 @@ export function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
-  const { createRoom, joinRoomByCode, leaveRoom } = useRooms();
+  const { createRoom, joinRoomByCode, fetchRoomPreview, leaveRoom } = useRooms();
   const { profile, loading, error, themeColor, updateProfile, uploadAvatar } = useProfile();
   const { copy } = useI18n();
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
@@ -61,6 +62,7 @@ export function Profile() {
   const [projectTarget, setProjectTarget] = useState('100000');
   const [projectEndDate, setProjectEndDate] = useState('2027-11-01');
   const [joinCode, setJoinCode] = useState('');
+  const [joinPreview, setJoinPreview] = useState<RoomPreviewResult | null>(null);
   const projectOptions = projectOptionIcons.map(({ id, icon }) => ({
     id,
     icon,
@@ -77,6 +79,20 @@ export function Profile() {
     setSearchParams(next, { replace: true });
     navigate('/create-room');
   }, [searchParams, setSearchParams, navigate]);
+
+  // Fetch the real room behind a completed join code (debounced) so the
+  // preview card can show its name, creator, goal, and member count.
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const result = joinCode.length < 6 ? null : await fetchRoomPreview(joinCode);
+      if (!cancelled) setJoinPreview(result);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [joinCode, fetchRoomPreview]);
 
   const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
     loading,
@@ -216,7 +232,7 @@ export function Profile() {
             <TextInput value={displayName} leadingIcon={<IconEdit size={16} />} onChange={event => setDisplayNameDraft(event.target.value)} />
           </FormField>
           <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
-          <Button variant="primary" fullWidth onClick={handleProfileSave}>{copy.profile.saveProfileButton}</Button>
+          <Button variant="primary" fullWidth size="md" onClick={handleProfileSave}>{copy.profile.saveProfileButton}</Button>
         </div>
       </Modal>
       <Modal open={activeModal === 'create-project'} title={copy.createProject.sectionLabel} onClose={closeModal}>
@@ -237,7 +253,7 @@ export function Profile() {
         <JoinProjectFlow
           code={joinCode}
           error={joinCode.length > 0 && joinCode.length < 6 ? copy.profile.joinCodeValidation : undefined}
-          preview={joinCode.length >= 6 ? joinPreview(joinCode, copy) : null}
+          preview={joinCode.length >= 6 ? joinPreview : null}
           onCodeChange={setJoinCode}
           onJoin={handleJoinProject}
         />
@@ -323,12 +339,3 @@ const projectOptionIcons = [
   { id: 'home' as const, icon: <IconHome size={28} /> },
   { id: 'other' as const, icon: <IconBriefcase size={28} /> },
 ];
-
-function joinPreview(code: string, copy: ReturnType<typeof useI18n>['copy']) {
-  return {
-    icon: <IconPlane size={32} />,
-    name: copy.projectSetup.inviteName(code.toUpperCase()),
-    creatorName: copy.projectSetup.projectOwner,
-    creatorFallback: 'P',
-  };
-}

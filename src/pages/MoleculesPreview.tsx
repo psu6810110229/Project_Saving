@@ -250,10 +250,14 @@ export function MoleculesPreview() {
               <Button variant="ghost" size="md" onClick={() => setCodeErr('')}>Clear</Button>
             </div>
             <ProjectPreviewCard
-              icon={<IconPlane size={32} />}
               name="Japan 2027"
+              category="travel"
               creatorName="Art"
               creatorFallback="A"
+              targetAmount={100000}
+              endDate="2027-11-01"
+              memberCount={2}
+              status="found"
             />
           </div>
         </Group>

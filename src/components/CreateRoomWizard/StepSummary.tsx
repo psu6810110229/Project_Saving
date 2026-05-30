@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../Button/Button';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
+import { CreateProjectLoader } from './CreateProjectLoader';
 import { ExpenseTimeline } from '../ExpenseTimeline/ExpenseTimeline';
-import { IconArrowLeft } from '../Icon/Icon';
+import iconCelebrate from '../../assets/icons/celebrate.svg';
+import iconLightbulb from '../../assets/icons/lightbulb.svg';
 import { useI18n } from '../../i18n/useI18n';
 import { useRooms } from '../../hooks/useRooms';
 import { formatCurrency } from '../../lib/format';
@@ -18,7 +20,6 @@ interface StepSummaryProps {
   coverImageUrl: string | null;
   totalBudget: number;
   expenses: ExpenseDraftItem[];
-  onBack: () => void;
 }
 
 function formatDate(dateKey: string, lang: string): string {
@@ -38,7 +39,6 @@ export function StepSummary({
   coverImageUrl,
   totalBudget,
   expenses,
-  onBack,
 }: StepSummaryProps) {
   const navigate = useNavigate();
   const { language, copy } = useI18n();
@@ -51,6 +51,14 @@ export function StepSummary({
   const [conflictName, setConflictName] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Bumped per create attempt so the loader remounts with a fresh progress run.
+  const [createAttempt, setCreateAttempt] = useState(0);
+
+  // The result is revealed only once BOTH the create request resolves and the
+  // loader animation finishes, so the progress bar never snaps shut early.
+  type CreateResult = Awaited<ReturnType<typeof createRoomWithTemplates>>;
+  const pendingResultRef = useRef<CreateResult | null>(null);
+  const animationDoneRef = useRef(false);
 
   const checked = useMemo(
     () =>
@@ -78,28 +86,11 @@ export function StepSummary({
     [checked],
   );
 
-  const handleCreate = useCallback(async (archiveExisting = false) => {
-    setCreating(true);
-    setError(null);
-
-    const result = await createRoomWithTemplates({
-      name,
-      target_amount: totalBudget > 0 ? totalBudget : expenseTotal,
-      end_date: endDate,
-      category,
-      cover_image_url: coverImageUrl,
-      expenses: checked.map(e => ({
-        category: e.category,
-        nameEn: e.nameEn,
-        nameTh: e.nameTh,
-        targetAmount: e.targetAmount,
-        deadline: e.deadline,
-        priority: e.priority,
-        paymentType: e.paymentType,
-        tipKey: e.tipKey,
-      })),
-    }, { archiveExisting });
-
+  const finishCreate = useCallback(() => {
+    if (!animationDoneRef.current || !pendingResultRef.current) return;
+    const result = pendingResultRef.current;
+    pendingResultRef.current = null;
+    animationDoneRef.current = false;
     setCreating(false);
 
     if (result.conflict) {
@@ -114,7 +105,48 @@ export function StepSummary({
     clearWizardDraft();
     setConflictName(null);
     setInviteCode(result.inviteCode ?? null);
-  }, [name, category, endDate, coverImageUrl, totalBudget, expenseTotal, checked, createRoomWithTemplates]);
+  }, []);
+
+  const handleLoaderDone = useCallback(() => {
+    animationDoneRef.current = true;
+    finishCreate();
+  }, [finishCreate]);
+
+  const handleCreate = useCallback((archiveExisting = false) => {
+    setCreating(true);
+    setError(null);
+    setCreateAttempt(n => n + 1);
+    animationDoneRef.current = false;
+    pendingResultRef.current = null;
+
+    void createRoomWithTemplates({
+      name,
+      target_amount: totalBudget > 0 ? totalBudget : expenseTotal,
+      end_date: endDate,
+      category,
+      cover_image_url: coverImageUrl,
+      expenses: checked.map(e => ({
+        category: e.category,
+        nameEn: e.nameEn,
+        nameTh: e.nameTh,
+        targetAmount: e.targetAmount,
+        deadline: e.deadline,
+        priority: e.priority,
+        paymentType: e.paymentType,
+        tipKey: e.tipKey,
+        savingRuleType: e.savingRuleType ?? null,
+        savingRuleAmount: e.savingRuleAmount ?? null,
+      })),
+    }, { archiveExisting })
+      .then(result => {
+        pendingResultRef.current = result;
+        finishCreate();
+      })
+      .catch(() => {
+        pendingResultRef.current = { error: copy.common.somethingWrong };
+        finishCreate();
+      });
+  }, [name, category, endDate, coverImageUrl, totalBudget, expenseTotal, checked, createRoomWithTemplates, finishCreate, copy.common.somethingWrong]);
 
   const handleCopy = useCallback(async () => {
     if (!inviteCode) return;
@@ -132,7 +164,7 @@ export function StepSummary({
       <div className="flex flex-col gap-5">
         <div className="text-center">
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-brand-100">
-            <span className="text-3xl">🎉</span>
+            <img src={iconCelebrate} alt="" aria-hidden className="h-8 w-8" />
           </div>
           <h2 className="font-mono text-2xl font-bold text-ink">{c.successTitle}</h2>
           <p className="mt-1 font-mono text-sm text-ink-muted">{c.successSubtitle}</p>
@@ -156,9 +188,10 @@ export function StepSummary({
           </div>
         </div>
 
-        <div className="rounded-lg bg-brand-50/60 px-4 py-3">
+        <div className="flex items-start gap-2 rounded-lg bg-brand-50/60 px-4 py-3">
+          <img src={iconLightbulb} alt="" aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           <p className="font-mono text-xs leading-relaxed text-brand-700">
-            💡 {c.friendsTip}
+            {c.friendsTip}
           </p>
         </div>
 
@@ -255,20 +288,17 @@ export function StepSummary({
           </div>
         </div>
       ) : (
-        <div className="flex gap-3">
-          <Button variant="ghost" size="lg" onClick={onBack} disabled={creating}>
-            <IconArrowLeft size={16} />
-          </Button>
-          <Button
-            variant="action"
-            fullWidth
-            onClick={() => void handleCreate()}
-            disabled={creating}
-          >
-            {creating ? c.creatingProject : c.createProjectButton}
-          </Button>
-        </div>
+        <Button
+          variant="action"
+          fullWidth
+          onClick={() => void handleCreate()}
+          disabled={creating}
+        >
+          {creating ? c.creatingProject : c.createProjectButton}
+        </Button>
       )}
+
+      <CreateProjectLoader key={createAttempt} open={creating} onDone={handleLoaderDone} />
     </div>
   );
 }

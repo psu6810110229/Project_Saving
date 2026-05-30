@@ -1,4 +1,5 @@
-import { memo, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   IconCamera,
   IconCheckCircle,
@@ -10,6 +11,9 @@ import {
 import { formatCurrency } from '../../lib/format';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import type { CoverTint, DailySummaryItem, ProjectCategory } from '../../types';
+
+// How long each hero goal line stays before the ticker swaps to the next.
+const HERO_LINE_INTERVAL_MS = 4000;
 
 interface HeroCardProps {
   displayName: string;
@@ -24,6 +28,7 @@ interface HeroCardProps {
   bucketCount?: number;
   streak: number;
   streakUnit?: 'day' | 'week' | 'month';
+  streakTrackable?: boolean;
   lastCheckedAt?: string | null;
   onEdit?: () => void;
   editAriaLabel?: string;
@@ -127,12 +132,60 @@ function formatValidThru(date?: string | null): string | null {
   return `${mm}/${yy}`;
 }
 
-function formatStreak(streak: number, unit: HeroCardProps['streakUnit']): string {
+// Period-goal line derived from the focus bucket's saving rule, so the
+// wording follows the plan cadence the user is actually on: daily rules read
+// "วันนี้ต้องเก็บ", weekly "สัปดาห์นี้ต้องเก็บ", monthly "เดือนนี้ต้องเก็บ".
+// Returns null when there is nothing left to save this period (or no rule),
+// so the hero line stays static instead of rotating into an empty message.
+function formatPeriodGoal(item?: DailySummaryItem | null): string | null {
+  if (!item || item.amountDue == null || item.amountDue <= 0) return null;
+  const amount = formatCurrency(Math.round(item.amountDue));
+  switch (item.ruleType) {
+    case 'fixed_daily':
+    case 'increasing_daily':
+    case 'increasing_daily_capped':
+      return `วันนี้ต้องเก็บ ${amount}`;
+    case 'fixed_weekly':
+      return `สัปดาห์นี้ต้องเก็บ ${amount}`;
+    case 'fixed_monthly':
+      return `เดือนนี้ต้องเก็บ ${amount}`;
+    default:
+      return null;
+  }
+}
+
+function isIncreasingRule(item?: DailySummaryItem | null): boolean {
+  return item?.ruleType === 'increasing_daily' || item?.ruleType === 'increasing_daily_capped';
+}
+
+function isFlexibleStreak(item?: DailySummaryItem | null, trackable = true): boolean {
+  return item?.ruleType === 'flexible' || (!trackable && Boolean(item));
+}
+
+function formatStreak(
+  streak: number,
+  unit: HeroCardProps['streakUnit'],
+  item?: DailySummaryItem | null,
+  trackable = true,
+): string {
+  if (isFlexibleStreak(item, trackable)) return 'ยืดหยุ่น';
   const value = Math.max(0, Math.round(streak));
   const resolved = unit ?? 'day';
   if (resolved === 'week') return `${value} สัปดาห์`;
   if (resolved === 'month') return `${value} เดือน`;
+  if (isIncreasingRule(item)) return `${value} วันแล้ว`;
   return `${value} วัน`;
+}
+
+function streakHelper(
+  unit: HeroCardProps['streakUnit'],
+  item?: DailySummaryItem | null,
+  trackable = true,
+): string {
+  if (isFlexibleStreak(item, trackable)) return 'ไม่มีสตรีก';
+  if (isIncreasingRule(item)) return 'ตามยอดวันนี้';
+  if (unit === 'week' || unit === 'month') return 'ตามแผน';
+  return 'ติดต่อกัน';
 }
 
 function CardChip() {
@@ -168,7 +221,7 @@ function MetricItem({ icon, label, value, helper }: MetricProps) {
         <span className="block truncate font-mono text-[0.52rem] font-semibold uppercase leading-none tracking-[0.03em] text-[#FFE2B8]/85">
           {label}
         </span>
-        <span className="mt-1 block truncate font-mono-th text-[0.74rem] font-medium leading-none tracking-[0.02em] text-white/85">
+        <span className="mt-1 block truncate font-mono-th text-[0.68rem] font-medium leading-none tracking-[0.02em] text-white/85">
           {value}
         </span>
         <span className="mt-0.5 block truncate font-mono-th text-[0.5rem] font-medium leading-[0.72rem] tracking-[0.02em] text-white/85">
@@ -186,10 +239,12 @@ export const HeroCard = memo(function HeroCard({
   roomCategory,
   coverImageUrl,
   validThru,
+  dailySummaryItem,
   hasBuckets,
   bucketCount,
   streak,
   streakUnit,
+  streakTrackable = true,
   lastCheckedAt,
   onEdit,
   editAriaLabel,
@@ -208,6 +263,31 @@ export const HeroCard = memo(function HeroCard({
   const validThruLabel = formatValidThru(validThru);
   const latestLabel = formatLastChecked(lastCheckedAt);
   const resolvedBucketCount = bucketCount ?? (hasBuckets ? 1 : 0);
+  const reduceMotion = useReducedMotion();
+  // The hero "what's left" line rotates between the overall goal and the
+  // current saving-plan period goal (today / this week / this month). When
+  // there is no active period goal it stays a single static line.
+  const goalLines = useMemo<ReactNode[]>(() => {
+    const overall: ReactNode = (
+      <>
+        ต้องเก็บ <span className="font-mono tabular-nums">{remainingAmount}</span>
+        {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
+      </>
+    );
+    const periodGoal = formatPeriodGoal(dailySummaryItem);
+    return periodGoal ? [overall, periodGoal] : [overall];
+  }, [remainingAmount, timeLeft, dailySummaryItem]);
+  const [lineIndex, setLineIndex] = useState(0);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLineIndex(0);
+    if (goalLines.length < 2) return;
+    const id = window.setInterval(() => {
+      setLineIndex(prev => (prev + 1) % goalLines.length);
+    }, HERO_LINE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [goalLines.length]);
+  const activeLineIndex = lineIndex % goalLines.length;
   const cardStyle = useMemo<HeroStyle>(() => {
     const style: HeroStyle = {};
     if (coverImageUrl) style['--hero-card-cover'] = cssUrl(coverImageUrl);
@@ -233,8 +313,8 @@ export const HeroCard = memo(function HeroCard({
     {
       icon: <IconFire size={13} />,
       label: 'STREAK',
-      value: formatStreak(streak, streakUnit),
-      helper: 'ติดต่อกัน',
+      value: formatStreak(streak, streakUnit, dailySummaryItem, streakTrackable),
+      helper: streakHelper(streakUnit, dailySummaryItem, streakTrackable),
     },
     {
       icon: <IconCheckCircle size={13} />,
@@ -335,10 +415,20 @@ export const HeroCard = memo(function HeroCard({
                 />
               </div>
 
-              <p className="mt-3 truncate font-mono-th text-[0.72rem] font-medium leading-snug tracking-[0.03em] text-white/85 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.82rem]">
-                ต้องเก็บ <span className="font-mono tabular-nums">{remainingAmount}</span>
-                {timeLeft ? <> ภายในเวลา {timeLeft}</> : null}
-              </p>
+              <div className="relative mt-3 h-[1rem] overflow-hidden min-[480px]:h-[1.15rem]">
+                <AnimatePresence initial={false}>
+                  <motion.p
+                    key={activeLineIndex}
+                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: '100%' }}
+                    animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: '-100%' }}
+                    transition={{ duration: reduceMotion ? 0.2 : 0.45, ease: [0.16, 1, 0.2, 1] }}
+                    className="absolute inset-x-0 top-0 truncate font-mono-th text-[0.72rem] font-medium leading-snug tracking-[0.03em] text-white/85 drop-shadow-[0_1px_7px_rgba(18,16,15,0.32)] min-[480px]:text-[0.82rem]"
+                  >
+                    {goalLines[activeLineIndex]}
+                  </motion.p>
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>

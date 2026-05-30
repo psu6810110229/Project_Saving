@@ -20,6 +20,8 @@ interface Option<T extends string> {
   id: T;
   label: string;
   icon: ReactNode;
+  /** When true the option is shown but cannot be selected ("coming soon"). */
+  disabled?: boolean;
 }
 
 interface CategoryRowProps<T extends string> {
@@ -55,7 +57,7 @@ export function CategoryRow<T extends string>({
       <div
         className={
           (label ? 'mt-3 ' : '') +
-          'flex gap-3 overflow-x-auto pb-1 ' +
+          'flex gap-3 overflow-x-auto -mx-1 px-1 py-1 ' +
           (shape === 'circle' ? 'justify-start' : 'snap-x snap-mandatory')
         }
       >
@@ -66,6 +68,8 @@ export function CategoryRow<T extends string>({
               label={opt.label}
               icon={opt.icon}
               selected={value === opt.id}
+              disabled={opt.disabled}
+              badge={opt.disabled ? copy.sharedControls.comingSoon : undefined}
               onClick={() => onChange(opt.id)}
             />
           </div>
@@ -90,6 +94,8 @@ export function CategoryRow<T extends string>({
               label={opt.label}
               icon={opt.icon}
               selected={value === opt.id}
+              disabled={opt.disabled}
+              badge={opt.disabled ? copy.sharedControls.comingSoon : undefined}
               onClick={() => handleSelect(opt.id)}
             />
           ))}

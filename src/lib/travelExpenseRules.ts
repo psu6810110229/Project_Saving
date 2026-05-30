@@ -23,13 +23,13 @@ export interface TravelExpenseRule {
 export const TRAVEL_EXPENSE_RULES: readonly TravelExpenseRule[] = [
   {
     category: 'flight',
-    nameEn: 'Flights',
-    nameTh: 'ตั๋วเครื่องบิน',
+    nameEn: 'Travel',
+    nameTh: 'ค่าเดินทาง',
     monthsBeforeEvent: 4,
     paymentType: 'advance_booking',
     priority: 1,
     tipKey: getPrimaryTipKey('flight'),
-    budgetPercent: 0.30,
+    budgetPercent: 0.35,
   },
   {
     category: 'stay',
@@ -39,7 +39,7 @@ export const TRAVEL_EXPENSE_RULES: readonly TravelExpenseRule[] = [
     paymentType: 'advance_booking',
     priority: 2,
     tipKey: getPrimaryTipKey('stay'),
-    budgetPercent: 0.25,
+    budgetPercent: 0.30,
   },
   {
     category: 'activities',
@@ -49,47 +49,17 @@ export const TRAVEL_EXPENSE_RULES: readonly TravelExpenseRule[] = [
     paymentType: 'pre_trip',
     priority: 3,
     tipKey: getPrimaryTipKey('activities'),
-    budgetPercent: 0.10,
-  },
-  {
-    category: 'transport',
-    nameEn: 'Transport',
-    nameTh: 'การเดินทาง',
-    monthsBeforeEvent: 1,
-    paymentType: 'pre_trip',
-    priority: 4,
-    tipKey: getPrimaryTipKey('transport'),
-    budgetPercent: 0.10,
+    budgetPercent: 0.15,
   },
   {
     category: 'food',
-    nameEn: 'Food & Dining',
-    nameTh: 'อาหาร',
+    nameEn: 'Food & Shopping',
+    nameTh: 'อาหารและช็อปปิ้ง',
     monthsBeforeEvent: 0,
     paymentType: 'on_trip',
-    priority: 5,
+    priority: 4,
     tipKey: getPrimaryTipKey('food'),
-    budgetPercent: 0.12,
-  },
-  {
-    category: 'shopping',
-    nameEn: 'Shopping',
-    nameTh: 'ช้อปปิ้ง',
-    monthsBeforeEvent: 0,
-    paymentType: 'on_trip',
-    priority: 6,
-    tipKey: getPrimaryTipKey('shopping'),
-    budgetPercent: 0.05,
-  },
-  {
-    category: 'buffer',
-    nameEn: 'Emergency Buffer',
-    nameTh: 'เงินสำรองฉุกเฉิน',
-    monthsBeforeEvent: 0,
-    paymentType: 'flexible',
-    priority: 7,
-    tipKey: getPrimaryTipKey('buffer'),
-    budgetPercent: 0.08,
+    budgetPercent: 0.20,
   },
 ] as const;
 
@@ -205,4 +175,27 @@ export function suggestExpenses(
       suggestedRule: calcSuggestedRule(targetAmount, deadline, todayKey),
     };
   });
+}
+
+/**
+ * Split a total budget across the catalog categories so the per-category
+ * amounts sum **exactly** to the budget. Each share is rounded to the nearest
+ * ฿100 and any leftover is absorbed by the largest-share category, so the
+ * auto-split never overshoots the budget (which would otherwise trip the
+ * wizard's "budget < expenses" guard for odd/small budgets).
+ */
+export function splitBudget(totalBudget: number): Partial<Record<BucketCategory, number>> {
+  const rules = TRAVEL_EXPENSE_RULES;
+  const rounded = rules.map(r => Math.round((totalBudget * r.budgetPercent) / 100) * 100);
+  const diff = totalBudget - rounded.reduce((sum, amount) => sum + amount, 0);
+  let largestIdx = 0;
+  rules.forEach((r, i) => {
+    if (r.budgetPercent > rules[largestIdx].budgetPercent) largestIdx = i;
+  });
+  rounded[largestIdx] = rounded[largestIdx] + diff;
+  const out: Partial<Record<BucketCategory, number>> = {};
+  rules.forEach((r, i) => {
+    out[r.category] = Math.max(0, rounded[i]);
+  });
+  return out;
 }

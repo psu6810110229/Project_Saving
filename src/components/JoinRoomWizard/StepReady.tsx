@@ -71,6 +71,11 @@ export function StepReady({ roomId, personalGoal, buckets, onBack }: StepReadyPr
           position: i,
           deadline: b.deadline || null,
           payment_type: b.paymentType ?? 'flexible',
+          // Carry the template's suggested rule onto the bucket so accepted
+          // template buckets aren't left deadline-only (no rule = no
+          // save-today amount). Custom buckets have no suggestion.
+          saving_rule_type: b.suggestedRuleType ?? null,
+          saving_rule_amount: b.suggestedRuleAmount ?? null,
         }));
 
         const { error: bucketError } = await supabase

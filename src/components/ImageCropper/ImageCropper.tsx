@@ -11,7 +11,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { Modal } from '../Modal/Modal';
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconCheck, IconImage, IconZoomIn, IconZoomOut } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import type { CropRect } from '../../hooks/useImageUpload';
@@ -312,19 +312,18 @@ export function ImageCropper({
           </p>
         )}
 
-        <div className="flex gap-3">
-          <Button variant="ghost" size="md" onClick={onCancel} disabled={saving}>
-            {c.cancelCoverButton}
-          </Button>
+        <div className={MODAL_ACTION_ROW_CLASS}>
           <Button
             variant="primary"
             size="md"
-            fullWidth
             onClick={handleApply}
             disabled={!crop || saving}
             leadingIcon={!saving ? <IconCheck size={16} /> : undefined}
           >
             {saving ? c.uploadingCover : c.applyCoverButton}
+          </Button>
+          <Button variant="ghost" size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={onCancel} disabled={saving}>
+            {c.cancelCoverButton}
           </Button>
         </div>
       </div>

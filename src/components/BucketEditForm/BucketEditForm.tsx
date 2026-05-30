@@ -27,6 +27,7 @@ export interface BucketEditValues {
   saving_rule_increment: number | null;
   saving_rule_cap: number | null;
   saving_rule_day_count: number | null;
+  saving_rule_start_date: string | null;
   reminder_day: number | null;
 }
 
@@ -71,7 +72,9 @@ export function BucketEditForm({
   const [draftName, setDraftName] = useState(bucket.name);
   const [draftTarget, setDraftTarget] = useState(String(bucket.target_amount));
   const [deadline, setDeadline] = useState(() => bucket.deadline?.slice(0, 10) ?? calcDefaultDeadline(bucket, roomEndDate ?? null, today));
-  const remainingDays = Math.max(1, daysBetween(today, deadline));
+  // Custom (increasing-daily) plans can pick their own start date; falls back to today.
+  const [startDate, setStartDate] = useState(() => bucket.saving_rule_start_date?.slice(0, 10) ?? today);
+  const remainingDays = deadline ? Math.max(1, daysBetween(today, deadline)) : 1;
   const [ruleChoice, setRuleChoice] = useState<RuleChoice>(() => initialRuleChoice(bucket.saving_rule_type, remainingDays));
   const [reminderDay, setReminderDay] = useState(bucket.reminder_day ?? 25);
   const [customStart, setCustomStart] = useState(() => (bucket.saving_rule_start_amount ? String(Math.round(bucket.saving_rule_start_amount)) : ''));
@@ -115,6 +118,23 @@ export function BucketEditForm({
   }), [remainingTarget, remainingDays]);
   const recommended = recommendedRule(remainingDays);
 
+  // Per-day preview for the custom (increasing-daily) range calendar. Day 1 is
+  // the chosen start date, matching how the bucket actually charges each day.
+  const getCustomAmountForDate = useMemo<((dateKey: string) => number | undefined) | undefined>(() => {
+    if (ruleChoice !== 'custom') return undefined;
+    const startNum = Number(customStart);
+    const incNum = Number(customIncrement || '0');
+    const capNum = Number(customCap || '0');
+    if (!Number.isFinite(startNum) || startNum <= 0) return undefined;
+    return (dateKey: string) => {
+      if (!startDate || dateKey < startDate) return undefined;
+      if (deadline && dateKey > deadline) return undefined;
+      const idx = daysBetween(startDate, dateKey); // 0-based: start day → start amount
+      const raw = startNum + idx * incNum;
+      return capNum > 0 ? Math.min(raw, capNum) : raw;
+    };
+  }, [ruleChoice, customStart, customIncrement, customCap, startDate, deadline]);
+
   const ruleOptions: Array<{ id: RuleChoice; label: string }> = [
     { id: 'fixed_daily', label: copy.bucket.rulePerDay(formatMoney(amounts.fixed_daily)) },
     { id: 'fixed_weekly', label: copy.bucket.rulePerWeek(formatMoney(amounts.fixed_weekly)) },
@@ -155,6 +175,7 @@ export function BucketEditForm({
     let savingRuleIncrement: number | null = null;
     let savingRuleCap: number | null = null;
     let savingRuleDayCount: number | null = null;
+    let savingRuleStartDate: string | null = null;
 
     if (ruleChoice === 'fixed_daily' || ruleChoice === 'fixed_weekly' || ruleChoice === 'fixed_monthly') {
       savingRuleType = ruleChoice;
@@ -177,11 +198,20 @@ export function BucketEditForm({
         setError(copy.bucket.validationCustomCap);
         return;
       }
+      if (!startDate) {
+        setError(copy.bucket.validationCustomStartDate);
+        return;
+      }
+      if (deadline <= startDate) {
+        setError(copy.bucket.validationCustomRange);
+        return;
+      }
       savingRuleType = cap > 0 ? 'increasing_daily_capped' : 'increasing_daily';
       savingRuleStartAmount = start;
       savingRuleIncrement = increment;
       savingRuleCap = cap > 0 ? cap : null;
-      savingRuleDayCount = Math.max(1, remainingDays);
+      savingRuleStartDate = startDate;
+      savingRuleDayCount = Math.max(1, daysBetween(startDate, deadline));
     }
 
     const next: BucketEditValues = {
@@ -194,6 +224,7 @@ export function BucketEditForm({
       saving_rule_increment: savingRuleIncrement,
       saving_rule_cap: savingRuleCap,
       saving_rule_day_count: savingRuleDayCount,
+      saving_rule_start_date: savingRuleStartDate,
       reminder_day: ruleChoice === 'fixed_monthly' ? reminderDay : null,
     };
 
@@ -237,9 +268,11 @@ export function BucketEditForm({
         />
       </FormField>
 
-      <FormField label={copy.bucket.editDeadlineLabel}>
-        <CalendarPicker value={deadline} onChange={value => { setDeadline(value); setError(null); }} minDate={addDays(today, 1)} />
-      </FormField>
+      {ruleChoice !== 'custom' && (
+        <FormField label={copy.bucket.editDeadlineLabel}>
+          <CalendarPicker value={deadline} onChange={value => { setDeadline(value); setError(null); }} minDate={addDays(today, 1)} />
+        </FormField>
+      )}
 
       <FormField label={copy.bucket.editRuleLabel}>
         <div ref={ruleSectionRef} className="flex scroll-mt-4 flex-col gap-2">
@@ -313,6 +346,16 @@ export function BucketEditForm({
               inputMode="numeric"
               placeholder="200"
               onChange={(event: ChangeEvent<HTMLInputElement>) => { setCustomCap(event.target.value.replace(/[^0-9]/g, '')); setError(null); }}
+            />
+          </FormField>
+          <FormField label={copy.bucket.editPlanRangeLabel}>
+            <CalendarPicker
+              mode="range"
+              rangeStart={startDate}
+              rangeEnd={deadline}
+              onRangeChange={(start, end) => { setStartDate(start); setDeadline(end); setError(null); }}
+              minDate={today}
+              getAmountForDate={getCustomAmountForDate}
             />
           </FormField>
         </div>

@@ -110,6 +110,7 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       ...(d.saving_rule_increment !== undefined && { saving_rule_increment: d.saving_rule_increment }),
       ...(d.saving_rule_cap !== undefined && { saving_rule_cap: d.saving_rule_cap }),
       ...(d.saving_rule_day_count !== undefined && { saving_rule_day_count: d.saving_rule_day_count }),
+      ...(d.saving_rule_start_date !== undefined && { saving_rule_start_date: d.saving_rule_start_date }),
       ...(d.reminder_day !== undefined && { reminder_day: d.reminder_day }),
       ...(d.payment_type !== undefined && { payment_type: d.payment_type }),
     }));
@@ -128,6 +129,7 @@ export function useBuckets(roomId: string | null): UseBucketsResult {
       ...(d.saving_rule_increment !== undefined && { saving_rule_increment: d.saving_rule_increment }),
       ...(d.saving_rule_cap !== undefined && { saving_rule_cap: d.saving_rule_cap }),
       ...(d.saving_rule_day_count !== undefined && { saving_rule_day_count: d.saving_rule_day_count }),
+      ...(d.saving_rule_start_date !== undefined && { saving_rule_start_date: d.saving_rule_start_date }),
       ...(d.reminder_day !== undefined && { reminder_day: d.reminder_day }),
       ...(d.payment_type !== undefined && { payment_type: d.payment_type }),
     }));

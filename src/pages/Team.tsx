@@ -32,6 +32,8 @@ import {
   availablePurposeCategoriesForMode,
   purposeDailyMarkers,
   purposeFilteredDailySeries,
+  purposeNetDailyMarkers,
+  purposeNetDailySeries,
   type MomentumPurposeScope,
 } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
@@ -62,6 +64,8 @@ export function Team() {
 
   const data = useSharedData();
   const { buckets } = data.buckets;
+  const { transfers: bucketTransfers } = data.bucketTransfers;
+  const { allocations: balanceAllocations } = data.balanceAllocations;
   const { logs } = data.logs;
   const leaderboard = data.leaderboard;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
@@ -195,12 +199,21 @@ export function Team() {
     ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
 
-  const meDailySeries = purposeFilteredDailySeries(logs, purposeScope, visibleBucketsById, user?.id);
-  const meDailyMarkers = purposeDailyMarkers(
+  const meDailySeries = purposeNetDailySeries(
     logs,
     purposeScope,
     visibleBucketsById,
     user?.id,
+    bucketTransfers,
+    balanceAllocations,
+  );
+  const meDailyMarkers = purposeNetDailyMarkers(
+    logs,
+    purposeScope,
+    visibleBucketsById,
+    user?.id,
+    bucketTransfers,
+    balanceAllocations,
     undefined,
     { revealBucketNamesForUserId: user?.id ?? null },
   );
@@ -226,11 +239,13 @@ export function Team() {
     },
     meDailySeries.slice(),
   );
-  const roomDailyMarkers = purposeDailyMarkers(
+  const roomDailyMarkers = purposeNetDailyMarkers(
     logs,
     purposeScope,
     visibleBucketsById,
     undefined,
+    bucketTransfers,
+    balanceAllocations,
     undefined,
     { revealBucketNamesForUserId: user?.id ?? null },
   );
@@ -411,6 +426,7 @@ export function Team() {
           series={chartSeries}
           partnerSeries={chartPartnerSeries}
           labels={lastSevenDayLabels(undefined, chartLocale)}
+          dateKeys={chartDayKeys}
           barMarkers={chartBarMarkers}
           partnerBarMarkers={chartPartnerBarMarkers}
           yourName={profile?.display_name ?? d.youLabel}

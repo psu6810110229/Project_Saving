@@ -23,6 +23,10 @@ interface ImageCropperProps {
   error?: string | null;
   onCancel: () => void;
   onApply: (crop: CropRect) => void;
+  aspectRatio?: number;
+  title?: string;
+  applyLabel?: string;
+  uploadingLabel?: string;
 }
 
 interface Size {
@@ -60,6 +64,10 @@ export function ImageCropper({
   error,
   onCancel,
   onApply,
+  aspectRatio = 16 / 9,
+  title,
+  applyLabel,
+  uploadingLabel,
 }: ImageCropperProps) {
   const { copy } = useI18n();
   const c = copy.createRoomWizard;
@@ -244,13 +252,15 @@ export function ImageCropper({
   return (
     <Modal
       open={open}
-      title={c.cropCoverTitle}
+      title={title ?? c.cropCoverTitle}
       onClose={saving ? () => undefined : onCancel}
+      closeOnBackdrop={false}
     >
       <div className="space-y-4">
         <div
           ref={frameRef}
-          className="relative aspect-[16/9] w-full touch-none overflow-hidden rounded-xl bg-well shadow-soft"
+          className="relative w-full touch-none overflow-hidden rounded-xl bg-well shadow-soft"
+          style={{ aspectRatio }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerEnd}
@@ -320,7 +330,7 @@ export function ImageCropper({
             disabled={!crop || saving}
             leadingIcon={!saving ? <IconCheck size={16} /> : undefined}
           >
-            {saving ? c.uploadingCover : c.applyCoverButton}
+            {saving ? (uploadingLabel ?? c.uploadingCover) : (applyLabel ?? c.applyCoverButton)}
           </Button>
           <Button variant="ghost" size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={onCancel} disabled={saving}>
             {c.cancelCoverButton}

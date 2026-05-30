@@ -21,13 +21,17 @@ const W = 280;
 const H = 80;
 const PAD = 6;
 
+function chartValue(value: number): number {
+  return Math.max(0, value);
+}
+
 function pathFor(series: number[], max: number) {
   if (series.length === 0) return '';
   const step = (W - PAD * 2) / Math.max(1, series.length - 1);
   return series
     .map((v, i) => {
       const x = PAD + i * step;
-      const y = PAD + (H - PAD * 2) * (1 - v / Math.max(1, max));
+      const y = PAD + (H - PAD * 2) * (1 - chartValue(v) / Math.max(1, max));
       return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
     })
     .join(' ');
@@ -37,9 +41,9 @@ function pathLength(series: number[], max: number) {
   if (series.length < 2) return 50;
   const step = (W - PAD * 2) / Math.max(1, series.length - 1);
   let total = 0;
-  let prevY = PAD + (H - PAD * 2) * (1 - series[0] / Math.max(1, max));
+  let prevY = PAD + (H - PAD * 2) * (1 - chartValue(series[0]) / Math.max(1, max));
   for (let i = 1; i < series.length; i++) {
-    const y = PAD + (H - PAD * 2) * (1 - series[i] / Math.max(1, max));
+    const y = PAD + (H - PAD * 2) * (1 - chartValue(series[i]) / Math.max(1, max));
     const dy = y - prevY;
     total += Math.sqrt(step * step + dy * dy);
     prevY = y;
@@ -54,7 +58,7 @@ export function ComparisonTrendChart({
   theirLabel,
 }: ComparisonTrendChartProps) {
   const { copy } = useI18n();
-  const max = Math.max(1, ...mineSeries, ...theirSeries);
+  const max = Math.max(1, ...mineSeries.map(chartValue), ...theirSeries.map(chartValue));
   const minePath = pathFor(mineSeries, max);
   const theirPath = pathFor(theirSeries, max);
   const minePathClosed = minePath

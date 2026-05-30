@@ -78,7 +78,7 @@ import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { calcBucketPace } from '../lib/paceCalculation';
-import { cumulativeAmountSeries } from '../lib/dashboardStats';
+import { cumulativeAmountSeries, cumulativeNetAmountSeries } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
 import { roomCoverErrorMessage } from '../lib/roomCoverImage';
 import { supabase } from '../lib/supabase';
@@ -1661,7 +1661,7 @@ export function Dashboard() {
             trendPreview={{
               mineLabel: profile?.display_name ?? d.youLabel,
               theirLabel: firstOtherEntry?.displayName ?? copy.addMoney.partnerLabel,
-              mineSeries: pending => cumulativeAmountSeries(logs, user?.id, pending),
+              mineSeries: pending => cumulativeNetAmountSeries(logs, balanceAllocations, user?.id, pending),
               theirSeries: cumulativeAmountSeries(logs, firstOtherMemberByJoinedAt ?? undefined),
             }}
             onConfirm={async amount => {

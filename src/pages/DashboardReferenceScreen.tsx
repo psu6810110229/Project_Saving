@@ -63,7 +63,6 @@ function Avatar({ imageUrl, fallback, size = 'lg', isLeader = false }: { imageUr
       {isLeader && <CrownBadge />}
       <div
         className={`${sizeClass} rounded-full overflow-hidden bg-brand-100 flex items-center justify-center`}
-        style={isLeader ? { boxShadow: '0 0 0 3px #F26B1A, 0 0 0 5px #FBF6F0' } : undefined}
       >
         {imageUrl ? (
           <img src={imageUrl} alt="" className="w-full h-full object-cover" />

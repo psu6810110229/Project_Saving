@@ -15,6 +15,8 @@ export interface Profile {
   ui_language?: ProfileLanguage;
   /** Timestamp marking when the one-time bucket-drag hint was seen. Added in migration 0061. */
   bucket_drag_hint_seen_at?: string | null;
+  /** First-run identity wizard completion timestamp. Added in migration 0080. */
+  identity_setup_completed_at?: string | null;
   created_at: string;
 }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AboutModal } from '../components/AboutInfo/AboutInfo';
+import { AuroraBackdrop } from '../components/AuroraBackdrop/AuroraBackdrop';
 import { IconButton } from '../components/IconButton/IconButton';
 import { IconInfo, IconPiggyBank } from '../components/Icon/Icon';
 import { MOTION_EASE } from '../lib/motion';
@@ -89,34 +90,6 @@ export function Login() {
       </motion.div>
 
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
-    </div>
-  );
-}
-
-/**
- * Soft brand-tinted aurora behind the hero. Two large blurred blobs drift
- * slowly to give the first impression some life; `prefers-reduced-motion`
- * freezes them in place.
- */
-function AuroraBackdrop({ reduceMotion }: { reduceMotion: boolean }) {
-  const drift = (offsets: { x: number[]; y: number[] }, duration: number) =>
-    reduceMotion
-      ? undefined
-      : {
-          animate: { x: offsets.x, y: offsets.y },
-          transition: { duration, repeat: Infinity, repeatType: 'mirror' as const, ease: 'easeInOut' as const },
-        };
-
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <motion.div
-        {...(drift({ x: [0, 30, 0], y: [0, -24, 0] }, 14) ?? {})}
-        className="absolute -left-16 -top-10 h-72 w-72 rounded-full bg-brand-300/50 blur-3xl"
-      />
-      <motion.div
-        {...(drift({ x: [0, -28, 0], y: [0, 26, 0] }, 18) ?? {})}
-        className="absolute -bottom-16 -right-12 h-80 w-80 rounded-full bg-brand-200/60 blur-3xl"
-      />
     </div>
   );
 }

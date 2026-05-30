@@ -1,4 +1,4 @@
-import type { Bucket, BucketCategory, SavingsLog } from '../types';
+import type { BalanceAllocation, Bucket, BucketCategory, BucketTransfer, SavingsLog } from '../types';
 import { BUCKET_CATEGORY_ORDER, normalizeBucketCategory } from './bucketCategories';
 import { lastSevenDateKeys } from './dashboardStats';
 import { localDateKey } from './streak';
@@ -15,6 +15,9 @@ export interface MomentumDayMarker {
   categories: BucketCategory[];
   bucketIds: string[];
   bucketNames: string[];
+  hasAdjustment?: boolean;
+  hasNegativeAdjustment?: boolean;
+  adjustmentAmount?: number;
 }
 
 interface PurposeMarkerOptions {
@@ -35,6 +38,50 @@ export function purposeFilteredDailySeries(
       .filter(log => (!userId || log.user_id === userId) && localDateKey(log.created_at) === key)
       .reduce((sum, log) => sum + log.amount, 0),
   );
+}
+
+export function purposeNetDailySeries(
+  logs: SavingsLog[],
+  scope: MomentumPurposeScope,
+  visibleBucketsById: Map<string, Bucket>,
+  userId: string | undefined,
+  transfers: BucketTransfer[] = [],
+  allocations: BalanceAllocation[] = [],
+  today?: Date,
+): number[] {
+  const keys = lastSevenDateKeys(today);
+  const indexByKey = new Map(keys.map((key, index) => [key, index]));
+  const series = keys.map(() => 0);
+
+  for (const log of logs) {
+    if (userId && log.user_id !== userId) continue;
+    if (!bucketMatchesScope(log.bucket_id, scope, visibleBucketsById)) continue;
+    const index = indexByKey.get(localDateKey(log.created_at));
+    if (index === undefined) continue;
+    series[index] += log.amount;
+  }
+
+  for (const transfer of transfers) {
+    if (userId && transfer.user_id !== userId) continue;
+    const index = indexByKey.get(localDateKey(transfer.created_at));
+    if (index === undefined) continue;
+    if (bucketMatchesScope(transfer.destination_bucket_id, scope, visibleBucketsById)) {
+      series[index] += transfer.amount;
+    }
+    if (bucketMatchesScope(transfer.source_bucket_id, scope, visibleBucketsById)) {
+      series[index] -= transfer.amount;
+    }
+  }
+
+  for (const allocation of allocations) {
+    if (userId && allocation.user_id !== userId) continue;
+    if (!bucketMatchesScope(allocation.destination_bucket_id, scope, visibleBucketsById)) continue;
+    const index = indexByKey.get(localDateKey(allocation.created_at));
+    if (index === undefined) continue;
+    series[index] += allocation.amount;
+  }
+
+  return series.map(amount => Math.round(amount * 100) / 100);
 }
 
 export function purposeDailyMarkers(
@@ -76,6 +123,45 @@ export function purposeDailyMarkers(
   });
 }
 
+export function purposeNetDailyMarkers(
+  logs: SavingsLog[],
+  scope: MomentumPurposeScope,
+  visibleBucketsById: Map<string, Bucket>,
+  userId: string | undefined,
+  transfers: BucketTransfer[] = [],
+  allocations: BalanceAllocation[] = [],
+  today?: Date,
+  options?: PurposeMarkerOptions,
+): MomentumDayMarker[] {
+  const markers = purposeDailyMarkers(logs, scope, visibleBucketsById, userId, today, options);
+  const keys = lastSevenDateKeys(today);
+  const indexByKey = new Map(keys.map((key, index) => [key, index]));
+
+  for (const transfer of transfers) {
+    if (userId && transfer.user_id !== userId) continue;
+    const index = indexByKey.get(localDateKey(transfer.created_at));
+    if (index === undefined) continue;
+
+    addBucketToMarker(markers[index], transfer.destination_bucket_id, scope, visibleBucketsById, options, transfer.user_id);
+    addBucketToMarker(markers[index], transfer.source_bucket_id, scope, visibleBucketsById, options, transfer.user_id);
+  }
+
+  for (const allocation of allocations) {
+    if (userId && allocation.user_id !== userId) continue;
+    if (!bucketMatchesScope(allocation.destination_bucket_id, scope, visibleBucketsById)) continue;
+    const index = indexByKey.get(localDateKey(allocation.created_at));
+    if (index === undefined) continue;
+
+    const marker = markers[index];
+    marker.hasAdjustment = true;
+    marker.hasNegativeAdjustment = marker.hasNegativeAdjustment || allocation.amount < 0;
+    marker.adjustmentAmount = Math.round(((marker.adjustmentAmount ?? 0) + allocation.amount) * 100) / 100;
+    addBucketToMarker(marker, allocation.destination_bucket_id, scope, visibleBucketsById, options, allocation.user_id);
+  }
+
+  return markers;
+}
+
 function filterLogsByPurpose(
   logs: SavingsLog[],
   scope: MomentumPurposeScope,
@@ -100,6 +186,50 @@ function filterLogsByPurpose(
     if (!bucket) return false;
     return normalizeBucketCategory(bucket.category) === scope.category;
   });
+}
+
+function bucketMatchesScope(
+  bucketId: string | null | undefined,
+  scope: MomentumPurposeScope,
+  visibleBucketsById: Map<string, Bucket>,
+): boolean {
+  if (scope.kind === 'all') return true;
+  if (!bucketId) return false;
+  if (scope.kind === 'bucket') return bucketId === scope.bucketId;
+
+  const bucket = visibleBucketsById.get(bucketId);
+  if (!bucket) return false;
+  const category = normalizeBucketCategory(bucket.category);
+  if (scope.kind === 'categories') return scope.categories.includes(category);
+  return category === scope.category;
+}
+
+function addBucketToMarker(
+  marker: MomentumDayMarker,
+  bucketId: string,
+  scope: MomentumPurposeScope,
+  visibleBucketsById: Map<string, Bucket>,
+  options: PurposeMarkerOptions | undefined,
+  ownerUserId: string,
+) {
+  if (!bucketMatchesScope(bucketId, scope, visibleBucketsById)) return;
+  const bucket = visibleBucketsById.get(bucketId);
+  if (!bucket) return;
+
+  if (!marker.categories.includes(normalizeBucketCategory(bucket.category))) {
+    marker.categories = BUCKET_CATEGORY_ORDER.filter(cat => (
+      cat === normalizeBucketCategory(bucket.category) || marker.categories.includes(cat)
+    ));
+  }
+
+  if (
+    !options
+    || options.revealBucketNamesForUserId === undefined
+    || ownerUserId === options.revealBucketNamesForUserId
+  ) {
+    if (!marker.bucketIds.includes(bucket.id)) marker.bucketIds.push(bucket.id);
+    if (!marker.bucketNames.includes(bucket.name)) marker.bucketNames.push(bucket.name);
+  }
 }
 
 export function availablePurposeCategories(

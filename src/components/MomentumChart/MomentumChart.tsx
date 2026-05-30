@@ -1,9 +1,10 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
-import { useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { palette } from '../../lib/theme';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
+import { FADE_TRANSITION, REDUCED_MOTION_TRANSITION, SPRING } from '../../lib/motion';
 import type { BucketCategory } from '../../types';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 
@@ -28,6 +29,7 @@ interface MomentumChartProps {
   series: number[];
   partnerSeries?: number[];
   labels?: string[];
+  dateKeys?: string[];
   barMarkers?: MomentumBarMarker[];
   partnerBarMarkers?: MomentumBarMarker[];
   yourName?: string;
@@ -67,6 +69,9 @@ interface MomentumChartProps {
 export interface MomentumBarMarker {
   categories: BucketCategory[];
   bucketNames?: string[];
+  hasAdjustment?: boolean;
+  hasNegativeAdjustment?: boolean;
+  adjustmentAmount?: number;
 }
 
 /** Local colour overrides — match the reference chart only.
@@ -74,6 +79,8 @@ export interface MomentumBarMarker {
  *  `lib/chartIdentity` so their visual identity is unchanged. */
 const COLOR_YOU = palette.brand500;
 const COLOR_PARTNER = '#4F6382';
+const COLOR_ADJUSTMENT = '#B86A16';
+const HEAT_LEVEL_COLORS = ['#F3ECE5', '#F2C9A5', '#F0A15F', '#DF6A22', '#9B430D'] as const;
 
 const W = 280;
 const H = 188;
@@ -207,10 +214,39 @@ function roundedTopBar(x: number, y: number, w: number, h: number, r: number): s
   ].join(' ');
 }
 
+function chartValue(value: number | undefined, marker?: MomentumBarMarker): number {
+  if (marker?.hasNegativeAdjustment) return 0;
+  return Math.max(0, value ?? 0);
+}
+
+function heatLevelForAmount(amount: number, maxDaily: number): 0 | 1 | 2 | 3 | 4 {
+  if (amount <= 0 || maxDaily <= 0) return 0;
+  const ratio = amount / maxDaily;
+  if (ratio <= 1 / 3) return 2;
+  if (ratio <= 2 / 3) return 3;
+  return 4;
+}
+
+function heatColorForAmount(amount: number, maxDaily: number): string {
+  return HEAT_LEVEL_COLORS[heatLevelForAmount(amount, maxDaily)];
+}
+
+function formatDateKeyLabel(
+  dateKey: string | undefined,
+  formatter: Intl.DateTimeFormat,
+  fallback: string,
+): string {
+  if (!dateKey) return fallback;
+  const [year, month, day] = dateKey.split('-').map(Number);
+  if (!year || !month || !day) return fallback;
+  return formatter.format(new Date(Date.UTC(year, month - 1, day)));
+}
+
 export const MomentumChart = memo(function MomentumChart({
   series,
   partnerSeries,
   labels,
+  dateKeys,
   barMarkers,
   partnerBarMarkers,
   yourName,
@@ -227,7 +263,7 @@ export const MomentumChart = memo(function MomentumChart({
   weekTotal,
   weekExpected,
 }: MomentumChartProps) {
-  const { copy } = useI18n();
+  const { copy, language } = useI18n();
   const reduceMotion = useReducedMotion();
   const d = copy.dashboard;
   const catLabels = copy.bucket.categoryLabels;
@@ -239,6 +275,27 @@ export const MomentumChart = memo(function MomentumChart({
   const resolvedPartnerName = secondaryLabel ?? partnerName ?? d.partnerLabel;
   const hasPartner = Array.isArray(partnerSeries) && partnerSeries.length === series.length;
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const chartRootRef = useRef<HTMLDivElement | null>(null);
+  const dateLabelFormatter = useRef(new Intl.DateTimeFormat(
+    language === 'th' ? 'th-TH' : 'en-US',
+    {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    },
+  ));
+  dateLabelFormatter.current = new Intl.DateTimeFormat(
+    language === 'th' ? 'th-TH' : 'en-US',
+    {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    },
+  );
 
   // Retain the last non-null compare chips while collapsing so the
   // grid-template-rows transition has real content to shrink from
@@ -254,6 +311,23 @@ export const MomentumChart = memo(function MomentumChart({
     const t = window.setTimeout(() => setLingeringChips(null), 620);
     return () => window.clearTimeout(t);
   }, [compareChips]);
+
+  useEffect(() => {
+    if (selectedIndex === null) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        setSelectedIndex(null);
+        return;
+      }
+      if (chartRootRef.current?.contains(target)) return;
+      setSelectedIndex(null);
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, [selectedIndex]);
 
   // Tween bar values whenever the mode (or underlying data) changes so
   // bars visibly morph between Room / Me / Compare instead of snapping.
@@ -274,9 +348,13 @@ export const MomentumChart = memo(function MomentumChart({
   // of snapping to the new mode's max.
   const rawMax = Math.max(
     1,
-    ...animSeries,
-    ...(animPartner ?? []),
+    ...animSeries.map((value, index) => chartValue(value, barMarkers?.[index])),
+    ...(animPartner ?? []).map((value, index) => chartValue(value, partnerBarMarkers?.[index])),
   );
+  const primaryMaxDaily = Math.max(0, ...series.map((value, index) => chartValue(value, barMarkers?.[index])));
+  const partnerMaxDaily = hasPartner
+    ? Math.max(0, ...partnerSeries!.map((value, index) => chartValue(value, partnerBarMarkers?.[index])))
+    : 0;
   // Cap the y-axis at 1.25× the tallest bar so the chart hugs the data
   // and bars use more vertical space than a wide-rounded niceMax would.
   const max = rawMax * 1.25;
@@ -323,7 +401,7 @@ export const MomentumChart = memo(function MomentumChart({
   const linePoints = animSeries.map((v, i) => {
     const { yourBarX } = barLayoutAt(i);
     const yourX = yourBarX + barW / 2;
-    const yourH = (v / max) * chartH;
+    const yourH = (chartValue(v, barMarkers?.[i]) / max) * chartH;
     const yourY = baselineY - yourH;
     return { x: yourX, y: yourY };
   });
@@ -398,39 +476,18 @@ export const MomentumChart = memo(function MomentumChart({
       </div>
 
       {/* Chart */}
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        className="relative z-0 mt-0 h-[200px] w-full"
-        role="img"
-        aria-label={d.chartAriaLabel}
+      <div
+        ref={chartRootRef}
+        className={`relative mt-0 h-[200px] w-full overflow-visible ${selectedIndex !== null ? 'z-[60]' : 'z-0'}`}
       >
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          className="h-full w-full"
+          role="img"
+          aria-label={d.chartAriaLabel}
+        >
         <title>{d.chartTitle(false)}</title>
-
-        <defs>
-          <linearGradient
-            id="momYouFill"
-            gradientUnits="userSpaceOnUse"
-            x1={0}
-            y1={PAD_TOP}
-            x2={0}
-            y2={baselineY}
-          >
-            <stop offset="0%" stopColor={COLOR_YOU} stopOpacity={1} />
-            <stop offset="100%" stopColor={COLOR_YOU} stopOpacity={0.8} />
-          </linearGradient>
-          <linearGradient
-            id="momPartnerFill"
-            gradientUnits="userSpaceOnUse"
-            x1={0}
-            y1={PAD_TOP}
-            x2={0}
-            y2={baselineY}
-          >
-            <stop offset="0%" stopColor={COLOR_PARTNER} stopOpacity={1} />
-            <stop offset="100%" stopColor={COLOR_PARTNER} stopOpacity={0.8} />
-          </linearGradient>
-        </defs>
 
         {/* Horizontal grid */}
         {gridFractions.map(t => {
@@ -476,16 +533,6 @@ export const MomentumChart = memo(function MomentumChart({
           );
         })}
 
-        {/* Background dismiss layer — taps that miss a bar clear selection */}
-        <rect
-          x={0}
-          y={0}
-          width={W}
-          height={H}
-          fill="transparent"
-          onPointerDown={() => setSelectedIndex(null)}
-        />
-
         {/* Bar groups — bar heights are tweened via `animSeries` /
             `animPartner` so a mode switch (Room / Me / Compare) morphs
             the bars instead of snapping. Value labels keep showing the
@@ -496,9 +543,13 @@ export const MomentumChart = memo(function MomentumChart({
           const partnerVal = hasPartner ? partnerSeries![i] : 0;
           const animV = animSeries[i] ?? 0;
           const animPartnerVal = animPartner?.[i] ?? 0;
-          const yourH = (animV / max) * chartH;
+          const visualV = chartValue(animV, barMarkers?.[i]);
+          const visualPartnerVal = chartValue(animPartnerVal, partnerBarMarkers?.[i]);
+          const yourBarColor = heatColorForAmount(chartValue(v, barMarkers?.[i]), primaryMaxDaily);
+          const partnerBarColor = heatColorForAmount(chartValue(partnerVal, partnerBarMarkers?.[i]), partnerMaxDaily);
+          const yourH = (visualV / max) * chartH;
           const yourY = baselineY - yourH;
-          const partnerH = (animPartnerVal / max) * chartH;
+          const partnerH = (visualPartnerVal / max) * chartH;
           const partnerY = baselineY - partnerH;
           const yourCenterX = yourBarX + barW / 2;
           const partnerCenterX = partnerBarX !== null ? partnerBarX + barW / 2 : 0;
@@ -508,16 +559,22 @@ export const MomentumChart = memo(function MomentumChart({
           return (
             <g key={i}>
               {/* Partner bar — left of the pair */}
-              {hasPartner && (
+              {hasPartner && visualPartnerVal > 0 && (
                 <g>
                   <path
                     d={roundedTopBar(partnerBarX!, partnerY, barW, Math.max(partnerH, 2), barW / 2)}
-                    fill="url(#momPartnerFill)"
+                    fill={partnerBarColor}
                     opacity={barOpacity}
+                    style={{ cursor: 'pointer' }}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      setSelectedIndex(prev => (prev === i ? null : i));
+                      haptic('success');
+                    }}
                   />
                 </g>
               )}
-              {hasPartner && partnerVal > 0 && (
+              {hasPartner && partnerVal > 0 && !partnerBarMarkers?.[i]?.hasNegativeAdjustment && (
                 <text
                   x={partnerCenterX}
                   y={partnerY - 8}
@@ -527,21 +584,34 @@ export const MomentumChart = memo(function MomentumChart({
                   fontFamily={SVG_MONO}
                   fill={COLOR_PARTNER}
                   opacity={barOpacity}
-                  style={{ pointerEvents: 'none' }}
+                  style={{ cursor: 'pointer' }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    setSelectedIndex(prev => (prev === i ? null : i));
+                    haptic('success');
+                  }}
                 >
                   {fmtShort(partnerVal)}
                 </text>
               )}
 
               {/* You bar — right of the pair, or the only bar */}
-              <g>
-                <path
-                  d={roundedTopBar(yourBarX, yourY, barW, Math.max(yourH, 2), barW / 2)}
-                  fill="url(#momYouFill)"
-                  opacity={barOpacity}
-                />
-              </g>
-              {v > 0 && (
+              {visualV > 0 && (
+                <g>
+                  <path
+                    d={roundedTopBar(yourBarX, yourY, barW, Math.max(yourH, 2), barW / 2)}
+                    fill={yourBarColor}
+                    opacity={barOpacity}
+                    style={{ cursor: 'pointer' }}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      setSelectedIndex(prev => (prev === i ? null : i));
+                      haptic('success');
+                    }}
+                  />
+                </g>
+              )}
+              {v > 0 && !barMarkers?.[i]?.hasNegativeAdjustment && (
                 <text
                   x={yourCenterX}
                   y={yourY - 8}
@@ -551,7 +621,12 @@ export const MomentumChart = memo(function MomentumChart({
                   fontFamily={SVG_MONO}
                   fill={COLOR_YOU}
                   opacity={barOpacity}
-                  style={{ pointerEvents: 'none' }}
+                  style={{ cursor: 'pointer' }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    setSelectedIndex(prev => (prev === i ? null : i));
+                    haptic('success');
+                  }}
                 >
                   {fmtShort(v)}
                 </text>
@@ -579,6 +654,14 @@ export const MomentumChart = memo(function MomentumChart({
                 categoryLabels={catLabels}
                 opacity={barOpacity}
               />
+              <AdjustmentBadge
+                marker={barMarkers?.[i]}
+                centerX={yourCenterX}
+                y={yourY}
+                h={yourH}
+                baselineY={baselineY}
+                opacity={barOpacity}
+              />
 
               {/* X-axis label */}
               {labels?.[i] && (
@@ -595,20 +678,6 @@ export const MomentumChart = memo(function MomentumChart({
                 </text>
               )}
 
-              {/* Tap target — full group column for an easy hit area */}
-              <rect
-                x={groupX}
-                y={PAD_TOP}
-                width={groupW}
-                height={chartH}
-                fill="transparent"
-                style={{ cursor: 'pointer' }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  setSelectedIndex((prev) => (prev === i ? null : i));
-                  haptic('success');
-                }}
-              />
             </g>
           );
         })}
@@ -668,94 +737,184 @@ export const MomentumChart = memo(function MomentumChart({
             />
           )}
 
-        {/* Tooltip overlay */}
-        {selectedIndex !== null && (() => {
-          const i = selectedIndex;
-          const v = series[i];
-          const partnerVal = hasPartner ? partnerSeries![i] : 0;
-          const { groupX } = barLayoutAt(i);
-          const anchorX = groupX + groupW / 2;
-          const yourH = (v / max) * chartH;
-          const yourY = baselineY - yourH;
-          const partnerH = (partnerVal / max) * chartH;
-          const partnerY = baselineY - partnerH;
-          const topBarY = hasPartner ? Math.min(yourY, partnerY) : yourY;
+        </svg>
+        <AnimatePresence>
+          {selectedIndex !== null && (() => {
+            const i = selectedIndex;
+            const v = series[i];
+            const partnerVal = hasPartner ? partnerSeries![i] : 0;
+            const marker = barMarkers?.[i];
+            const partnerMarker = partnerBarMarkers?.[i];
+            const { groupX } = barLayoutAt(i);
+            const anchorX = groupX + groupW / 2;
+            const yourH = (chartValue(v, marker) / max) * chartH;
+            const yourY = baselineY - yourH;
+            const partnerH = (chartValue(partnerVal, partnerMarker) / max) * chartH;
+            const partnerY = baselineY - partnerH;
+            const topBarY = hasPartner ? Math.min(yourY, partnerY) : yourY;
+            const yourCategoryText = markerCategoryText(marker, catLabels);
+            const partnerCategoryText = markerCategoryText(partnerMarker, catLabels);
+            const yourBucketNames = marker?.bucketNames ?? [];
+            const partnerBucketNames = partnerMarker?.bucketNames ?? [];
+            const yourAdjustmentText = marker?.hasAdjustment && marker.adjustmentAmount
+              ? formatCurrency(marker.adjustmentAmount)
+              : null;
+            const partnerAdjustmentText = partnerMarker?.hasAdjustment && partnerMarker.adjustmentAmount
+              ? formatCurrency(partnerMarker.adjustmentAmount)
+              : null;
+            const fullDateLabel = formatDateKeyLabel(
+              dateKeys?.[i],
+              dateLabelFormatter.current,
+              labels?.[i] ?? d.last7Days,
+            );
+            const footerLines = hasPartner
+              ? [
+                ...markerTooltipLines(marker, catLabels, d.dailyDepositAdjustment),
+                ...markerTooltipLines(partnerMarker, catLabels, d.dailyDepositAdjustment),
+              ].filter(Boolean)
+              : [];
 
-          const rawLines = hasPartner
-            ? [
-              `${resolvedYourName} ${formatCurrency(v)}`,
-              ...markerTooltipLines(barMarkers?.[i], catLabels),
-              `${resolvedPartnerName} ${formatCurrency(partnerVal)}`,
-              ...markerTooltipLines(partnerBarMarkers?.[i], catLabels),
-            ]
-            : [
-              `${resolvedYourName} ${formatCurrency(v)}`,
-              ...markerTooltipLines(barMarkers?.[i], catLabels),
-            ];
-
-          const fontSize = 9;
-          const charW = 5.2;
-          const rowH = 11;
-          const padX = 6;
-          const padY = 4;
-          // Cap tooltip line width so a long Thai/English member name can
-          // never push the box past the card edges at 320-390 px widths.
-          const maxLineChars = Math.max(
-            12,
-            Math.floor((W - PAD_LEFT - PAD_RIGHT - padX * 2) / charW) - 2,
-          );
-          const lines = rawLines.map(line => (
-            line.length > maxLineChars ? `${line.slice(0, maxLineChars - 1)}…` : line
-          ));
-          const longest = lines.reduce((m, s) => Math.max(m, s.length), 0);
-          const boxW = Math.ceil(longest * charW) + padX * 2;
-          const boxH = lines.length * rowH + padY * 2 - 2;
-          const triH = 4;
-          const gap = 4;
-          const boxBottomY = topBarY - gap - triH;
-          const boxTopY = boxBottomY - boxH;
-
-          let boxX = anchorX - boxW / 2;
-          const minX = PAD_LEFT - 2;
-          const maxX = W - PAD_RIGHT + 2 - boxW;
-          if (boxX < minX) boxX = minX;
-          if (boxX > maxX) boxX = maxX;
-
-          return (
-            <g style={{ pointerEvents: 'none' }}>
-              <rect
-                x={boxX}
-                y={boxTopY}
-                width={boxW}
-                height={boxH}
-                rx={4}
-                ry={4}
-                fill="#FFFFFF"
-                stroke="rgba(160,176,200,0.7)"
-                strokeWidth={0.75}
-              />
-              {lines.map((line, idx) => (
-                <text
-                  key={idx}
-                  x={boxX + padX}
-                  y={boxTopY + padY + (idx + 1) * rowH - 3}
-                  fontSize={fontSize}
-                  fontFamily={SVG_MONO}
-                  fill={palette.ink}
+            return (
+              <motion.div
+                key={`momentum-popover-${i}`}
+                className="pointer-events-none absolute z-[90]"
+                style={{
+                  left: `${(anchorX / W) * 100}%`,
+                  top: `${(topBarY / H) * 100}%`,
+                  transform: 'translate(-50%, calc(-100% - 10px))',
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={reduceMotion ? REDUCED_MOTION_TRANSITION : FADE_TRANSITION}
+              >
+                <motion.div
+                  className="relative min-w-[11.5rem] max-w-[16rem] rounded-[1rem] bg-surfaceAlt p-3 shadow-soft ring-1 ring-ink/10"
+                  style={{ transformOrigin: 'bottom center' }}
+                  initial={reduceMotion ? false : { scale: 0.92, y: 4 }}
+                  animate={reduceMotion ? {} : { scale: 1, y: 0 }}
+                  exit={reduceMotion ? {} : { scale: 0.92, y: 4 }}
+                  transition={reduceMotion ? REDUCED_MOTION_TRANSITION : SPRING.content}
                 >
-                  {line}
-                </text>
-              ))}
-              <polygon
-                points={`${anchorX - 3},${boxBottomY} ${anchorX + 3},${boxBottomY} ${anchorX},${boxBottomY + triH}`}
-                fill="#FFFFFF"
-                stroke="rgba(160,176,200,0.7)"
-                strokeWidth={0.75}
-              />
-            </g>
-          );
-        })()}
-      </svg>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">
+                        {fullDateLabel}
+                      </span>
+                      {marker?.hasNegativeAdjustment && (
+                        <span className="rounded-full bg-[#FFF2E2] px-2 py-0.5 font-mono text-[9px] font-bold text-[#A95418]">
+                          {d.dailyDepositAdjustment}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="rounded-[0.9rem] bg-white/70 px-2.5 py-2">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="min-w-0 truncate font-mono text-[10px] font-semibold text-ink-muted">
+                          {resolvedYourName}
+                        </span>
+                        <span className="shrink-0 font-mono text-sm font-bold text-ink">
+                          {formatCurrency(v)}
+                        </span>
+                      </div>
+                      {yourCategoryText && (
+                        <div className="mt-1 text-[10px] leading-[1.45] text-ink-muted">
+                          <span className="font-mono font-semibold text-ink-dim">หมวด</span>{' '}
+                          <span>{yourCategoryText}</span>
+                        </div>
+                      )}
+                      {yourBucketNames.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {yourBucketNames.slice(0, 3).map(name => (
+                            <span
+                              key={name}
+                              className="rounded-full bg-[#F7EEE7] px-2 py-0.5 font-mono text-[9px] text-ink-muted"
+                            >
+                              {name}
+                            </span>
+                          ))}
+                          {yourBucketNames.length > 3 && (
+                            <span className="rounded-full bg-[#F7EEE7] px-2 py-0.5 font-mono text-[9px] text-ink-muted">
+                              +{yourBucketNames.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {yourAdjustmentText && (
+                        <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-black/5 pt-1.5">
+                          <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-dim">
+                            {d.dailyDepositAdjustment}
+                          </span>
+                          <span className="font-mono text-[10px] font-semibold text-[#A95418]">
+                            {yourAdjustmentText}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {hasPartner && (
+                      <div className="rounded-[0.9rem] bg-[#F8FAFC]/90 px-2.5 py-2">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="min-w-0 truncate font-mono text-[10px] font-semibold text-ink-muted">
+                            {resolvedPartnerName}
+                          </span>
+                          <span className="shrink-0 font-mono text-sm font-bold text-ink">
+                            {formatCurrency(partnerVal)}
+                          </span>
+                        </div>
+                        {partnerCategoryText && (
+                          <div className="mt-1 text-[10px] leading-[1.45] text-ink-muted">
+                            <span className="font-mono font-semibold text-ink-dim">หมวด</span>{' '}
+                            <span>{partnerCategoryText}</span>
+                          </div>
+                        )}
+                        {partnerBucketNames.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {partnerBucketNames.slice(0, 3).map(name => (
+                              <span
+                                key={name}
+                                className="rounded-full bg-white/85 px-2 py-0.5 font-mono text-[9px] text-ink-muted"
+                              >
+                                {name}
+                              </span>
+                            ))}
+                            {partnerBucketNames.length > 3 && (
+                              <span className="rounded-full bg-white/85 px-2 py-0.5 font-mono text-[9px] text-ink-muted">
+                                +{partnerBucketNames.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {partnerAdjustmentText && (
+                          <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-black/5 pt-1.5">
+                            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-dim">
+                              {d.dailyDepositAdjustment}
+                            </span>
+                            <span className="font-mono text-[10px] font-semibold text-[#A95418]">
+                              {partnerAdjustmentText}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {!hasPartner && footerLines.length > 0 && (
+                      <div className="text-[9px] leading-[1.45] text-ink-dim">
+                        {footerLines.map((line, idx) => (
+                          <div key={idx} className="font-mono">
+                            {line}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 bg-surfaceAlt ring-1 ring-ink/10" />
+                </motion.div>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
+      </div>
     </section>
   );
 });
@@ -763,15 +922,73 @@ export const MomentumChart = memo(function MomentumChart({
 function markerTooltipLines(
   marker: MomentumBarMarker | undefined,
   categoryLabels: Record<BucketCategory, string>,
+  adjustmentLabel: string,
 ): string[] {
-  if (!marker || marker.categories.length === 0) return [];
-  const categoryText = marker.categories.map(cat => categoryLabels[cat]).join(', ');
-  if (!marker.bucketNames || marker.bucketNames.length === 0) {
-    return [`- ${categoryText}`];
+  if (!marker) return [];
+  const lines: string[] = [];
+
+  if (marker.categories.length > 0) {
+    const categoryText = marker.categories.map(cat => categoryLabels[cat]).join(', ');
+    if (!marker.bucketNames || marker.bucketNames.length === 0) {
+      lines.push(`- ${categoryText}`);
+    } else {
+      const bucketText = marker.bucketNames.slice(0, 3).join(', ');
+      const extra = marker.bucketNames.length > 3 ? ` +${marker.bucketNames.length - 3}` : '';
+      lines.push(`- ${categoryText}: ${bucketText}${extra}`);
+    }
   }
-  const bucketText = marker.bucketNames.slice(0, 3).join(', ');
-  const extra = marker.bucketNames.length > 3 ? ` +${marker.bucketNames.length - 3}` : '';
-  return [`- ${categoryText}: ${bucketText}${extra}`];
+
+  if (marker.hasAdjustment && marker.adjustmentAmount) {
+    lines.push(`- ${adjustmentLabel}: ${formatCurrency(marker.adjustmentAmount)}`);
+  }
+
+  return lines;
+}
+
+function markerCategoryText(
+  marker: MomentumBarMarker | undefined,
+  categoryLabels: Record<BucketCategory, string>,
+): string | null {
+  if (!marker || marker.categories.length === 0) return null;
+  return marker.categories.map(cat => categoryLabels[cat]).join(', ');
+}
+
+interface AdjustmentBadgeProps {
+  marker: MomentumBarMarker | undefined;
+  centerX: number;
+  y: number;
+  h: number;
+  baselineY: number;
+  opacity: number;
+}
+
+function AdjustmentBadge({ marker, centerX, y, h, baselineY, opacity }: AdjustmentBadgeProps) {
+  if (!marker?.hasAdjustment) return null;
+  const cy = h > 0 ? Math.max(PAD_TOP + 7, y - 8) : baselineY - 10;
+
+  return (
+    <g opacity={opacity} style={{ pointerEvents: 'none' }}>
+      <circle
+        cx={centerX}
+        cy={cy}
+        r={6}
+        fill="#FFF6E8"
+        stroke={COLOR_ADJUSTMENT}
+        strokeWidth={1.25}
+      />
+      <text
+        x={centerX}
+        y={cy + 3.2}
+        textAnchor="middle"
+        fontSize="9"
+        fontWeight="900"
+        fontFamily={SVG_MONO}
+        fill={COLOR_ADJUSTMENT}
+      >
+        !
+      </text>
+    </g>
+  );
 }
 
 interface BarIconClusterProps {

@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Transform } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
 import { IconButton } from '../IconButton/IconButton';
-import { IconTrash } from '../Icon/Icon';
+import { IconX } from '../Icon/Icon';
 
 interface SortableBucketCardProps {
   id: string;
@@ -120,14 +120,14 @@ export function SortableBucketCard({ id, children, onRemove, removeAriaLabel, on
           variant="solid"
           size="sm"
           ariaLabel={removeAriaLabel ?? 'Remove bucket'}
-          className="absolute -left-0 -top-0 z-10 bg-danger/90 text-danger hover:bg-danger/35"
+          className="absolute right-2 top-2 z-10 !bg-white !text-danger shadow-soft ring-1 ring-danger/10 hover:!bg-danger-soft hover:!text-danger"
           onPointerDown={event => event.stopPropagation()}
           onClick={event => {
             event.stopPropagation();
             onRemove();
           }}
         >
-          <IconTrash size={15} />
+          <IconX size={16} strokeWidth={2.75} />
         </IconButton>
       )}
     </div>

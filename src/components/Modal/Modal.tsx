@@ -14,9 +14,24 @@ interface ModalProps {
   onClose: () => void;
   headerAccessory?: ReactNode;
   hidden?: boolean;
+  panelClassName?: string;
+  headerClassName?: string;
+  bodyClassName?: string;
+  closeOnBackdrop?: boolean;
 }
 
-export function Modal({ open, title, children, onClose, headerAccessory, hidden = false }: ModalProps) {
+export function Modal({
+  open,
+  title,
+  children,
+  onClose,
+  headerAccessory,
+  hidden = false,
+  panelClassName = '',
+  headerClassName = '',
+  bodyClassName = '',
+  closeOnBackdrop = true,
+}: ModalProps) {
   const { copy } = useI18n();
   useBodyScrollLock(open && !hidden);
 
@@ -46,7 +61,7 @@ export function Modal({ open, title, children, onClose, headerAccessory, hidden 
             animate={{ opacity: hidden ? 0 : 1 }}
             exit={{ opacity: 0 }}
             transition={FADE_TRANSITION}
-            onClick={hidden ? undefined : onClose}
+            onClick={hidden || !closeOnBackdrop ? undefined : onClose}
           />
 
           {/* Card */}
@@ -62,14 +77,14 @@ export function Modal({ open, title, children, onClose, headerAccessory, hidden 
               role="dialog"
               aria-modal="true"
               aria-labelledby="modal-title"
-              className="relative pointer-events-auto max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-bg p-4 shadow-neuRaised md:rounded-xl md:p-5"
+              className={`relative pointer-events-auto max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-bg p-4 shadow-neuRaised md:rounded-xl md:p-5 ${panelClassName}`}
               initial={{ opacity: 0, y: 28, scale: 0.95 }}
               animate={{ opacity: hidden ? 0 : 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 14, scale: 0.97 }}
               transition={SPRING.modal}
             >
               <div>
-                <header className="mb-4 flex items-center justify-between gap-3">
+                <header className={`mb-4 flex items-center justify-between gap-3 ${headerClassName}`}>
                   <h2 id="modal-title" className="min-w-0 flex-1 font-mono text-xl font-semibold text-ink">{title}</h2>
                   <div className="flex shrink-0 items-center gap-2">
                     {headerAccessory}
@@ -78,7 +93,7 @@ export function Modal({ open, title, children, onClose, headerAccessory, hidden 
                     </IconButton>
                   </div>
                 </header>
-                <div>{children}</div>
+                <div className={bodyClassName}>{children}</div>
               </div>
             </motion.section>
           </motion.div>

@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { MOTION_DURATION, MOTION_EASE, REDUCED_MOTION_TRANSITION } from '../../lib/motion';
+import { AuroraBackdrop } from '../AuroraBackdrop/AuroraBackdrop';
 import { WizardProgress } from '../CreateRoomWizard/WizardProgress';
 import { StepGoal } from './StepGoal';
 import { StepBuckets } from './StepBuckets';
@@ -146,7 +147,8 @@ export function JoinRoomWizard({ roomId, roomGoalTarget, isRejoin, restoredBucke
 
   if (isRejoin) {
     return (
-      <div className="flex min-h-screen flex-col bg-bg">
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-bg">
+        <AuroraBackdrop reduceMotion={Boolean(reduceMotion)} />
         <header className="sticky top-0 z-10 bg-bg/80 px-5 pb-3 pt-5 backdrop-blur-sm">
           <div className="flex items-center gap-3">
             <button
@@ -161,7 +163,7 @@ export function JoinRoomWizard({ roomId, roomGoalTarget, isRejoin, restoredBucke
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col items-center justify-center gap-5 px-5 pb-8">
+        <main className="relative z-10 flex flex-1 flex-col items-center justify-center gap-5 px-5 pb-8">
           <div className="text-center">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-brand-100">
               <span className="text-3xl">👋</span>
@@ -224,7 +226,8 @@ export function JoinRoomWizard({ roomId, roomGoalTarget, isRejoin, restoredBucke
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-bg">
+      <AuroraBackdrop reduceMotion={Boolean(reduceMotion)} />
       <header className="sticky top-0 z-10 bg-bg/80 px-5 pb-3 pt-5 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <button
@@ -242,7 +245,7 @@ export function JoinRoomWizard({ roomId, roomGoalTarget, isRejoin, restoredBucke
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden px-5 pb-8">
+      <main className="relative z-10 flex-1 overflow-hidden px-5 pb-8">
         <AnimatePresence mode="wait" initial={false} custom={direction}>
           <motion.div
             key={draft.step}

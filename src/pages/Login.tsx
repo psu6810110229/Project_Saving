@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AboutModal } from '../components/AboutInfo/AboutInfo';
 import { IconButton } from '../components/IconButton/IconButton';
-import { IconInfo, IconPiggyBank, IconShield } from '../components/Icon/Icon';
+import { IconInfo, IconPiggyBank } from '../components/Icon/Icon';
 import { MOTION_EASE } from '../lib/motion';
 import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '../i18n/useI18n';
@@ -53,7 +53,7 @@ export function Login() {
         <motion.h1 {...rise(0.16)} className="mt-3 max-w-[16ch] font-mono text-3xl font-bold leading-tight text-ink">
           {copy.auth.loginTitle}
         </motion.h1>
-        <motion.p {...rise(0.24)} className="mt-3 max-w-[24ch] font-mono text-sm leading-6 text-ink-muted">
+        <motion.p {...rise(0.24)} className="mt-3 whitespace-nowrap font-mono text-sm leading-6 text-ink-muted">
           {copy.auth.loginBody}
         </motion.p>
       </div>
@@ -82,9 +82,8 @@ export function Login() {
         <button
           type="button"
           onClick={() => setAboutOpen(true)}
-          className="flex items-center gap-1.5 px-2 text-center font-mono text-[11px] leading-5 text-ink-muted underline-offset-2 hover:text-ink hover:underline"
+          className="whitespace-nowrap px-2 text-center font-mono text-[11px] leading-5 text-ink-muted underline-offset-2 hover:text-ink hover:underline"
         >
-          <IconShield size={14} className="shrink-0 text-ink-dim" />
           {copy.about.termsLine}
         </button>
       </motion.div>

@@ -232,7 +232,7 @@ export function Profile() {
             <TextInput value={displayName} leadingIcon={<IconEdit size={16} />} onChange={event => setDisplayNameDraft(event.target.value)} />
           </FormField>
           <ThemeSwatchPicker value={theme} onChange={setThemeDraft} />
-          <Button variant="primary" fullWidth onClick={handleProfileSave}>{copy.profile.saveProfileButton}</Button>
+          <Button variant="primary" fullWidth size="md" onClick={handleProfileSave}>{copy.profile.saveProfileButton}</Button>
         </div>
       </Modal>
       <Modal open={activeModal === 'create-project'} title={copy.createProject.sectionLabel} onClose={closeModal}>

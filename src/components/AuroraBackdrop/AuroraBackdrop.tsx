@@ -26,7 +26,7 @@ type AuroraBackdropProps = {
  * adding background movement to the rest of the app.
  */
 export function AuroraBackdrop({
-  contrast = 0.2,
+  contrast = 1,
   live = false,
   motionSpeed = 1,
   palette,

@@ -82,7 +82,7 @@ export function ArchivedProjects() {
   }
 
   return (
-    <div className="flex flex-col gap-6 pt-8 pb-24">
+    <div className="flex flex-col gap-6 px-5 pt-8 pb-24">
       <PageHeader
         eyebrow={a.pageEyebrow}
         title={a.pageTitle}

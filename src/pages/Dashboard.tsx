@@ -12,6 +12,7 @@ import { BucketEditForm } from '../components/BucketEditForm/BucketEditForm';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
+import { BucketDragHint } from '../components/BucketDragHint/BucketDragHint';
 import { SortableBucketCard } from '../components/SortableBucketCard/SortableBucketCard';
 import { RemoveBucketModal, type RemoveBucketDestination } from '../components/RemoveBucketModal/RemoveBucketModal';
 
@@ -216,6 +217,8 @@ export function Dashboard() {
   const data = useSharedData();
   const { refreshAll, isRefreshing } = data;
   const {
+    profile: dataProfile,
+    loading: profileLoading,
     quickAmounts,
     markBucketDragHintSeen,
   } = data.profile;
@@ -308,6 +311,9 @@ export function Dashboard() {
   // starts. Account-level persistence owns the "never show again"
   // behavior across devices.
   const [bucketDragHintDismissed, setBucketDragHintDismissed] = useState(false);
+  // Set when this session marked the hint seen, so it stays visible for the
+  // remainder of this render pass even after the profile flips to "seen".
+  const [bucketDragHintMarkedThisSession, setBucketDragHintMarkedThisSession] = useState(false);
 
   // dnd-kit sensors for the bucket transfer drag shortcut (slice 40.6).
   // Activation thresholds follow plan §12: desktop ~150ms / touch ~250ms so
@@ -420,6 +426,18 @@ export function Dashboard() {
     setBucketDragHintDismissed(true);
     markBucketDragHintSeenForAccount();
   }, [markBucketDragHintSeenForAccount]);
+
+  // Fired the first time the hint actually renders: persist "seen" at the
+  // account level and keep it visible for the rest of this render pass even
+  // once the profile flips (so it doesn't flash away on the same mount).
+  const handleBucketDragHintShown = useCallback(() => {
+    setBucketDragHintMarkedThisSession(true);
+    markBucketDragHintSeenForAccount();
+  }, [markBucketDragHintSeenForAccount]);
+
+  const handleBucketDragHintDismiss = useCallback(() => {
+    setBucketDragHintDismissed(true);
+  }, []);
 
   function handleBucketDragStart() {
     justDraggedRef.current = true;
@@ -1144,6 +1162,17 @@ export function Dashboard() {
           >
             {(() => {
               const isEditing = bucketDragMode === 'edit';
+              // One-time teach for the drag-to-transfer gesture: only useful
+              // on the user's own active buckets, with at least two to drag
+              // between, when the account hasn't already seen it and the user
+              // hasn't dismissed it this session. Profile-loading counts as
+              // "not yet eligible" so it never flashes for a returning user.
+              const showBucketDragHint =
+                !isEditing
+                && activeBucketItems.length >= 2
+                && !profileLoading
+                && !bucketDragHintDismissed
+                && (!dataProfile?.bucket_drag_hint_seen_at || bucketDragHintMarkedThisSession);
               const editToggle = activeBucketItems.length >= 1 ? (
                 <button
                   type="button"
@@ -1173,21 +1202,30 @@ export function Dashboard() {
                   onAddBucket={() => setBucketModalOpen(true)}
                   headerAction={editToggle}
                   belowHeader={(
-                    <BalanceCheckStatus
-                      latest={latestCheckpoint}
-                      unallocatedPool={unallocatedPool}
-                      overAllocated={overAllocated}
-                      onCheck={handleCheckBalance}
-                      onSync={handleSyncShortfall}
-                      canAllocate={!isEditing && activeBucketItems.length > 0}
-                      onAllocate={() => {
-                        // Ignore the click dnd-kit fires right after a drag
-                        // so a drop doesn't also pop the bucket picker.
-                        if (justDraggedRef.current) return;
-                        setAllocationKey(k => k + 1);
-                        setAllocationIntent({ bucketId: null });
-                      }}
-                    />
+                    <div className="flex flex-col gap-3">
+                      <BalanceCheckStatus
+                        latest={latestCheckpoint}
+                        unallocatedPool={unallocatedPool}
+                        overAllocated={overAllocated}
+                        onCheck={handleCheckBalance}
+                        onSync={handleSyncShortfall}
+                        canAllocate={!isEditing && activeBucketItems.length > 0}
+                        onAllocate={() => {
+                          // Ignore the click dnd-kit fires right after a drag
+                          // so a drop doesn't also pop the bucket picker.
+                          if (justDraggedRef.current) return;
+                          setAllocationKey(k => k + 1);
+                          setAllocationIntent({ bucketId: null });
+                        }}
+                      />
+                      <BucketDragHint
+                        open={showBucketDragHint}
+                        message={copy.bucketDragHint.message}
+                        dismissAriaLabel={copy.bucketDragHint.dismissAriaLabel}
+                        onShown={handleBucketDragHintShown}
+                        onDismiss={handleBucketDragHintDismiss}
+                      />
+                    </div>
                   )}
                   renderBucket={bucket => isEditing ? (
                     <SortableBucketCard

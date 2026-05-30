@@ -11,7 +11,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { Modal } from '../Modal/Modal';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconCheck, IconImage, IconZoomIn, IconZoomOut } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import type { CropRect } from '../../hooks/useImageUpload';
@@ -312,7 +312,7 @@ export function ImageCropper({
           </p>
         )}
 
-        <div className={MODAL_ACTION_ROW_CLASS}>
+        <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
           <Button
             variant="primary"
             size="md"

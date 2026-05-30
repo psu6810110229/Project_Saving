@@ -9,7 +9,7 @@ import {
   recommendedRule,
 } from '../../lib/bucketRuleSuggest';
 import { bucketSaved, hasDuplicateBucketName, sumTargets } from '../../lib/buckets';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
 import { FormField } from '../FormField/FormField';
 import { IconCheck, IconEdit, IconPiggyBank, IconX } from '../Icon/Icon';
@@ -318,7 +318,7 @@ export function BucketEditForm({
         </div>
       )}
 
-      <div className={MODAL_ACTION_ROW_CLASS}>
+      <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
         <Button
           type="button"
           variant="primary"

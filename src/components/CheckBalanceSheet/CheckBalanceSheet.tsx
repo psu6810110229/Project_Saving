@@ -1,7 +1,8 @@
+import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useRef, useState } from 'react';
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconBubble } from '../IconBubble/IconBubble';
-import { IconCheck, IconVault } from '../Icon/Icon';
+import { IconCheck, IconChevronDown, IconVault } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { Spinner } from '../Spinner/Spinner';
@@ -83,7 +84,16 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
     () => smartShortfallBucketId(shortfallBuckets),
     [shortfallBuckets],
   );
-  const effectiveSyncBucketId = syncBucketId ?? smartDefaultBucketId;
+  const focusDefaultBucketId = useMemo(() => {
+    for (const bucket of buckets) {
+      const shortfallBucket = shortfallBuckets.find(b => b.id === bucket.id);
+      if (!shortfallBucket) continue;
+      if (bucket.target_amount > 0 && shortfallBucket.balance >= bucket.target_amount) continue;
+      return bucket.id;
+    }
+    return null;
+  }, [buckets, shortfallBuckets]);
+  const effectiveSyncBucketId = syncBucketId ?? focusDefaultBucketId ?? smartDefaultBucketId;
 
   // Card-nudge entry: on the closed→open transition in sync mode, jump
   // straight to the shortfall panel using the stored overAllocated (no new
@@ -221,10 +231,10 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
           {step !== 'done' && (
             <section className="rounded-xl bg-surface p-4 shadow-soft">
               <div className="flex items-center justify-between gap-3">
-                <p className="font-mono text-sm font-bold uppercase tracking-wider text-brand-800">
+                <p className="font-mono text-sm font-semibold uppercase tracking-wider text-brand-800">
                   {r.verifiedBalanceLabel}
                 </p>
-                <span className="font-mono text-xl font-bold text-ink">{formatCurrency(displayedAppBalance)}</span>
+                <span className="font-mono text-xl font-semibold text-ink">{formatCurrency(displayedAppBalance)}</span>
               </div>
             </section>
           )}
@@ -232,7 +242,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
           {step === 'enter' && (
             <section className="rounded-xl bg-surface p-4 shadow-soft">
               <label className="block">
-                <span className="block font-mono text-sm font-bold uppercase tracking-wider text-brand-800">
+                <span className="block font-mono text-sm font-semibold uppercase tracking-wider text-brand-800">
                   {r.actualBalanceLabel}
                 </span>
                 <div className="mt-3">
@@ -241,7 +251,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                     pattern="[0-9]*"
                     placeholder="0"
                     value={actualValue}
-                    leadingIcon={<span className="font-mono font-bold">฿</span>}
+                    leadingIcon={<span className="font-mono font-semibold">฿</span>}
                     onChange={event => {
                       setActualValue(event.target.value.replace(/[^0-9]/g, ''));
                       setError(null);
@@ -251,11 +261,11 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                 <span className="mt-3 block font-mono text-sm text-ink-muted">{r.actualHelper}</span>
               </label>
               {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
-              <div className="mt-4 flex flex-col gap-2">
-                <Button variant="action" fullWidth onClick={handleConfirmMatch} disabled={submitting || !actualValid}>
+              <div className={`mt-4 ${MODAL_ACTION_ROW_CLASS}`}>
+                <Button variant="action" fullWidth size="md" onClick={handleConfirmMatch} disabled={submitting || !actualValid}>
                   {submitting ? r.savingButton : r.saveCheckButton}
                 </Button>
-                <Button variant="ghost" fullWidth size="md" onClick={handleClose}>
+                <Button variant="ghost" fullWidth size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={handleClose}>
                   {r.cancelButton}
                 </Button>
               </div>
@@ -285,7 +295,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                       setError(null);
                     }}
                     className={
-                      'w-full rounded-lg px-4 py-3 text-left font-mono text-sm font-bold transition-colors ' +
+                      'w-full rounded-lg px-4 py-3 text-left font-mono text-sm font-semibold transition-colors ' +
                       (reason === option.id
                         ? 'bg-brand-800 text-ink-inverse'
                         : 'bg-surfaceAlt text-ink hover:bg-brand-50')
@@ -296,11 +306,11 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                 ))}
               </div>
               {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
-              <div className="mt-4 flex flex-col gap-2">
-                <Button variant="action" fullWidth onClick={handleConfirmDifference} disabled={submitting || !reason}>
+              <div className={`mt-4 ${MODAL_ACTION_ROW_CLASS}`}>
+                <Button variant="action" fullWidth size="md" onClick={handleConfirmDifference} disabled={submitting || !reason}>
                   {submitting ? r.savingButton : r.saveAdjustmentButton}
                 </Button>
-                <Button variant="ghost" fullWidth size="md" onClick={() => setStep('enter')}>
+                <Button variant="ghost" fullWidth size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={() => setStep('enter')}>
                   {r.backButton}
                 </Button>
               </div>
@@ -314,44 +324,48 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
               <div className="flex flex-col items-center gap-3 text-center">
                 <IconBubble tone="peach" size="md"><IconVault size={22} /></IconBubble>
                 <div className="flex flex-col gap-1">
-                  <p className="font-mono-th text-lg font-bold text-ink">{sync.title}</p>
+                  <p className="font-mono-th text-lg font-semibold text-ink">{sync.title}</p>
                   <p className="font-mono-th text-sm leading-6 text-ink-muted">
                     {sync.body(formatCurrency(overAllocated))}
                   </p>
-                  <p className="font-mono-th text-xs font-semibold text-accent-leaf">{sync.reassurance}</p>
                 </div>
               </div>
 
               {shortfallBuckets.length > 1 && (
                 <label className="block">
-                  <span className="mb-1.5 block font-mono-th text-xs font-semibold text-ink-muted">
+                  <span className="mb-2 block font-mono-th text-sm font-semibold text-ink">
                     {sync.bucketLabel}
                   </span>
-                  <select
+                  <SyncBucketPicker
                     value={effectiveSyncBucketId ?? ''}
-                    onChange={event => { setSyncBucketId(event.target.value); setSyncError(null); }}
+                    onChange={value => { setSyncBucketId(value); setSyncError(null); }}
                     disabled={syncing}
-                    className="w-full rounded-lg bg-surfaceAlt px-3 py-2.5 font-mono-th text-sm font-semibold text-ink shadow-soft"
-                  >
-                    {shortfallBuckets.map(b => {
+                    options={shortfallBuckets.map(b => {
                       const bucket = buckets.find(x => x.id === b.id);
-                      return (
-                        <option key={b.id} value={b.id}>
-                          {bucket?.name ?? ''} · {formatCurrency(b.balance)}
-                        </option>
-                      );
+                      return {
+                        id: b.id,
+                        label: bucket?.name ?? '',
+                        detail: formatCurrency(b.balance),
+                      };
                     })}
-                  </select>
+                  />
                 </label>
               )}
 
               {syncError && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono-th text-xs text-danger">{syncError}</p>}
 
-              <div className="flex flex-col gap-2">
-                <Button variant="action" fullWidth onClick={handleSync} disabled={syncing}>
+              <div className={MODAL_ACTION_ROW_CLASS}>
+                <Button variant="action" fullWidth size="md" onClick={handleSync} disabled={syncing}>
                   {syncing ? sync.confirmingButton : sync.confirmButton}
                 </Button>
-                <Button variant="ghost" fullWidth size="md" onClick={handleClose} disabled={syncing}>
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  size="md"
+                  className={MODAL_SECONDARY_BUTTON_CLASS}
+                  onClick={handleClose}
+                  disabled={syncing}
+                >
                   {sync.skipButton}
                 </Button>
               </div>
@@ -364,7 +378,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                 {outcome.matched || syncDone ? <IconCheck size={22} /> : <IconVault size={22} />}
               </IconBubble>
               <div className="flex flex-col gap-1">
-                <p className="font-mono-th text-lg font-bold text-ink">
+                <p className="font-mono-th text-lg font-semibold text-ink">
                   {syncDone ? sync.successTitle : outcome.matched ? r.outcomeMatchedTitle : r.outcomeAdjustmentTitle}
                 </p>
                 <p className="font-mono-th text-sm leading-6 text-ink-muted">
@@ -401,9 +415,92 @@ function SummaryStat({ label, value, emphasized, positive }: { label: string; va
       <span className="block max-w-full break-words font-mono-th text-[10px] font-semibold leading-4 text-ink-muted">
         {label}
       </span>
-      <span className={`max-w-full truncate font-mono font-bold leading-none tabular-nums ${valueColor} ${emphasized ? 'text-base' : 'text-sm'}`}>
+      <span className={`max-w-full truncate font-mono font-semibold leading-none tabular-nums ${valueColor} ${emphasized ? 'text-base' : 'text-sm'}`}>
         {value}
       </span>
+    </div>
+  );
+}
+
+function SyncBucketPicker({
+  value,
+  onChange,
+  disabled,
+  options,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  options: Array<{ id: string; label: string; detail: string }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find(option => option.id === value) ?? options[0] ?? null;
+
+  function choose(id: string) {
+    onChange(id);
+    setOpen(false);
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen(prev => !prev)}
+        className="flex w-full items-center justify-between gap-3 rounded-xl bg-surfaceAlt px-3 py-2.5 text-left font-mono-th text-sm font-semibold text-ink shadow-soft ring-1 ring-transparent transition-all hover:bg-brand-50 hover:ring-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span className="min-w-0">
+          <span className="block truncate">{selected?.label ?? ''}</span>
+          <span className="mt-0.5 block font-mono text-xs font-semibold text-ink-muted">{selected?.detail ?? ''}</span>
+        </span>
+        <motion.span
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-bg text-brand-800 shadow-soft"
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.18 }}
+        >
+          <IconChevronDown size={16} />
+        </motion.span>
+      </button>
+
+      <AnimatePresence>
+        {open && !disabled && (
+          <motion.div
+            role="listbox"
+            className="mt-2 max-h-56 overflow-y-auto rounded-xl bg-bg p-1 shadow-neuRaised ring-1 ring-brand-100"
+            initial={{ opacity: 0, y: -6, scale: 0.98, height: 0 }}
+            animate={{ opacity: 1, y: 0, scale: 1, height: 'auto' }}
+            exit={{ opacity: 0, y: -4, scale: 0.98, height: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            {options.map(option => {
+              const selectedOption = option.id === value;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="option"
+                  aria-selected={selectedOption}
+                  onClick={() => choose(option.id)}
+                  className={
+                    'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors '
+                    + (selectedOption ? 'bg-brand-800 text-ink-inverse' : 'text-ink hover:bg-brand-50')
+                  }
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-mono-th text-sm font-semibold">{option.label}</span>
+                    <span className={`mt-0.5 block font-mono text-xs font-semibold ${selectedOption ? 'text-ink-inverse/75' : 'text-ink-muted'}`}>
+                      {option.detail}
+                    </span>
+                  </span>
+                  {selectedOption && <IconCheck size={16} />}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

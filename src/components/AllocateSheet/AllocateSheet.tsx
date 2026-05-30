@@ -1,7 +1,7 @@
 import { type ChangeEvent, type ReactNode, useMemo, useRef, useState } from 'react';
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconBubble } from '../IconBubble/IconBubble';
-import { IconCheck, IconPiggyBank } from '../Icon/Icon';
+import { IconCheck, IconCheckCircle, IconPiggyBank, IconWarning } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
 import Pressable from '../Pressable/Pressable';
 import { TextInput } from '../TextInput/TextInput';
@@ -98,12 +98,14 @@ export function AllocateSheet({
   ));
   const [submitting, setSubmitting] = useState(false);
   const [errorKey, setErrorKey] = useState<'exceeds' | 'archived' | 'amount' | 'generic' | null>(null);
+  const [completeConfirmed, setCompleteConfirmed] = useState(false);
   const requestIdRef = useRef<string | null>(null);
 
   const amountNumber = Number(amountValue);
   const amountValid = amountValue.trim().length > 0 && Number.isFinite(amountNumber) && amountNumber > 0;
   const exceedsPool = amountValid && amountNumber > round2(pool) + 0.005;
   const remainingToTarget = selected ? Math.max(0, selected.target - selected.saved) : 0;
+  const selectedComplete = Boolean(selected && selected.target > 0 && selected.saved >= selected.target);
   const overTarget = Boolean(selected) && amountValid && (remainingToTarget <= 0 || amountNumber > remainingToTarget + 0.005);
   const poolAfter = Math.max(0, round2(pool - (amountValid ? amountNumber : 0)));
   const canSubmit = Boolean(selected) && amountValid && !exceedsPool && !submitting;
@@ -112,6 +114,7 @@ export function AllocateSheet({
     setSelectedId(id);
     setAmountValue(defaultAmountFor(buckets.find(b => b.id === id) ?? null, pool));
     setErrorKey(null);
+    setCompleteConfirmed(false);
   }
 
   function handleAmountChange(event: ChangeEvent<HTMLInputElement>) {
@@ -128,6 +131,10 @@ export function AllocateSheet({
     }
     if (exceedsPool) {
       setErrorKey('exceeds');
+      return;
+    }
+    if (selectedComplete && !completeConfirmed) {
+      setCompleteConfirmed(true);
       return;
     }
     if (submitting) return;
@@ -159,12 +166,25 @@ export function AllocateSheet({
     : null;
 
   return (
-    <Modal open={open} title={a.sheetTitle(selected?.name ?? '')} onClose={onClose}>
+    <Modal
+      open={open}
+      title={a.sheetTitle(selected?.name ?? '')}
+      onClose={onClose}
+      headerAccessory={selectedComplete ? (
+        <span
+          className="grid h-8 w-8 place-items-center rounded-full bg-[#D3FBE6] text-[#16855E] shadow-[0_8px_18px_rgba(22,133,94,0.14)]"
+          aria-label={a.completeBadgeLabel}
+          title={a.completeBadgeLabel}
+        >
+          <IconCheckCircle size={18} />
+        </span>
+      ) : null}
+    >
       {step === 'done' ? (
         <section className="flex flex-col items-center gap-4 rounded-xl bg-surface p-5 text-center shadow-soft">
           <IconBubble tone="solid" size="md"><IconCheck size={22} /></IconBubble>
           <div className="flex flex-col gap-1">
-            <p className="font-mono text-lg font-bold text-ink">{a.successTitle}</p>
+            <p className="font-mono text-lg font-semibold text-ink">{a.successTitle}</p>
             <p className="font-mono-th text-sm leading-6 text-ink-muted">
               {a.successBody(formatCurrency(amountNumber), selected?.name ?? '')}
             </p>
@@ -176,7 +196,7 @@ export function AllocateSheet({
           {/* Pool summary */}
           <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-orange-50 to-brand-50 px-4 py-3 ring-1 ring-brand-200">
             <span className="font-mono-th text-xs font-semibold text-brand-700">{a.surplusLabel}</span>
-            <span className="font-mono text-lg font-bold text-brand-900">{formatCurrency(pool)}</span>
+            <span className="font-mono text-lg font-semibold text-brand-900">{formatCurrency(pool)}</span>
           </div>
 
           {/* Bucket picker (shown when no preselection, or to change target) */}
@@ -197,7 +217,7 @@ export function AllocateSheet({
                     >
                       <div className="flex w-full items-center gap-2">
                         <IconBubble tone={isSelected ? 'solid' : 'peach'} size="sm">{bucket.icon}</IconBubble>
-                        <span className="min-w-0 flex-1 truncate font-mono text-sm font-bold text-ink">{bucket.name}</span>
+                        <span className="min-w-0 flex-1 truncate font-mono text-sm font-semibold text-ink">{bucket.name}</span>
                       </div>
                       <span className="font-mono text-[11px] text-ink-muted">{formatCurrency(bucket.saved)}</span>
                     </Pressable>
@@ -233,15 +253,28 @@ export function AllocateSheet({
           {overTarget && !exceedsPool && (
             <p className="rounded-lg bg-brand-50 px-3 py-2 font-mono-th text-xs text-brand-700">{a.overTargetWarning}</p>
           )}
+          {selectedComplete && (
+            <div className="flex gap-3 rounded-xl bg-[#F1FCF6] px-3 py-3 ring-1 ring-[#BFEFD5]">
+              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#D3FBE6] text-[#16855E]">
+                <IconWarning size={17} />
+              </span>
+              <div className="min-w-0">
+                <p className="font-mono-th text-sm font-semibold text-ink">{a.completeConfirmTitle}</p>
+                <p className="mt-1 font-mono-th text-xs leading-5 text-ink-muted">
+                  {a.completeConfirmBody(selected?.name ?? '')}
+                </p>
+              </div>
+            </div>
+          )}
           {errorText && (
             <p className="rounded-lg bg-danger-soft px-3 py-2 font-mono-th text-xs text-danger">{errorText}</p>
           )}
 
-          <div className="flex flex-col gap-2">
-            <Button variant="action" fullWidth disabled={!canSubmit} onClick={handleConfirm}>
-              {submitting ? a.confirmingButton : a.confirmButton}
+          <div className={MODAL_ACTION_ROW_CLASS}>
+            <Button variant="action" fullWidth size="md" disabled={!canSubmit} onClick={handleConfirm}>
+              {submitting ? a.confirmingButton : selectedComplete && !completeConfirmed ? a.confirmCompleteButton : a.confirmButton}
             </Button>
-            <Button variant="ghost" fullWidth size="md" onClick={onClose}>{a.cancelButton}</Button>
+            <Button variant="ghost" fullWidth size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={onClose}>{a.cancelButton}</Button>
           </div>
         </div>
       )}

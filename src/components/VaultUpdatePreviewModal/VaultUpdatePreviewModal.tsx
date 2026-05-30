@@ -210,6 +210,7 @@ function PreviewBody({
       <Button
         variant="action"
         fullWidth
+        size="md"
         disabled={!canDismiss}
         onClick={onDone}
         aria-live="polite"

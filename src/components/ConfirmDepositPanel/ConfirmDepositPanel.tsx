@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { MicroCopyBanner } from '../MicroCopyBanner/MicroCopyBanner';
 import { useI18n } from '../../i18n/useI18n';
@@ -48,10 +48,10 @@ export function ConfirmDepositPanel({
         mineSeries={mineSeries}
         theirSeries={theirSeries}
       />
-      <div className="flex flex-col gap-2">
-        <Button variant="action" fullWidth onClick={onPrimary}>{resolvedPrimaryLabel}</Button>
+      <div className={onSecondary ? MODAL_ACTION_ROW_CLASS : ''}>
+        <Button variant="action" fullWidth size="md" onClick={onPrimary}>{resolvedPrimaryLabel}</Button>
         {onSecondary && (
-          <Button variant="ghost" fullWidth onClick={onSecondary}>{resolvedSecondaryLabel}</Button>
+          <Button variant="ghost" fullWidth size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={onSecondary}>{resolvedSecondaryLabel}</Button>
         )}
       </div>
     </section>

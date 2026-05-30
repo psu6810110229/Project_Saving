@@ -1660,7 +1660,7 @@ export function Dashboard() {
             : undefined
         }
       >
-        <Button variant="action" fullWidth onClick={() => setBucketGoalOutcome(null)}>
+        <Button variant="action" fullWidth size="md" onClick={() => setBucketGoalOutcome(null)}>
           {copy.addMoney.outcomeDone}
         </Button>
       </OutcomeModal>

@@ -53,6 +53,7 @@ export function Profile() {
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [roomRequiredOpen, setRoomRequiredOpen] = useState(false);
   const [pendingCreateValues, setPendingCreateValues] = useState<{ existingName: string; existingRoomId: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [displayNameDraft, setDisplayNameDraft] = useState<string | null>(null);
@@ -206,8 +207,8 @@ export function Profile() {
       {message && <p className="rounded-lg bg-brand-50 px-4 py-3 font-mono text-xs text-brand-800">{message}</p>}
       <SettingsList
         items={[
-          { id: 'notifications', icon: <IconBell size={18} />, label: copy.profile.notificationSettingsLabel, description: copy.profile.notificationSettingsDescription, onClick: () => navigate('/notifications/settings') },
-          { id: 'manage-project', icon: <IconCalendar size={18} />, label: copy.profile.manageProjectLabel, description: copy.profile.manageProjectDescription(activeRoom?.name ?? copy.profile.noActiveProject), onClick: () => navigate('/manage-project') },
+          { id: 'notifications', icon: <IconBell size={18} />, label: copy.profile.notificationSettingsLabel, description: copy.profile.notificationSettingsDescription, locked: !activeRoom, onClick: () => (activeRoom ? navigate('/notifications/settings') : setRoomRequiredOpen(true)) },
+          { id: 'manage-project', icon: <IconCalendar size={18} />, label: copy.profile.manageProjectLabel, description: copy.profile.manageProjectDescription(activeRoom?.name ?? copy.profile.noActiveProject), locked: !activeRoom, onClick: () => (activeRoom ? navigate('/manage-project') : setRoomRequiredOpen(true)) },
           { id: 'archived-projects', icon: <IconBriefcase size={18} />, label: copy.profile.archivedProjectsLabel, description: copy.profile.archivedProjectsDescription, onClick: () => navigate('/archived-projects') },
           ...(!activeRoom ? [{ id: 'join', icon: <IconBell size={18} />, label: copy.profile.joinProjectLabel, description: copy.profile.joinProjectDescription, onClick: () => openModal('join-project') }] : []),
           ...(canLeaveFromProfile ? [{
@@ -258,6 +259,17 @@ export function Profile() {
           onJoin={handleJoinProject}
         />
       </Modal>
+      <ConfirmModal
+        open={roomRequiredOpen}
+        title={copy.profile.roomRequiredTitle}
+        body={copy.profile.roomRequiredBody}
+        confirmLabel={copy.profile.roomRequiredCta}
+        onCancel={() => setRoomRequiredOpen(false)}
+        onConfirm={() => {
+          setRoomRequiredOpen(false);
+          navigate('/dashboard');
+        }}
+      />
       <ConfirmModal
         open={confirmingSignOut}
         title={copy.profile.signOutConfirmTitle}

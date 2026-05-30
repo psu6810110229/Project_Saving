@@ -33,7 +33,7 @@ export function Login() {
       <AuroraBackdrop
         live
         contrast={1.5}
-        motionSpeed={1.45}
+        motionSpeed={0.36}
         palette={{
           primary: 'bg-brand-300/[0.54]',
           secondary: 'bg-brand-200/[0.60]',

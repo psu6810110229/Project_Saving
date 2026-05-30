@@ -129,7 +129,7 @@ export function AppUpdateAvailableModal() {
                     {copy.appUpdate.body}
                   </p>
                   <div className="mt-5 w-full">
-                    <Button variant="action" fullWidth onClick={startFakeLoading}>
+                    <Button variant="action" fullWidth size="md" onClick={startFakeLoading}>
                       {copy.appUpdate.updateNow}
                     </Button>
                   </div>
@@ -184,7 +184,7 @@ export function AppUpdateAvailableModal() {
                   </div>
 
                   <div className="mt-5 w-full">
-                    <Button variant="action" fullWidth onClick={handleDone}>
+                    <Button variant="action" fullWidth size="md" onClick={handleDone}>
                       {copy.appUpdate.done}
                     </Button>
                   </div>

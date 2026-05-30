@@ -122,7 +122,7 @@ export function NotificationSettings() {
   const showDisableDeviceCta = !unsupported && subscribed;
 
   return (
-    <div className="flex flex-col gap-6 pt-8 pb-24">
+    <div className="flex flex-col gap-6 px-5 pt-8 pb-24">
       <PageHeader eyebrow={n.settings.eyebrow} title={n.settings.title} subtitle={n.settings.subtitle} showBack />
 
       {/* Push / device status card. Separate from category toggles so the

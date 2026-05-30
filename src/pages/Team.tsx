@@ -348,7 +348,7 @@ export function Team() {
   }
 
   return (
-    <div className="flex flex-col gap-6 pt-8 pb-6">
+    <div className="flex flex-col gap-6 px-5 pt-8 pb-6">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="font-mono text-2xl font-bold leading-tight text-ink">

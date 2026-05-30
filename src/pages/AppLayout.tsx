@@ -1,6 +1,7 @@
 import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { Fragment, type ReactNode, useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AboutInfo } from '../components/AboutInfo/AboutInfo';
 import { AppShell } from '../components/AppShell/AppShell';
 import { Avatar } from '../components/Avatar/Avatar';
 import type { BottomNavTab } from '../components/BottomNav/BottomNav';
@@ -350,16 +351,19 @@ function ProjectSetup({
               <h1 className="truncate font-mono text-2xl font-bold leading-tight text-ink">{greeting}</h1>
             </div>
           </div>
-          {/* The setup screen hides the bottom nav, so this is the only way to
-              reach settings / sign out before a room exists. */}
-          <IconButton
-            ariaLabel={ps.settingsAriaLabel}
-            size="md"
-            onClick={() => navigate('/profile')}
-            className="shrink-0"
-          >
-            <IconGear size={20} />
-          </IconButton>
+          {/* The setup screen hides the bottom nav, so these are the only way
+              to reach the about/terms info and settings / sign out before a
+              room exists. */}
+          <div className="flex shrink-0 items-center gap-2">
+            <AboutInfo size="md" />
+            <IconButton
+              ariaLabel={ps.settingsAriaLabel}
+              size="md"
+              onClick={() => navigate('/profile')}
+            >
+              <IconGear size={20} />
+            </IconButton>
+          </div>
         </div>
         <p className="mt-3 font-mono text-sm leading-5 text-ink-muted">{ps.tagline}</p>
       </motion.header>

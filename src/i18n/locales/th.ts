@@ -507,6 +507,8 @@ export const th: Messages = {
     stepTimelineTitle: 'ไทม์ไลน์การออม',
     stepTimelineSubtitle: 'ตรวจสอบกำหนดจ่ายแต่ละรายการแล้วปรับได้ตามต้องการ',
     timelineDue: (date: string): string => `ครบกำหนด ${date}`,
+    timelineWindow: (start: string, end: string): string => `ออม ${start} – ${end}`,
+    paceTooTight: 'เป้านี้อาจออมไม่ทันแบบสบาย ๆ ลองลดเป้าหรือเลื่อนวันให้ไกลขึ้น',
     timelineToday: 'วันนี้',
     timelineEventDay: 'วันเดินทาง',
     editDeadlineButton: 'แก้ไข',

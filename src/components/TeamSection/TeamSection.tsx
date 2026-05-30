@@ -1,10 +1,13 @@
 import { memo } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Avatar } from '../Avatar/Avatar';
 import { Button } from '../Button/Button';
-import { IconArrowRight, IconUser } from '../Icon/Icon';
+import { IconArrowRight, IconCrown, IconFire } from '../Icon/Icon';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
+import { ProgressRing } from '../ProgressRing/ProgressRing';
 import { formatCurrency } from '../../lib/format';
 import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
+import { SPRING } from '../../lib/motion';
 
 export interface TeamSectionMember {
   userId: string;
@@ -15,6 +18,10 @@ export interface TeamSectionMember {
   target: number;
   themeColor?: ThemeSwatch;
   isYou: boolean;
+  /** Save streak; the flame chip renders only when >= 1 (positive-only). */
+  streak?: number;
+  /** Whether the member logged today; the today-dot renders only when true. */
+  hasLoggedToday?: boolean;
 }
 
 interface TeamSectionProps {
@@ -43,6 +50,15 @@ export const TeamSection = memo(function TeamSection({
   const visible = sorted.slice(0, 3);
   const moreCount = Math.max(0, sorted.length - visible.length);
   const roomPct = roomTarget > 0 ? Math.min(100, (roomSaved / roomTarget) * 100) : 0;
+  const isSolo = sorted.length === 1;
+
+  // Rank by sort order (0 = gold, 1 = silver, 2 = bronze), then arrange so the
+  // leader sits raised in the centre: silver · gold · bronze.
+  const ranked = visible.map((member, rank) => ({ member, rank }));
+  const order =
+    ranked.length >= 3 ? [ranked[1], ranked[0], ranked[2]]
+    : ranked.length === 2 ? [ranked[0], ranked[1]]
+    : ranked;
 
   return (
     <section className="rounded-xl bg-surface p-4 shadow-soft">
@@ -58,26 +74,41 @@ export const TeamSection = memo(function TeamSection({
         </div>
       </div>
 
-      {visible.length > 0 ? (
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {visible.map(member => (
-            <TeamMemberCard
-              key={member.userId}
-              member={member}
-              onClick={() => onMemberClick?.(member)}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {moreCount > 0 && (
-        <p className="mt-3 font-mono text-xs text-ink-muted">
-          and {moreCount} more
-        </p>
+      {sorted.length > 0 && (
+        isSolo ? (
+          <div className="mt-5 flex flex-col items-center gap-3">
+            <div className="relative">
+              <Spotlight className="top-1/2 h-36 w-36 -translate-y-1/2" />
+              <PodiumCell
+                member={visible[0]}
+                rank={0}
+                isSolo
+                onClick={() => onMemberClick?.(visible[0])}
+              />
+            </div>
+            {emptyBody && (
+              <p className="max-w-[16rem] text-center font-mono text-xs text-ink-muted">{emptyBody}</p>
+            )}
+          </div>
+        ) : (
+          <div className="relative mt-5 flex items-end justify-center gap-3 sm:gap-4">
+            <Spotlight className="top-2 h-28 w-28" />
+            {order.map(({ member, rank }) => (
+              <PodiumCell
+                key={member.userId}
+                member={member}
+                rank={rank}
+                onClick={() => onMemberClick?.(member)}
+              />
+            ))}
+          </div>
+        )
       )}
 
-      {sorted.length === 1 && emptyBody && (
-        <p className="mt-3 font-mono text-xs text-ink-muted">{emptyBody}</p>
+      {moreCount > 0 && (
+        <p className="mt-4 text-center font-mono text-xs text-ink-muted">
+          and {moreCount} more
+        </p>
       )}
 
       <div className="mt-4">
@@ -95,51 +126,105 @@ export const TeamSection = memo(function TeamSection({
   );
 });
 
-function TeamMemberCard({
+/** Soft static brand glow behind the champion — the "spotlight". */
+function Spotlight({ className = '' }: { className?: string }) {
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-brand-200/35 blur-2xl ${className}`}
+    />
+  );
+}
+
+function PodiumCell({
   member,
+  rank,
+  isSolo = false,
   onClick,
 }: {
   member: TeamSectionMember;
+  rank: number;
+  isSolo?: boolean;
   onClick: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
   const pct = memberPct(member);
+  const isGold = rank === 0;
+  const themeHex = member.themeColor ? themeSwatches[member.themeColor] : undefined;
+  const ringSize = isSolo ? 'xl' : isGold ? 'lg' : 'md';
+  const avatarSize = isSolo ? 'xl' : isGold ? 'lg' : 'md';
   const displayName = member.isYou ? `You - ${member.name}` : member.name;
+  const showCrown = isGold && !isSolo;
+  const showStreak = (member.streak ?? 0) >= 1;
+  const showToday = member.hasLoggedToday === true;
+
+  const pctText = isSolo ? 'text-2xl' : isGold ? 'text-base' : 'text-sm';
+  const nameMax = isSolo ? 'max-w-[12rem]' : 'max-w-[5.5rem]';
+  const ariaLabel = `${showCrown ? 'Leader, ' : ''}${displayName}, ${Math.round(pct)}% of goal saved`;
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
-      aria-label={member.isYou ? 'View your profile' : `View ${member.name}'s details`}
+      aria-label={ariaLabel}
       className={
-        'flex min-h-[9.75rem] min-w-0 flex-col items-center rounded-xl bg-well px-2 py-3 text-center transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 '
-        + (member.isYou ? 'border-2 border-brand-300 bg-brand-50' : 'border border-white/60')
+        'group relative z-10 flex min-w-0 flex-col items-center gap-2 rounded-2xl px-1.5 py-2 '
+        + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface '
+        + (showCrown ? '-translate-y-3 ' : '')
+        + (member.isYou ? 'bg-brand-50/70 ' : '')
       }
+      whileTap={reduceMotion ? { opacity: 0.85 } : { scale: 0.97, y: 2 }}
+      transition={SPRING.press}
     >
-      <Avatar
-        size="md"
-        imageUrl={member.imageUrl}
-        fallback={member.fallback}
-        ring={member.isYou ? 'theme' : 'none'}
-        themeColor={member.themeColor}
-      />
-      <span className="mt-2 block w-full truncate font-mono text-xs font-bold text-ink" title={displayName}>
+      {showCrown && (
+        <span
+          aria-hidden
+          className="absolute -top-3 left-1/2 z-20 -translate-x-1/2 animate-corner-pop text-accent-gold"
+        >
+          <IconCrown size={18} weight="fill" />
+        </span>
+      )}
+
+      <div className="relative">
+        <ProgressRing
+          value={pct}
+          size={ringSize}
+          themeHex={themeHex}
+          animate
+          delayMs={isGold ? 0 : 80}
+        >
+          <Avatar size={avatarSize} imageUrl={member.imageUrl} fallback={member.fallback} />
+        </ProgressRing>
+
+        {showStreak && (
+          <span
+            aria-hidden
+            className="absolute -right-1 -top-1 z-20 inline-flex items-center gap-0.5 rounded-pill bg-surface px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-800 shadow-soft"
+          >
+            <IconFire size={11} />
+            {member.streak}
+          </span>
+        )}
+
+        {showToday && (
+          <span
+            aria-hidden
+            className="absolute bottom-0.5 right-1 z-20 h-3 w-3 rounded-full bg-accent-teal ring-2 ring-surface"
+          />
+        )}
+      </div>
+
+      <span className={`mt-1 block truncate font-mono text-xs font-bold text-ink ${nameMax}`} title={displayName}>
         {displayName}
       </span>
-      <span className="mt-1 font-mono text-sm font-bold text-brand-500">{Math.round(pct)}%</span>
-      <span className="sr-only">{formatCurrency(member.saved)} saved</span>
-      <div className="mt-2 w-full" aria-hidden>
-        <ProgressBar
-          value={pct}
-          tone={member.themeColor ? 'theme' : 'primary'}
-          themeHex={member.themeColor ? themeSwatches[member.themeColor] : undefined}
-          size="sm"
-          animate
-        />
-      </div>
-      <span className="mt-auto pt-2 text-ink-dim">
-        <IconUser size={14} />
+      <span
+        className={`font-mono font-bold tabular-nums text-brand-800 ${pctText}`}
+        style={themeHex ? { color: themeHex } : undefined}
+      >
+        {Math.round(pct)}%
       </span>
-    </button>
+      <span className="sr-only">{formatCurrency(member.saved)} saved</span>
+    </motion.button>
   );
 }
 

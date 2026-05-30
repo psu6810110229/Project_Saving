@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AboutModal } from '../components/AboutInfo/AboutInfo';
-import { AuroraBackdrop } from '../components/AuroraBackdrop/AuroraBackdrop';
 import { IconButton } from '../components/IconButton/IconButton';
 import { IconInfo } from '../components/Icon/Icon';
 import { MOTION_EASE } from '../lib/motion';
@@ -30,20 +29,6 @@ export function Login() {
 
   return (
     <div className="relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-bg px-6 pb-10 pt-6">
-      <AuroraBackdrop
-        live
-        contrast={1}
-        motionSpeed={0.36}
-        palette={{
-          primary: 'bg-white/[0.24]',
-          secondary: 'bg-white/[0.18]',
-          center: 'bg-white/[0.15]',
-          glow: 'bg-white/[0.27]',
-        }}
-        scatter
-        reduceMotion={Boolean(reduceMotion)}
-      />
-
       {/* Top bar — the (i) opens the same About/Terms/Privacy modal as the
           terms line below the sign-in button. */}
       <div className="relative z-10 flex justify-end">

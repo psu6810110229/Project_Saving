@@ -2,7 +2,6 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { MOTION_DURATION, MOTION_EASE, REDUCED_MOTION_TRANSITION } from '../../lib/motion';
-import { AuroraBackdrop } from '../AuroraBackdrop/AuroraBackdrop';
 import { WizardProgress } from './WizardProgress';
 import { StepBasics } from './StepBasics';
 import { StepEventDate } from './StepEventDate';
@@ -263,7 +262,6 @@ export function CreateRoomWizard() {
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-bg">
-      <AuroraBackdrop reduceMotion={Boolean(reduceMotion)} />
       <header className="sticky top-0 z-10 bg-bg/80 px-5 pb-3 pt-9 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button } from '../Button/Button';
+import { Button, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconBell, IconCheck } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
 import { useI18n } from '../../i18n/useI18n';
@@ -62,12 +62,12 @@ export function ReleaseUpdateModal() {
                 </article>
               ))}
               {hiddenCount > 0 && (
-                <Button variant="ghost" size="md" fullWidth onClick={() => setShowAll(true)}>
+                <Button variant="ghost" size="md" fullWidth className={MODAL_SECONDARY_BUTTON_CLASS} onClick={() => setShowAll(true)}>
                   {copy.release.viewAllChanges(hiddenCount)}
                 </Button>
               )}
               {showAll && release.notes.length > 4 && (
-                <Button variant="ghost" size="md" fullWidth onClick={() => setShowAll(false)}>
+                <Button variant="ghost" size="md" fullWidth className={MODAL_SECONDARY_BUTTON_CLASS} onClick={() => setShowAll(false)}>
                   {copy.release.showLess}
                 </Button>
               )}
@@ -77,7 +77,7 @@ export function ReleaseUpdateModal() {
         </div>
 
         <div className="shrink-0 border-t border-brand-100 bg-bg pt-3">
-          <Button variant="action" fullWidth onClick={handleUnderstand}>
+          <Button variant="action" fullWidth size="md" onClick={handleUnderstand}>
             {copy.common.done}
           </Button>
         </div>

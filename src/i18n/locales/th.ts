@@ -709,10 +709,13 @@ export const th: Messages = {
     validationCustomStartAmount: 'ใส่ยอดเริ่มต้นที่มากกว่า 0',
     validationCustomIncrement: 'ยอดเพิ่มต่อวันต้องเป็น 0 หรือมากกว่า',
     validationCustomCap: 'เพดานต้องไม่น้อยกว่ายอดเริ่มต้น',
+    validationCustomStartDate: 'เลือกวันเริ่มต้นของแผน',
+    validationCustomRange: 'วันสิ้นสุดต้องอยู่หลังวันเริ่มต้น',
     validationDeadlineRequired: 'เลือกเดดไลน์สำหรับเป้าหมายนี้',
     validationDeadlineFuture: 'เดดไลน์ต้องเป็นวันในอนาคต',
     deadlineExtensionPrompt: 'คุณขยายเดดไลน์หลายครั้งแล้ว ลองปรับยอดเป้าหมายดูนะ',
     editDeadlineLabel: 'เดดไลน์',
+    editPlanRangeLabel: 'วันเริ่ม–สิ้นสุดแผน',
     editRuleLabel: 'แผนการออม',
     ruleNames: {
       fixed_daily: 'รายวัน',

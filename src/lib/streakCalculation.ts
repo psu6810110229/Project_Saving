@@ -82,6 +82,15 @@ function bucketCreatedKey(bucket: Bucket): string {
   return localDateKey(bucket.created_at);
 }
 
+/**
+ * Anchor date for a bucket's saving schedule: the chosen start date when
+ * set (migration 0081), otherwise the bucket's creation date. Used to
+ * index increasing-daily amounts and to skip periods before the plan begins.
+ */
+function bucketScheduleStartKey(bucket: Bucket): string {
+  return bucket.saving_rule_start_date ?? bucketCreatedKey(bucket);
+}
+
 function bucketCompletedKey(bucket: Bucket): string | null {
   return bucket.completed_at ? localDateKey(bucket.completed_at) : null;
 }
@@ -123,7 +132,7 @@ function bucketSavedThrough(
 }
 
 function increasingDailyAmount(bucket: Bucket, dateKey: string): number {
-  const dayIndex = Math.max(0, daysBetween(bucketCreatedKey(bucket), dateKey));
+  const dayIndex = Math.max(0, daysBetween(bucketScheduleStartKey(bucket), dateKey));
   const start = bucket.saving_rule_start_amount ?? 0;
   const increment = bucket.saving_rule_increment ?? 0;
   const raw = start + dayIndex * increment;
@@ -170,7 +179,9 @@ function bucketObligationMet(
   const rule = bucket.saving_rule_type;
   const granularity = ruleGranularity(rule);
   if (!rule || !granularity) return null;
-  if (bucketCreatedKey(bucket) > period.end) return null;
+  // Skip periods before the schedule starts (created date, or a chosen
+  // future start date for increasing-daily rules) — no obligation yet.
+  if (bucketScheduleStartKey(bucket) > period.end) return null;
 
   const completedKey = bucketCompletedKey(bucket);
   if (completedKey && completedKey <= period.end) return true;

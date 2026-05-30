@@ -1,6 +1,6 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { Bucket, BucketTransfer, SavingRuleType, SavingsLog } from '../../types';
-import { addDays, daysBetween, todayBangkokKey } from '../../lib/savingPlan';
+import { addDays, daysBetween, daysInclusive, todayBangkokKey } from '../../lib/savingPlan';
 import {
   type RuleChoice,
   calcDefaultDeadline,
@@ -66,7 +66,7 @@ export function BucketEditForm({
   onSave,
   onSaved,
 }: BucketEditFormProps) {
-  const { copy, formatMoney } = useI18n();
+  const { copy, formatMoney, formatShortDateKey } = useI18n();
   const today = todayBangkokKey();
 
   const [draftName, setDraftName] = useState(bucket.name);
@@ -133,6 +133,25 @@ export function BucketEditForm({
       const raw = startNum + idx * incNum;
       return capNum > 0 ? Math.min(raw, capNum) : raw;
     };
+  }, [ruleChoice, customStart, customIncrement, customCap, startDate, deadline]);
+
+  // Summary card for the custom plan: finish date, length, cap, and the
+  // expected total across the whole start→end range.
+  const customPreview = useMemo(() => {
+    if (ruleChoice !== 'custom') return null;
+    const startNum = Number(customStart);
+    const incNum = Number(customIncrement || '0');
+    const capNum = Number(customCap || '0');
+    if (!Number.isFinite(startNum) || startNum <= 0) return null;
+    if (!startDate || !deadline || deadline <= startDate) return null;
+    const days = daysInclusive(startDate, deadline);
+    if (days <= 0) return null;
+    let total = 0;
+    for (let idx = 0; idx < days; idx++) {
+      const raw = startNum + idx * incNum;
+      total += capNum > 0 ? Math.min(raw, capNum) : raw;
+    }
+    return { finishDateKey: deadline, days, cap: capNum > 0 ? capNum : null, total };
   }, [ruleChoice, customStart, customIncrement, customCap, startDate, deadline]);
 
   const ruleOptions: Array<{ id: RuleChoice; label: string }> = [
@@ -358,6 +377,22 @@ export function BucketEditForm({
               getAmountForDate={getCustomAmountForDate}
             />
           </FormField>
+
+          {customPreview && (
+            <section className="rounded-xl bg-surface p-4 shadow-soft">
+              <p className="font-mono text-base font-bold uppercase tracking-[0.18em] text-brand-800">
+                {copy.savingPlan.previewLabel}
+              </p>
+              <dl className="mt-2 divide-y divide-well font-mono text-xs">
+                <PreviewRow label={copy.savingPlan.estimatedFinish} value={formatShortDateKey(customPreview.finishDateKey)} />
+                <PreviewRow label={copy.savingPlan.savingDays} value={copy.savingPlan.savingDaysValue(customPreview.days)} />
+                {customPreview.cap != null && (
+                  <PreviewRow label={copy.savingPlan.dailyCap} value={formatMoney(Math.round(customPreview.cap))} />
+                )}
+                <PreviewRow label={copy.savingPlan.expectedTotal} value={formatMoney(Math.round(customPreview.total))} />
+              </dl>
+            </section>
+          )}
         </div>
       )}
 
@@ -384,6 +419,15 @@ export function BucketEditForm({
           {copy.bucket.editCancel}
         </Button>
       </div>
+    </div>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className="font-bold text-ink">{value}</dd>
     </div>
   );
 }

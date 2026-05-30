@@ -8,6 +8,7 @@ interface SettingsListItem {
   label: string;
   description?: string;
   meta?: ReactNode;
+  locked?: boolean;
   onClick?: () => void;
 }
 

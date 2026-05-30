@@ -5,6 +5,7 @@ import { IconArrowLeft } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
+import { cascadeExpenseSchedule } from '../../lib/travelExpenseRules';
 import { clearJoinWizardDraft } from './joinWizardDraft';
 import type { JoinBucketDraft } from './JoinRoomWizard';
 
@@ -12,10 +13,11 @@ interface StepReadyProps {
   roomId: string;
   personalGoal: number;
   buckets: JoinBucketDraft[];
+  roomEndDate: string | null;
   onBack: () => void;
 }
 
-export function StepReady({ roomId, personalGoal, buckets, onBack }: StepReadyProps) {
+export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }: StepReadyProps) {
   const navigate = useNavigate();
   const { copy } = useI18n();
   const c = copy.joinRoomWizard;
@@ -62,21 +64,40 @@ export function StepReady({ roomId, personalGoal, buckets, onBack }: StepReadyPr
 
       const accepted = buckets.filter(b => b.accepted);
       if (accepted.length > 0) {
-        const bucketRows = accepted.map((b, i) => ({
-          user_id: userId,
-          room_id: roomId,
-          name: b.name,
-          target_amount: b.targetAmount,
-          category: b.category,
-          position: i,
-          deadline: b.deadline || null,
-          payment_type: b.paymentType ?? 'flexible',
-          // Carry the template's suggested rule onto the bucket so accepted
-          // template buckets aren't left deadline-only (no rule = no
-          // save-today amount). Custom buckets have no suggestion.
-          saving_rule_type: b.suggestedRuleType ?? null,
-          saving_rule_amount: b.suggestedRuleAmount ?? null,
-        }));
+        // Re-lay this member's accepted buckets on a fresh sequential timeline
+        // from THEIR join date (collect-first order = the accepted order). The
+        // room's inherited deadlines were computed for the creator and may now
+        // be in the past or imply an unaffordable rate for a member who joins
+        // later; recomputing keeps each bucket's plan affordable and on time.
+        const legs = roomEndDate
+          ? cascadeExpenseSchedule(
+              accepted.map((b, i) => ({ id: b.id, targetAmount: b.targetAmount, priority: i })),
+              roomEndDate,
+              startDate,
+            ).legs
+          : [];
+        const legById = new Map(legs.map(leg => [leg.id, leg]));
+        const bucketRows = accepted.map((b, i) => {
+          const leg = legById.get(b.id);
+          // Cascade result when available; otherwise fall back to the inherited
+          // room default (template) rule so the bucket still has a plan.
+          const ruleType = leg ? leg.suggestedRule.ruleType : (b.suggestedRuleType ?? null);
+          const ruleAmount = leg
+            ? (leg.suggestedRule.ruleType === 'flexible' ? null : leg.suggestedRule.amount)
+            : (b.suggestedRuleAmount ?? null);
+          return {
+            user_id: userId,
+            room_id: roomId,
+            name: b.name,
+            target_amount: b.targetAmount,
+            category: b.category,
+            position: i,
+            deadline: leg?.deadline ?? (b.deadline || null),
+            payment_type: b.paymentType ?? 'flexible',
+            saving_rule_type: ruleType,
+            saving_rule_amount: ruleAmount,
+          };
+        });
 
         const { error: bucketError } = await supabase
           .from('buckets')
@@ -93,7 +114,7 @@ export function StepReady({ roomId, personalGoal, buckets, onBack }: StepReadyPr
     } finally {
       setCreating(false);
     }
-  }, [userId, roomId, personalGoal, buckets, navigate, c.errorGeneric]);
+  }, [userId, roomId, personalGoal, buckets, roomEndDate, navigate, c.errorGeneric]);
 
   return (
     <div className="flex flex-col gap-5">

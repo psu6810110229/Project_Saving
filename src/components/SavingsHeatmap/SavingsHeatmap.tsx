@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { IconFlag } from '../Icon/Icon';
+import { IconChevronRight, IconFlag } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { todayBangkokKey } from '../../lib/savingPlan';
 import { FADE_TRANSITION, REDUCED_MOTION_TRANSITION, SPRING } from '../../lib/motion';
@@ -205,6 +205,7 @@ export function SavingsHeatmap({
   const sectionRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [popover, setPopover] = useState<DuePopover | null>(null);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const dueDateFmt = useMemo(
     () => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
@@ -225,6 +226,12 @@ export function SavingsHeatmap({
     setPopover(prev => (prev?.dateKey === dateKey ? null : { dateKey, left, top }));
   }
 
+  function updateScrollHint() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -241,12 +248,20 @@ export function SavingsHeatmap({
     } else {
       el.scrollLeft = el.scrollWidth;
     }
+    updateScrollHint();
   }, [storageKey, todayColumnIndex]);
+
+  useEffect(() => {
+    updateScrollHint();
+    window.addEventListener('resize', updateScrollHint);
+    return () => window.removeEventListener('resize', updateScrollHint);
+  }, [weeks]);
 
   function handleScroll() {
     const el = scrollRef.current;
     if (!el) return;
     if (popover) setPopover(null);
+    updateScrollHint();
     try {
       window.sessionStorage.setItem(storageKey, String(Math.round(el.scrollLeft)));
     } catch { /* ignore */ }
@@ -283,12 +298,13 @@ export function SavingsHeatmap({
           ))}
         </div>
 
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="min-w-0 flex-1 overflow-x-auto"
-        >
-          <div className="relative w-max">
+        <div className="relative min-w-0 flex-1">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="overflow-x-auto"
+          >
+            <div className="relative w-max">
             {/* Month boundaries follow the real first day, including mid-week starts. */}
             <div aria-hidden className="pointer-events-none absolute inset-0">
               {monthMarks.boundaries.flatMap(({ col, row }) => {
@@ -399,7 +415,19 @@ export function SavingsHeatmap({
               </div>
             ))}
             </div>
+            </div>
           </div>
+
+          {canScrollRight && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-2 bottom-0 top-0 flex w-7 items-center justify-end bg-gradient-to-l from-surface via-surface/70 to-transparent pr-0.5"
+            >
+              <span className="grid h-5 w-4 place-items-center text-ink-muted">
+                <IconChevronRight size={13} strokeWidth={2.5} />
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

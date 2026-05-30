@@ -1,6 +1,6 @@
 ﻿import type { ReactNode } from 'react';
 import { IconBubble } from '../IconBubble/IconBubble';
-import { IconArrowRight } from '../Icon/Icon';
+import { IconArrowRight, IconLock } from '../Icon/Icon';
 
 /**
  * One row in a Project Settings or Profile menu. Peach leading icon,
@@ -9,6 +9,10 @@ import { IconArrowRight } from '../Icon/Icon';
  *
  * `tone="danger"` recolors the label and icon for the Archive Project
  * row in the red danger zone.
+ *
+ * `locked` dims the row and swaps the chevron for a lock, signalling the
+ * action needs a project first. The row stays tappable so `onClick` can
+ * surface an explainer.
  */
 
 type Tone = 'default' | 'danger';
@@ -19,6 +23,7 @@ interface SettingsRowProps {
   description?: string;
   meta?: ReactNode;
   tone?: Tone;
+  locked?: boolean;
   onClick?: () => void;
 }
 
@@ -28,6 +33,7 @@ export function SettingsRow({
   description,
   meta,
   tone = 'default',
+  locked = false,
   onClick,
 }: SettingsRowProps) {
   const labelClass = tone === 'danger' ? 'text-danger' : 'text-ink';
@@ -35,7 +41,8 @@ export function SettingsRow({
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center gap-3 rounded-lg bg-surface shadow-soft p-3 active:scale-[0.99] transition-transform text-left"
+      aria-disabled={locked}
+      className={`w-full flex items-center gap-3 rounded-lg bg-surface shadow-soft p-3 active:scale-[0.99] transition-transform text-left ${locked ? 'opacity-60' : ''}`}
     >
       <IconBubble tone={tone === 'danger' ? 'muted' : 'peach'} size="md">
         <span className={tone === 'danger' ? 'text-danger' : ''}>{icon}</span>
@@ -47,7 +54,11 @@ export function SettingsRow({
         )}
       </div>
       {meta && <div className="shrink-0">{meta}</div>}
-      <IconArrowRight size={18} className={`shrink-0 ${tone === 'danger' ? 'text-danger' : 'text-ink-muted'}`} />
+      {locked ? (
+        <IconLock size={18} className="shrink-0 text-ink-muted" />
+      ) : (
+        <IconArrowRight size={18} className={`shrink-0 ${tone === 'danger' ? 'text-danger' : 'text-ink-muted'}`} />
+      )}
     </button>
   );
 }

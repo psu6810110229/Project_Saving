@@ -27,6 +27,8 @@ import {
   Heart,
   House,
   Image,
+  Info,
+  Lock,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   Palette,
@@ -123,6 +125,8 @@ export const IconCrown = make(Crown, 'duotone');
 export const IconCalendarClock = make(CalendarDots, 'duotone');
 export const IconArrowUpRight = make(ArrowUpRight, 'regular');
 export const IconShield = make(ShieldCheck, 'duotone');
+export const IconInfo = make(Info, 'duotone');
+export const IconLock = make(Lock, 'duotone');
 export const IconImage = make(Image, 'duotone');
 export const IconCamera = make(Camera, 'duotone');
 export const IconZoomIn = make(MagnifyingGlassPlus, 'regular');

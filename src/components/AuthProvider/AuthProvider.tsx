@@ -5,12 +5,56 @@ import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
 import { AuthContext } from './AuthContext';
 
+function firstText(...values: Array<unknown>): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+    }
+  }
+  return undefined;
+}
+
 function profileFromUser(user: User): Profile {
-  const meta = user.user_metadata as { full_name?: string; name?: string; email?: string; avatar_url?: string };
+  const meta = user.user_metadata as {
+    full_name?: string;
+    name?: string;
+    email?: string;
+    avatar_url?: string;
+    picture?: string;
+    user_name?: string;
+  };
+  const identities = Array.isArray((user as { identities?: unknown[] }).identities)
+    ? ((user as { identities?: Array<{ identity_data?: Record<string, unknown> | null }> }).identities ?? [])
+    : [];
+  const identityData = identities
+    .map(identity => identity.identity_data ?? undefined)
+    .find(Boolean);
+
+  const displayName = firstText(
+    meta.full_name,
+    meta.name,
+    meta.user_name,
+    identityData?.full_name,
+    identityData?.name,
+    identityData?.user_name,
+    user.email?.split('@')[0],
+    'User',
+  ) ?? 'User';
+
+  const avatarUrl = firstText(
+    meta.avatar_url,
+    meta.picture,
+    identityData?.avatar_url,
+    identityData?.picture,
+    identityData?.picture_url,
+    identityData?.photo_url,
+  ) ?? null;
+
   return {
     id: user.id,
-    display_name: meta.full_name ?? meta.name ?? user.email?.split('@')[0] ?? 'User',
-    avatar_url: meta.avatar_url,
+    display_name: displayName,
+    avatar_url: avatarUrl,
     created_at: user.created_at,
   };
 }
@@ -58,26 +102,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // One-shot DB backfill of the Google avatar onto profiles.avatar_url.
-  // The handle_new_user() trigger (migration 0018) writes it for new
-  // signups, but existing users created before 0018 have NULL in the DB,
-  // so the head-to-head / activity feed / bucket rows render the
-  // fallback initial. This effect writes the URL exactly once per
-  // session and only when the DB row is currently NULL (preserving any
-  // future user-uploaded avatar). Guarded by .is('avatar_url', null).
+  // Backfill missing Google identity fields onto the profile row once the
+  // session is known. The UI already reads from JWT metadata instantly, but
+  // persisting missing name/photo fields keeps later DB-backed views aligned.
   useEffect(() => {
     if (!user) return;
-    const meta = user.user_metadata as { avatar_url?: string };
-    const url = meta.avatar_url?.trim();
-    if (!url) return;
+    const nextProfile = profileFromUser(user);
+    const nextName = nextProfile.display_name?.trim();
+    const nextAvatar = nextProfile.avatar_url?.trim();
+    if (!nextName && !nextAvatar) return;
+
     supabase
       .from('profiles')
-      .update({ avatar_url: url })
+      .select('display_name, avatar_url')
       .eq('id', user.id)
-      .is('avatar_url', null)
-      .then(({ error }) => {
-        if (error && typeof console !== 'undefined') {
-          console.warn('[AuthProvider] avatar backfill failed', error);
+      .maybeSingle()
+      .then(async ({ data, error }) => {
+        if (error) {
+          if (typeof console !== 'undefined') {
+            console.warn('[AuthProvider] identity preload failed', error);
+          }
+          return;
+        }
+
+        const currentName = data?.display_name?.trim();
+        const currentAvatar = data?.avatar_url?.trim();
+        const patch: { display_name?: string; avatar_url?: string } = {};
+        if (!currentName && nextName) patch.display_name = nextName;
+        if (!currentAvatar && nextAvatar) patch.avatar_url = nextAvatar;
+        if (!patch.display_name && !patch.avatar_url) return;
+
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(patch)
+          .eq('id', user.id);
+
+        if (updateError && typeof console !== 'undefined') {
+          console.warn('[AuthProvider] identity backfill failed', updateError);
         }
       });
   }, [user]);

@@ -34,7 +34,7 @@ export function StepBasics({
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
+      <div className="pt-3">
         <h2 className="font-mono text-2xl font-bold text-ink">{c.stepBasicsTitle}</h2>
         <p className="mt-1 font-mono text-sm text-ink-muted">{c.stepBasicsSubtitle}</p>
       </div>

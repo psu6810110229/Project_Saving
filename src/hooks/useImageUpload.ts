@@ -6,6 +6,7 @@ import type { CoverTint } from '../types';
 export const ROOM_COVER_MAX_SIZE = 10 * 1024 * 1024;
 export const ROOM_COVER_MAX_WIDTH = 1200;
 export const ROOM_COVER_ASPECT_RATIO = 16 / 9;
+export const AVATAR_MAX_WIDTH = 512;
 
 const ALLOWED_ROOM_COVER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -150,6 +151,38 @@ export async function cropAndResizeRoomCover(file: File, crop: CropRect): Promis
   return { blob, tint };
 }
 
+export async function cropAndResizeAvatar(file: File, crop: CropRect): Promise<Blob> {
+  const source = await decodeImage(file);
+  const outputSize = Math.max(1, Math.min(AVATAR_MAX_WIDTH, Math.round(Math.min(crop.width, crop.height))));
+  const canvas = document.createElement('canvas');
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    source.close();
+    throw new Error('canvas_failed');
+  }
+
+  ctx.drawImage(
+    source,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
+    0,
+    0,
+    outputSize,
+    outputSize,
+  );
+  source.close();
+  return canvasToBlob(canvas);
+}
+
+export function croppedAvatarFile(blob: Blob): File {
+  return new File([blob], `avatar-${Date.now()}.jpg`, { type: 'image/jpeg' });
+}
+
 export function useImageUpload() {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
@@ -186,6 +219,7 @@ export function useImageUpload() {
     uploading,
     validateRoomCoverFile,
     cropAndResizeRoomCover,
+    cropAndResizeAvatar,
     uploadRoomCover,
   };
 }

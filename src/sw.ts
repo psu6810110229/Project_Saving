@@ -48,7 +48,6 @@ interface PushPayload {
 const ALLOWED_ROUTE_PREFIXES = [
   '/dashboard',
   '/add',
-  '/check-balance',
   '/saving-plan',
   '/manage-project',
   '/notifications',

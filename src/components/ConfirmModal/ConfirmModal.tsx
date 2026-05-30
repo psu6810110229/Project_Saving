@@ -1,4 +1,9 @@
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import {
+  Button,
+  MODAL_ACTION_ROW_CLASS,
+  MODAL_ACTION_ROW_REVERSE_CLASS,
+  MODAL_SECONDARY_BUTTON_CLASS,
+} from '../Button/Button';
 import { Modal } from '../Modal/Modal';
 import { useI18n } from '../../i18n/useI18n';
 
@@ -26,7 +31,7 @@ export function ConfirmModal({
     <Modal open={open} title={title} onClose={onCancel}>
       <div className="flex flex-col gap-4">
         <p className="font-mono text-sm leading-6 text-ink-muted">{body}</p>
-        <div className={MODAL_ACTION_ROW_CLASS}>
+        <div className={danger ? MODAL_ACTION_ROW_CLASS : MODAL_ACTION_ROW_REVERSE_CLASS}>
           <Button variant={danger ? 'dangerSoft' : 'primary'} size="md" onClick={onConfirm}>
             {confirmLabel}
           </Button>

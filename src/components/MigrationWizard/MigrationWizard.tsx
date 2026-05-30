@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { Bucket, BucketCreateRuleData, BucketTransfer, DailySummaryItem, SavingsLog } from '../../types';
 import type { MigrationState } from '../../hooks/useMigrationState';
 import { Modal } from '../Modal/Modal';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconArrowRight, IconCalendar, IconCheckCircle } from '../Icon/Icon';
 import { MigrationBucketStep } from './MigrationBucketStep';
 import { MigrationSummary } from './MigrationSummary';
@@ -90,7 +90,7 @@ export function MigrationWizard({
                 </p>
               </div>
             </div>
-            <div className={MODAL_ACTION_ROW_CLASS}>
+            <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
               <Button variant="action" size="md" trailingIcon={<IconArrowRight size={16} />} onClick={onStart}>
                 {m.startButton}
               </Button>

@@ -1,4 +1,4 @@
-import type { SavingsLog } from '../types';
+import type { BalanceAllocation, SavingsLog } from '../types';
 import { localDateKey } from './streak';
 import { addDays, todayBangkokKey } from './savingPlan';
 
@@ -24,6 +24,31 @@ export function dailyAmountSeries(logs: SavingsLog[], userId?: string, today = n
 export function cumulativeAmountSeries(logs: SavingsLog[], userId?: string, pending = 0, today = new Date()): number[] {
   let running = 0;
   const daily = dailyAmountSeries(logs, userId, today);
+  return daily.map((amount, index) => {
+    running += amount;
+    return index === daily.length - 1 ? running + pending : running;
+  });
+}
+
+export function cumulativeNetAmountSeries(
+  logs: SavingsLog[],
+  allocations: BalanceAllocation[],
+  userId?: string,
+  pending = 0,
+  today = new Date(),
+): number[] {
+  let running = 0;
+  const keys = lastSevenDateKeys(today);
+  const daily = keys.map(key => {
+    const deposits = logs
+      .filter(log => (!userId || log.user_id === userId) && localDateKey(log.created_at) === key)
+      .reduce((sum, log) => sum + log.amount, 0);
+    const adjustments = allocations
+      .filter(allocation => (!userId || allocation.user_id === userId) && localDateKey(allocation.created_at) === key)
+      .reduce((sum, allocation) => sum + allocation.amount, 0);
+    return deposits + adjustments;
+  });
+
   return daily.map((amount, index) => {
     running += amount;
     return index === daily.length - 1 ? running + pending : running;

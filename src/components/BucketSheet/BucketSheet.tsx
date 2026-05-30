@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { BucketHeader } from '../BucketHeader/BucketHeader';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CompleteBucketLock } from '../CompleteBucketLock/CompleteBucketLock';
 import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
@@ -251,7 +251,7 @@ export function BucketSheet({
                       )}
 
                       {/* Actions */}
-                      <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_CLASS}>
+                      <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_REVERSE_CLASS}>
                         <Button
                           variant="action"
                           size="md"

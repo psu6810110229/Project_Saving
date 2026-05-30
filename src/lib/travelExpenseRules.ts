@@ -1,5 +1,5 @@
 import type { BucketCategory, PaymentType, SavingRuleType } from '../types';
-import { daysBetween, todayBangkokKey } from './savingPlan';
+import { addDays, daysBetween, todayBangkokKey } from './savingPlan';
 import { getPrimaryTipKey } from '../i18n/expenseTips';
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -84,10 +84,22 @@ function subMonths(dateKey: string, months: number): string {
   return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
 }
 
-export function calcSuggestedDeadline(eventDate: string, category: BucketCategory): string {
+export function calcSuggestedDeadline(
+  eventDate: string,
+  category: BucketCategory,
+  today?: string,
+): string {
   const rule = getTravelExpenseRule(category);
   if (!rule || rule.monthsBeforeEvent === 0) return eventDate;
+  const todayKey = today ?? todayBangkokKey();
   const deadline = subMonths(eventDate, rule.monthsBeforeEvent);
+  // Never suggest a deadline today or in the past: if the lead time lands on/
+  // before today (event sooner than the lead time), fall back to a near-future
+  // date, never past the event itself.
+  if (deadline <= todayKey) {
+    const fallback = addDays(todayKey, 7);
+    return fallback < eventDate ? fallback : eventDate;
+  }
   return deadline < eventDate ? deadline : eventDate;
 }
 
@@ -139,6 +151,90 @@ export function calcSuggestedRule(
 }
 
 /* ──────────────────────────────────────────────────────────────────────
+ * Sequential cascade schedule
+ *
+ * Real saving is sequential, not parallel: a room funds its highest-priority
+ * bucket first (flight), then the next, and so on. Spreading one sustainable
+ * rate across the whole runway keeps every bucket's daily amount even and
+ * affordable, instead of cramming the nearest deadline into a tiny window
+ * (which produced impossible per-day rates like ฿443/day).
+ *
+ * DAILY_RATE_CAP is an internal affordability ceiling — never shown to the
+ * user, only used in the math. The suggested plan must not imply more than this
+ * per day, matching the real income of the target audience (Thai students /
+ * middle class). It only bites when the goal is too large for the time given.
+ * ──────────────────────────────────────────────────────────────────── */
+
+export const DAILY_RATE_CAP = 200;
+
+export interface CascadeInput {
+  id: string;
+  targetAmount: number;
+  priority: number;
+}
+
+export interface CascadeLeg {
+  id: string;
+  /** When saving toward this bucket begins (the previous bucket's deadline). */
+  startDate: string;
+  /** When this bucket is funded, in priority order. */
+  deadline: string;
+  /** Rate suggested over this bucket's own funding window (not the whole runway). */
+  suggestedRule: SuggestedRule;
+}
+
+export interface CascadeSchedule {
+  legs: CascadeLeg[];
+  /** True when the even rate already exceeds the daily cap — the goal is too
+   *  large for the timeframe to stay affordable. */
+  overCap: boolean;
+}
+
+export function cascadeExpenseSchedule(
+  items: CascadeInput[],
+  eventDate: string,
+  today?: string,
+): CascadeSchedule {
+  const todayKey = today ?? todayBangkokKey();
+  const totalDays = Math.max(1, daysBetween(todayKey, eventDate));
+  const total = items.reduce((sum, it) => sum + Math.max(0, it.targetAmount), 0);
+  const baseRate = total > 0 ? total / totalDays : 0;
+  const overCap = baseRate > DAILY_RATE_CAP;
+  const effectiveRate = overCap ? DAILY_RATE_CAP : baseRate;
+
+  const ordered = [...items].sort((a, b) => a.priority - b.priority);
+  const legs: CascadeLeg[] = [];
+  let cumulative = 0;
+  let prevDeadline = todayKey;
+
+  for (const it of ordered) {
+    const amount = Math.max(0, it.targetAmount);
+    cumulative += amount;
+
+    let deadline: string;
+    if (effectiveRate <= 0) {
+      deadline = eventDate;
+    } else {
+      deadline = addDays(todayKey, Math.ceil(cumulative / effectiveRate));
+      if (deadline > eventDate) deadline = eventDate;
+    }
+
+    // Saving toward this bucket starts when the previous one is funded, but
+    // never before today and never after this bucket's own deadline.
+    const startDate = prevDeadline > todayKey && prevDeadline < deadline ? prevDeadline : todayKey;
+    legs.push({
+      id: it.id,
+      startDate,
+      deadline,
+      suggestedRule: calcSuggestedRule(amount, deadline, startDate),
+    });
+    prevDeadline = deadline;
+  }
+
+  return { legs, overCap };
+}
+
+/* ──────────────────────────────────────────────────────────────────────
  * Budget splitting
  * ──────────────────────────────────────────────────────────────────── */
 
@@ -162,7 +258,7 @@ export function suggestExpenses(
   const todayKey = today ?? todayBangkokKey();
   return TRAVEL_EXPENSE_RULES.map(rule => {
     const targetAmount = roundUp(totalBudget * rule.budgetPercent, 100);
-    const deadline = calcSuggestedDeadline(eventDate, rule.category);
+    const deadline = calcSuggestedDeadline(eventDate, rule.category, todayKey);
     return {
       category: rule.category,
       nameEn: rule.nameEn,

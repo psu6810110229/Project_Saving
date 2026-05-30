@@ -29,7 +29,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const bucketActivityEvents = useBucketActivityEvents(roomId);
   const logs = useLogs(100, roomId);
   const streakFreeze = useStreakFreeze(user?.id);
-  const leaderboard = useLeaderboard(logs.logs, user?.id, roomId, streakFreeze.frozenDates);
+  const leaderboard = useLeaderboard(user?.id, roomId, streakFreeze.frozenDates);
   const goal = useGoal(roomId);
 
   // N-safe per-member data layer. The plural fields below are the

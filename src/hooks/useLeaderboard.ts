@@ -35,9 +35,44 @@ export interface LeaderboardState {
 
 interface RawProfile { id: string; display_name: string; avatar_url?: string | null; theme_color?: ProfileTheme; }
 interface RawGoal { user_id: string; target_amount: string | number; }
+interface RawLeaderboardLog { user_id: string; amount: string | number; created_at: string; }
+
+const ROOM_LOGS_PAGE_SIZE = 1000;
+
+async function fetchAllRoomLogs(roomId: string): Promise<Array<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id'>>> {
+  const rows: Array<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id'>> = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + ROOM_LOGS_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from('savings_logs')
+      .select('user_id, amount, created_at')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      throw error;
+    }
+
+    const batch = ((data ?? []) as RawLeaderboardLog[]).map(row => ({
+      user_id: row.user_id,
+      amount: Number(row.amount),
+      created_at: row.created_at,
+    }));
+
+    rows.push(...batch);
+
+    if (batch.length < ROOM_LOGS_PAGE_SIZE) {
+      return rows;
+    }
+
+    from += ROOM_LOGS_PAGE_SIZE;
+  }
+}
 
 export function useLeaderboard(
-  logs: SavingsLog[],
   myUserId: string | undefined,
   roomId: string | null = null,
   // SPRINT1-003: per the "self only, partner raw" decision, freeze
@@ -47,6 +82,7 @@ export function useLeaderboard(
 ): LeaderboardState {
   const [profiles, setProfiles] = useState<RawProfile[]>([]);
   const [goals, setGoals] = useState<RawGoal[]>([]);
+  const [roomLogs, setRoomLogs] = useState<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id'>[]>([]);
   const [loading, setLoading] = useState(true);
   const [today, setToday] = useState(() => localDateKey(new Date().toISOString(), APP_TZ));
 
@@ -55,6 +91,7 @@ export function useLeaderboard(
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setProfiles([]);
       setGoals([]);
+      setRoomLogs([]);
       setLoading(false);
       return;
     }
@@ -63,6 +100,8 @@ export function useLeaderboard(
     setLoading(true);
 
     async function fetchLeaderboardData() {
+      const activeRoomId = roomId;
+      if (!activeRoomId) return;
       // Step 1: get user_ids for this room. The direct select is gated by
       // room_members RLS (fixed in migration 0012). If the policy is missing
       // in this environment the joiner only sees their own row, which would
@@ -72,14 +111,14 @@ export function useLeaderboard(
       const { data: memberRows } = await supabase
         .from('room_members')
         .select('user_id')
-        .eq('room_id', roomId);
+        .eq('room_id', activeRoomId);
 
       if (cancelled) return;
 
       let userIds = (memberRows ?? []).map((r: { user_id: string }) => r.user_id);
 
       if (userIds.length <= 1) {
-        const { data: rpcRows } = await supabase.rpc('room_members_for_room', { p_room_id: roomId });
+        const { data: rpcRows } = await supabase.rpc('room_members_for_room', { p_room_id: activeRoomId });
         const rpcUserIds = (rpcRows ?? []).map((r: { user_id: string }) => r.user_id);
         if (rpcUserIds.length > userIds.length) {
           if (typeof console !== 'undefined') {
@@ -99,7 +138,7 @@ export function useLeaderboard(
       }
 
       // Step 2: fetch profiles + goals in parallel.
-      const [{ data: p }, { data: g }] = await Promise.all([
+      const [{ data: p }, { data: g }, l] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, display_name, avatar_url, theme_color')
@@ -107,22 +146,34 @@ export function useLeaderboard(
         supabase
           .from('goals')
           .select('user_id, target_amount')
-          .eq('room_id', roomId),
+          .eq('room_id', activeRoomId),
+        fetchAllRoomLogs(activeRoomId),
       ]);
 
       if (cancelled) return;
       setProfiles((p ?? []) as RawProfile[]);
       setGoals(g ?? []);
+      setRoomLogs(l);
       setLoading(false);
     }
 
     void fetchLeaderboardData();
 
-    const channelId = `leaderboard-goals:${roomId}-${Math.random().toString(36).slice(2, 9)}`;
-    const goalChannel = supabase.channel(channelId)
+    const channelId = `leaderboard:${roomId}-${Math.random().toString(36).slice(2, 9)}`;
+    const roomChannel = supabase.channel(channelId)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'savings_logs', filter: `room_id=eq.${roomId}` },
+        () => { void fetchLeaderboardData(); },
+      )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'goals', filter: `room_id=eq.${roomId}` },
+        () => { void fetchLeaderboardData(); },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${roomId}` },
         () => { void fetchLeaderboardData(); },
       )
       .subscribe();
@@ -134,7 +185,7 @@ export function useLeaderboard(
     return () => {
       cancelled = true;
       clearInterval(id);
-      supabase.removeChannel(goalChannel);
+      supabase.removeChannel(roomChannel);
     };
   }, [roomId]);
 
@@ -142,7 +193,7 @@ export function useLeaderboard(
     if (loading) return { entries: [], loading: true };
 
     const raw = profiles.map(p => {
-      const userLogs = logs.filter(l => l.user_id === p.id);
+      const userLogs = roomLogs.filter(l => l.user_id === p.id);
       const saved = userLogs.reduce((sum, l) => sum + l.amount, 0);
       const goal = goals.find(g => g.user_id === p.id);
       const target = goal ? Number(goal.target_amount) : null;
@@ -179,5 +230,5 @@ export function useLeaderboard(
     }));
 
     return { entries, loading: false };
-  }, [profiles, goals, logs, loading, today, myUserId, currentUserFrozenDates]);
+  }, [profiles, goals, roomLogs, loading, today, myUserId, currentUserFrozenDates]);
 }

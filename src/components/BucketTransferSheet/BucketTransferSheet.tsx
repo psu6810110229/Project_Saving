@@ -9,7 +9,7 @@ import {
 import { useI18n } from '../../i18n/useI18n';
 import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/motion';
 import type { TransferBucketMoneyResult } from '../../types';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { FormField } from '../FormField/FormField';
 import { IconArrowRight, IconCheckCircle, IconPiggyBank, IconSwap } from '../Icon/Icon';
 import { IconBubble } from '../IconBubble/IconBubble';
@@ -483,7 +483,7 @@ function BucketTransferSheetInner({
                       </motion.p>
                     )}
 
-                    <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_CLASS}>
+                    <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_REVERSE_CLASS}>
                       <Button
                         variant="action"
                         size="md"
@@ -539,7 +539,7 @@ function BucketTransferSheetInner({
                       </motion.p>
                     )}
 
-                    <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_CLASS}>
+                    <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_REVERSE_CLASS}>
                       <Button
                         variant="action"
                         size="md"

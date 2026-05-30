@@ -1,7 +1,7 @@
 import { type ChangeEvent, type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { BucketCategory, BucketCreateRuleData, SavingRuleType } from '../../types';
 import { addDays, daysBetween, todayBangkokKey } from '../../lib/savingPlan';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
 import { CategoryRow } from '../CategoryRow/CategoryRow';
 import { FormField } from '../FormField/FormField';
@@ -197,7 +197,7 @@ export function CreateBucketForm({
           onChange={setDeadline}
           minDate={addDays(today, 1)}
         />
-        <div className={MODAL_ACTION_ROW_CLASS}>
+        <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
           <Button variant="action" size="md" onClick={handleDeadlineNext}>
             {b.nextButton}
           </Button>
@@ -310,7 +310,7 @@ export function CreateBucketForm({
         </div>
       )}
 
-      <div className={MODAL_ACTION_ROW_CLASS}>
+      <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
         <Button variant="action" size="md" disabled={!ruleChoice} onClick={handleFinalSubmit}>
           {b.createButton}
         </Button>

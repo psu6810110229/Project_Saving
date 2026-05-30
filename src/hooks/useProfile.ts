@@ -11,6 +11,26 @@ interface ProfileUpdateValues {
 
 const DEFAULT_QUICK_AMOUNTS = [100, 500, 1000, 2000];
 
+function mergeProfileWithAuthProfile(profile: Profile | null, authProfile: Profile | null): Profile | null {
+  if (!profile) return authProfile;
+  if (!authProfile || profile.id !== authProfile.id) return profile;
+
+  const identitySetupIncomplete = !profile.identity_setup_completed_at;
+  const displayName = identitySetupIncomplete
+    ? authProfile.display_name?.trim() || profile.display_name?.trim() || authProfile.display_name
+    : profile.display_name?.trim() || authProfile.display_name;
+  const avatarUrl = identitySetupIncomplete
+    ? authProfile.avatar_url?.trim() || profile.avatar_url?.trim() || null
+    : profile.avatar_url?.trim() || authProfile.avatar_url || null;
+
+  return {
+    ...profile,
+    display_name: displayName,
+    avatar_url: avatarUrl,
+    created_at: profile.created_at || authProfile.created_at,
+  };
+}
+
 export function useProfile() {
   const { user, profile: authProfile } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(authProfile);
@@ -28,7 +48,7 @@ export function useProfile() {
     setError(null);
     const { data, error: fetchError } = await supabase
       .from('profiles')
-      .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, bucket_drag_hint_seen_at, created_at')
+      .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, bucket_drag_hint_seen_at, identity_setup_completed_at, created_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -36,7 +56,7 @@ export function useProfile() {
       setError(fetchError.message);
       setProfile(authProfile);
     } else {
-      setProfile((data as Profile | null) ?? authProfile);
+      setProfile(mergeProfileWithAuthProfile((data as Profile | null) ?? null, authProfile));
     }
     setLoading(false);
   }
@@ -57,7 +77,7 @@ export function useProfile() {
       setError(null);
       const { data, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, bucket_drag_hint_seen_at, created_at')
+        .select('id, display_name, avatar_url, theme_color, quick_add_amounts, ui_language, bucket_drag_hint_seen_at, identity_setup_completed_at, created_at')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -67,7 +87,7 @@ export function useProfile() {
         setError(fetchError.message);
         setProfile(authProfile);
       } else {
-        setProfile((data as Profile | null) ?? authProfile);
+        setProfile(mergeProfileWithAuthProfile((data as Profile | null) ?? null, authProfile));
       }
       setLoading(false);
     });
@@ -75,7 +95,7 @@ export function useProfile() {
     return () => {
       cancelled = true;
     };
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, authProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function updateProfile(values: ProfileUpdateValues): Promise<{ error?: string }> {
     if (!user) return { error: 'Not authenticated' };
@@ -96,6 +116,7 @@ export function useProfile() {
       avatar_url: prev?.avatar_url ?? authProfile?.avatar_url ?? null,
       theme_color: values.theme_color,
       quick_add_amounts: prev?.quick_add_amounts ?? DEFAULT_QUICK_AMOUNTS,
+      identity_setup_completed_at: prev?.identity_setup_completed_at ?? null,
       created_at: prev?.created_at ?? authProfile?.created_at ?? user.created_at,
     }));
     return {};
@@ -190,6 +211,21 @@ export function useProfile() {
     return {};
   }
 
+  async function completeIdentitySetup(): Promise<{ error?: string }> {
+    if (!user) return { error: 'Not authenticated' };
+
+    const completedAt = new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ identity_setup_completed_at: completedAt })
+      .eq('id', user.id);
+
+    if (updateError) return { error: updateError.message };
+
+    setProfile(prev => prev ? { ...prev, identity_setup_completed_at: completedAt } : prev);
+    return {};
+  }
+
   return {
     profile,
     loading,
@@ -201,6 +237,7 @@ export function useProfile() {
     updateQuickAmounts,
     updateLanguage,
     uploadAvatar,
+    completeIdentitySetup,
     markBucketDragHintSeen,
   };
 }

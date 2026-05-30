@@ -1,5 +1,5 @@
 import { type ChangeEvent, type ReactNode, useMemo, useRef, useState } from 'react';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { IconCheck, IconCheckCircle, IconPiggyBank, IconWarning } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
@@ -270,7 +270,7 @@ export function AllocateSheet({
             <p className="rounded-lg bg-danger-soft px-3 py-2 font-mono-th text-xs text-danger">{errorText}</p>
           )}
 
-          <div className={MODAL_ACTION_ROW_CLASS}>
+          <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
             <Button variant="action" fullWidth size="md" disabled={!canSubmit} onClick={handleConfirm}>
               {submitting ? a.confirmingButton : selectedComplete && !completeConfirmed ? a.confirmCompleteButton : a.confirmButton}
             </Button>

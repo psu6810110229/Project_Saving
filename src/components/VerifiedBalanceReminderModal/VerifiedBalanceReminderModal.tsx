@@ -1,4 +1,4 @@
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { IconVault } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
@@ -39,7 +39,7 @@ export function VerifiedBalanceReminderModal({
           </IconBubble>
           <p className="font-mono text-sm leading-6 text-ink">{body}</p>
         </div>
-        <div className={MODAL_ACTION_ROW_CLASS}>
+        <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
           <Button variant="action" size="md" onClick={onCheckNow}>
             {r.reminderCheckNow}
           </Button>

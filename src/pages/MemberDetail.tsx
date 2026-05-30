@@ -10,7 +10,6 @@ import {
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
 import { PageHeader } from '../components/PageHeader/PageHeader';
 import { ProgressBar } from '../components/ProgressBar/ProgressBar';
-import { SavingPlanCard } from '../components/SavingPlanCard/SavingPlanCard';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { useAuth } from '../hooks/useAuth';
 import { useLoadingGate } from '../hooks/useLoadingGate';
@@ -18,47 +17,13 @@ import { useMemberSavingSnapshot } from '../hooks/useMemberSavingSnapshot';
 import { useRoom } from '../hooks/useRoom';
 import { useRoomMember } from '../hooks/useRoomMembers';
 import { useRoomMembersBuckets } from '../hooks/useRoomMembersBuckets';
-import { useRoomMembersSavingPlans } from '../hooks/useRoomMembersSavingPlans';
 import { useI18n } from '../i18n/useI18n';
 import { formatCurrency } from '../lib/format';
-import {
-  activeRevisionAt,
-  habitStatusFromDeposits,
-  isPausedOnDate,
-  moneyStatusFor,
-  nextUpcomingRevision,
-  todayBangkokKey,
-} from '../lib/savingPlan';
 import { themeSwatches } from '../lib/theme';
-import type { BucketCategory, SavingPlanRevision } from '../types';
+import type { BucketCategory } from '../types';
 
 function bucketIcon(category: BucketCategory | undefined): ReactNode {
   return <BucketCategoryIcon category={category} size={22} />;
-}
-
-interface PlanSummaryMessages {
-  planFixedDaily: (amount: string) => string;
-  planFixedWeekly: (amount: string) => string;
-  planFixedMonthly: (amount: string) => string;
-  planIncreasingDaily: (startAmount: string) => string;
-  planIncreasingDailyCapped: (capAmount: string) => string;
-}
-
-function buildPlanSummary(rev: SavingPlanRevision, msg: PlanSummaryMessages): string {
-  switch (rev.rule_type) {
-    case 'fixed_daily':
-      return msg.planFixedDaily(formatCurrency(Math.round(Number(rev.amount ?? 0))));
-    case 'fixed_weekly':
-      return msg.planFixedWeekly(formatCurrency(Math.round(Number(rev.amount ?? 0))));
-    case 'fixed_monthly':
-      return msg.planFixedMonthly(formatCurrency(Math.round(Number(rev.amount ?? 0))));
-    case 'increasing_daily':
-      return msg.planIncreasingDaily(String(Math.round(Number(rev.start_amount ?? 0))));
-    case 'increasing_daily_capped':
-      return msg.planIncreasingDailyCapped(formatCurrency(Math.round(Number(rev.cap_amount ?? 0))));
-    default:
-      return '';
-  }
 }
 
 function firstGrapheme(value: string): string {
@@ -78,25 +43,23 @@ export function MemberDetail() {
   const navigate = useNavigate();
   const { copy, formatShortDateKey } = useI18n();
   const md = copy.memberDetail;
-  const d = copy.dashboard;
 
   // Self-URL: redirect to /profile before any data fetch / shell flash.
   if (userId && user?.id && userId === user.id) {
     return <Navigate to="/profile" replace />;
   }
 
-  return <MemberDetailBody userId={userId} md={md} d={d} formatShortDateKey={formatShortDateKey} navigate={navigate} />;
+  return <MemberDetailBody userId={userId} md={md} formatShortDateKey={formatShortDateKey} navigate={navigate} />;
 }
 
 interface MemberDetailBodyProps {
   userId: string | null;
   md: ReturnType<typeof useI18n>['copy']['memberDetail'];
-  d: ReturnType<typeof useI18n>['copy']['dashboard'];
   formatShortDateKey: ReturnType<typeof useI18n>['formatShortDateKey'];
   navigate: ReturnType<typeof useNavigate>;
 }
 
-function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: MemberDetailBodyProps) {
+function MemberDetailBody({ userId, md, formatShortDateKey, navigate }: MemberDetailBodyProps) {
   const { activeRoom, activeRoomId } = useRoom();
   const { member, loading: memberLoading, error: memberError } = useRoomMember(activeRoomId, userId);
   void formatShortDateKey;
@@ -108,17 +71,14 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
   const memberIds = useMemo(() => (userId ? [userId] : []), [userId]);
   const snapshot = useMemberSavingSnapshot(activeRoomId, userId);
   const { bucketsByUser, loading: bucketsLoading } = useRoomMembersBuckets(activeRoomId, memberIds);
-  const { plansByUser, loading: plansLoading } = useRoomMembersSavingPlans(activeRoomId, memberIds);
 
-  const memberPlan = userId ? plansByUser[userId] ?? null : null;
   const memberBuckets = useMemo(() => (userId ? bucketsByUser[userId] ?? [] : []), [bucketsByUser, userId]);
 
   const isLoading =
     !userId ||
     memberLoading ||
     snapshot.loading ||
-    bucketsLoading ||
-    plansLoading;
+    bucketsLoading;
 
   const { shouldShowLoader: shouldShowSkeleton } = useLoadingGate({
     loading: isLoading,
@@ -137,7 +97,7 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
   const themeColor = member?.themeColor ?? undefined;
 
   return (
-    <div className="flex flex-col gap-6 pt-8">
+    <div className="flex flex-col gap-6 px-5 pt-8">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -178,15 +138,6 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
                 themeColor={themeColor}
                 sectionLabel={md.sectionPersonalGoal}
                 goalUnsetBody={md.goalUnsetBody}
-              />
-              <MemberSavingPlanSection
-                plan={memberPlan}
-                depositTotal={snapshot.saved}
-                depositDayKeys={snapshot.depositDayKeys}
-                roomEndDate={activeRoom?.end_date ?? null}
-                d={d}
-                emptyBody={md.savingPlanEmptyBody}
-                sectionLabel={md.sectionSavingPlan}
               />
               <MemberBucketsSection
                 name={memberName || '—'}
@@ -244,7 +195,7 @@ function ProfileBand({
   );
 }
 
-function PersonalGoalSection({
+export function PersonalGoalSection({
   saved,
   target,
   themeColor,
@@ -279,93 +230,7 @@ function PersonalGoalSection({
   );
 }
 
-function MemberSavingPlanSection({
-  plan,
-  depositTotal,
-  depositDayKeys,
-  roomEndDate,
-  d,
-  emptyBody,
-  sectionLabel,
-}: {
-  plan: import('../types').SavingPlan | null;
-  depositTotal: number;
-  depositDayKeys: string[];
-  roomEndDate: string | null;
-  d: ReturnType<typeof useI18n>['copy']['dashboard'];
-  emptyBody: string;
-  sectionLabel: string;
-}) {
-  if (!plan) {
-    return (
-      <section className="flex flex-col gap-3">
-        <h2 className="font-mono text-lg font-bold leading-tight text-ink">{sectionLabel}</h2>
-        <p className="rounded-xl bg-surface px-4 py-3 font-mono text-xs text-ink-muted shadow-soft">
-          {emptyBody}
-        </p>
-      </section>
-    );
-  }
-
-  const todayKey = todayBangkokKey();
-  const displayRevision =
-    nextUpcomingRevision(plan.revisions, todayKey)
-    ?? activeRevisionAt(plan.revisions, todayKey);
-  const accrualRevision = activeRevisionAt(plan.revisions, todayKey) ?? displayRevision;
-  const pauses = plan.pauses ?? [];
-  const isPausedToday = isPausedOnDate(pauses, todayKey);
-  const openPause = pauses.find(p => p.resumed_from === null) ?? null;
-  const pausedSince = openPause?.paused_from ?? null;
-  const planSummary = displayRevision ? buildPlanSummary(displayRevision, d) : null;
-  const displayIsFuture = displayRevision
-    ? displayRevision.effective_from_date > todayKey
-    : false;
-  const moneyStatus = moneyStatusFor(
-    displayIsFuture && displayRevision ? [displayRevision] : plan.revisions,
-    displayIsFuture ? 0 : depositTotal,
-    todayKey,
-    pauses,
-  );
-  const habitStatus = habitStatusFromDeposits(
-    accrualRevision?.rule_type ?? null,
-    depositDayKeys,
-    todayKey,
-    isPausedToday,
-  );
-  const planEndDateKey = displayRevision?.end_date ?? roomEndDate;
-  const planDaysRemaining = planEndDateKey
-    ? Math.max(
-        0,
-        Math.round(
-          (Date.parse(planEndDateKey + 'T00:00:00Z') - Date.parse(todayKey + 'T00:00:00Z'))
-            / 86_400_000,
-        ),
-      )
-    : null;
-  const planProgressPct = moneyStatus && moneyStatus.targetAmount > 0
-    ? (moneyStatus.recordedDeposits / moneyStatus.targetAmount) * 100
-    : 0;
-
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="font-mono text-lg font-bold leading-tight text-ink">{sectionLabel}</h2>
-      <SavingPlanCard
-        ruleType={displayRevision?.rule_type ?? null}
-        money={moneyStatus}
-        habit={habitStatus}
-        isPaused={isPausedToday}
-        pausedSince={pausedSince}
-        planSummary={planSummary}
-        todayDateKey={todayKey}
-        planStartDateKey={displayRevision?.effective_from_date ?? null}
-        daysRemaining={planDaysRemaining}
-        progressPct={planProgressPct}
-      />
-    </section>
-  );
-}
-
-function MemberBucketsSection({
+export function MemberBucketsSection({
   name,
   buckets,
   titleFn,

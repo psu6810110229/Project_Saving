@@ -9,7 +9,7 @@ import {
   recommendedRule,
 } from '../../lib/bucketRuleSuggest';
 import { bucketSaved } from '../../lib/buckets';
-import { Button } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { FormField } from '../FormField/FormField';
@@ -280,12 +280,12 @@ export function MigrationBucketStep({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="ghost" size="md" disabled={!onBack || submitting} onClick={onBack}>
-          {copy.common.back}
-        </Button>
+      <div className={MODAL_ACTION_ROW_CLASS}>
         <Button variant="action" size="md" disabled={submitting} onClick={handleSubmit}>
           {submitting ? m.savingButton : copy.bucket.nextButton}
+        </Button>
+        <Button variant="ghost" size="md" className={MODAL_SECONDARY_BUTTON_CLASS} disabled={!onBack || submitting} onClick={onBack}>
+          {copy.common.back}
         </Button>
       </div>
     </div>

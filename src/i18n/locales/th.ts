@@ -785,6 +785,10 @@ export const th: Messages = {
     message: 'ลากเป้าหมายหนึ่งไปวางบนอีกอันเพื่อย้ายเงิน',
     dismissAriaLabel: 'ซ่อนคำแนะนำการลาก',
   },
+  bucketEditHint: {
+    message: 'ลากเพื่อจัดลำดับ · แตะ ✕ เพื่อลบ · แตะการ์ดเพื่อแก้ไข',
+    dismissAriaLabel: 'ซ่อนคำแนะนำการแก้ไข',
+  },
   bucketDragMode: {
     ariaLabel: 'โหมดการลากเป้าหมาย',
     transfer: 'ย้ายเงิน',

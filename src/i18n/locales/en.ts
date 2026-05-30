@@ -798,6 +798,10 @@ export const en = {
     message: 'Drag a bucket onto another to move money.',
     dismissAriaLabel: 'Hide drag hint',
   },
+  bucketEditHint: {
+    message: 'Drag to reorder · tap ✕ to remove · tap a card to edit.',
+    dismissAriaLabel: 'Hide edit hint',
+  },
   bucketDragMode: {
     ariaLabel: 'Bucket drag mode',
     transfer: 'Transfer',

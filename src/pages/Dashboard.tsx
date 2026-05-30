@@ -13,6 +13,7 @@ import { BucketManager } from '../components/BucketManager/BucketManager';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
 import { BucketDragHint } from '../components/BucketDragHint/BucketDragHint';
+import { BUCKET_EDIT_HINT_KEY, hasSeenHint, markHintSeen } from '../lib/hintSeen';
 import { SortableBucketCard } from '../components/SortableBucketCard/SortableBucketCard';
 import { RemoveBucketModal, type RemoveBucketDestination } from '../components/RemoveBucketModal/RemoveBucketModal';
 
@@ -314,6 +315,10 @@ export function Dashboard() {
   // Set when this session marked the hint seen, so it stays visible for the
   // remainder of this render pass even after the profile flips to "seen".
   const [bucketDragHintMarkedThisSession, setBucketDragHintMarkedThisSession] = useState(false);
+  // Edit-mode coach (reorder / remove / edit). Device-local: captured once at
+  // mount so persisting "seen" on first show doesn't hide it mid-session.
+  const [editHintDismissed, setEditHintDismissed] = useState(false);
+  const editHintSeenInitial = useMemo(() => hasSeenHint(BUCKET_EDIT_HINT_KEY), []);
 
   // dnd-kit sensors for the bucket transfer drag shortcut (slice 40.6).
   // Activation thresholds follow plan §12: desktop ~150ms / touch ~250ms so
@@ -437,6 +442,14 @@ export function Dashboard() {
 
   const handleBucketDragHintDismiss = useCallback(() => {
     setBucketDragHintDismissed(true);
+  }, []);
+
+  const handleEditHintShown = useCallback(() => {
+    markHintSeen(BUCKET_EDIT_HINT_KEY);
+  }, []);
+
+  const handleEditHintDismiss = useCallback(() => {
+    setEditHintDismissed(true);
   }, []);
 
   function handleBucketDragStart() {
@@ -1173,6 +1186,9 @@ export function Dashboard() {
                 && !profileLoading
                 && !bucketDragHintDismissed
                 && (!dataProfile?.bucket_drag_hint_seen_at || bucketDragHintMarkedThisSession);
+              // Edit-mode coach: shown the first time the user enters edit mode
+              // (mutually exclusive with the drag hint, which needs !isEditing).
+              const showEditHint = isEditing && !editHintSeenInitial && !editHintDismissed;
               const editToggle = activeBucketItems.length >= 1 ? (
                 <button
                   type="button"
@@ -1224,6 +1240,13 @@ export function Dashboard() {
                         dismissAriaLabel={copy.bucketDragHint.dismissAriaLabel}
                         onShown={handleBucketDragHintShown}
                         onDismiss={handleBucketDragHintDismiss}
+                      />
+                      <BucketDragHint
+                        open={showEditHint}
+                        message={copy.bucketEditHint.message}
+                        dismissAriaLabel={copy.bucketEditHint.dismissAriaLabel}
+                        onShown={handleEditHintShown}
+                        onDismiss={handleEditHintDismiss}
                       />
                     </div>
                   )}

@@ -521,6 +521,8 @@ export const en = {
     stepTimelineTitle: 'Your saving timeline',
     stepTimelineSubtitle: 'Review when each expense is due and adjust if needed.',
     timelineDue: (date: string): string => `Due ${date}`,
+    timelineWindow: (start: string, end: string): string => `Save ${start} – ${end}`,
+    paceTooTight: 'This goal may be tough to reach in time at a comfortable pace. Consider a smaller target or a later date.',
     timelineToday: 'Today',
     timelineEventDay: 'Event day',
     editDeadlineButton: 'Edit',

@@ -387,7 +387,7 @@ export const en = {
     },
     body: (threshold: 25 | 50 | 75 | 90): string =>
       `Your shared vault just crossed ${threshold} percent of the project target.`,
-    cta: 'Got it',
+    cta: 'Keep going',
   },
   streakFreeze: {
     remaining: (n: number): string =>
@@ -480,7 +480,7 @@ export const en = {
     validationBlankBucket: 'Give every selected expense a name.',
     validationNoAmounts: 'Enter an amount for at least one expense.',
     validationBudgetExceeded: 'Your expenses add up to more than your total budget. Raise the budget or lower an amount.',
-    validationOkButton: 'Got it',
+    validationOkButton: 'Back to Fix',
     removeBucketTitle: 'Remove this expense?',
     removeBucketBody: 'It will be taken off your plan. You can add it again later.',
     removeBucketConfirm: 'Remove',
@@ -708,7 +708,7 @@ export const en = {
   bucketRemove: {
     emptyTitle: (name: string) => `Remove ${name}?`,
     emptyBody: (name: string) => `${name} has no money in it. Removing it hides this bucket from your active list but keeps its setup history.`,
-    removeEmptyButton: 'Remove Empty Bucket',
+    removeEmptyButton: 'Remove',
     removingButton: 'Removing…',
     balanceTitle: (name: string) => `Move money out of ${name}?`,
     balanceBody: (name: string, amount: string) =>
@@ -716,7 +716,7 @@ export const en = {
     noDestinationsTitle: 'Create another bucket first',
     noDestinationsBody: (name: string, amount: string) =>
       `${name} has ${amount} in it. Create another active bucket so this money has somewhere to go before removing ${name}.`,
-    transferFirstButton: 'Transfer Balance First',
+    transferFirstButton: 'Move Balance',
     keepBucketButton: 'Keep Bucket',
     successRemoved: (name: string) => `${name} removed.`,
     errors: {

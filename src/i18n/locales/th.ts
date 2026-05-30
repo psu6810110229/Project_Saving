@@ -373,7 +373,7 @@ export const th: Messages = {
     },
     body: (threshold: 25 | 50 | 75 | 90) =>
       `ยอดรวมในโปรเจกต์เพิ่งข้าม ${threshold} ความคืบหน้าของเป้าหมาย`,
-    cta: 'เข้าใจแล้ว',
+    cta: 'ไปต่อ',
   },
   streakFreeze: {
     remaining: (n: number): string =>
@@ -466,7 +466,7 @@ export const th: Messages = {
     validationBlankBucket: 'ตั้งชื่อให้ทุกรายการที่เลือก',
     validationNoAmounts: 'กรอกจำนวนเงินอย่างน้อยหนึ่งรายการ',
     validationBudgetExceeded: 'ยอดรวมรายการมากกว่างบประมาณรวม เพิ่มงบหรือลดจำนวนเงินบางรายการ',
-    validationOkButton: 'เข้าใจแล้ว',
+    validationOkButton: 'กลับไปแก้ไข',
     removeBucketTitle: 'ลบรายการนี้ไหม?',
     removeBucketBody: 'รายการนี้จะถูกนำออกจากแผน เพิ่มกลับมาภายหลังได้',
     removeBucketConfirm: 'ลบ',
@@ -695,7 +695,7 @@ export const th: Messages = {
     emptyTitle: (name: string) => `นำ ${name} ออก?`,
     emptyBody: (name: string) =>
       `${name} ไม่มีเงินอยู่ เลือกนำออกเพื่อลบเป้าหมายย่อยนี้`,
-    removeEmptyButton: 'นำเป้าหมายย่อยที่ว่างออก',
+    removeEmptyButton: 'นำออก',
     removingButton: 'กำลังนำออก…',
     balanceTitle: (name: string) => `คุณกำลังจะลบเป้าหมายย่อย ${name}`,
     balanceBody: (name: string, amount: string) =>
@@ -703,7 +703,7 @@ export const th: Messages = {
     noDestinationsTitle: 'สร้างเป้าหมายย่อยอื่นก่อน',
     noDestinationsBody: (name: string, amount: string) =>
       `${name} มีเงินอยู่ ${amount} สร้างเป้าหมายย่อยที่ใช้งานอยู่อีกหนึ่งรายการเพื่อรับยอดนี้ก่อนนำ ${name} ออก`,
-    transferFirstButton: 'ยืนยันย้ายยอดคงเหลือ',
+    transferFirstButton: 'ย้ายยอดคงเหลือ',
     keepBucketButton: 'ยกเลิก',
     successRemoved: (name: string) => `นำ ${name} ออกแล้ว`,
     errors: {

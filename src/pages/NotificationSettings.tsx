@@ -87,7 +87,7 @@ export function NotificationSettings() {
 
   if (loading && shouldShowSkeleton) {
     return (
-      <div className="flex flex-col gap-6 pt-8 pb-24">
+      <div className="flex flex-col gap-6 px-5 pt-8 pb-24">
         <PageHeader eyebrow={n.settings.eyebrow} title={n.settings.title} subtitle={n.settings.subtitle} showBack />
         <div className="flex flex-col gap-3" aria-label={n.settings.loadingAriaLabel}>
           <div className="flex items-center justify-end">
@@ -105,7 +105,7 @@ export function NotificationSettings() {
 
   if (error || !preferences) {
     return (
-      <div className="flex flex-col gap-6 pt-8 pb-24">
+      <div className="flex flex-col gap-6 px-5 pt-8 pb-24">
         <PageHeader eyebrow={n.settings.eyebrow} title={n.settings.title} subtitle={n.settings.subtitle} showBack />
         <section className="rounded-xl bg-surface p-5 shadow-soft">
           <SectionLabel tone="brand">{n.settings.errorSection}</SectionLabel>

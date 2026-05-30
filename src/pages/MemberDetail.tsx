@@ -137,7 +137,7 @@ function MemberDetailBody({ userId, md, d, formatShortDateKey, navigate }: Membe
   const themeColor = member?.themeColor ?? undefined;
 
   return (
-    <div className="flex flex-col gap-6 pt-8">
+    <div className="flex flex-col gap-6 px-5 pt-8">
       <div className="flex items-center gap-2">
         <button
           type="button"

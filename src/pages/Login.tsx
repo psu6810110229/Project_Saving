@@ -3,16 +3,19 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { AboutModal } from '../components/AboutInfo/AboutInfo';
 import { AuroraBackdrop } from '../components/AuroraBackdrop/AuroraBackdrop';
 import { IconButton } from '../components/IconButton/IconButton';
-import { IconInfo, IconPiggyBank } from '../components/Icon/Icon';
+import { IconInfo } from '../components/Icon/Icon';
 import { MOTION_EASE } from '../lib/motion';
 import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '../i18n/useI18n';
 
 export function Login() {
   const { signInWithGoogle } = useAuth();
-  const { copy } = useI18n();
+  const { copy, language } = useI18n();
   const reduceMotion = useReducedMotion();
   const [aboutOpen, setAboutOpen] = useState(false);
+  const loginTitleLines = language === 'th'
+    ? ['เก็บเงินด้วยกัน', 'ถึงเป้าไปด้วยกัน']
+    : [copy.auth.loginTitle];
 
   // Staggered entrance for the hero stack. Reduced motion collapses every
   // step to a plain fade so nothing slides.
@@ -22,12 +25,24 @@ export function Login() {
       : {
           initial: { opacity: 0, y: 16 },
           animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.6, delay, ease: MOTION_EASE.emphasized },
+          transition: { duration: 0.3, delay, ease: MOTION_EASE.emphasized },
         };
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-bg px-6 pb-10 pt-6">
-      <AuroraBackdrop reduceMotion={Boolean(reduceMotion)} />
+    <div className="relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-bg px-6 pb-10 pt-6">
+      <AuroraBackdrop
+        live
+        contrast={1.5}
+        motionSpeed={1.45}
+        palette={{
+          primary: 'bg-brand-300/[0.54]',
+          secondary: 'bg-brand-200/[0.60]',
+          center: 'bg-accent-gold/[0.48]',
+          glow: 'bg-brand-500/[0.66]',
+        }}
+        scatter
+        reduceMotion={Boolean(reduceMotion)}
+      />
 
       {/* Top bar — the (i) opens the same About/Terms/Privacy modal as the
           terms line below the sign-in button. */}
@@ -41,18 +56,26 @@ export function Login() {
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center text-center">
         <motion.div
           {...rise(0)}
-          className="flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-500 text-ink-inverse shadow-haloOrange"
+          className="overflow-hidden rounded-[1.75rem] shadow-haloOrange"
         >
-          <IconPiggyBank size={40} weight="fill" />
+          <img
+            src="/icon-512.png"
+            alt="GO-OUT"
+            className="h-24 w-24 rounded-[1.75rem] object-cover"
+          />
         </motion.div>
         <motion.span
           {...rise(0.08)}
-          className="mt-6 font-mono text-sm font-bold uppercase tracking-[0.32em] text-brand-700"
+          className="mt-1 font-mono text-sm font-bold uppercase tracking-[0.42em] text-brand-700"
         >
-          GO-OUT
+          
         </motion.span>
-        <motion.h1 {...rise(0.16)} className="mt-3 max-w-[16ch] font-mono text-3xl font-bold leading-tight text-ink">
-          {copy.auth.loginTitle}
+        <motion.h1 {...rise(0.16)} className="mt-4 font-mono text-[1.4rem] tracking-[0.03em] font-semibold leading-tight text-ink sm:text-3xl">
+          {loginTitleLines.map((line, index) => (
+            <span key={`${line}-${index}`} className="block whitespace-nowrap">
+              {line}
+            </span>
+          ))}
         </motion.h1>
         <motion.p {...rise(0.24)} className="mt-3 whitespace-nowrap font-mono text-sm leading-6 text-ink-muted">
           {copy.auth.loginBody}
@@ -83,7 +106,7 @@ export function Login() {
         <button
           type="button"
           onClick={() => setAboutOpen(true)}
-          className="whitespace-nowrap px-2 text-center font-mono text-[11px] leading-5 text-ink-muted underline-offset-2 hover:text-ink hover:underline"
+          className="whitespace-nowrap px-2 text-center font-mono text-[11px] leading-5 text-ink-muted underline decoration-brand-200 underline-offset-2 hover:text-ink"
         >
           {copy.about.termsLine}
         </button>

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { usePushSubscription } from '../../hooks/usePushSubscription';
+import { useSendNudge } from '../../hooks/useSendNudge';
 import { useI18n } from '../../i18n/useI18n';
 import { IconBell } from '../Icon/Icon';
 
@@ -11,33 +10,6 @@ interface NudgeButtonProps {
   roomId: string | null;
   /** Partner's display name, used in the inline feedback message. */
   partnerName?: string;
-}
-
-type NudgeStatus = 'sent' | 'saved_no_push' | 'throttled';
-
-interface NudgeResponse {
-  status?: NudgeStatus;
-  delivered?: number;
-  notification_id?: string | null;
-  error?: string;
-}
-
-async function messageForInvokeError(
-  error: unknown,
-  response: Response | undefined,
-  copy: ReturnType<typeof useI18n>['copy'],
-): Promise<string> {
-  if (response?.status === 429) {
-    return copy.notifications.nudge.throttled;
-  }
-
-  const context = (error as { context?: Response } | null)?.context;
-  if (context?.status === 429) {
-    return copy.notifications.nudge.throttled;
-  }
-
-  void error;
-  return copy.notifications.nudge.sendError;
 }
 
 /**
@@ -51,8 +23,8 @@ async function messageForInvokeError(
  *   - sends Web Push only when the partner's preferences allow it.
  */
 export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonProps) {
-  const { ready, subscribed, unsupported, subscribe } = usePushSubscription();
   const { copy } = useI18n();
+  const { ready, subscribed, unsupported, sendNudge } = useSendNudge();
   const n = copy.notifications.nudge;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -61,41 +33,16 @@ export function NudgeButton({ partnerUserId, roomId, partnerName }: NudgeButtonP
   if (unsupported) return null;
   if (!roomId) return null;
 
-  function messageForStatus(response: NudgeResponse): string {
-    const partner = partnerName ?? n.fallbackPartner;
-    if (import.meta.env.DEV) {
-      // Helps trace the "saved but not delivered" mismatch reported in 0.9.6.
-      console.debug('[NudgeButton] response', response);
-    }
-    switch (response.status) {
-      case 'sent':
-        return n.sent(partner);
-      case 'throttled':
-        return n.throttledGeneric;
-      case 'saved_no_push':
-        return response.error ? `${n.savedNoPush(partner)} (${response.error})` : n.savedNoPush(partner);
-      default:
-        // Unknown status: prefer the success copy when at least one push
-        // was accepted, so a missing `status` field never surfaces the
-        // misleading "push could not be delivered" message.
-        if ((response.delivered ?? 0) > 0) return n.sent(partner);
-        return n.savedNoPush(partner);
-    }
-  }
-
   async function handleClick() {
     setBusy(true);
     setMessage(null);
-    if (!subscribed) {
-      const result = await subscribe();
-      if (result.error) { setMessage(result.error); setBusy(false); return; }
-    }
-    const { data, error, response } = await supabase.functions.invoke('send-nudge', {
-      body: { to_user_id: partnerUserId, room_id: roomId },
+    const result = await sendNudge({
+      partnerUserId,
+      roomId,
+      partnerName,
     });
     setBusy(false);
-    if (error) { setMessage(await messageForInvokeError(error, response, copy)); return; }
-    setMessage(messageForStatus((data ?? {}) as NudgeResponse));
+    setMessage(result.message);
   }
 
   return (

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Avatar } from '../Avatar/Avatar';
 import { Button } from '../Button/Button';
@@ -30,6 +30,7 @@ interface TeamSectionProps {
   roomTarget: number;
   emptyBody?: string;
   onMemberClick?: (member: TeamSectionMember) => void;
+  onMemberNudge?: (member: TeamSectionMember) => void;
   onViewAll?: () => void;
 }
 
@@ -39,6 +40,7 @@ export const TeamSection = memo(function TeamSection({
   roomTarget,
   emptyBody,
   onMemberClick,
+  onMemberNudge,
   onViewAll,
 }: TeamSectionProps) {
   const sorted = [...members].sort((a, b) => {
@@ -84,6 +86,7 @@ export const TeamSection = memo(function TeamSection({
                 rank={0}
                 isSolo
                 onClick={() => onMemberClick?.(visible[0])}
+                onDoubleTap={visible[0].isYou ? undefined : () => onMemberNudge?.(visible[0])}
               />
             </div>
             {emptyBody && (
@@ -99,6 +102,7 @@ export const TeamSection = memo(function TeamSection({
                 member={member}
                 rank={rank}
                 onClick={() => onMemberClick?.(member)}
+                onDoubleTap={member.isYou ? undefined : () => onMemberNudge?.(member)}
               />
             ))}
           </div>
@@ -141,13 +145,16 @@ function PodiumCell({
   rank,
   isSolo = false,
   onClick,
+  onDoubleTap,
 }: {
   member: TeamSectionMember;
   rank: number;
   isSolo?: boolean;
   onClick: () => void;
+  onDoubleTap?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const tapTimeoutRef = useRef<number | null>(null);
   const pct = memberPct(member);
   const isGold = rank === 0;
   const themeHex = member.themeColor ? themeSwatches[member.themeColor] : undefined;
@@ -162,14 +169,42 @@ function PodiumCell({
   const nameMax = isSolo ? 'max-w-[12rem]' : 'max-w-[5.5rem]';
   const ariaLabel = `${showCrown ? 'Leader, ' : ''}${displayName}, ${Math.round(pct)}% of goal saved`;
 
+  useEffect(() => () => {
+    if (tapTimeoutRef.current !== null) {
+      window.clearTimeout(tapTimeoutRef.current);
+    }
+  }, []);
+
+  function handleClick(detail: number) {
+    if (!onDoubleTap) {
+      onClick();
+      return;
+    }
+
+    if (detail >= 2) {
+      if (tapTimeoutRef.current !== null) {
+        window.clearTimeout(tapTimeoutRef.current);
+        tapTimeoutRef.current = null;
+      }
+      onDoubleTap();
+      return;
+    }
+
+    tapTimeoutRef.current = window.setTimeout(() => {
+      tapTimeoutRef.current = null;
+      onClick();
+    }, 220);
+  }
+
   return (
     <motion.button
       type="button"
-      onClick={onClick}
+      onClick={event => handleClick(event.detail)}
       aria-label={ariaLabel}
       className={
         'group relative z-10 flex min-w-0 flex-col items-center gap-2 rounded-2xl px-1.5 py-2 '
         + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface '
+        + '[touch-action:manipulation] '
         + (showCrown ? '-translate-y-3 ' : '')
         + (member.isYou ? 'bg-brand-50/70 ' : '')
       }

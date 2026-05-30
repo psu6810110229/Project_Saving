@@ -5,6 +5,7 @@ import { ActivityHistoryModal } from '../components/ActivityHistoryModal/Activit
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
 import { Avatar } from '../components/Avatar/Avatar';
 import { Button } from '../components/Button/Button';
+import { useToast } from '../components/InAppToast/InAppToastProvider';
 import { IconBubble } from '../components/IconBubble/IconBubble';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { MomentumPurposePicker } from '../components/MomentumPurposePicker/MomentumPurposePicker';
@@ -14,6 +15,7 @@ import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
 import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilter';
 import {
   IconArrowRight,
+  IconBell,
   IconCheck,
   IconChevronDown,
   IconTrash,
@@ -25,6 +27,7 @@ import { useSharedData } from '../hooks/useSharedData';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
 import { useRoom } from '../hooks/useRoom';
+import { useSendNudge } from '../hooks/useSendNudge';
 import { useI18n } from '../i18n/useI18n';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
@@ -56,9 +59,11 @@ const SHOW_DEPOSIT_RACE = false;
  */
 export function Team() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const { user, profile } = useAuth();
   const { activeRoomId } = useRoom();
   const { copy, language, formatMoney } = useI18n();
+  const { sendNudge } = useSendNudge();
   const d = copy.dashboard;
   const t = copy.team;
 
@@ -353,6 +358,7 @@ export function Team() {
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [nudgeBusyMemberId, setNudgeBusyMemberId] = useState<string | null>(null);
 
   const selectedMember = useMemo<MemberDetailModalMember | null>(() => {
     if (!selectedMemberId) return null;
@@ -391,6 +397,37 @@ export function Team() {
     setSelectedMemberId(entry.userId);
   }
 
+  async function handleMemberNudge(entry: TeamSectionMember) {
+    if (entry.isYou) return;
+    if (nudgeBusyMemberId === entry.userId) return;
+
+    setNudgeBusyMemberId(entry.userId);
+    try {
+      const result = await sendNudge({
+        partnerUserId: entry.userId,
+        roomId: activeRoomId,
+        partnerName: entry.name,
+      });
+
+      showToast({
+        title: result.message,
+        tone:
+          result.status === 'error' || result.status === 'throttled'
+            ? 'warning'
+            : result.status === 'sent'
+              ? 'success'
+              : 'neutral',
+        icon: <IconBell size={18} />,
+      });
+
+      if (result.ok) {
+        haptic('success');
+      }
+    } finally {
+      setNudgeBusyMemberId(current => (current === entry.userId ? null : current));
+    }
+  }
+
   function handleViewAll() {
     navigate('/manage-project');
   }
@@ -417,6 +454,7 @@ export function Team() {
         roomTarget={totalTarget}
         emptyBody={d.invitePartnerHint}
         onMemberClick={handleMemberClick}
+        onMemberNudge={handleMemberNudge}
         onViewAll={handleViewAll}
       />
 

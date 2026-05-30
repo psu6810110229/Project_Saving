@@ -9,6 +9,7 @@ import type { BottomNavTab } from '../components/BottomNav/BottomNav';
 import { Button } from '../components/Button/Button';
 import { DataProvider } from '../components/DataContext/DataContext';
 import { FirstRunProfileWizard } from '../components/FirstRunProfileWizard/FirstRunProfileWizard';
+import { InAppNotificationBridge } from '../components/InAppToast/InAppNotificationBridge';
 import { JoinProjectFlow } from '../components/JoinProjectFlow/JoinProjectFlow';
 import { LoadingState } from '../components/LoadingState/LoadingState';
 import { MilestoneCelebrationModal } from '../components/MilestoneCelebrationModal/MilestoneCelebrationModal';
@@ -125,6 +126,7 @@ export function AppLayout() {
         navigate(nextPath, { replace: true });
       }}
     >
+      <InAppNotificationBridge />
       <ProfileLanguageSync
         profile={profileState.profile}
         forceLanguage={showingFirstRunProfileWizard ? 'th' : undefined}

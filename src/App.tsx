@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './components/AuthProvider/AuthProvider';
+import { InAppToastProvider } from './components/InAppToast/InAppToastProvider';
 import { SplashScreen } from './components/SplashScreen/SplashScreen';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
 import { RoomProvider } from './components/RoomContext/RoomContext';
@@ -52,40 +53,42 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <I18nProvider>
-        <RoomProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/atoms" element={<AtomsPreview />} />
-            <Route path="/molecules" element={<MoleculesPreview />} />
-            <Route path="/organisms" element={<OrganismsPreview />} />
-            <Route path="/reference/dashboard" element={<DashboardReferenceScreen />} />
-            <Route path="/reference/buckets" element={<DashboardBucketsScreen />} />
-            <Route path="/reference/add-money" element={<AddMoneyReferenceScreen />} />
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/team" element={<Team />} />
-              <Route path="/add" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/saving-plan" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/manage-project" element={<ManageProject />} />
-              <Route path="/members/:userId" element={<MemberDetail />} />
-              <Route path="/archived-projects" element={<ArchivedProjects />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/notifications/settings" element={<NotificationSettings />} />
-              <Route path="/create-room" element={<CreateRoom />} />
-              <Route path="/join-room" element={<JoinRoom />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </RoomProvider>
+          <InAppToastProvider>
+            <RoomProvider>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/atoms" element={<AtomsPreview />} />
+                <Route path="/molecules" element={<MoleculesPreview />} />
+                <Route path="/organisms" element={<OrganismsPreview />} />
+                <Route path="/reference/dashboard" element={<DashboardReferenceScreen />} />
+                <Route path="/reference/buckets" element={<DashboardBucketsScreen />} />
+                <Route path="/reference/add-money" element={<AddMoneyReferenceScreen />} />
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/team" element={<Team />} />
+                  <Route path="/add" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/saving-plan" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/manage-project" element={<ManageProject />} />
+                  <Route path="/members/:userId" element={<MemberDetail />} />
+                  <Route path="/archived-projects" element={<ArchivedProjects />} />
+                  <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/notifications/settings" element={<NotificationSettings />} />
+                  <Route path="/create-room" element={<CreateRoom />} />
+                  <Route path="/join-room" element={<JoinRoom />} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </RoomProvider>
+          </InAppToastProvider>
         </I18nProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -77,13 +77,16 @@ export function AppLayout() {
   const privateDataFree = isPrivateDataFreeRoute(location.pathname);
   // The dedicated no-project setup view is full-screen onboarding — hide the
   // bottom nav there (there is no room to deposit into or dashboard to show).
-  // Nav stays visible while loading/erroring, on roomless routes, and whenever
-  // a room exists.
   const isSetupScreen = !loading && !error && !activeRoom && !roomlessAllowed;
   // The create-room wizard is its own focused, multi-step flow with its own
   // header/back control — the bottom nav has no place there.
   const isCreateWizard = location.pathname.startsWith('/create-room');
-  const hideNav = isSetupScreen || isCreateWizard;
+  // Without an active room the bottom-nav tabs (Dashboard / Team / Profile)
+  // have nothing to point at, so hide the nav across every no-room state —
+  // the setup screen and the roomless routes reached from it (e.g. /profile
+  // via the setup gear). Those pages provide their own back affordance.
+  const noActiveRoom = !loading && !error && !activeRoom;
+  const hideNav = noActiveRoom || isCreateWizard;
 
   return (
     <AppShell

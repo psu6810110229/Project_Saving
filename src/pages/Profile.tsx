@@ -194,7 +194,7 @@ export function Profile() {
 
   return (
     <div className="flex flex-col gap-6 pt-8">
-      <PageHeader eyebrow={copy.profile.pageEyebrow} title={copy.profile.pageTitle} subtitle={activeRoom?.name ?? copy.profile.pageSubtitleFallback} />
+      <PageHeader eyebrow={copy.profile.pageEyebrow} title={copy.profile.pageTitle} subtitle={activeRoom?.name ?? copy.profile.pageSubtitleFallback} showBack={!activeRoom} />
       <ProfileHeader
         name={profile?.display_name ?? copy.profile.youFallback}
         fallback={fallbackInitial(profile?.display_name)}

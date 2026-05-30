@@ -204,6 +204,7 @@ export function JoinRoomWizard({ roomId, roomGoalTarget, isRejoin, restoredBucke
       stepContent = (
         <StepBuckets
           buckets={draft.buckets}
+          personalGoal={draft.personalGoal}
           onBucketsChange={buckets => setDraft(prev => ({ ...prev, buckets }))}
           onNext={() => goTo(3)}
           onBack={() => goTo(1)}

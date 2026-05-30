@@ -5,6 +5,7 @@ import { IconArrowLeft } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
+import { formatCurrency } from '../../lib/format';
 import { cascadeExpenseSchedule } from '../../lib/travelExpenseRules';
 import { clearJoinWizardDraft } from './joinWizardDraft';
 import type { JoinBucketDraft } from './JoinRoomWizard';
@@ -45,6 +46,8 @@ export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }
 
     try {
       const startDate = new Date().toISOString().slice(0, 10);
+      const goalEndDate = roomEndDate ?? startDate;
+
       const { error: goalError } = await supabase
         .from('goals')
         .upsert(
@@ -53,7 +56,7 @@ export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }
             room_id: roomId,
             target_amount: personalGoal,
             start_date: startDate,
-            end_date: startDate,
+            end_date: goalEndDate,
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'user_id,room_id' },
@@ -64,6 +67,14 @@ export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }
 
       const accepted = buckets.filter(b => b.accepted);
       if (accepted.length > 0) {
+        // Validate that accepted bucket targets fit within the personal goal
+        // before hitting the DB trigger.
+        const acceptedTotal = accepted.reduce((sum, b) => sum + b.targetAmount, 0);
+        if (personalGoal > 0 && acceptedTotal > personalGoal) {
+          setError(c.bucketTotalExceedsGoal(formatCurrency(acceptedTotal), formatCurrency(personalGoal)));
+          return;
+        }
+
         // Re-lay this member's accepted buckets on a fresh sequential timeline
         // from THEIR join date (collect-first order = the accepted order). The
         // room's inherited deadlines were computed for the creator and may now
@@ -103,7 +114,8 @@ export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }
           .from('buckets')
           .insert(bucketRows);
         if (bucketError) {
-          console.warn('[JoinWizard] bucket creation failed', bucketError);
+          setError(bucketError.message);
+          return;
         }
       }
 
@@ -114,7 +126,7 @@ export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }
     } finally {
       setCreating(false);
     }
-  }, [userId, roomId, personalGoal, buckets, roomEndDate, navigate, c.errorGeneric]);
+  }, [userId, roomId, personalGoal, buckets, roomEndDate, navigate, c]);
 
   return (
     <div className="flex flex-col gap-5">

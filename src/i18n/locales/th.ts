@@ -1528,6 +1528,8 @@ export const th: Messages = {
     rejoinBuckets: (count: number): string => `กู้คืน ${count} กระปุก`,
     goToDashboard: 'ไปหน้าแดชบอร์ด',
     errorGeneric: 'เกิดข้อผิดพลาด กรุณาลองใหม่',
+    bucketTotalExceedsGoal: (total: string, goal: string): string =>
+      `ยอดรวมกระปุกที่เลือก ${total} เกินเป้าหมาย ${goal} ของคุณ ลองลดหรือยกเลิกบางส่วน`,
     bucketNameLabel: 'ชื่อกระปุก',
     bucketAmountLabel: 'จำนวนเป้าหมาย',
     saveBucket: 'เพิ่ม',

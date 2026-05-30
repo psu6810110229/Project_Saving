@@ -9,12 +9,13 @@ import type { BucketCategory } from '../../types';
 
 interface StepBucketsProps {
   buckets: JoinBucketDraft[];
+  personalGoal: number;
   onBucketsChange: (buckets: JoinBucketDraft[]) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export function StepBuckets({ buckets, onBucketsChange, onNext, onBack }: StepBucketsProps) {
+export function StepBuckets({ buckets, personalGoal, onBucketsChange, onNext, onBack }: StepBucketsProps) {
   const { copy, language } = useI18n();
   const c = copy.joinRoomWizard;
   const [addingCustom, setAddingCustom] = useState(false);
@@ -48,6 +49,8 @@ export function StepBuckets({ buckets, onBucketsChange, onNext, onBack }: StepBu
   }
 
   const hasAccepted = buckets.some(b => b.accepted);
+  const acceptedTotal = buckets.filter(b => b.accepted).reduce((sum, b) => sum + b.targetAmount, 0);
+  const overBudget = personalGoal > 0 && acceptedTotal > personalGoal;
 
   return (
     <div className="flex flex-col gap-5">
@@ -148,11 +151,17 @@ export function StepBuckets({ buckets, onBucketsChange, onNext, onBack }: StepBu
         </button>
       )}
 
+      {overBudget && (
+        <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">
+          {c.bucketTotalExceedsGoal(formatCurrency(acceptedTotal), formatCurrency(personalGoal))}
+        </p>
+      )}
+
       <div className="flex gap-3">
         <Button variant="ghost" size="lg" onClick={onBack}>
           <IconArrowLeft size={16} />
         </Button>
-        <Button variant="action" fullWidth onClick={onNext} disabled={!hasAccepted && buckets.length > 0}>
+        <Button variant="action" fullWidth onClick={onNext} disabled={overBudget || (!hasAccepted && buckets.length > 0)}>
           {copy.createRoomWizard.nextButton}
         </Button>
       </div>

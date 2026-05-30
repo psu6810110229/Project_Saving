@@ -1533,6 +1533,8 @@ export const en = {
     rejoinBuckets: (count: number): string => `${count} bucket${count === 1 ? '' : 's'} restored`,
     goToDashboard: 'Go to Dashboard',
     errorGeneric: 'Something went wrong. Please try again.',
+    bucketTotalExceedsGoal: (total: string, goal: string): string =>
+      `Selected buckets total ${total}, which exceeds your personal goal of ${goal}. Remove some or lower their amounts.`,
     bucketNameLabel: 'Bucket name',
     bucketAmountLabel: 'Target amount',
     saveBucket: 'Add',

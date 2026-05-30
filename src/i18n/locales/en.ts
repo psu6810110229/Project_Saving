@@ -63,6 +63,9 @@ export const en = {
     archivedProjectsLabel: 'Archived Projects',
     archivedProjectsDescription: 'Browse past projects you have archived',
     noActiveProject: 'No active project',
+    roomRequiredTitle: 'Create a project first',
+    roomRequiredBody: 'This feature needs an active project. Create or join one to manage it and set up notifications.',
+    roomRequiredCta: 'Create or join a project',
     createNewProjectLabel: 'Create New Project',
     createNewProjectDescription: 'One active project per creator',
     joinProjectLabel: 'Join Project',
@@ -91,6 +94,25 @@ export const en = {
       other: 'Other',
     },
   },
+  profileOnboarding: {
+    headerLabel: 'Your profile',
+    loadingBody: 'Preparing your first-time setup.',
+    nameTitle: 'What should we call you?',
+    nameBody: 'Pick the name your partner will see across the app.',
+    nameFieldLabel: 'Display name',
+    nameNextButton: 'Next',
+    nameRequired: 'Enter your display name to continue.',
+    photoTitle: 'Choose your profile photo',
+    photoBody: 'Use your current photo or swap in one that feels more like you.',
+    photoHint: 'You can change this later from Profile settings.',
+    photoNextButton: 'Next',
+    reviewTitle: 'You are all set',
+    reviewBody: 'Take one last look before you continue.',
+    reviewHint: 'This is how you will appear to your partner.',
+    previewFallback: 'You',
+    finishButton: 'Continue',
+    finishingButton: 'Saving...',
+  },
   auth: {
     loginTitle: 'Save together. Win together.',
     loginBody: 'Sign in to keep growing your shared vault.',
@@ -101,6 +123,35 @@ export const en = {
     noSessionError: 'Sign-in finished without a saved session. Please try again.',
     genericError: 'Could not finish sign-in. Please try again.',
     timeoutError: 'Sign-in took too long. Check your connection and try again.',
+  },
+  about: {
+    infoAriaLabel: 'About this app',
+    modalTitle: 'About GO-OUT',
+    termsLine: 'By continuing, you agree to our Terms & Privacy.',
+    aboutHeading: 'About GO-OUT',
+    aboutBody: [
+      'GO-OUT helps you and a group of friends (up to 7 people) plan and record your savings together to reach a shared goal.',
+      'You record the amounts you have set aside yourself, in whatever form is convenient for you — for example cash or a bank account.',
+      'Our main purpose is to make saving approachable, help you track your progress clearly, and give you a space to stay motivated together.',
+      'This app does not connect to any bank system and does not hold your real money. All the numbers shown are simply the data you enter yourself.',
+    ],
+    termsHeading: 'Terms of Use',
+    termsBody: [
+      'You may leave a project or stop using the app at any time you wish.',
+      'We ask that you treat other members of your group politely and with mutual respect.',
+      'The app is developed and improved continuously, so some aspects of how it works may change as appropriate.',
+      'The accuracy of the recorded numbers depends on you. The app only serves as a tool to record and summarise your information in a clear, easy-to-understand way.',
+      'Because the app does not hold your money, your savings remain fully under your care and safe according to the storage method you choose.',
+    ],
+    privacyHeading: 'Privacy Policy',
+    privacyBody: [
+      'Control over your data: You can edit your profile, leave a project, or sign out at any time, by yourself.',
+      'Limits: We have no policy of selling your personal data to third parties, and we will never access or interfere with your bank accounts.',
+      'Sign-in: You sign in through your Google account. The system only requests basic information (name, email, and profile picture) for identity verification.',
+      'Data we store: The system stores your display name, profile picture, the projects you join, amounts and notes, and your settings. All of it is stored securely through our database (Supabase).',
+      'What your group sees: Group members can only see shared goal progress and a brief activity summary. Your private notes and transaction details are kept confidential and shown to you alone.',
+    ],
+    lastUpdated: 'Last updated: 30 May 2026',
   },
   notFound: {
     title: 'Page not found',
@@ -173,6 +224,7 @@ export const en = {
     balanceMatched: 'Matched',
     checkedSince: (since: string) => `checked ${since}`,
     checkButton: 'Check',
+    heroEditAriaLabel: 'Manage buckets',
     // Saving Plan card
     savingPlanLabel: 'Saving Plan',
     noPlanYet: 'No plan yet',
@@ -282,6 +334,7 @@ export const en = {
     dailyDepositPurposeAria: 'Daily Deposit Trend purpose',
     dailyDepositPurposeAll: 'All',
     dailyDepositCompareAria: 'Choose a member to compare with',
+    dailyDepositAdjustment: 'Balance adjustment',
     thisWeek: 'This week',
     yourPlan: 'Your plan',
     depositRace: 'Deposit Race',
@@ -387,7 +440,7 @@ export const en = {
     },
     body: (threshold: 25 | 50 | 75 | 90): string =>
       `Your shared vault just crossed ${threshold} percent of the project target.`,
-    cta: 'Got it',
+    cta: 'Keep going',
   },
   streakFreeze: {
     remaining: (n: number): string =>
@@ -410,6 +463,8 @@ export const en = {
     projectOwner: 'Project owner',
     greeting: (name: string): string => `Hi ${name}`,
     greetingNoName: 'Hi there',
+    getStartedLabel: 'Get started',
+    settingsAriaLabel: 'Settings and sign out',
     tagline: 'Save for the trip, together.',
     howItWorksLabel: 'How it works',
     step1: 'Join',
@@ -480,16 +535,20 @@ export const en = {
     validationBlankBucket: 'Give every selected expense a name.',
     validationNoAmounts: 'Enter an amount for at least one expense.',
     validationBudgetExceeded: 'Your expenses add up to more than your total budget. Raise the budget or lower an amount.',
-    validationOkButton: 'Got it',
+    validationOkButton: 'Back to Fix',
     removeBucketTitle: 'Remove this expense?',
     removeBucketBody: 'It will be taken off your plan. You can add it again later.',
     removeBucketConfirm: 'Remove',
     stepTimelineTitle: 'Your saving timeline',
     stepTimelineSubtitle: 'Review when each expense is due and adjust if needed.',
     timelineDue: (date: string): string => `Due ${date}`,
+    timelineWindow: (start: string, end: string): string => `Save ${start} – ${end}`,
+    paceTooTight: 'This goal may be tough to reach in time at a comfortable pace. Consider a smaller target or a later date.',
     timelineToday: 'Today',
     timelineEventDay: 'Event day',
     editDeadlineButton: 'Edit',
+    adjustPlanButton: 'Adjust',
+    deadlineLabel: 'Deadline',
     doneEditingButton: 'Done',
     paymentTypes: {
       advance_booking: 'Book ahead',
@@ -498,6 +557,13 @@ export const en = {
       flexible: 'Flexible',
     } as Record<string, string>,
     suggestedRule: (type: string, amount: string): string => `${type} · ${amount}`,
+    // Per-period suffix appended to the plan amount so it reads as a saving
+    // rate (e.g. "฿2,400/mo"), not as a second goal figure near the bucket goal.
+    planPeriodSuffix: {
+      fixed_daily: '/day',
+      fixed_weekly: '/wk',
+      fixed_monthly: '/mo',
+    } as Record<string, string>,
     flexiblePlanHint: 'Flexible — save whenever you can.',
     noExpensesForTimeline: 'Go back and select expenses first.',
     stepSummaryTitle: "Here's your plan",
@@ -708,7 +774,7 @@ export const en = {
   bucketRemove: {
     emptyTitle: (name: string) => `Remove ${name}?`,
     emptyBody: (name: string) => `${name} has no money in it. Removing it hides this bucket from your active list but keeps its setup history.`,
-    removeEmptyButton: 'Remove Empty Bucket',
+    removeEmptyButton: 'Remove',
     removingButton: 'Removing…',
     balanceTitle: (name: string) => `Move money out of ${name}?`,
     balanceBody: (name: string, amount: string) =>
@@ -716,7 +782,7 @@ export const en = {
     noDestinationsTitle: 'Create another bucket first',
     noDestinationsBody: (name: string, amount: string) =>
       `${name} has ${amount} in it. Create another active bucket so this money has somewhere to go before removing ${name}.`,
-    transferFirstButton: 'Transfer Balance First',
+    transferFirstButton: 'Move Balance',
     keepBucketButton: 'Keep Bucket',
     successRemoved: (name: string) => `${name} removed.`,
     errors: {
@@ -797,6 +863,10 @@ export const en = {
   bucketDragHint: {
     message: 'Drag a bucket onto another to move money.',
     dismissAriaLabel: 'Hide drag hint',
+  },
+  bucketEditHint: {
+    message: 'Drag to reorder · tap ✕ to remove · tap a card to edit.',
+    dismissAriaLabel: 'Hide edit hint',
   },
   bucketDragMode: {
     ariaLabel: 'Bucket drag mode',
@@ -1029,6 +1099,7 @@ export const en = {
       cardCheckedLabel: 'Checked balance',
       cardMatched: 'Matches your buckets',
       cardNeverChecked: 'Not checked yet',
+      cardCheckIntro: 'Check that your real money matches what you recorded — just peace of mind, not a test.',
       cardShortfallLabel: 'Less than your buckets',
       cardShortfallNudge: 'Tap to match your real money',
       cardCheckCta: 'Check',

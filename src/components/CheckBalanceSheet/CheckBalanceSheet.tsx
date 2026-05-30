@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useRef, useState } from 'react';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconBubble } from '../IconBubble/IconBubble';
 import { IconCheck, IconChevronDown, IconVault } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
@@ -261,7 +261,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                 <span className="mt-3 block font-mono text-sm text-ink-muted">{r.actualHelper}</span>
               </label>
               {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
-              <div className={`mt-4 ${MODAL_ACTION_ROW_CLASS}`}>
+              <div className={`mt-4 ${MODAL_ACTION_ROW_REVERSE_CLASS}`}>
                 <Button variant="action" fullWidth size="md" onClick={handleConfirmMatch} disabled={submitting || !actualValid}>
                   {submitting ? r.savingButton : r.saveCheckButton}
                 </Button>
@@ -306,7 +306,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                 ))}
               </div>
               {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
-              <div className={`mt-4 ${MODAL_ACTION_ROW_CLASS}`}>
+              <div className={`mt-4 ${MODAL_ACTION_ROW_REVERSE_CLASS}`}>
                 <Button variant="action" fullWidth size="md" onClick={handleConfirmDifference} disabled={submitting || !reason}>
                   {submitting ? r.savingButton : r.saveAdjustmentButton}
                 </Button>
@@ -354,7 +354,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
 
               {syncError && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono-th text-xs text-danger">{syncError}</p>}
 
-              <div className={MODAL_ACTION_ROW_CLASS}>
+              <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
                 <Button variant="action" fullWidth size="md" onClick={handleSync} disabled={syncing}>
                   {syncing ? sync.confirmingButton : sync.confirmButton}
                 </Button>

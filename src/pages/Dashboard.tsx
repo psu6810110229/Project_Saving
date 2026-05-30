@@ -12,6 +12,8 @@ import { BucketEditForm } from '../components/BucketEditForm/BucketEditForm';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
+import { BucketDragHint } from '../components/BucketDragHint/BucketDragHint';
+import { BUCKET_EDIT_HINT_KEY, hasSeenHint, markHintSeen } from '../lib/hintSeen';
 import { SortableBucketCard } from '../components/SortableBucketCard/SortableBucketCard';
 import { RemoveBucketModal, type RemoveBucketDestination } from '../components/RemoveBucketModal/RemoveBucketModal';
 
@@ -76,7 +78,7 @@ import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { calcBucketPace } from '../lib/paceCalculation';
-import { cumulativeAmountSeries } from '../lib/dashboardStats';
+import { cumulativeAmountSeries, cumulativeNetAmountSeries } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
 import { roomCoverErrorMessage } from '../lib/roomCoverImage';
 import { supabase } from '../lib/supabase';
@@ -216,6 +218,8 @@ export function Dashboard() {
   const data = useSharedData();
   const { refreshAll, isRefreshing } = data;
   const {
+    profile: dataProfile,
+    loading: profileLoading,
     quickAmounts,
     markBucketDragHintSeen,
   } = data.profile;
@@ -308,6 +312,13 @@ export function Dashboard() {
   // starts. Account-level persistence owns the "never show again"
   // behavior across devices.
   const [bucketDragHintDismissed, setBucketDragHintDismissed] = useState(false);
+  // Set when this session marked the hint seen, so it stays visible for the
+  // remainder of this render pass even after the profile flips to "seen".
+  const [bucketDragHintMarkedThisSession, setBucketDragHintMarkedThisSession] = useState(false);
+  // Edit-mode coach (reorder / remove / edit). Device-local: captured once at
+  // mount so persisting "seen" on first show doesn't hide it mid-session.
+  const [editHintDismissed, setEditHintDismissed] = useState(false);
+  const editHintSeenInitial = useMemo(() => hasSeenHint(BUCKET_EDIT_HINT_KEY), []);
 
   // dnd-kit sensors for the bucket transfer drag shortcut (slice 40.6).
   // Activation thresholds follow plan §12: desktop ~150ms / touch ~250ms so
@@ -420,6 +431,26 @@ export function Dashboard() {
     setBucketDragHintDismissed(true);
     markBucketDragHintSeenForAccount();
   }, [markBucketDragHintSeenForAccount]);
+
+  // Fired the first time the hint actually renders: persist "seen" at the
+  // account level and keep it visible for the rest of this render pass even
+  // once the profile flips (so it doesn't flash away on the same mount).
+  const handleBucketDragHintShown = useCallback(() => {
+    setBucketDragHintMarkedThisSession(true);
+    markBucketDragHintSeenForAccount();
+  }, [markBucketDragHintSeenForAccount]);
+
+  const handleBucketDragHintDismiss = useCallback(() => {
+    setBucketDragHintDismissed(true);
+  }, []);
+
+  const handleEditHintShown = useCallback(() => {
+    markHintSeen(BUCKET_EDIT_HINT_KEY);
+  }, []);
+
+  const handleEditHintDismiss = useCallback(() => {
+    setEditHintDismissed(true);
+  }, []);
 
   function handleBucketDragStart() {
     justDraggedRef.current = true;
@@ -1025,7 +1056,7 @@ export function Dashboard() {
         <div aria-hidden className="dashboard-mesh-bg pointer-events-none fixed inset-0 -z-10" />,
         document.body,
       )}
-    <motion.div className="flex flex-col gap-6 pt-8 pb-6" variants={dashboardContainerVariants} initial="hidden" animate="visible">
+    <motion.div className="flex flex-col gap-6 px-5 pt-8 pb-6" variants={dashboardContainerVariants} initial="hidden" animate="visible">
       {/* Project header. Compact, no heavy card. */}
       <motion.header
         className="flex items-start justify-between gap-3"
@@ -1094,7 +1125,7 @@ export function Dashboard() {
           streakTrackable={bucketStreak.trackable}
           lastCheckedAt={latestCheckpoint?.checked_at ?? null}
           onEdit={handleOpenManageBuckets}
-          editAriaLabel="แก้ไขเป้าหมาย"
+          editAriaLabel={d.heroEditAriaLabel}
           onChangeCover={handleHeroCoverChoose}
           changeCoverAriaLabel={`${copy.createRoomWizard.changeCoverButton} ${copy.createRoomWizard.coverImagePlaceholder}`}
           changingCover={coverSaving || coverUploading}
@@ -1144,6 +1175,20 @@ export function Dashboard() {
           >
             {(() => {
               const isEditing = bucketDragMode === 'edit';
+              // One-time teach for the drag-to-transfer gesture: only useful
+              // on the user's own active buckets, with at least two to drag
+              // between, when the account hasn't already seen it and the user
+              // hasn't dismissed it this session. Profile-loading counts as
+              // "not yet eligible" so it never flashes for a returning user.
+              const showBucketDragHint =
+                !isEditing
+                && activeBucketItems.length >= 2
+                && !profileLoading
+                && !bucketDragHintDismissed
+                && (!dataProfile?.bucket_drag_hint_seen_at || bucketDragHintMarkedThisSession);
+              // Edit-mode coach: shown the first time the user enters edit mode
+              // (mutually exclusive with the drag hint, which needs !isEditing).
+              const showEditHint = isEditing && !editHintSeenInitial && !editHintDismissed;
               const editToggle = activeBucketItems.length >= 1 ? (
                 <button
                   type="button"
@@ -1173,21 +1218,37 @@ export function Dashboard() {
                   onAddBucket={() => setBucketModalOpen(true)}
                   headerAction={editToggle}
                   belowHeader={(
-                    <BalanceCheckStatus
-                      latest={latestCheckpoint}
-                      unallocatedPool={unallocatedPool}
-                      overAllocated={overAllocated}
-                      onCheck={handleCheckBalance}
-                      onSync={handleSyncShortfall}
-                      canAllocate={!isEditing && activeBucketItems.length > 0}
-                      onAllocate={() => {
-                        // Ignore the click dnd-kit fires right after a drag
-                        // so a drop doesn't also pop the bucket picker.
-                        if (justDraggedRef.current) return;
-                        setAllocationKey(k => k + 1);
-                        setAllocationIntent({ bucketId: null });
-                      }}
-                    />
+                    <div className="flex flex-col gap-3">
+                      <BalanceCheckStatus
+                        latest={latestCheckpoint}
+                        unallocatedPool={unallocatedPool}
+                        overAllocated={overAllocated}
+                        onCheck={handleCheckBalance}
+                        onSync={handleSyncShortfall}
+                        canAllocate={!isEditing && activeBucketItems.length > 0}
+                        onAllocate={() => {
+                          // Ignore the click dnd-kit fires right after a drag
+                          // so a drop doesn't also pop the bucket picker.
+                          if (justDraggedRef.current) return;
+                          setAllocationKey(k => k + 1);
+                          setAllocationIntent({ bucketId: null });
+                        }}
+                      />
+                      <BucketDragHint
+                        open={showBucketDragHint}
+                        message={copy.bucketDragHint.message}
+                        dismissAriaLabel={copy.bucketDragHint.dismissAriaLabel}
+                        onShown={handleBucketDragHintShown}
+                        onDismiss={handleBucketDragHintDismiss}
+                      />
+                      <BucketDragHint
+                        open={showEditHint}
+                        message={copy.bucketEditHint.message}
+                        dismissAriaLabel={copy.bucketEditHint.dismissAriaLabel}
+                        onShown={handleEditHintShown}
+                        onDismiss={handleEditHintDismiss}
+                      />
+                    </div>
                   )}
                   renderBucket={bucket => isEditing ? (
                     <SortableBucketCard
@@ -1600,7 +1661,7 @@ export function Dashboard() {
             trendPreview={{
               mineLabel: profile?.display_name ?? d.youLabel,
               theirLabel: firstOtherEntry?.displayName ?? copy.addMoney.partnerLabel,
-              mineSeries: pending => cumulativeAmountSeries(logs, user?.id, pending),
+              mineSeries: pending => cumulativeNetAmountSeries(logs, balanceAllocations, user?.id, pending),
               theirSeries: cumulativeAmountSeries(logs, firstOtherMemberByJoinedAt ?? undefined),
             }}
             onConfirm={async amount => {

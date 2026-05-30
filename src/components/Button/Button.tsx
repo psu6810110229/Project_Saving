@@ -53,7 +53,21 @@ const SIZES: Record<Size, string> = {
 export const MODAL_SECONDARY_BUTTON_CLASS =
   'bg-surface text-ink font-semibold shadow-soft ring-1 ring-brand-100 hover:bg-brand-50 hover:ring-brand-200';
 
+/**
+ * Two-button modal footer.
+ *
+ * - `MODAL_ACTION_ROW_CLASS` — confirm renders LEFT, secondary RIGHT. Use for
+ *   deliberate/destructive actions so the primary button sits away from the
+ *   thumb and the user pauses before committing.
+ * - `MODAL_ACTION_ROW_REVERSE_CLASS` — confirm renders RIGHT (easy thumb
+ *   reach), secondary LEFT. Use for easy/positive flows and wizard Next/Back.
+ *   The confirm button stays first in the DOM (focus order unchanged); only the
+ *   visual column is swapped via grid `order`.
+ */
 export const MODAL_ACTION_ROW_CLASS = 'grid grid-cols-2 gap-2.5';
+
+export const MODAL_ACTION_ROW_REVERSE_CLASS =
+  'grid grid-cols-2 gap-2.5 [&>*:first-child]:order-2 [&>*:last-child]:order-1';
 
 export function Button({
   variant = 'primary',

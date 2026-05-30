@@ -5,14 +5,17 @@ import { ActivityHistoryModal } from '../components/ActivityHistoryModal/Activit
 import { ActivityTimelineRow } from '../components/ActivityTimelineRow/ActivityTimelineRow';
 import { Avatar } from '../components/Avatar/Avatar';
 import { Button } from '../components/Button/Button';
+import { useToast } from '../components/InAppToast/InAppToastProvider';
 import { IconBubble } from '../components/IconBubble/IconBubble';
 import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { MomentumPurposePicker } from '../components/MomentumPurposePicker/MomentumPurposePicker';
 import { TeamSection, type TeamSectionMember } from '../components/TeamSection/TeamSection';
+import { MemberDetailModal, type MemberDetailModalMember } from '../components/MemberDetailModal/MemberDetailModal';
 import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
 import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilter';
 import {
   IconArrowRight,
+  IconBell,
   IconCheck,
   IconChevronDown,
   IconTrash,
@@ -24,6 +27,7 @@ import { useSharedData } from '../hooks/useSharedData';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
 import { useRoom } from '../hooks/useRoom';
+import { useSendNudge } from '../hooks/useSendNudge';
 import { useI18n } from '../i18n/useI18n';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
@@ -31,6 +35,8 @@ import {
   availablePurposeCategoriesForMode,
   purposeDailyMarkers,
   purposeFilteredDailySeries,
+  purposeNetDailyMarkers,
+  purposeNetDailySeries,
   type MomentumPurposeScope,
 } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
@@ -53,14 +59,18 @@ const SHOW_DEPOSIT_RACE = false;
  */
 export function Team() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const { user, profile } = useAuth();
   const { activeRoomId } = useRoom();
   const { copy, language, formatMoney } = useI18n();
+  const { sendNudge } = useSendNudge();
   const d = copy.dashboard;
   const t = copy.team;
 
   const data = useSharedData();
   const { buckets } = data.buckets;
+  const { transfers: bucketTransfers } = data.bucketTransfers;
+  const { allocations: balanceAllocations } = data.balanceAllocations;
   const { logs } = data.logs;
   const leaderboard = data.leaderboard;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
@@ -194,12 +204,21 @@ export function Team() {
     ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
 
-  const meDailySeries = purposeFilteredDailySeries(logs, purposeScope, visibleBucketsById, user?.id);
-  const meDailyMarkers = purposeDailyMarkers(
+  const meDailySeries = purposeNetDailySeries(
     logs,
     purposeScope,
     visibleBucketsById,
     user?.id,
+    bucketTransfers,
+    balanceAllocations,
+  );
+  const meDailyMarkers = purposeNetDailyMarkers(
+    logs,
+    purposeScope,
+    visibleBucketsById,
+    user?.id,
+    bucketTransfers,
+    balanceAllocations,
     undefined,
     { revealBucketNamesForUserId: user?.id ?? null },
   );
@@ -225,11 +244,13 @@ export function Team() {
     },
     meDailySeries.slice(),
   );
-  const roomDailyMarkers = purposeDailyMarkers(
+  const roomDailyMarkers = purposeNetDailyMarkers(
     logs,
     purposeScope,
     visibleBucketsById,
     undefined,
+    bucketTransfers,
+    balanceAllocations,
     undefined,
     { revealBucketNamesForUserId: user?.id ?? null },
   );
@@ -319,6 +340,8 @@ export function Team() {
         target: entry.target ?? (entry.isYou ? target : 0),
         themeColor: entry.themeColor,
         isYou: entry.isYou,
+        streak: entry.streak,
+        hasLoggedToday: entry.hasLoggedToday,
       }))
     : (user?.id ? [{
         userId: user.id,
@@ -334,13 +357,75 @@ export function Team() {
   const chartLocale = language === 'th' ? 'th-TH' : 'en-US';
 
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [nudgeBusyMemberId, setNudgeBusyMemberId] = useState<string | null>(null);
+
+  const selectedMember = useMemo<MemberDetailModalMember | null>(() => {
+    if (!selectedMemberId) return null;
+    const entry = leaderboard.entries.find(e => e.userId === selectedMemberId);
+    if (!entry) return null;
+    const savedByBucket = new Map<string, number>();
+    for (const log of logs) {
+      if (log.user_id === selectedMemberId && log.bucket_id) {
+        savedByBucket.set(log.bucket_id, (savedByBucket.get(log.bucket_id) ?? 0) + log.amount);
+      }
+    }
+    const memberBuckets = data.roomMembersBuckets.bucketsByUser[selectedMemberId] ?? [];
+    const name = entry.displayName ?? d.partnerLabel;
+    return {
+      name,
+      fallback: fallbackInitial(name),
+      avatarUrl: entry.avatarUrl,
+      themeColor: entry.themeColor,
+      saved: entry.saved,
+      target: entry.personalGoalTarget ?? 0,
+      buckets: memberBuckets.map(bucket => ({
+        id: bucket.id,
+        name: bucket.name,
+        saved: savedByBucket.get(bucket.id) ?? 0,
+        target: bucket.target_amount,
+        category: bucket.category,
+      })),
+    };
+  }, [selectedMemberId, leaderboard.entries, logs, data.roomMembersBuckets.bucketsByUser, d.partnerLabel]);
 
   function handleMemberClick(entry: TeamSectionMember) {
     if (entry.isYou) {
       navigate('/profile');
       return;
     }
-    navigate(`/members/${entry.userId}`);
+    setSelectedMemberId(entry.userId);
+  }
+
+  async function handleMemberNudge(entry: TeamSectionMember) {
+    if (entry.isYou) return;
+    if (nudgeBusyMemberId === entry.userId) return;
+
+    setNudgeBusyMemberId(entry.userId);
+    try {
+      const result = await sendNudge({
+        partnerUserId: entry.userId,
+        roomId: activeRoomId,
+        partnerName: entry.name,
+      });
+
+      showToast({
+        title: result.message,
+        tone:
+          result.status === 'error' || result.status === 'throttled'
+            ? 'warning'
+            : result.status === 'sent'
+              ? 'success'
+              : 'neutral',
+        icon: <IconBell size={18} />,
+      });
+
+      if (result.ok) {
+        haptic('success');
+      }
+    } finally {
+      setNudgeBusyMemberId(current => (current === entry.userId ? null : current));
+    }
   }
 
   function handleViewAll() {
@@ -348,7 +433,7 @@ export function Team() {
   }
 
   return (
-    <div className="flex flex-col gap-6 pt-8 pb-6">
+    <div className="flex flex-col gap-6 px-5 pt-8 pb-6">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="font-mono text-2xl font-bold leading-tight text-ink">
@@ -369,6 +454,7 @@ export function Team() {
         roomTarget={totalTarget}
         emptyBody={d.invitePartnerHint}
         onMemberClick={handleMemberClick}
+        onMemberNudge={handleMemberNudge}
         onViewAll={handleViewAll}
       />
 
@@ -378,6 +464,7 @@ export function Team() {
           series={chartSeries}
           partnerSeries={chartPartnerSeries}
           labels={lastSevenDayLabels(undefined, chartLocale)}
+          dateKeys={chartDayKeys}
           barMarkers={chartBarMarkers}
           partnerBarMarkers={chartPartnerBarMarkers}
           yourName={profile?.display_name ?? d.youLabel}
@@ -484,6 +571,12 @@ export function Team() {
           bucketEvents={bucketEventItems}
         />
       </section>
+
+      <MemberDetailModal
+        open={selectedMemberId !== null}
+        member={selectedMember}
+        onClose={() => setSelectedMemberId(null)}
+      />
     </div>
   );
 }

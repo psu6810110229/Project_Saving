@@ -9,6 +9,7 @@ import iconLightbulb from '../../assets/icons/lightbulb.svg';
 import { useI18n } from '../../i18n/useI18n';
 import { useRooms } from '../../hooks/useRooms';
 import { formatCurrency } from '../../lib/format';
+import { calcSuggestedRule } from '../../lib/travelExpenseRules';
 import { clearWizardDraft } from '../../lib/wizardDraft';
 import type { ExpenseDraftItem } from './wizardTypes';
 import type { ProjectCategory } from '../../types';
@@ -125,18 +126,29 @@ export function StepSummary({
       end_date: endDate,
       category,
       cover_image_url: coverImageUrl,
-      expenses: checked.map(e => ({
-        category: e.category,
-        nameEn: e.nameEn,
-        nameTh: e.nameTh,
-        targetAmount: e.targetAmount,
-        deadline: e.deadline,
-        priority: e.priority,
-        paymentType: e.paymentType,
-        tipKey: e.tipKey,
-        savingRuleType: e.savingRuleType ?? null,
-        savingRuleAmount: e.savingRuleAmount ?? null,
-      })),
+      expenses: checked.map(e => {
+        // Persist the affordable, leg-based suggestion when the user never
+        // opened the adjust panel, so created buckets still carry a sensible
+        // plan instead of no rule at all.
+        const rule = e.savingRuleType != null
+          ? { ruleType: e.savingRuleType, amount: e.savingRuleAmount ?? null }
+          : (() => {
+              const s = calcSuggestedRule(e.targetAmount, e.deadline, e.savingWindowStart);
+              return { ruleType: s.ruleType, amount: s.ruleType === 'flexible' ? null : s.amount };
+            })();
+        return {
+          category: e.category,
+          nameEn: e.nameEn,
+          nameTh: e.nameTh,
+          targetAmount: e.targetAmount,
+          deadline: e.deadline,
+          priority: e.priority,
+          paymentType: e.paymentType,
+          tipKey: e.tipKey,
+          savingRuleType: rule.ruleType,
+          savingRuleAmount: rule.amount,
+        };
+      }),
     }, { archiveExisting })
       .then(result => {
         pendingResultRef.current = result;

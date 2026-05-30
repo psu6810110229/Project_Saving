@@ -1,26 +1,94 @@
+import { useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { AboutModal } from '../components/AboutInfo/AboutInfo';
+import { AuroraBackdrop } from '../components/AuroraBackdrop/AuroraBackdrop';
+import { IconButton } from '../components/IconButton/IconButton';
+import { IconInfo } from '../components/Icon/Icon';
+import { MOTION_EASE } from '../lib/motion';
 import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '../i18n/useI18n';
 
 export function Login() {
   const { signInWithGoogle } = useAuth();
-  const { copy } = useI18n();
+  const { copy, language } = useI18n();
+  const reduceMotion = useReducedMotion();
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const loginTitleLines = language === 'th'
+    ? ['เก็บเงินด้วยกัน', 'ถึงเป้าไปด้วยกัน']
+    : [copy.auth.loginTitle];
+
+  // Staggered entrance for the hero stack. Reduced motion collapses every
+  // step to a plain fade so nothing slides.
+  const rise = (delay: number) =>
+    reduceMotion
+      ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.15, delay } }
+      : {
+          initial: { opacity: 0, y: 16 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.3, delay, ease: MOTION_EASE.emphasized },
+        };
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-6">
-      <div className="surface-raised w-full max-w-sm rounded-lg p-8 flex flex-col items-center gap-6 animate-fade-in-up">
-        <span className="font-mono text-brand-800 text-base tracking-widest uppercase">
-          GO-OUT
-        </span>
-        <h1 className="text-2xl text-center">{copy.auth.loginTitle}</h1>
-        <p className="text-sm text-ink-muted text-center">
-          {copy.auth.loginBody}
-        </p>
+    <div className="relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-bg px-6 pb-10 pt-6">
+      <AuroraBackdrop
+        live
+        contrast={1.5}
+        motionSpeed={1.45}
+        palette={{
+          primary: 'bg-brand-300/[0.54]',
+          secondary: 'bg-brand-200/[0.60]',
+          center: 'bg-accent-gold/[0.48]',
+          glow: 'bg-brand-500/[0.66]',
+        }}
+        scatter
+        reduceMotion={Boolean(reduceMotion)}
+      />
 
+      {/* Top bar — the (i) opens the same About/Terms/Privacy modal as the
+          terms line below the sign-in button. */}
+      <div className="relative z-10 flex justify-end">
+        <IconButton ariaLabel={copy.about.infoAriaLabel} size="md" onClick={() => setAboutOpen(true)}>
+          <IconInfo size={20} />
+        </IconButton>
+      </div>
+
+      {/* Hero */}
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center text-center">
+        <motion.div
+          {...rise(0)}
+          className="overflow-hidden rounded-[1.75rem] shadow-haloOrange"
+        >
+          <img
+            src="/icon-512.png"
+            alt="GO-OUT"
+            className="h-24 w-24 rounded-[1.75rem] object-cover"
+          />
+        </motion.div>
+        <motion.span
+          {...rise(0.08)}
+          className="mt-1 font-mono text-sm font-bold uppercase tracking-[0.42em] text-brand-700"
+        >
+          
+        </motion.span>
+        <motion.h1 {...rise(0.16)} className="mt-4 font-mono text-[1.4rem] tracking-[0.03em] font-semibold leading-tight text-ink sm:text-3xl">
+          {loginTitleLines.map((line, index) => (
+            <span key={`${line}-${index}`} className="block whitespace-nowrap">
+              {line}
+            </span>
+          ))}
+        </motion.h1>
+        <motion.p {...rise(0.24)} className="mt-3 whitespace-nowrap font-mono text-sm leading-6 text-ink-muted">
+          {copy.auth.loginBody}
+        </motion.p>
+      </div>
+
+      {/* Bottom CTA — anchored in the thumb zone */}
+      <motion.div {...rise(0.34)} className="relative z-10 flex flex-col items-center gap-4">
         <button
           onClick={signInWithGoogle}
           className="
-            w-full rounded-pill bg-brand-800 text-ink-inverse
-            px-5 py-3 text-sm font-bold tracking-wide
+            w-full max-w-sm rounded-pill bg-brand-800 text-ink-inverse
+            px-5 py-3.5 text-sm font-bold tracking-wide
             shadow-soft hover:shadow-haloOrange
             active:scale-[0.99] transition-all
             flex items-center justify-center gap-3
@@ -34,7 +102,17 @@ export function Login() {
           </svg>
           {copy.auth.continueWithGoogle}
         </button>
-      </div>
+
+        <button
+          type="button"
+          onClick={() => setAboutOpen(true)}
+          className="whitespace-nowrap px-2 text-center font-mono text-[11px] leading-5 text-ink-muted underline decoration-brand-200 underline-offset-2 hover:text-ink"
+        >
+          {copy.about.termsLine}
+        </button>
+      </motion.div>
+
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </div>
   );
 }

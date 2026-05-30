@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { MOTION_DURATION, MOTION_EASE, REDUCED_MOTION_TRANSITION } from '../../lib/motion';
+import { AuroraBackdrop } from '../AuroraBackdrop/AuroraBackdrop';
 import { WizardProgress } from './WizardProgress';
 import { StepBasics } from './StepBasics';
 import { StepEventDate } from './StepEventDate';
@@ -22,7 +23,7 @@ import { Button } from '../Button/Button';
 import { Modal } from '../Modal/Modal';
 import { useI18n } from '../../i18n/useI18n';
 import { WIZARD_DRAFT_KEY } from '../../lib/wizardDraft';
-import { suggestExpenses } from '../../lib/travelExpenseRules';
+import { cascadeExpenseSchedule, suggestExpenses } from '../../lib/travelExpenseRules';
 import type { ExpenseDraftItem, WizardDraft } from './wizardTypes';
 
 const TOTAL_STEPS = 5;
@@ -113,6 +114,31 @@ export function CreateRoomWizard() {
     });
   }, []);
 
+  // Entering step 4: lay the selected buckets on one sequential timeline so the
+  // suggested deadlines spread evenly across the runway (collect-first order),
+  // keeping every bucket's daily amount affordable instead of cramming the
+  // nearest deadline into a tiny, impossible window.
+  const goToStep4 = useCallback(() => {
+    setDirection(1);
+    setDraft(prev => {
+      const checked = prev.expenses.filter(e => e.checked);
+      if (checked.length === 0 || !prev.endDate) {
+        return { ...prev, step: 4 };
+      }
+      const { legs } = cascadeExpenseSchedule(
+        checked.map(e => ({ id: e.id, targetAmount: e.targetAmount, priority: e.priority })),
+        prev.endDate,
+      );
+      const byId = new Map(legs.map(leg => [leg.id, leg]));
+      const expenses = prev.expenses.map(e => {
+        const leg = byId.get(e.id);
+        if (!leg) return e;
+        return { ...e, deadline: leg.deadline, savingWindowStart: leg.startDate };
+      });
+      return { ...prev, step: 4, expenses };
+    });
+  }, []);
+
   // Only Travel and Gadget are live today; the rest are shown as "coming soon"
   // so users see the roadmap without being able to pick an unsupported flow.
   const categoryOptions = useMemo(() => [
@@ -168,7 +194,7 @@ export function CreateRoomWizard() {
           setValidationMsg(msg);
           return;
         }
-        goTo(4);
+        goToStep4();
         break;
       }
       case 4: goTo(5); break;
@@ -236,7 +262,8 @@ export function CreateRoomWizard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-bg">
+      <AuroraBackdrop reduceMotion={Boolean(reduceMotion)} />
       <header className="sticky top-0 z-10 bg-bg/80 px-5 pb-3 pt-9 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -267,7 +294,7 @@ export function CreateRoomWizard() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden px-5 pb-8">
+      <main className="relative z-10 flex-1 overflow-hidden px-5 pb-8">
         <AnimatePresence mode="wait" initial={false} custom={direction}>
           <motion.div
             key={draft.step}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BucketManager } from '../components/BucketManager/BucketManager';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../components/Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../components/Button/Button';
 import { Chip } from '../components/Chip/Chip';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { FormField } from '../components/FormField/FormField';
@@ -438,7 +438,7 @@ export function ManageProject() {
   };
 
   return (
-    <div className="flex flex-col gap-6 pt-8">
+    <div className="flex flex-col gap-6 px-5 pt-8">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -549,7 +549,7 @@ export function ManageProject() {
               {renameError && (
                 <p className="rounded-lg bg-danger-soft px-3 py-2 font-mono text-xs text-danger">{renameError}</p>
               )}
-              <div className={MODAL_ACTION_ROW_CLASS}>
+              <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
                 <Button variant="action" fullWidth size="md" disabled={disabled} onClick={handleRenameSave}>
                   {copy.manageProject.renameSave}
                 </Button>

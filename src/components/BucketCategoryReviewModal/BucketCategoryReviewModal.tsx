@@ -3,7 +3,7 @@ import type { Bucket, BucketCategory } from '../../types';
 import { BUCKET_CATEGORY_ORDER } from '../../lib/bucketCategories';
 import { isLowConfidenceCategory, normalizeBucketCategory } from '../../lib/bucketCategories';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
-import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
+import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { Modal } from '../Modal/Modal';
 import { useI18n } from '../../i18n/useI18n';
 
@@ -127,7 +127,7 @@ export function BucketCategoryReviewModal({
           </p>
         )}
 
-        <div className={MODAL_ACTION_ROW_CLASS}>
+        <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
           <Button
             type="button"
             variant="primary"

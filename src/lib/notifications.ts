@@ -8,7 +8,6 @@ import type { NotificationEventKey, NotificationItem } from '../types';
 const ALLOWED_ROUTE_PREFIXES = [
   '/dashboard',
   '/add',
-  '/check-balance',
   '/saving-plan',
   '/manage-project',
   '/notifications',
@@ -63,6 +62,29 @@ export const NOTIFICATION_CATEGORY_COPY = {
     description: 'Occasional updates about new features.',
   },
 } as const;
+
+const IN_APP_TOAST_EVENT_KEYS = new Set<string>([
+  'nudge_received',
+  'saving_reminder_due',
+  'partner_deposited',
+  'balance_checked',
+  'goal_changed',
+  'goal_reached',
+  'bucket_goal_reached',
+  'plan_created',
+  'plan_changed',
+  'plan_paused',
+  'plan_resumed',
+  'plan_started',
+  'room_joined',
+  'room_left',
+  'overtaking',
+  'streak_milestone',
+]);
+
+export function shouldToastNotification(eventKey: NotificationEventKey | string): boolean {
+  return IN_APP_TOAST_EVENT_KEYS.has(eventKey);
+}
 
 /**
  * Maps an event key to a UX icon family. The NotificationListItem

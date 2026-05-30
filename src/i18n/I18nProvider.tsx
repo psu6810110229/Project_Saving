@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_STORAGE_KEY,
@@ -14,37 +14,31 @@ import {
 } from './formatters';
 import { I18nContext, type I18nContextValue } from './I18nContext';
 
-function readStoredLanguage(): Language {
-  if (typeof window === 'undefined') return DEFAULT_LANGUAGE;
-  try {
-    const raw = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (isLanguage(raw)) return raw;
-  } catch {
-    // Storage may be unavailable (private mode, SSR) — fall through.
-  }
-  return DEFAULT_LANGUAGE;
-}
-
-function writeStoredLanguage(language: Language) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-  } catch {
-    // Ignore — selection still applies for this session.
-  }
-}
-
 interface I18nProviderProps {
   children: ReactNode;
 }
 
 export function I18nProvider({ children }: I18nProviderProps) {
-  const [language, setLanguageState] = useState<Language>(() => readStoredLanguage());
+  const [language, setLanguageState] = useState<Language>(() => {
+    try {
+      const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      return isLanguage(stored) ? stored : DEFAULT_LANGUAGE;
+    } catch {
+      return DEFAULT_LANGUAGE;
+    }
+  });
 
   const setLanguage = useCallback((next: Language) => {
     setLanguageState(next);
-    writeStoredLanguage(next);
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    } catch {
+      // Ignore storage failures; in-memory state still keeps the UI coherent.
+    }
+  }, [language]);
 
   const value = useMemo<I18nContextValue>(() => {
     const copy = messagesByLanguage[language] ?? messagesByLanguage[DEFAULT_LANGUAGE];

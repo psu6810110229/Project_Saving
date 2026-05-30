@@ -371,7 +371,16 @@ function ProjectSetup({
   if (mode === 'join') {
     return (
       <div className="relative min-h-[100dvh] overflow-hidden bg-bg">
-        <AuroraBackdrop reduceMotion={Boolean(reduceMotion)} />
+        <AuroraBackdrop
+          reduceMotion={Boolean(reduceMotion)}
+          contrast={0.8}
+          palette={{
+            primary: 'bg-brand-300/[0.34]',
+            secondary: 'bg-brand-200/[0.4]',
+            center: 'bg-brand-100/[0.18]',
+            glow: 'bg-brand-400/[0.14]',
+          }}
+        />
         <motion.div
           key="setup-join"
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 32 }}
@@ -421,7 +430,16 @@ function ProjectSetup({
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-bg">
-      <AuroraBackdrop reduceMotion={Boolean(reduceMotion)} />
+      <AuroraBackdrop
+        reduceMotion={Boolean(reduceMotion)}
+        contrast={0.8}
+        palette={{
+          primary: 'bg-brand-300/[0.34]',
+          secondary: 'bg-brand-200/[0.4]',
+          center: 'bg-brand-100/[0.18]',
+          glow: 'bg-brand-400/[0.14]',
+        }}
+      />
       <motion.div
         key="setup-create"
         initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -32 }}

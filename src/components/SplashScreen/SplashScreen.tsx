@@ -1,5 +1,4 @@
 import { motion, useReducedMotion } from 'framer-motion';
-import { IconPiggyBank } from '../Icon/Icon';
 import { MOTION_EASE } from '../../lib/motion';
 
 /**
@@ -29,14 +28,19 @@ export function SplashScreen() {
             : { duration: 0.55, ease: MOTION_EASE.emphasized }
         }
       >
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-ink-inverse shadow-haloOrange">
-          <IconPiggyBank size={30} weight="fill" />
+        <span className="flex h-14 w-14 items-center justify-center">
+          <img
+            src="/icon-192.png"
+            alt="GO-OUT"
+            className="h-12 w-12"
+          />
         </span>
-        <span className="font-mono text-3xl font-bold tracking-tight text-brand-800">GO-OUT</span>
+
+        <span className="font-mono text-4xl font-bold tracking-tight text-brand-800">GO-OUT</span>
       </motion.div>
 
       <motion.span
-        className="absolute bottom-12 font-mono text-[11px] font-bold uppercase tracking-[0.32em] text-ink-dim"
+        className="absolute bottom-12 font-mono text-[12px] font-bold uppercase tracking-[0.32em] text-ink-dim"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: reduceMotion ? 0 : 0.2 }}

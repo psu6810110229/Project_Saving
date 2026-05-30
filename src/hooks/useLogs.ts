@@ -12,8 +12,6 @@ function extractDisplayName(profiles: RawProfile): string | undefined {
   return profiles.display_name;
 }
 
-const LIMIT = 100;
-
 export function useLogs(limit = 30, roomId: string | null = null) {
   const { user } = useAuth();
   const [logs, setLogs] = useState<SavingsLog[]>([]);
@@ -27,8 +25,7 @@ export function useLogs(limit = 30, roomId: string | null = null) {
       .from('savings_logs')
       .select('id, user_id, amount, note, created_at, room_id, bucket_id, slip_url, profiles!savings_logs_user_id_fkey(display_name), buckets(name)')
       .eq('room_id', roomId)
-      .order('created_at', { ascending: false })
-      .limit(LIMIT);
+      .order('created_at', { ascending: false });
 
     const { data, error: err } = await query;
     if (err) { setError(err.message); return; }
@@ -70,7 +67,7 @@ export function useLogs(limit = 30, roomId: string | null = null) {
               if (exists) {
                 return prev.map(l => l.id === row.id ? { ...l, ...row, amount: Number(row.amount) } : l);
               }
-              return [{ ...row, amount: Number(row.amount) }, ...prev].slice(0, LIMIT);
+              return [{ ...row, amount: Number(row.amount) }, ...prev];
             });
           }
           if (payload.eventType === 'UPDATE') {
@@ -129,5 +126,13 @@ export function useLogs(limit = 30, roomId: string | null = null) {
     return {};
   }
 
-  return { logs: logs.slice(0, limit), setLogs, loading, error, insert, refetch: fetchLogs };
+  return {
+    allLogs: logs,
+    logs: logs.slice(0, limit),
+    setLogs,
+    loading,
+    error,
+    insert,
+    refetch: fetchLogs,
+  };
 }

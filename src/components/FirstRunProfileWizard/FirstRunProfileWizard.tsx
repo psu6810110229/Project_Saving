@@ -353,11 +353,11 @@ function AuroraBackdrop({ reduceMotion }: { reduceMotion: boolean }) {
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <motion.div
         {...(drift({ x: [0, 30, 0], y: [0, -24, 0] }, 14) ?? {})}
-        className="absolute -left-16 -top-10 h-72 w-72 rounded-full bg-brand-300/50 blur-3xl"
+        className="absolute -left-16 -top-10 h-72 w-72 rounded-full bg-brand-300/34 blur-3xl"
       />
       <motion.div
         {...(drift({ x: [0, -28, 0], y: [0, 26, 0] }, 18) ?? {})}
-        className="absolute -bottom-16 -right-12 h-80 w-80 rounded-full bg-brand-200/60 blur-3xl"
+        className="absolute -bottom-16 -right-12 h-80 w-80 rounded-full bg-brand-200/42 blur-3xl"
       />
     </div>
   );

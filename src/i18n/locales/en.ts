@@ -411,6 +411,7 @@ export const en = {
     projectOwner: 'Project owner',
     greeting: (name: string): string => `Hi ${name}`,
     greetingNoName: 'Hi there',
+    settingsAriaLabel: 'Settings and sign out',
     tagline: 'Save for the trip, together.',
     howItWorksLabel: 'How it works',
     step1: 'Join',

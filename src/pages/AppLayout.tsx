@@ -17,11 +17,13 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconFlag,
+  IconGear,
   IconPiggyBank,
   IconRocket,
   IconShield,
   IconUserPlus,
 } from '../components/Icon/Icon';
+import { IconButton } from '../components/IconButton/IconButton';
 import { MOTION_DURATION, MOTION_EASE, REDUCED_MOTION_TRANSITION } from '../lib/motion';
 import { useAuth } from '../hooks/useAuth';
 import { useLoadingGate } from '../hooks/useLoadingGate';
@@ -329,20 +331,32 @@ function ProjectSetup({
         }
         className="pt-2"
       >
-        <div className="flex items-center gap-3">
-          <Avatar
-            size="md"
-            imageUrl={profile?.avatar_url}
-            fallback={firstName?.charAt(0).toUpperCase() || 'G'}
-            ring="theme"
-            className="shrink-0"
-          />
-          <div className="min-w-0">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-brand-700">
-              GO-OUT
-            </p>
-            <h1 className="truncate font-mono text-2xl font-bold leading-tight text-ink">{greeting}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar
+              size="md"
+              imageUrl={profile?.avatar_url}
+              fallback={firstName?.charAt(0).toUpperCase() || 'G'}
+              ring="theme"
+              className="shrink-0"
+            />
+            <div className="min-w-0">
+              <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-brand-700">
+                GO-OUT
+              </p>
+              <h1 className="truncate font-mono text-2xl font-bold leading-tight text-ink">{greeting}</h1>
+            </div>
           </div>
+          {/* The setup screen hides the bottom nav, so this is the only way to
+              reach settings / sign out before a room exists. */}
+          <IconButton
+            ariaLabel={ps.settingsAriaLabel}
+            size="md"
+            onClick={() => navigate('/profile')}
+            className="shrink-0"
+          >
+            <IconGear size={20} />
+          </IconButton>
         </div>
         <p className="mt-3 font-mono text-sm leading-5 text-ink-muted">{ps.tagline}</p>
       </motion.header>

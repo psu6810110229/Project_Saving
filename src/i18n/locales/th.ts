@@ -397,6 +397,7 @@ export const th: Messages = {
     projectOwner: 'เจ้าของโปรเจกต์',
     greeting: (name: string): string => `สวัสดี ${name}`,
     greetingNoName: 'สวัสดี',
+    settingsAriaLabel: 'ตั้งค่าและออกจากระบบ',
     tagline: 'เก็บเงินไปเที่ยวด้วยกัน',
     howItWorksLabel: 'วิธีใช้งาน',
     step1: 'เข้าร่วม',

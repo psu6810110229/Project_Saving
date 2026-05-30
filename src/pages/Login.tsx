@@ -1,26 +1,70 @@
+import { useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { AboutModal } from '../components/AboutInfo/AboutInfo';
+import { IconButton } from '../components/IconButton/IconButton';
+import { IconInfo, IconPiggyBank, IconShield } from '../components/Icon/Icon';
+import { MOTION_EASE } from '../lib/motion';
 import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '../i18n/useI18n';
 
 export function Login() {
   const { signInWithGoogle } = useAuth();
   const { copy } = useI18n();
+  const reduceMotion = useReducedMotion();
+  const [aboutOpen, setAboutOpen] = useState(false);
+
+  // Staggered entrance for the hero stack. Reduced motion collapses every
+  // step to a plain fade so nothing slides.
+  const rise = (delay: number) =>
+    reduceMotion
+      ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.15, delay } }
+      : {
+          initial: { opacity: 0, y: 16 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.6, delay, ease: MOTION_EASE.emphasized },
+        };
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-6">
-      <div className="surface-raised w-full max-w-sm rounded-lg p-8 flex flex-col items-center gap-6 animate-fade-in-up">
-        <span className="font-mono text-brand-800 text-base tracking-widest uppercase">
-          GO-OUT
-        </span>
-        <h1 className="text-2xl text-center">{copy.auth.loginTitle}</h1>
-        <p className="text-sm text-ink-muted text-center">
-          {copy.auth.loginBody}
-        </p>
+    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-bg px-6 pb-10 pt-6">
+      <AuroraBackdrop reduceMotion={Boolean(reduceMotion)} />
 
+      {/* Top bar — the (i) opens the same About/Terms/Privacy modal as the
+          terms line below the sign-in button. */}
+      <div className="relative z-10 flex justify-end">
+        <IconButton ariaLabel={copy.about.infoAriaLabel} size="md" onClick={() => setAboutOpen(true)}>
+          <IconInfo size={20} />
+        </IconButton>
+      </div>
+
+      {/* Hero */}
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center text-center">
+        <motion.div
+          {...rise(0)}
+          className="flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-500 text-ink-inverse shadow-haloOrange"
+        >
+          <IconPiggyBank size={40} weight="fill" />
+        </motion.div>
+        <motion.span
+          {...rise(0.08)}
+          className="mt-6 font-mono text-sm font-bold uppercase tracking-[0.32em] text-brand-700"
+        >
+          GO-OUT
+        </motion.span>
+        <motion.h1 {...rise(0.16)} className="mt-3 max-w-[16ch] font-mono text-3xl font-bold leading-tight text-ink">
+          {copy.auth.loginTitle}
+        </motion.h1>
+        <motion.p {...rise(0.24)} className="mt-3 max-w-[24ch] font-mono text-sm leading-6 text-ink-muted">
+          {copy.auth.loginBody}
+        </motion.p>
+      </div>
+
+      {/* Bottom CTA — anchored in the thumb zone */}
+      <motion.div {...rise(0.34)} className="relative z-10 flex flex-col items-center gap-4">
         <button
           onClick={signInWithGoogle}
           className="
-            w-full rounded-pill bg-brand-800 text-ink-inverse
-            px-5 py-3 text-sm font-bold tracking-wide
+            w-full max-w-sm rounded-pill bg-brand-800 text-ink-inverse
+            px-5 py-3.5 text-sm font-bold tracking-wide
             shadow-soft hover:shadow-haloOrange
             active:scale-[0.99] transition-all
             flex items-center justify-center gap-3
@@ -34,7 +78,46 @@ export function Login() {
           </svg>
           {copy.auth.continueWithGoogle}
         </button>
-      </div>
+
+        <button
+          type="button"
+          onClick={() => setAboutOpen(true)}
+          className="flex items-center gap-1.5 px-2 text-center font-mono text-[11px] leading-5 text-ink-muted underline-offset-2 hover:text-ink hover:underline"
+        >
+          <IconShield size={14} className="shrink-0 text-ink-dim" />
+          {copy.about.termsLine}
+        </button>
+      </motion.div>
+
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
+    </div>
+  );
+}
+
+/**
+ * Soft brand-tinted aurora behind the hero. Two large blurred blobs drift
+ * slowly to give the first impression some life; `prefers-reduced-motion`
+ * freezes them in place.
+ */
+function AuroraBackdrop({ reduceMotion }: { reduceMotion: boolean }) {
+  const drift = (offsets: { x: number[]; y: number[] }, duration: number) =>
+    reduceMotion
+      ? undefined
+      : {
+          animate: { x: offsets.x, y: offsets.y },
+          transition: { duration, repeat: Infinity, repeatType: 'mirror' as const, ease: 'easeInOut' as const },
+        };
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <motion.div
+        {...(drift({ x: [0, 30, 0], y: [0, -24, 0] }, 14) ?? {})}
+        className="absolute -left-16 -top-10 h-72 w-72 rounded-full bg-brand-300/50 blur-3xl"
+      />
+      <motion.div
+        {...(drift({ x: [0, -28, 0], y: [0, 26, 0] }, 18) ?? {})}
+        className="absolute -bottom-16 -right-12 h-80 w-80 rounded-full bg-brand-200/60 blur-3xl"
+      />
     </div>
   );
 }

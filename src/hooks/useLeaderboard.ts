@@ -11,7 +11,13 @@ export interface LeaderboardEntry {
   displayName: string;
   avatarUrl?: string | null;
   themeColor?: ProfileTheme;
-  /** Recorded Deposits: sum of positive savings_logs assigned to buckets. */
+  /**
+   * Saved amount that drives the percent, rank, and room total. For other
+   * members this is Recorded Deposits (sum of positive savings_logs). For
+   * the current user it is their Verified Balance (recorded deposits +
+   * reconcile adjustments) when available, so the leaderboard stays
+   * consistent with Check Balance.
+   */
   saved: number;
   /**
    * Member's personal sub-goal (`goals.target_amount`). Task 37
@@ -79,6 +85,12 @@ export function useLeaderboard(
   // data is plumbed in only for the current user. Partner streaks
   // continue to use the raw chain via `calcStreak`.
   currentUserFrozenDates: ReadonlySet<string> = EMPTY_FROZEN_DATES,
+  // Current user's Verified Balance (recorded deposits + reconcile
+  // adjustments) from `current_reconciled_balance`. When provided, it
+  // replaces the current user's Recorded Deposits as the leaderboard
+  // `saved` value so the %, rank, and room total match Check Balance.
+  // Other members' verified balance is private, so they stay on recorded.
+  currentUserVerifiedBalance: number | null = null,
 ): LeaderboardState {
   const [profiles, setProfiles] = useState<RawProfile[]>([]);
   const [goals, setGoals] = useState<RawGoal[]>([]);
@@ -194,13 +206,20 @@ export function useLeaderboard(
 
     const raw = profiles.map(p => {
       const userLogs = roomLogs.filter(l => l.user_id === p.id);
-      const saved = userLogs.reduce((sum, l) => sum + l.amount, 0);
+      const isYou = p.id === myUserId;
+      const recordedSaved = userLogs.reduce((sum, l) => sum + l.amount, 0);
+      // The current user's card/%/rank reflect Verified Balance (recorded +
+      // reconcile adjustments) when available; everyone else stays on
+      // Recorded Deposits. Streak/"logged today" below remain on recorded
+      // deposits since they measure the saving habit, not the balance.
+      const saved = isYou && currentUserVerifiedBalance !== null
+        ? currentUserVerifiedBalance
+        : recordedSaved;
       const goal = goals.find(g => g.user_id === p.id);
       const target = goal ? Number(goal.target_amount) : null;
       const rawPercent = target && target > 0 ? (saved / target) * 100 : 0;
       const percent = target && target > 0 ? Math.min(100, Math.round(rawPercent)) : 0;
       const hasGoal = target !== null && target > 0;
-      const isYou = p.id === myUserId;
       const streak = isYou
         ? calcStreakWithFreezes(userLogs, today, currentUserFrozenDates)
         : calcStreak(userLogs, today);
@@ -230,5 +249,5 @@ export function useLeaderboard(
     }));
 
     return { entries, loading: false };
-  }, [profiles, goals, roomLogs, loading, today, myUserId, currentUserFrozenDates]);
+  }, [profiles, goals, roomLogs, loading, today, myUserId, currentUserFrozenDates, currentUserVerifiedBalance]);
 }

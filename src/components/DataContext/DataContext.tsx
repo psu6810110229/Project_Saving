@@ -29,7 +29,12 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const bucketActivityEvents = useBucketActivityEvents(roomId);
   const logs = useLogs(100, roomId);
   const streakFreeze = useStreakFreeze(user?.id);
-  const leaderboard = useLeaderboard(user?.id, roomId, streakFreeze.frozenDates);
+  const reconcile = useReconcile(roomId);
+  // Feed the current user's Verified Balance (deposits + reconcile
+  // adjustments) into the leaderboard so their card/%/rank and the room
+  // total stay consistent with Check Balance. Other members keep recorded
+  // deposits since their verified balance is private.
+  const leaderboard = useLeaderboard(user?.id, roomId, streakFreeze.frozenDates, reconcile.appBalance);
   const goal = useGoal(roomId);
 
   // N-safe per-member data layer. The plural fields below are the
@@ -47,7 +52,6 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const partnerBuckets = usePartnerBuckets(roomId, partnerEntry?.userId ?? null);
   const savingPlan = useSavingPlan(roomId);
   const partnerSavingPlan = usePartnerSavingPlan(roomId, partnerEntry?.userId ?? null);
-  const reconcile = useReconcile(roomId);
 
   // Ref holds the latest refetch functions so refreshAll stays stable.
   const refetchRef = useRef({

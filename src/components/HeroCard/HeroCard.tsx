@@ -327,7 +327,7 @@ export const HeroCard = memo(function HeroCard({
   return (
     <div className="vault-card-frame">
       <section
-        className="hero-credit-card flex aspect-[1.586/1] w-full flex-col justify-between rounded-2xl px-6 py-5 text-white min-[400px]:px-6 min-[480px]:py-8"
+        className="hero-credit-card flex aspect-[1.586/1] w-full flex-col justify-between rounded-2xl px-3 py-5 text-white min-[400px]:px-6 min-[480px]:py-8"
         data-has-cover={coverImageUrl ? 'true' : 'false'}
         data-category={roomCategory ?? undefined}
         style={cardStyle}

@@ -34,23 +34,23 @@ interface ToastContextValue {
 
 const DEFAULT_DURATION_MS = 4600;
 
+// Delay before a freshly triggered toast slides in, so it does not collide
+// with the action that triggered it.
+const SHOW_DELAY_MS = 3000;
+
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const TONE_STYLES: Record<InAppToastTone, { chip: string; ring: string; text: string }> = {
+// iOS notification banners carry a solid, colored app-icon squircle on a
+// near-white card. `badge` fills the squircle per tone with a white glyph.
+const TONE_STYLES: Record<InAppToastTone, { badge: string }> = {
   neutral: {
-    chip: 'bg-brand-50 text-brand-700',
-    ring: 'border-brand-100/80',
-    text: 'text-ink',
+    badge: 'bg-brand-500 text-white',
   },
   success: {
-    chip: 'bg-[#E8F5EE] text-[#1F7A4C]',
-    ring: 'border-[#CFE8DA]',
-    text: 'text-ink',
+    badge: 'bg-[#1F7A4C] text-white',
   },
   warning: {
-    chip: 'bg-[#FDF0E8] text-[#B5541B]',
-    ring: 'border-[#F1D2BF]',
-    text: 'text-ink',
+    badge: 'bg-[#B5541B] text-white',
   },
 };
 
@@ -81,16 +81,27 @@ export function InAppToastProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback((options: InAppToastOptions) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const tone = options.tone ?? 'neutral';
     const toast: InAppToastItem = {
       ...options,
       id,
-      tone: options.tone ?? 'neutral',
+      tone,
       durationMs: options.durationMs ?? DEFAULT_DURATION_MS,
     };
-    setToasts(current => [...current.slice(-2), toast]);
+    // Wait SHOW_DELAY_MS before sliding the toast in, then keep it up for its
+    // own duration. The show-delay timer is tracked under the same id so a
+    // dismiss/unmount can cancel a toast that has not appeared yet.
     timeoutIdsRef.current[id] = window.setTimeout(() => {
-      dismissToast(id);
-    }, toast.durationMs);
+      // Light haptic when a toast appears. Android fires the buzz; iOS Safari
+      // has no Vibration API and ignores this, so it is Android-only in practice.
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(tone === 'warning' ? [12, 40, 12] : 12);
+      }
+      setToasts(current => [...current.slice(-2), toast]);
+      timeoutIdsRef.current[id] = window.setTimeout(() => {
+        dismissToast(id);
+      }, toast.durationMs);
+    }, SHOW_DELAY_MS);
     return id;
   }, [dismissToast]);
 
@@ -132,34 +143,34 @@ export function InAppToastProvider({ children }: { children: ReactNode }) {
                       dismissToast(toast.id);
                     }}
                     className={
-                      'pointer-events-auto w-full rounded-[24px] border bg-[#FFF9F3] px-4 py-3 text-left shadow-[0_16px_40px_-22px_rgba(90,45,18,0.34)] '
-                      + 'transition-transform active:scale-[0.985] '
-                      + styles.ring
+                      'pointer-events-auto w-full rounded-[26px] bg-white px-3.5 py-3 text-left '
+                      + 'shadow-[0_12px_34px_-12px_rgba(17,24,39,0.28)] '
+                      + 'transition-transform active:scale-[0.985]'
                     }
                     initial={{ opacity: 0, y: -16, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -12, scale: 0.98 }}
                     transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.9 }}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-center gap-3">
                       <span
                         aria-hidden
-                        className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${styles.chip}`}
+                        className={`inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[12px] ${styles.badge}`}
                       >
                         {icon}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className={`font-mono text-[13px] font-bold leading-5 ${styles.text}`}>
+                        <p className="font-sans text-[15px] font-semibold leading-5 text-ink">
                           {toast.title}
                         </p>
                         {toast.body && (
-                          <p className="mt-1 font-mono text-[11px] leading-4 text-ink-muted">
+                          <p className="mt-0.5 font-sans text-[13px] leading-[18px] text-ink-muted">
                             {toast.body}
                           </p>
                         )}
                       </div>
                       {toast.onPress && (
-                        <span aria-hidden className="mt-1 shrink-0 text-brand-500">
+                        <span aria-hidden className="shrink-0 text-ink-dim">
                           <IconArrowRight size={16} />
                         </span>
                       )}

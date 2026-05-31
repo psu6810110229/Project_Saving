@@ -13,8 +13,16 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { notificationIconKind, resolveNotificationTarget, shouldToastNotification } from '../../lib/notifications';
 import { supabase } from '../../lib/supabase';
+import { notificationDisplayCopy } from '../../i18n/notificationCopy';
+import { messagesByLanguage } from '../../i18n/messages';
+import { formatMoney } from '../../i18n/formatters';
 import { useToast } from './InAppToastProvider';
 import type { NotificationItem } from '../../types';
+
+// Toasts always render in Thai regardless of the user's app language, so
+// reuse the notification-center localization path with the Thai messages.
+const thMessages = messagesByLanguage.th;
+const formatMoneyTh = (amount: number) => formatMoney(amount, 'th');
 
 type NotificationInsertRow = Omit<NotificationItem, 'payload'> & {
   payload: Record<string, unknown> | null;
@@ -97,9 +105,11 @@ export function InAppNotificationBridge() {
           const next = normalizeNotification(payload.new as NotificationInsertRow);
           if (!shouldToastNotification(next.event_key)) return;
 
+          const display = notificationDisplayCopy(next, thMessages, formatMoneyTh);
+
           showToast({
-            title: next.title,
-            body: next.body,
+            title: display.title,
+            body: display.body,
             tone: toneForNotification(next.event_key),
             icon: iconForNotification(next.event_key),
             onPress: () => {

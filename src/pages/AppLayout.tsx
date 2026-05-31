@@ -40,6 +40,7 @@ import { useRooms } from '../hooks/useRooms';
 import type { RoomPreviewResult } from '../hooks/useRooms';
 import { useProfile } from '../hooks/useProfile';
 import { useSharedData } from '../hooks/useSharedData';
+import { useWidgetSync } from '../hooks/useWidgetSync';
 import { useI18n } from '../i18n/useI18n';
 import { DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, isLanguage } from '../i18n/languages';
 
@@ -209,10 +210,21 @@ export function AppLayout() {
             {outlet}
           </PageTransition>
           <MilestoneCelebration roomId={activeRoom.id} />
+          <WidgetSync />
         </DataProvider>
       )}
     </AppShell>
   );
+}
+
+/**
+ * Mirrors the dashboard's saved / goal / streak numbers into native storage
+ * for the Android home-screen widget. Lives inside DataProvider so it has the
+ * shared room data; renders nothing and is a no-op on the web.
+ */
+function WidgetSync() {
+  useWidgetSync();
+  return null;
 }
 
 /**

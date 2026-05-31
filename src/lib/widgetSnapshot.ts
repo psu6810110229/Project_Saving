@@ -4,15 +4,22 @@ import { refreshWidget } from './widgetBridge';
 
 /**
  * Display-only snapshot the Android home-screen widget renders. Every value is
- * derived from numbers already shown on the dashboard — Verified Balance
- * (`reconcile.appBalance`), the personal sub-goal, and the streak. The widget
- * never talks to Supabase; it only reads this snapshot from native storage.
+ * derived from numbers already shown on the dashboard. The widget never talks
+ * to Supabase; it only reads this snapshot from native storage.
  */
 export interface WidgetSnapshot {
   roomName: string;
   saved: number; // Verified Balance (source of truth)
   goal: number; // personal sub-goal target; 0 when unset
-  progressPct: number; // 0–100, clamped
+  progressPct: number; // 0-100, clamped
+  todayDue: number; // summed due amount across focus buckets
+  todayState: 'due' | 'done' | 'no_plan';
+  todayPeriod: 'day' | 'week' | 'month' | 'flex';
+  focusBucketName: string | null;
+  focusBucketCount: number;
+  focusBucketSaved: number;
+  focusBucketTarget: number;
+  focusBucketPct: number;
   streak: number;
   streakUnit: 'day' | 'week' | 'month';
   hasLoggedToday: boolean;
@@ -29,10 +36,9 @@ const SNAPSHOT_KEY = 'widget_snapshot';
 export async function writeWidgetSnapshot(snapshot: WidgetSnapshot): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   await Preferences.set({ key: SNAPSHOT_KEY, value: JSON.stringify(snapshot) });
-  // Trigger an immediate redraw; ignore if the native plugin isn't present.
   try {
     await refreshWidget();
   } catch {
-    /* widget bridge unavailable — periodic update will catch up */
+    /* widget bridge unavailable - periodic update will catch up */
   }
 }

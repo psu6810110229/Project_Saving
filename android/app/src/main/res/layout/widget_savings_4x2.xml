@@ -3,130 +3,169 @@
     android:id="@+id/w_card"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:background="@drawable/widget_bg"
     android:padding="16dp">
 
-    <!-- LEFT: info section -->
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <TextView
             android:id="@+id/w_room"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:fontFamily="@font/ibm_plex_sans_thai_semibold"
-            android:textColor="@color/widget_ink_muted"
-            android:textSize="12sp"
-            android:maxLines="1"
+            android:layout_weight="1"
             android:ellipsize="end"
-            android:text="@string/app_name" />
-
-        <TextView
-            android:id="@+id/w_saved"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
             android:fontFamily="@font/ibm_plex_sans_thai_semibold"
-            android:textColor="@color/widget_ink"
-            android:textSize="24sp"
             android:maxLines="1"
-            android:ellipsize="end" />
+            android:text="@string/app_name"
+            android:textColor="@color/widget_ink_muted"
+            android:textSize="12sp" />
 
         <TextView
-            android:id="@+id/w_savedsub"
-            android:layout_width="match_parent"
+            android:id="@+id/w_chip"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="@font/ibm_plex_sans_thai_regular"
-            android:textColor="@color/widget_ink_muted"
-            android:textSize="11sp"
+            android:background="@drawable/widget_btn"
+            android:ellipsize="end"
+            android:fontFamily="@font/ibm_plex_mono_semibold"
             android:maxLines="1"
-            android:ellipsize="end" />
+            android:paddingLeft="10dp"
+            android:paddingTop="5dp"
+            android:paddingRight="10dp"
+            android:paddingBottom="5dp"
+            android:textColor="@color/widget_brand_deep"
+            android:textSize="11sp" />
+    </LinearLayout>
 
-        <!-- Progress bar + percent -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:baselineAligned="true"
+        android:gravity="bottom"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/w_due"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/ibm_plex_sans_thai_semibold"
+            android:maxLines="1"
+            android:textColor="@color/widget_ink"
+            android:textSize="30sp" />
+
+        <TextView
+            android:id="@+id/w_due_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginBottom="2dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/ibm_plex_sans_thai_semibold"
+            android:maxLines="1"
+            android:textColor="@color/widget_brand_deep"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/w_support"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/ibm_plex_sans_thai_regular"
+        android:maxLines="1"
+        android:textColor="@color/widget_ink_muted"
+        android:textSize="11sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/widget_btn"
+        android:orientation="vertical"
+        android:padding="12dp">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="9dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <ProgressBar
-                android:id="@+id/w_progress"
-                style="?android:attr/progressBarStyleHorizontal"
+            <TextView
+                android:id="@+id/w_saved_label"
                 android:layout_width="0dp"
-                android:layout_height="8dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:max="100"
-                android:progressDrawable="@drawable/widget_progress" />
+                android:fontFamily="@font/ibm_plex_sans_thai_semibold"
+                android:textColor="@color/widget_ink_muted"
+                android:textSize="10sp" />
 
             <TextView
                 android:id="@+id/w_pct"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="9dp"
                 android:fontFamily="@font/ibm_plex_mono_semibold"
-                android:textColor="@color/widget_ink"
-                android:textSize="12sp" />
+                android:textColor="@color/widget_brand_deep"
+                android:textSize="11sp" />
         </LinearLayout>
 
         <TextView
-            android:id="@+id/w_togo"
+            android:id="@+id/w_saved"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:fontFamily="@font/ibm_plex_sans_thai_regular"
-            android:textColor="@color/widget_brand_deep"
-            android:textSize="11sp"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/ibm_plex_sans_thai_semibold"
             android:maxLines="1"
-            android:ellipsize="end" />
+            android:textColor="@color/widget_ink"
+            android:textSize="18sp" />
+
+        <ProgressBar
+            android:id="@+id/w_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:layout_marginTop="9dp"
+            android:max="100"
+            android:progressDrawable="@drawable/widget_progress" />
     </LinearLayout>
 
-    <!-- RIGHT: actions section -->
     <LinearLayout
-        android:layout_width="124dp"
-        android:layout_height="match_parent"
-        android:layout_marginStart="14dp"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/w_streak"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/ibm_plex_mono_semibold"
-            android:gravity="end"
-            android:textColor="@color/widget_brand_deep"
-            android:textSize="13sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
 
         <TextView
             android:id="@+id/w_add"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="36dp"
+            android:layout_weight="1"
             android:background="@drawable/widget_btn_primary"
             android:fontFamily="@font/ibm_plex_sans_thai_semibold"
             android:gravity="center"
+            android:text="@string/widget_add"
             android:textColor="@color/widget_surface"
-            android:textSize="13sp"
-            android:text="@string/widget_add" />
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/w_check"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="36dp"
-            android:layout_marginTop="6dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
             android:background="@drawable/widget_btn"
             android:fontFamily="@font/ibm_plex_sans_thai_semibold"
             android:gravity="center"
+            android:text="@string/widget_check"
             android:textColor="@color/widget_ink"
-            android:textSize="13sp"
-            android:text="@string/widget_check" />
+            android:textSize="13sp" />
     </LinearLayout>
 </LinearLayout>

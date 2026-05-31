@@ -826,6 +826,7 @@ export function Dashboard() {
       saving_rule_increment: bucket.saving_rule_increment,
       saving_rule_cap: bucket.saving_rule_cap,
       saving_rule_day_count: bucket.saving_rule_day_count,
+      saving_rule_start_date: bucket.saving_rule_start_date,
       reminder_day: bucket.reminder_day,
       payment_type: bucket.payment_type,
     };
@@ -974,7 +975,7 @@ export function Dashboard() {
     }
   }
 
-  async function handleManageBucketUpdate(bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; saving_rule_start_amount?: number | null; saving_rule_increment?: number | null; saving_rule_cap?: number | null; saving_rule_day_count?: number | null; reminder_day?: number | null }) {
+  async function handleManageBucketUpdate(bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; saving_rule_start_amount?: number | null; saving_rule_increment?: number | null; saving_rule_cap?: number | null; saving_rule_day_count?: number | null; saving_rule_start_date?: string | null; reminder_day?: number | null }) {
     if (hasDuplicateBucketName(buckets, next.name, bucket.id)) {
       const error = copy.bucket.duplicateName(next.name.trim());
       return { error, code: 'duplicate_name' as const, duplicateName: next.name.trim() };
@@ -999,6 +1000,7 @@ export function Dashboard() {
             ...(next.saving_rule_increment !== undefined && { saving_rule_increment: next.saving_rule_increment }),
             ...(next.saving_rule_cap !== undefined && { saving_rule_cap: next.saving_rule_cap }),
             ...(next.saving_rule_day_count !== undefined && { saving_rule_day_count: next.saving_rule_day_count }),
+            ...(next.saving_rule_start_date !== undefined && { saving_rule_start_date: next.saving_rule_start_date }),
             ...(next.reminder_day !== undefined && { reminder_day: next.reminder_day }),
           }
         : bucketDraftFromExisting(item)),

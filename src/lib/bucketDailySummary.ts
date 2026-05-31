@@ -135,11 +135,16 @@ export function calcDailySummary(
       case 'increasing_daily':
       case 'increasing_daily_capped': {
         if (b.deadline) {
-          const startKey = b.created_at.slice(0, 10);
+          // Increasing rules anchor day 1 to the chosen start date when set,
+          // otherwise to the bucket's creation date (migration 0081).
+          const startKey = b.saving_rule_start_date ?? b.created_at.slice(0, 10);
           const dayIndex = daysBetween(startKey, todayKey);
-          const todayAmount = amountForDay(b, dayIndex);
-          const todayDeposits = depositsInRange(b.id, logs, todayKey, todayKey, transfers);
-          amountDue = Math.max(0, todayAmount - todayDeposits);
+          // Before the start date the plan hasn't begun — nothing is due today.
+          if (dayIndex >= 0) {
+            const todayAmount = amountForDay(b, dayIndex);
+            const todayDeposits = depositsInRange(b.id, logs, todayKey, todayKey, transfers);
+            amountDue = Math.max(0, todayAmount - todayDeposits);
+          }
         }
         periodLabel = 'today';
         periodDeadline = todayKey;

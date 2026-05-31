@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ALLOCATION_DRAG_ID, BalanceCheckStatus } from '../components/BalanceCheckStatus/BalanceCheckStatus';
 import { AllocateSheet } from '../components/AllocateSheet/AllocateSheet';
 import { CheckBalanceSheet } from '../components/CheckBalanceSheet/CheckBalanceSheet';
@@ -271,6 +271,7 @@ export function Dashboard() {
   const firstOtherEntry = firstOtherMemberByJoinedAt
     ? leaderboard.entries.find(entry => entry.userId === firstOtherMemberByJoinedAt) ?? null
     : null;
+  const [searchParams, setSearchParams] = useSearchParams();
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
     const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
@@ -640,6 +641,29 @@ export function Dashboard() {
       setOptimisticActiveIds(null);
     }
   }, [manualActiveBucketItems, optimisticActiveIds]);
+  // Deep-link entry point (Android widget / external links): a URL like
+  // /dashboard?action=deposit or ?action=check-balance opens the matching
+  // sheet, then the param is consumed so it doesn't re-fire on re-render.
+  // `deposit` waits for buckets to load, then opens the focus bucket
+  // (displayedActiveBucketItems is sorted focus-first).
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (!action) return;
+
+    if (action === 'deposit') {
+      if (bucketsLoading) return; // re-runs when buckets settle
+      const focus = displayedActiveBucketItems[0];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (focus) setExpandedBucketId(focus.id);
+    } else if (action === 'check-balance') {
+      setCheckBalanceMode('check');
+      setCheckBalanceOpen(true);
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('action');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, bucketsLoading, displayedActiveBucketItems]);
   const actionAlertBuckets = useMemo<ActionAlertBucket[]>(() => buckets
     .filter(bucket => !doneBucketIds.has(bucket.id) && bucket.deadline)
     .map(bucket => {

@@ -5,6 +5,7 @@ import { AuthProvider } from './components/AuthProvider/AuthProvider';
 import { InAppToastProvider } from './components/InAppToast/InAppToastProvider';
 import { SplashScreen } from './components/SplashScreen/SplashScreen';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
+import { DeepLinkListener } from './components/DeepLinkListener/DeepLinkListener';
 import { RoomProvider } from './components/RoomContext/RoomContext';
 import { I18nProvider } from './i18n/I18nProvider';
 import { AppLayout } from './pages/AppLayout';
@@ -51,6 +52,7 @@ function App() {
     <>
     <AnimatePresence>{showSplash && <SplashScreen key="splash" />}</AnimatePresence>
     <BrowserRouter>
+      <DeepLinkListener />
       <AuthProvider>
         <I18nProvider>
           <InAppToastProvider>

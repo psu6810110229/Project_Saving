@@ -56,36 +56,44 @@ final class SavingsWidgetBitmapRenderer {
 
         drawBackground(canvas, width, height, layout.outerRadius);
 
-        String room = snap == null ? context.getString(R.string.app_name) : snap.roomName;
-        String chip = snap == null ? "" : SavingsWidget.streakLabel(snap);
-        String hero = snap == null ? context.getString(R.string.widget_empty) : SavingsWidget.heroText(context, snap);
-        String sub = snap == null ? "" : SavingsWidget.dueLabel(context, snap);
+        String room = snap == null
+                ? context.getString(R.string.app_name)
+                : fallbackText(snap.roomName, context.getString(R.string.app_name));
+        String chip = snap == null ? "" : normalizedText(SavingsWidget.streakLabel(snap));
+        String hero = snap == null
+                ? context.getString(R.string.widget_empty)
+                : fallbackText(SavingsWidget.heroText(context, snap), context.getString(R.string.widget_empty));
+        String sub = snap == null ? "" : normalizedText(SavingsWidget.dueLabel(context, snap));
         String savedLabel = snap == null
                 ? ""
                 : ("no_plan".equals(snap.todayState)
                     ? context.getString(R.string.widget_current_progress)
                     : context.getString(R.string.widget_overall_progress));
-        String saved = snap == null ? "" : SavingsWidget.savedLine(context, snap);
-        String pct = snap == null ? "" : snap.progressPct + "%";
-        String support = snap == null ? "" : SavingsWidget.supportLine(context, snap);
+        String saved = snap == null ? "" : fallbackText(SavingsWidget.savedLine(context, snap), SavingsWidget.baht(0));
+        String pct = snap == null ? "" : SavingsWidget.clampPct(snap.progressPct) + "%";
+        String support = snap == null ? "" : fallbackText(
+                normalizedText(SavingsWidget.supportLine(context, snap)),
+                fallbackText(normalizedText(snap.focusBucketName), fallbackText(saved, SavingsWidget.baht(0)))
+        );
         int progress = snap == null ? 0 : SavingsWidget.clampPct(snap.progressPct);
 
         float top = layout.pad;
         float contentWidth = width - (layout.pad * 2f);
         layout.roomPaint.setLetterSpacing(shouldTrack(room) ? 0.12f : 0f);
 
-        float chipWidth = chip.isEmpty() ? 0f : measureStreakChipWidth(layout, chip);
-        float gap = chip.isEmpty() ? 0f : layout.roomChipGap;
+        String badgeText = chip.isEmpty() ? "" : "\uD83D\uDD25 " + chip;
+        float chipWidth = badgeText.isEmpty() ? 0f : measureStreakChipWidth(layout, badgeText);
+        float gap = badgeText.isEmpty() ? 0f : layout.roomChipGap;
         float roomMaxWidth = contentWidth - chipWidth - gap;
         drawText(canvas, ellipsize(layout.roomPaint, room, roomMaxWidth).toString(), layout.pad, top, layout.roomPaint);
 
-        if (!chip.isEmpty()) {
+        if (!badgeText.isEmpty()) {
             float chipX = width - layout.pad - chipWidth;
             float chipY = top;
-            drawStreakChip(canvas, chipX, chipY, chipWidth, layout.chipHeight, layout, chip);
+            drawStreakChip(canvas, chipX, chipY, chipWidth, layout.chipHeight, layout, badgeText);
         }
 
-        float roomRowHeight = Math.max(textHeight(layout.roomPaint), chip.isEmpty() ? 0f : layout.chipHeight);
+        float roomRowHeight = Math.max(textHeight(layout.roomPaint), badgeText.isEmpty() ? 0f : layout.chipHeight);
         float roomBottom = top + roomRowHeight;
         float heroTop = roomBottom + layout.roomHeroGap;
         float heroBaseline = baselineFromTop(heroTop, layout.heroPaint);
@@ -119,45 +127,48 @@ final class SavingsWidgetBitmapRenderer {
             float panelInnerRight = panelRect.right - layout.panelPadX;
             float panelInnerTop = panelRect.top + layout.panelPadY;
 
-            float rightColWidth = Math.min(layout.rightColWidth, contentWidth * 0.24f);
-            float labelRightGap = layout.labelRightGap;
-            float leftColWidth = panelInnerRight - panelInnerLeft - rightColWidth - labelRightGap;
-
+            float availablePanelWidth = panelInnerRight - panelInnerLeft;
             float progressTop = panelRect.bottom - layout.panelPadY - layout.progressHeight;
-            float infoBottom = progressTop - layout.infoProgressGap;
-            float leftFullHeight = textHeight(layout.labelPaint) + layout.labelSavedGap + textHeight(layout.savedPaint);
-            boolean showLabel = infoBottom - panelInnerTop >= leftFullHeight;
-            float savedTop = showLabel
-                    ? panelInnerTop + textHeight(layout.labelPaint) + layout.labelSavedGap
-                    : panelInnerTop;
 
-            if (showLabel) {
-                drawText(canvas,
-                        ellipsize(layout.labelPaint, savedLabel, leftColWidth).toString(),
-                        panelInnerLeft,
-                        panelInnerTop,
-                        layout.labelPaint);
-            }
-
+            String pctText = ellipsize(layout.pctPaint, pct, availablePanelWidth).toString();
+            float labelMaxWidth = availablePanelWidth - layout.pctPaint.measureText(pctText) - layout.labelRightGap;
             drawText(canvas,
-                    ellipsize(layout.savedPaint, saved, leftColWidth).toString(),
+                    ellipsize(layout.labelPaint, savedLabel, labelMaxWidth).toString(),
                     panelInnerLeft,
-                    savedTop,
-                    layout.savedPaint);
+                    panelInnerTop,
+                    layout.labelPaint);
 
             drawTextRight(canvas,
-                    ellipsize(layout.pctPaint, pct, rightColWidth).toString(),
+                    pctText,
                     panelInnerRight,
                     panelInnerTop,
                     layout.pctPaint);
 
-            float supportTop = panelInnerTop + textHeight(layout.pctPaint) + layout.pctSupportGap;
-            boolean showSupport = infoBottom - supportTop >= textHeight(layout.supportPaint);
-            if (showSupport) {
+            float rowGap = Math.max(layout.labelSavedGap, dp(context, 6f));
+            float savedTop = panelInnerTop
+                    + Math.max(textHeight(layout.labelPaint), textHeight(layout.pctPaint))
+                    + rowGap;
+            float progressGap = Math.max(layout.infoProgressGap, dp(context, 8f));
+            savedTop = Math.min(savedTop, progressTop - progressGap - layout.savedTextHeight());
+
+            String supportText = fitText(layout.supportPaint, support, availablePanelWidth);
+            float supportWidth = supportText.isEmpty() ? 0f : layout.supportPaint.measureText(supportText);
+            float savedMaxWidth = supportText.isEmpty()
+                    ? availablePanelWidth
+                    : availablePanelWidth - supportWidth - layout.labelRightGap;
+            drawSavedLine(canvas,
+                    saved,
+                    panelInnerLeft,
+                    savedTop,
+                    savedMaxWidth,
+                    layout.savedPaint,
+                    layout.savedNumberPaint);
+
+            if (!supportText.isEmpty()) {
                 drawTextRight(canvas,
-                        ellipsize(layout.supportPaint, support, rightColWidth).toString(),
+                        supportText,
                         panelInnerRight,
-                        supportTop,
+                        savedTop,
                         layout.supportPaint);
             }
 
@@ -170,9 +181,11 @@ final class SavingsWidgetBitmapRenderer {
                     true);
         }
 
-        float buttonWidth = (contentWidth - layout.buttonGap) / 2f;
-        drawButton(canvas, layout.pad, buttonTop, buttonWidth, layout.buttonHeight, layout.buttonRadius, true, true, actionLabel(context, R.string.widget_add, "+"), layout.buttonPrimaryPaint);
-        drawButton(canvas, layout.pad + buttonWidth + layout.buttonGap, buttonTop, buttonWidth, layout.buttonHeight, layout.buttonRadius, false, true, actionLabel(context, R.string.widget_check, "\u2713"), layout.buttonSecondaryPaint);
+        float buttonSideInset = dp(context, 8f);
+        float buttonWidth = (contentWidth - (buttonSideInset * 2f) - layout.buttonGap) / 2f;
+        float buttonLeft = layout.pad + buttonSideInset;
+        drawButton(canvas, buttonLeft, buttonTop, buttonWidth, layout.buttonHeight, layout.buttonRadius, false, true, "\u0E40\u0E0A\u0E47\u0E04\u0E22\u0E2D\u0E14", layout.buttonSecondaryPaint);
+        drawButton(canvas, buttonLeft + buttonWidth + layout.buttonGap, buttonTop, buttonWidth, layout.buttonHeight, layout.buttonRadius, true, true, "\u0E2D\u0E2D\u0E21\u0E40\u0E07\u0E34\u0E19", layout.buttonPrimaryPaint);
     }
 
     private static void drawCompact(Context context, Canvas canvas, SavingsWidget.Snapshot snap,
@@ -185,15 +198,22 @@ final class SavingsWidgetBitmapRenderer {
 
         TextPaint roomPaint = newPaint(context, true, 10f, ContextCompat.getColor(context, R.color.widget_ink_muted));
         roomPaint.setLetterSpacing(0.12f);
-        TextPaint heroPaint = newPaint(context, true, 23f, ContextCompat.getColor(context, R.color.widget_ink));
-        TextPaint subPaint = newPaint(context, true, 10f, ContextCompat.getColor(context, R.color.widget_brand_deep));
+        TextPaint heroPaint = newPaint(context, true, 24f, ContextCompat.getColor(context, R.color.widget_ink));
+        TextPaint subPaint = newPaint(context, false, 14f, ContextCompat.getColor(context, R.color.widget_brand_deep));
         TextPaint supportPaint = newPaint(context, false, 9f, ContextCompat.getColor(context, R.color.widget_ink_muted));
-        TextPaint buttonPaint = newPaint(context, true, 12f, ContextCompat.getColor(context, R.color.widget_surface));
+        TextPaint buttonPaint = newPaint(context, true, 16f, ContextCompat.getColor(context, R.color.widget_surface));
 
-        String room = snap == null ? context.getString(R.string.app_name) : snap.roomName;
-        String hero = snap == null ? context.getString(R.string.widget_empty) : SavingsWidget.heroText(context, snap);
-        String sub = snap == null ? "" : SavingsWidget.compactLabel(context, snap);
-        String support = snap == null ? "" : SavingsWidget.compactSupportLine(context, snap);
+        String room = snap == null
+                ? context.getString(R.string.app_name)
+                : fallbackText(snap.roomName, context.getString(R.string.app_name));
+        String hero = snap == null
+                ? context.getString(R.string.widget_empty)
+                : fallbackText(SavingsWidget.heroText(context, snap), context.getString(R.string.widget_empty));
+        String sub = snap == null ? "" : normalizedText(SavingsWidget.compactLabel(context, snap));
+        String support = snap == null ? "" : fallbackText(
+                normalizedText(SavingsWidget.compactSupportLine(context, snap)),
+                fallbackText(normalizedText(SavingsWidget.supportLine(context, snap)), SavingsWidget.baht(0))
+        );
         int progress = snap == null ? 0 : SavingsWidget.clampPct(snap.progressPct);
 
         float contentWidth = width - (pad * 2f);
@@ -232,25 +252,37 @@ final class SavingsWidgetBitmapRenderer {
     }
 
     private static LargeLayout createLargeLayout(Context context, float scale) {
-        TextPaint roomPaint = newPaint(context, true, 8f * scale, ContextCompat.getColor(context, R.color.widget_ink_muted));
+        TextPaint roomPaint = newPaint(context, true, 18f, ContextCompat.getColor(context, R.color.widget_ink_muted));
+        roomPaint.setTextSize(roomPaint.getTextSize() * 0.85f);
         roomPaint.setLetterSpacing(0.12f);
 
-        TextPaint heroPaint = newPaint(context, true, 18f * scale, ContextCompat.getColor(context, R.color.widget_ink));
-        TextPaint subPaint = newPaint(context, true, 8f * scale, ContextCompat.getColor(context, R.color.widget_brand_deep));
-        TextPaint chipPaint = newPaint(context, true, 7.5f * scale, ContextCompat.getColor(context, R.color.widget_brand_deep));
+        TextPaint heroPaint = newPaint(context, true, 24f, ContextCompat.getColor(context, R.color.widget_ink));
+        TextPaint subPaint = newPaint(context, false, 14f, ContextCompat.getColor(context, R.color.widget_brand_deep));
+        TextPaint chipPaint = newPaint(context, true, 12f, ContextCompat.getColor(context, R.color.widget_brand_deep));
 
-        TextPaint labelPaint = newPaint(context, true, 7.5f * scale, ContextCompat.getColor(context, R.color.widget_ink_muted));
-        labelPaint.setLetterSpacing(0.08f);
+        TextPaint labelPaint = newPaint(context, false, 12f, ContextCompat.getColor(context, R.color.widget_ink_muted));
+        labelPaint.setLetterSpacing(0f);
 
-        TextPaint savedPaint = newPaint(context, true, 11.5f * scale, ContextCompat.getColor(context, R.color.widget_ink));
-        TextPaint pctPaint = newPaint(context, true, 7.5f * scale, ContextCompat.getColor(context, R.color.widget_brand_deep));
-        TextPaint supportPaint = newPaint(context, false, 7f * scale, ContextCompat.getColor(context, R.color.widget_ink_muted));
-        TextPaint buttonPrimaryPaint = newPaint(context, true, 10f * scale, ContextCompat.getColor(context, R.color.widget_surface));
-        TextPaint buttonSecondaryPaint = newPaint(context, true, 10f * scale, ContextCompat.getColor(context, R.color.widget_ink));
+        TextPaint savedBasePaint = newPaint(context, true, 18f, ContextCompat.getColor(context, R.color.widget_ink));
+        TextPaint savedPaint = new TextPaint(savedBasePaint);
+        savedPaint.setTextSize(sp(context, 18f));
+        savedPaint.setLetterSpacing(0f);
+
+        TextPaint savedNumberPaint = newNumberPaint(
+                ContextCompat.getColor(context, R.color.widget_ink),
+                sp(context, 18f)
+        );
+
+        TextPaint pctPaint = newPaint(context, true, 12f, ContextCompat.getColor(context, R.color.widget_brand_deep));
+        pctPaint.setLetterSpacing(0f);
+        TextPaint supportPaint = newPaint(context, false, 12f, ContextCompat.getColor(context, R.color.widget_ink_muted));
+        supportPaint.setLetterSpacing(0f);
+        TextPaint buttonPrimaryPaint = newPaint(context, true, 16f, ContextCompat.getColor(context, R.color.widget_surface));
+        TextPaint buttonSecondaryPaint = newPaint(context, true, 16f, ContextCompat.getColor(context, R.color.widget_ink));
 
         return new LargeLayout(
-                dp(context, 10f * scale),
-                dp(context, 24f * scale),
+                dp(context, 16f),
+                dp(context, 38f),
                 dp(context, 8f * scale),
                 dp(context, 28f),
                 dp(context, 20f * scale),
@@ -259,24 +291,25 @@ final class SavingsWidgetBitmapRenderer {
                 dp(context, 3f * scale),
                 dp(context, 52f * scale),
                 dp(context, 6f * scale),
-                dp(context, 5f * scale),
-                dp(context, 7f * scale),
-                dp(context, 10f * scale),
-                dp(context, 7f * scale),
+                dp(context, 16f),
+                dp(context, 16f),
+                dp(context, 16f),
+                dp(context, 16f),
                 dp(context, 16f * scale),
                 dp(context, 34f * scale),
                 dp(context, 6f * scale),
+                dp(context, 6f),
                 dp(context, 1f * scale),
-                dp(context, 1f * scale),
-                dp(context, 3f * scale),
+                dp(context, 8f),
                 dp(context, 4f * scale),
-                dp(context, 12f * scale),
+                dp(context, 19f),
                 roomPaint,
                 heroPaint,
                 subPaint,
                 chipPaint,
                 labelPaint,
                 savedPaint,
+                savedNumberPaint,
                 pctPaint,
                 supportPaint,
                 buttonPrimaryPaint,
@@ -344,14 +377,12 @@ final class SavingsWidgetBitmapRenderer {
         RectF rect = new RectF(x, y, x + width, y + height);
         canvas.drawRoundRect(rect, height / 2f, height / 2f, fill);
 
-        float iconSize = height * 0.46f;
-        float iconLeft = x + layout.chipHorizontalPadding;
-        float iconTop = y + ((height - iconSize) / 2f);
-        drawFlameMark(canvas, iconLeft, iconTop, iconSize);
-
-        float textX = iconLeft + iconSize + (height * 0.2f);
+        TextPaint badgePaint = new TextPaint(layout.chipPaint);
+        badgePaint.setTypeface(Typeface.DEFAULT_BOLD);
+        badgePaint.setSubpixelText(true);
+        float textX = x + layout.chipHorizontalPadding;
         float textY = y + ((height - textHeight(layout.chipPaint)) / 2f);
-        drawText(canvas, text, textX, textY, layout.chipPaint);
+        drawText(canvas, text, textX, textY, badgePaint);
     }
 
     private static void drawFlameMark(Canvas canvas, float x, float y, float size) {
@@ -426,6 +457,15 @@ final class SavingsWidgetBitmapRenderer {
         return paint;
     }
 
+    private static TextPaint newNumberPaint(int color, float textSizePx) {
+        TextPaint paint = new TextPaint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG | Paint.DITHER_FLAG);
+        paint.setColor(color);
+        paint.setTextSize(textSizePx);
+        paint.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.BOLD));
+        paint.setLetterSpacing(0f);
+        return paint;
+    }
+
     private static Typeface getTypeface(Context context, boolean semibold) {
         if (semibold) {
             if (sansSemibold == null) {
@@ -442,6 +482,13 @@ final class SavingsWidgetBitmapRenderer {
     private static CharSequence ellipsize(TextPaint paint, String text, float maxWidth) {
         if (text == null) return "";
         return TextUtils.ellipsize(text, paint, Math.max(0f, maxWidth), TextUtils.TruncateAt.END);
+    }
+
+    private static String fitText(TextPaint paint, String text, float maxWidth) {
+        String value = normalizedText(text);
+        if (value.isEmpty()) return "";
+        if (paint.measureText(value) <= maxWidth) return value;
+        return ellipsize(paint, value, maxWidth).toString();
     }
 
     private static String actionLabel(Context context, int stringId, String icon) {
@@ -474,6 +521,58 @@ final class SavingsWidgetBitmapRenderer {
         drawText(canvas, text, right - width, top, paint);
     }
 
+    private static void drawSavedLine(Canvas canvas, String text, float x, float top, float maxWidth,
+                                      TextPaint thaiPaint, TextPaint numberPaint) {
+        String value = normalizeFinancialText(text);
+        if (value.isEmpty() || maxWidth <= 0f) return;
+
+        String separator = " \u0E08\u0E32\u0E01 ";
+        int separatorIndex = value.indexOf(separator);
+        if (separatorIndex < 0) {
+            String cleanAmount = cleanAmountForDraw(value);
+            TextPaint fittedNumberPaint = fitPaintToWidth(numberPaint, numberPaint.measureText(cleanAmount), maxWidth);
+            drawText(canvas, cleanAmount, x, top, fittedNumberPaint);
+            return;
+        }
+
+        String currentAmount = cleanAmountForDraw(value.substring(0, separatorIndex));
+        String targetAmount = cleanAmountForDraw(value.substring(separatorIndex + separator.length()));
+        float fullWidth = numberPaint.measureText(currentAmount)
+                + thaiPaint.measureText(separator)
+                + numberPaint.measureText(targetAmount);
+        TextPaint fittedThaiPaint = fitPaintToWidth(thaiPaint, fullWidth, maxWidth);
+        TextPaint fittedNumberPaint = fitPaintToWidth(numberPaint, fullWidth, maxWidth);
+        float cursor = x;
+        float baseline = baselineFromTop(top, fittedThaiPaint);
+
+        canvas.drawText(currentAmount, cursor, baseline, fittedNumberPaint);
+        cursor += fittedNumberPaint.measureText(currentAmount);
+
+        canvas.drawText(separator, cursor, baseline, fittedThaiPaint);
+        cursor += fittedThaiPaint.measureText(separator);
+
+        canvas.drawText(targetAmount, cursor, baseline, fittedNumberPaint);
+    }
+
+    private static TextPaint fitPaintToWidth(TextPaint paint, float fullWidth, float maxWidth) {
+        if (fullWidth <= maxWidth || fullWidth <= 0f) return paint;
+        TextPaint fittedPaint = new TextPaint(paint);
+        fittedPaint.setTextSize(paint.getTextSize() * (maxWidth / fullWidth));
+        return fittedPaint;
+    }
+
+    private static String normalizeFinancialText(String text) {
+        return normalizedText(text).replaceAll("\\s*,\\s*", ",");
+    }
+
+    private static String normalizeFinancialNumber(String text) {
+        return normalizedText(text).replaceAll("\\s*,\\s*", ",");
+    }
+
+    private static String cleanAmountForDraw(String amountString) {
+        return normalizeFinancialNumber(amountString).replaceAll("\\s+", "");
+    }
+
     private static float baselineFromTop(float top, Paint paint) {
         return top - paint.getFontMetrics().ascent;
     }
@@ -488,10 +587,23 @@ final class SavingsWidgetBitmapRenderer {
     }
 
     private static float measureStreakChipWidth(LargeLayout layout, String text) {
-        return (layout.chipHorizontalPadding * 2f)
-                + (layout.chipHeight * 0.46f)
-                + (layout.chipHeight * 0.2f)
-                + layout.chipPaint.measureText(text);
+        TextPaint badgePaint = new TextPaint(layout.chipPaint);
+        badgePaint.setTypeface(Typeface.DEFAULT_BOLD);
+        return (layout.chipHorizontalPadding * 2f) + badgePaint.measureText(text);
+    }
+
+    private static String normalizedText(String text) {
+        if (text == null) return "";
+        String trimmed = text.trim();
+        if (trimmed.isEmpty()) return "";
+        if ("null".equalsIgnoreCase(trimmed) || "undefined".equalsIgnoreCase(trimmed)) return "";
+        return trimmed;
+    }
+
+    private static String fallbackText(String primary, String fallback) {
+        String value = normalizedText(primary);
+        if (!value.isEmpty()) return value;
+        return normalizedText(fallback);
     }
 
     private static float dp(Context context, float value) {
@@ -539,6 +651,7 @@ final class SavingsWidgetBitmapRenderer {
         final TextPaint chipPaint;
         final TextPaint labelPaint;
         final TextPaint savedPaint;
+        final TextPaint savedNumberPaint;
         final TextPaint pctPaint;
         final TextPaint supportPaint;
         final TextPaint buttonPrimaryPaint;
@@ -573,6 +686,7 @@ final class SavingsWidgetBitmapRenderer {
                 TextPaint chipPaint,
                 TextPaint labelPaint,
                 TextPaint savedPaint,
+                TextPaint savedNumberPaint,
                 TextPaint pctPaint,
                 TextPaint supportPaint,
                 TextPaint buttonPrimaryPaint,
@@ -606,6 +720,7 @@ final class SavingsWidgetBitmapRenderer {
             this.chipPaint = chipPaint;
             this.labelPaint = labelPaint;
             this.savedPaint = savedPaint;
+            this.savedNumberPaint = savedNumberPaint;
             this.pctPaint = pctPaint;
             this.supportPaint = supportPaint;
             this.buttonPrimaryPaint = buttonPrimaryPaint;
@@ -613,14 +728,21 @@ final class SavingsWidgetBitmapRenderer {
         }
 
         float minimumPanelHeight() {
-            float leftBlockHeight = textHeight(labelPaint) + labelSavedGap + textHeight(savedPaint);
-            float rightBlockHeight = textHeight(pctPaint) + pctSupportGap + textHeight(supportPaint);
-            float infoHeight = Math.max(leftBlockHeight, rightBlockHeight);
+            float topRowHeight = Math.max(textHeight(labelPaint), textHeight(pctPaint));
+            float amountRowHeight = Math.max(savedTextHeight(), textHeight(supportPaint));
+            float infoHeight = topRowHeight
+                    + labelSavedGap
+                    + amountRowHeight;
             return (panelPadY * 2f) + infoHeight + infoProgressGap + progressHeight;
         }
 
         float preferredPanelHeight() {
             return minimumPanelHeight() + panelPadY;
         }
+
+        float savedTextHeight() {
+            return Math.max(textHeight(savedPaint), textHeight(savedNumberPaint));
+        }
     }
+
 }

@@ -718,10 +718,13 @@ export const en = {
     validationCustomStartAmount: 'Enter a start amount above zero.',
     validationCustomIncrement: 'Daily increase must be zero or more.',
     validationCustomCap: 'Cap must be at least the start amount.',
+    validationCustomStartDate: 'Pick a start date for this plan.',
+    validationCustomRange: 'End date must be after the start date.',
     validationDeadlineRequired: 'Pick a deadline for this bucket.',
     validationDeadlineFuture: 'Deadline must be in the future.',
     deadlineExtensionPrompt: "You've extended this deadline several times. Consider adjusting your target amount.",
     editDeadlineLabel: 'Deadline',
+    editPlanRangeLabel: 'Plan start & end',
     editRuleLabel: 'Saving Rule',
     ruleNames: {
       fixed_daily: 'Daily',

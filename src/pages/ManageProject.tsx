@@ -251,7 +251,7 @@ export function ManageProject() {
     setMessage(copy.manageProject.personalGoalSuccess);
   }
 
-  async function handleUpdateBucket(bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; saving_rule_start_amount?: number | null; saving_rule_increment?: number | null; saving_rule_cap?: number | null; saving_rule_day_count?: number | null; reminder_day?: number | null }) {
+  async function handleUpdateBucket(bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; saving_rule_start_amount?: number | null; saving_rule_increment?: number | null; saving_rule_cap?: number | null; saving_rule_day_count?: number | null; saving_rule_start_date?: string | null; reminder_day?: number | null }) {
     if (hasDuplicateBucketName(buckets, next.name, bucket.id)) {
       const error = copy.bucket.duplicateName(next.name.trim());
       setMessage(error);
@@ -280,6 +280,7 @@ export function ManageProject() {
             ...(next.saving_rule_increment !== undefined && { saving_rule_increment: next.saving_rule_increment }),
             ...(next.saving_rule_cap !== undefined && { saving_rule_cap: next.saving_rule_cap }),
             ...(next.saving_rule_day_count !== undefined && { saving_rule_day_count: next.saving_rule_day_count }),
+            ...(next.saving_rule_start_date !== undefined && { saving_rule_start_date: next.saving_rule_start_date }),
             ...(next.reminder_day !== undefined && { reminder_day: next.reminder_day }),
           }
         : { id: item.id, name: item.name, target_amount: item.target_amount, category: item.category }),

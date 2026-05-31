@@ -25,7 +25,7 @@ interface BucketManagerProps {
   highlightBucketId?: string | null;
   goalTarget?: number | null;
   statusMessage?: string | null;
-  onUpdate: (bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; saving_rule_start_amount?: number | null; saving_rule_increment?: number | null; saving_rule_cap?: number | null; saving_rule_day_count?: number | null; reminder_day?: number | null }) => Promise<{ error?: string; code?: string; duplicateName?: string; deadlineExtensionWarning?: boolean }>;
+  onUpdate: (bucket: Bucket, next: { name: string; target_amount: number; deadline?: string | null; saving_rule_type?: SavingRuleType | null; saving_rule_amount?: number | null; saving_rule_start_amount?: number | null; saving_rule_increment?: number | null; saving_rule_cap?: number | null; saving_rule_day_count?: number | null; saving_rule_start_date?: string | null; reminder_day?: number | null }) => Promise<{ error?: string; code?: string; duplicateName?: string; deadlineExtensionWarning?: boolean }>;
   /** Room end date used to pre-fill a sensible default deadline when a bucket has none. */
   roomEndDate?: string | null;
   onReviewCategories?: (updates: { id: string; category: BucketCategory }[]) => Promise<{ error?: string }>;

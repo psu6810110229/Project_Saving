@@ -117,6 +117,8 @@ export interface Bucket {
   saving_rule_increment?: number | null;
   saving_rule_cap?: number | null;
   saving_rule_day_count?: number | null;
+  /** Optional anchor date for increasing-daily rules (migration 0081). Falls back to created_at when null. */
+  saving_rule_start_date?: string | null;
   reminder_day?: number | null;
   payment_type?: PaymentType | null;
   completed_at?: string | null;
@@ -195,6 +197,7 @@ export interface BucketDraft {
   saving_rule_increment?: number | null;
   saving_rule_cap?: number | null;
   saving_rule_day_count?: number | null;
+  saving_rule_start_date?: string | null;
   reminder_day?: number | null;
   payment_type?: PaymentType | null;
 }

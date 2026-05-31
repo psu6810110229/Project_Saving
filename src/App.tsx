@@ -23,6 +23,7 @@ import { MoleculesPreview } from './pages/MoleculesPreview';
 import { Notifications } from './pages/Notifications';
 import { NotificationSettings } from './pages/NotificationSettings';
 import { OrganismsPreview } from './pages/OrganismsPreview';
+import { WidgetPreview } from './pages/WidgetPreview';
 import { Profile } from './pages/Profile';
 import { NotFound } from './pages/NotFound';
 import { DashboardReferenceScreen } from './pages/DashboardReferenceScreen';
@@ -61,6 +62,7 @@ function App() {
                 <Route path="/atoms" element={<AtomsPreview />} />
                 <Route path="/molecules" element={<MoleculesPreview />} />
                 <Route path="/organisms" element={<OrganismsPreview />} />
+                <Route path="/widget" element={<WidgetPreview />} />
                 <Route path="/reference/dashboard" element={<DashboardReferenceScreen />} />
                 <Route path="/reference/buckets" element={<DashboardBucketsScreen />} />
                 <Route path="/reference/add-money" element={<AddMoneyReferenceScreen />} />

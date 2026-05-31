@@ -37,6 +37,16 @@ public class SavingsWidget extends AppWidgetProvider {
         }
     }
 
+    /**
+     * Whether to render the compact 2x2 layout. The dedicated small widget
+     * (CompactSavingsWidget) overrides this to always return true; the default
+     * 4x2 widget decides by its current width so resizing still adapts.
+     */
+    protected boolean isCompact(Bundle options) {
+        int minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250);
+        return minWidth > 0 && minWidth < COMPACT_MAX_WIDTH_DP;
+    }
+
     @Override
     public void onAppWidgetOptionsChanged(Context context, AppWidgetManager manager,
                                           int appWidgetId, Bundle newOptions) {
@@ -45,8 +55,7 @@ public class SavingsWidget extends AppWidgetProvider {
 
     private void updateWidget(Context context, AppWidgetManager manager, int appWidgetId) {
         Bundle options = manager.getAppWidgetOptions(appWidgetId);
-        int minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250);
-        boolean compact = minWidth > 0 && minWidth < COMPACT_MAX_WIDTH_DP;
+        boolean compact = isCompact(options);
         int layoutId = compact ? R.layout.widget_savings_2x2 : R.layout.widget_savings_4x2;
 
         RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);

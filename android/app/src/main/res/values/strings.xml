@@ -8,4 +8,5 @@
     <string name="widget_check">✓ Check</string>
     <string name="widget_empty">Open GO-OUT to sync</string>
     <string name="widget_label">GO-OUT savings</string>
+    <string name="widget_label_compact">GO-OUT savings (small)</string>
 </resources>

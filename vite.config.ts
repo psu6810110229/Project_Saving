@@ -2,15 +2,35 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 
 const pkg = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf-8'),
 ) as { version: string }
 
+// Short build id so a tester can read which build is actually running on
+// their device (commit sha + build date). Falls back gracefully if git or
+// the CI env var is unavailable.
+function buildId(): string {
+  const sha =
+    process.env.GITHUB_SHA ??
+    (() => {
+      try {
+        return execSync('git rev-parse HEAD').toString().trim()
+      } catch {
+        return 'nogit'
+      }
+    })()
+  const shortSha = sha.slice(0, 7)
+  const date = new Date().toISOString().slice(0, 10)
+  return `${shortSha}·${date}`
+}
+
 export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_BUILD_MODE__: JSON.stringify(mode),
+    __APP_BUILD_ID__: JSON.stringify(buildId()),
   },
   plugins: [
     react(),

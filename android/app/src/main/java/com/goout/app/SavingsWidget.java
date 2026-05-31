@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.RemoteViews;
 
 import org.json.JSONObject;
@@ -52,15 +51,25 @@ public class SavingsWidget extends AppWidgetProvider {
         Bundle options = manager.getAppWidgetOptions(appWidgetId);
         boolean compact = isCompact(options);
         int layoutId = compact ? R.layout.widget_savings_2x2 : R.layout.widget_savings_4x2;
+        int widthDp = getOptionDp(
+                options,
+                compact ? 110 : 250,
+                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+                AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH
+        );
+        int heightDp = getOptionDp(
+                options,
+                110,
+                AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT,
+                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT
+        );
 
         RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
         Snapshot snap = readSnapshot(context);
-
-        if (compact) {
-            renderCompact(context, views, snap);
-        } else {
-            renderLarge(context, views, snap);
-        }
+        views.setImageViewBitmap(
+                R.id.w_canvas,
+                SavingsWidgetBitmapRenderer.render(context, snap, compact, widthDp, heightDp)
+        );
 
         views.setOnClickPendingIntent(R.id.w_add,
                 deepLink(context, "goout://dashboard?action=deposit", 1));
@@ -74,57 +83,7 @@ public class SavingsWidget extends AppWidgetProvider {
         manager.updateAppWidget(appWidgetId, views);
     }
 
-    private void renderLarge(Context context, RemoteViews views, Snapshot snap) {
-        if (snap == null) {
-            views.setTextViewText(R.id.w_room, context.getString(R.string.app_name));
-            views.setViewVisibility(R.id.w_chip, View.GONE);
-            views.setTextViewText(R.id.w_due, context.getString(R.string.widget_empty));
-            views.setTextViewText(R.id.w_due_label, "");
-            views.setTextViewText(R.id.w_support, "");
-            views.setTextViewText(R.id.w_saved_label, "");
-            views.setTextViewText(R.id.w_saved, "");
-            views.setTextViewText(R.id.w_pct, "");
-            views.setProgressBar(R.id.w_progress, 100, 0, false);
-            return;
-        }
-
-        views.setTextViewText(R.id.w_room, snap.roomName);
-        String chipText = streakLabel(context, snap);
-        if (chipText.isEmpty()) {
-            views.setViewVisibility(R.id.w_chip, View.GONE);
-        } else {
-            views.setViewVisibility(R.id.w_chip, View.VISIBLE);
-            views.setTextViewText(R.id.w_chip, chipText);
-        }
-        views.setTextViewText(R.id.w_due, heroText(context, snap));
-        views.setTextViewText(R.id.w_due_label, dueLabel(context, snap));
-        views.setTextViewText(R.id.w_support, supportLine(context, snap));
-        views.setTextViewText(R.id.w_saved_label, snap.todayState.equals("no_plan")
-                ? context.getString(R.string.widget_current_progress)
-                : context.getString(R.string.widget_overall_progress));
-        views.setTextViewText(R.id.w_saved, savedLine(context, snap));
-        views.setTextViewText(R.id.w_pct, snap.progressPct + "%");
-        views.setProgressBar(R.id.w_progress, 100, clampPct(snap.progressPct), false);
-    }
-
-    private void renderCompact(Context context, RemoteViews views, Snapshot snap) {
-        if (snap == null) {
-            views.setTextViewText(R.id.w_room, context.getString(R.string.app_name));
-            views.setTextViewText(R.id.w_due, context.getString(R.string.widget_empty));
-            views.setTextViewText(R.id.w_due_label, "");
-            views.setTextViewText(R.id.w_support, "");
-            views.setProgressBar(R.id.w_progress, 100, 0, false);
-            return;
-        }
-
-        views.setTextViewText(R.id.w_room, snap.roomName);
-        views.setTextViewText(R.id.w_due, heroText(context, snap));
-        views.setTextViewText(R.id.w_due_label, compactLabel(context, snap));
-        views.setTextViewText(R.id.w_support, compactSupportLine(context, snap));
-        views.setProgressBar(R.id.w_progress, 100, clampPct(snap.progressPct), false);
-    }
-
-    private String heroText(Context context, Snapshot snap) {
+    static String heroText(Context context, Snapshot snap) {
         if ("done".equals(snap.todayState)) {
             return context.getString(R.string.widget_done_short);
         }
@@ -134,7 +93,7 @@ public class SavingsWidget extends AppWidgetProvider {
         return baht(snap.saved);
     }
 
-    private String dueLabel(Context context, Snapshot snap) {
+    static String dueLabel(Context context, Snapshot snap) {
         if ("done".equals(snap.todayState)) {
             return periodNoun(context, snap.todayPeriod);
         }
@@ -144,19 +103,19 @@ public class SavingsWidget extends AppWidgetProvider {
         return context.getString(R.string.widget_saved_so_far);
     }
 
-    private String compactLabel(Context context, Snapshot snap) {
+    static String compactLabel(Context context, Snapshot snap) {
         if ("no_plan".equals(snap.todayState)) {
             return savedLine(context, snap);
         }
         return dueLabel(context, snap);
     }
 
-    private String savedLine(Context context, Snapshot snap) {
+    static String savedLine(Context context, Snapshot snap) {
         if (snap.goal <= 0) return baht(snap.saved);
         return baht(snap.saved) + " " + context.getString(R.string.widget_of_goal, baht(snap.goal));
     }
 
-    private String supportLine(Context context, Snapshot snap) {
+    static String supportLine(Context context, Snapshot snap) {
         if (snap.focusBucketName != null && !snap.focusBucketName.isEmpty()) {
             if (snap.focusBucketCount > 1) {
                 return context.getString(
@@ -168,7 +127,7 @@ public class SavingsWidget extends AppWidgetProvider {
             return snap.focusBucketName;
         }
         if (snap.streak > 0) {
-            return streakLabel(context, snap);
+            return streakLabel(snap);
         }
         if ("done".equals(snap.todayState)) {
             return context.getString(R.string.widget_current_target_cleared);
@@ -180,38 +139,38 @@ public class SavingsWidget extends AppWidgetProvider {
         return savedLine(context, snap);
     }
 
-    private String compactSupportLine(Context context, Snapshot snap) {
+    static String compactSupportLine(Context context, Snapshot snap) {
         String bucketLine = bucketProgressLine(snap);
         if (bucketLine != null && !bucketLine.isEmpty()) return bucketLine;
         return supportLine(context, snap);
     }
 
-    private String periodLabel(Context context, String period) {
+    static String periodLabel(Context context, String period) {
         if ("week".equals(period)) return context.getString(R.string.widget_need_week);
         if ("month".equals(period)) return context.getString(R.string.widget_need_month);
         return context.getString(R.string.widget_need_today);
     }
 
-    private String doneLabel(Context context, String period) {
+    static String doneLabel(Context context, String period) {
         if ("week".equals(period)) return context.getString(R.string.widget_done_week);
         if ("month".equals(period)) return context.getString(R.string.widget_done_month);
         return context.getString(R.string.widget_done_today);
     }
 
-    private String periodNoun(Context context, String period) {
+    static String periodNoun(Context context, String period) {
         if ("week".equals(period)) return context.getString(R.string.widget_period_week);
         if ("month".equals(period)) return context.getString(R.string.widget_period_month);
         return context.getString(R.string.widget_period_today);
     }
 
-    private String streakLabel(Context context, Snapshot snap) {
+    static String streakLabel(Snapshot snap) {
         if (snap.streak <= 0) return "";
         if ("week".equals(snap.streakUnit)) return snap.streak + "w";
         if ("month".equals(snap.streakUnit)) return snap.streak + "m";
         return snap.streak + "d";
     }
 
-    private String bucketProgressLine(Snapshot snap) {
+    static String bucketProgressLine(Snapshot snap) {
         if (snap.focusBucketName == null || snap.focusBucketName.isEmpty() || snap.focusBucketTarget <= 0) {
             return null;
         }
@@ -225,11 +184,19 @@ public class SavingsWidget extends AppWidgetProvider {
                 + "%)";
     }
 
-    private String toGoText(Context context, Snapshot snap) {
+    static String toGoText(Context context, Snapshot snap) {
         if (snap.goal <= 0) return "";
         long remaining = snap.goal - snap.saved;
         if (remaining <= 0) return context.getString(R.string.widget_goal_reached);
         return context.getString(R.string.widget_to_go, baht(remaining));
+    }
+
+    private static int getOptionDp(Bundle options, int defaultValue, String primaryKey, String fallbackKey) {
+        if (options == null) return defaultValue;
+        int value = options.getInt(primaryKey, 0);
+        if (value > 0) return value;
+        value = options.getInt(fallbackKey, 0);
+        return value > 0 ? value : defaultValue;
     }
 
     private PendingIntent deepLink(Context context, String url, int requestCode) {
@@ -268,15 +235,15 @@ public class SavingsWidget extends AppWidgetProvider {
         }
     }
 
-    private static int clampPct(int value) {
+    static int clampPct(int value) {
         return Math.max(0, Math.min(100, value));
     }
 
-    private static String baht(long value) {
+    static String baht(long value) {
         return "฿" + String.format(Locale.US, "%,d", value);
     }
 
-    private static class Snapshot {
+    static class Snapshot {
         String roomName;
         long saved;
         long goal;

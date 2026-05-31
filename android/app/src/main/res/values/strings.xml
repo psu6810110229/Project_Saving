@@ -7,6 +7,9 @@
     <string name="widget_add">＋ Add</string>
     <string name="widget_check">✓ Check</string>
     <string name="widget_empty">Open GO-OUT to sync</string>
+    <string name="widget_of_goal">of %s</string>
+    <string name="widget_to_go">%s to go</string>
+    <string name="widget_goal_reached">Goal reached 🎉</string>
     <string name="widget_label">GO-OUT savings</string>
     <string name="widget_label_compact">GO-OUT savings (small)</string>
 </resources>

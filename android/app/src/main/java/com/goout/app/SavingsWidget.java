@@ -62,25 +62,10 @@ public class SavingsWidget extends AppWidgetProvider {
 
         Snapshot snap = readSnapshot(context);
 
-        if (snap == null) {
-            // First run / not yet synced.
-            views.setTextViewText(R.id.w_amount, context.getString(R.string.widget_empty));
-            views.setTextViewText(R.id.w_pct, "");
-            if (!compact) {
-                views.setTextViewText(R.id.w_room, context.getString(R.string.app_name));
-                views.setTextViewText(R.id.w_streak, "");
-                views.setProgressBar(R.id.w_progress, 100, 0, false);
-            }
+        if (compact) {
+            renderCompact(context, views, snap);
         } else {
-            String amount = "฿" + formatThousands(snap.saved)
-                    + " / ฿" + formatThousands(snap.goal);
-            views.setTextViewText(R.id.w_amount, amount);
-            views.setTextViewText(R.id.w_pct, snap.progressPct + "%");
-            if (!compact) {
-                views.setTextViewText(R.id.w_room, snap.roomName);
-                views.setTextViewText(R.id.w_streak, "🔥 " + snap.streak);
-                views.setProgressBar(R.id.w_progress, 100, snap.progressPct, false);
-            }
+            renderLarge(context, views, snap);
         }
 
         // Deep links: open the app at the exact section.
@@ -94,6 +79,54 @@ public class SavingsWidget extends AppWidgetProvider {
         }
 
         manager.updateAppWidget(appWidgetId, views);
+    }
+
+    /** Large 4x2: room + big saved amount + sub line + progress + percent + to-go + streak. */
+    private void renderLarge(Context context, RemoteViews views, Snapshot snap) {
+        if (snap == null) {
+            views.setTextViewText(R.id.w_room, context.getString(R.string.app_name));
+            views.setTextViewText(R.id.w_saved, context.getString(R.string.widget_empty));
+            views.setTextViewText(R.id.w_savedsub, "");
+            views.setTextViewText(R.id.w_pct, "");
+            views.setTextViewText(R.id.w_togo, "");
+            views.setTextViewText(R.id.w_streak, "");
+            views.setProgressBar(R.id.w_progress, 100, 0, false);
+            return;
+        }
+        views.setTextViewText(R.id.w_room, snap.roomName);
+        views.setTextViewText(R.id.w_saved, "฿" + formatThousands(snap.saved));
+        views.setTextViewText(R.id.w_savedsub,
+                context.getString(R.string.widget_of_goal, "฿" + formatThousands(snap.goal)));
+        views.setTextViewText(R.id.w_pct, snap.progressPct + "%");
+        views.setTextViewText(R.id.w_togo, toGoText(context, snap));
+        views.setTextViewText(R.id.w_streak, "🔥 " + snap.streak);
+        views.setProgressBar(R.id.w_progress, 100, snap.progressPct, false);
+    }
+
+    /** Compact 2x2: room + big percent + saved amount + remaining + progress. */
+    private void renderCompact(Context context, RemoteViews views, Snapshot snap) {
+        if (snap == null) {
+            views.setTextViewText(R.id.w_room, context.getString(R.string.app_name));
+            views.setTextViewText(R.id.w_pct, "");
+            views.setTextViewText(R.id.w_amount, context.getString(R.string.widget_empty));
+            views.setTextViewText(R.id.w_amountsub, "");
+            views.setProgressBar(R.id.w_progress, 100, 0, false);
+            return;
+        }
+        views.setTextViewText(R.id.w_room, snap.roomName);
+        views.setTextViewText(R.id.w_pct, snap.progressPct + "%");
+        views.setTextViewText(R.id.w_amount, "฿" + formatThousands(snap.saved));
+        views.setTextViewText(R.id.w_amountsub,
+                context.getString(R.string.widget_of_goal, "฿" + formatThousands(snap.goal)));
+        views.setProgressBar(R.id.w_progress, 100, snap.progressPct, false);
+    }
+
+    /** "เหลืออีก ฿X" / "X to go", or a done state when goal reached. */
+    private String toGoText(Context context, Snapshot snap) {
+        if (snap.goal <= 0) return "";
+        long remaining = snap.goal - snap.saved;
+        if (remaining <= 0) return context.getString(R.string.widget_goal_reached);
+        return context.getString(R.string.widget_to_go, "฿" + formatThousands(remaining));
     }
 
     private PendingIntent deepLink(Context context, String url, int requestCode) {

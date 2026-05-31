@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="widget_empty">เปิด GO-OUT เพื่อซิงค์</string>
+    <string name="widget_of_goal">จาก %s</string>
+    <string name="widget_to_go">เหลืออีก %s</string>
+    <string name="widget_goal_reached">ถึงเป้าแล้ว 🎉</string>
+</resources>

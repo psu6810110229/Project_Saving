@@ -5,37 +5,75 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/widget_bg"
-    android:gravity="center"
     android:padding="14dp">
 
     <TextView
-        android:id="@+id/w_pct"
-        android:layout_width="wrap_content"
+        android:id="@+id/w_room"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:fontFamily="@font/ibm_plex_sans_thai_semibold"
+        android:textColor="@color/widget_ink_muted"
+        android:textSize="11sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="@string/app_name" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/w_pct"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/ibm_plex_mono_semibold"
         android:textColor="@color/widget_brand"
-        android:textSize="30sp"
-        android:textStyle="bold" />
+        android:textSize="30sp" />
 
     <TextView
         android:id="@+id/w_amount"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:gravity="center"
-        android:textColor="@color/widget_ink_muted"
-        android:textSize="12sp"
+        android:fontFamily="@font/ibm_plex_sans_thai_semibold"
+        android:textColor="@color/widget_ink"
+        android:textSize="14sp"
         android:maxLines="1"
         android:ellipsize="end" />
 
     <TextView
+        android:id="@+id/w_amountsub"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/ibm_plex_sans_thai_regular"
+        android:textColor="@color/widget_ink_muted"
+        android:textSize="10sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <ProgressBar
+        android:id="@+id/w_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginTop="8dp"
+        android:max="100"
+        android:progressDrawable="@drawable/widget_progress" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
         android:id="@+id/w_add"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="34dp"
         android:layout_marginTop="10dp"
         android:background="@drawable/widget_btn_primary"
+        android:fontFamily="@font/ibm_plex_sans_thai_semibold"
         android:gravity="center"
         android:textColor="@color/widget_surface"
-        android:textSize="13sp"
-        android:textStyle="bold"
+        android:textSize="12sp"
         android:text="@string/widget_add" />
 </LinearLayout>

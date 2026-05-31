@@ -998,7 +998,7 @@ export const en = {
     renameNonCreatorHint: 'Only the project creator can rename this.',
     renameCharCounter: (used: number, max: number) => `${used}/${max}`,
     renameErrorEmpty: 'Enter a project name.',
-    renameErrorTooLong: 'Keep the name to 20 characters or fewer.',
+    renameErrorTooLong: 'Keep the name to 40 characters or fewer.',
     renameErrorControlChars: 'Name can\'t contain line breaks or control characters.',
     renameErrorUnchanged: 'New name is the same as the current one.',
     renameErrorNotCreator: 'Only the project creator can rename this project.',

@@ -10,9 +10,19 @@
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_MODE__: string;
+declare const __APP_BUILD_ID__: string;
 
 export function appVersion(): string {
   const base = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
   const mode = typeof __APP_BUILD_MODE__ === 'string' ? __APP_BUILD_MODE__ : 'development';
   return mode === 'production' ? base : `${base}+${mode}`;
+}
+
+/**
+ * Commit sha + build date stamped at build time. Shown small on the login
+ * screen so a tester can read which build is actually installed and confirm
+ * an APK update really took effect.
+ */
+export function appBuildId(): string {
+  return typeof __APP_BUILD_ID__ === 'string' ? __APP_BUILD_ID__ : 'dev';
 }

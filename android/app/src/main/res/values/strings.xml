@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GO-OUT</string>
+    <string name="title_activity_main">GO-OUT</string>
+    <string name="package_name">com.goout.app</string>
+    <string name="custom_url_scheme">com.goout.app</string>
+    <string name="widget_add">＋ เติม</string>
+    <string name="widget_check">✓ เช็ก</string>
+    <string name="widget_empty">เปิด GO-OUT เพื่อซิงก์</string>
+    <string name="widget_of_goal">จาก %s</string>
+    <string name="widget_to_go">เหลืออีก %s</string>
+    <string name="widget_goal_reached">ถึงเป้าแล้ว</string>
+    <string name="widget_need_today">ต้องเก็บวันนี้</string>
+    <string name="widget_need_week">ต้องเก็บสัปดาห์นี้</string>
+    <string name="widget_need_month">ต้องเก็บเดือนนี้</string>
+    <string name="widget_period_today">วันนี้</string>
+    <string name="widget_period_week">สัปดาห์นี้</string>
+    <string name="widget_period_month">เดือนนี้</string>
+    <string name="widget_done_short">ครบแล้ว</string>
+    <string name="widget_done_today">ครบวันนี้แล้ว</string>
+    <string name="widget_done_week">ครบสัปดาห์นี้แล้ว</string>
+    <string name="widget_done_month">ครบเดือนนี้แล้ว</string>
+    <string name="widget_saved_so_far">ยอดสะสม</string>
+    <string name="widget_current_target_cleared">ครบเป้ารอบนี้แล้ว</string>
+    <string name="widget_overall_progress">ภาพรวม</string>
+    <string name="widget_current_progress">ความคืบหน้า</string>
+    <string name="widget_streak_days">สตรีก %1$d วัน</string>
+    <string name="widget_streak_weeks">สตรีก %1$d สัปดาห์</string>
+    <string name="widget_streak_months">สตรีก %1$d เดือน</string>
+    <string name="widget_focus_more">%1$s +%2$d</string>
+    <string name="widget_label">เงินเก็บ GO-OUT</string>
+    <string name="widget_label_compact">เงินเก็บ GO-OUT (เล็ก)</string>
+</resources>

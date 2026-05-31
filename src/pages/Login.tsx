@@ -6,6 +6,7 @@ import { IconInfo } from '../components/Icon/Icon';
 import { MOTION_EASE } from '../lib/motion';
 import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '../i18n/useI18n';
+import { appBuildId } from '../lib/version';
 
 export function Login() {
   const { signInWithGoogle } = useAuth();
@@ -95,6 +96,9 @@ export function Login() {
         >
           {copy.about.termsLine}
         </button>
+
+        {/* Build stamp — lets a tester confirm which build is installed. */}
+        <span className="font-mono text-[10px] leading-4 text-ink-dim">build {appBuildId()}</span>
       </motion.div>
 
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />

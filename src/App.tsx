@@ -5,6 +5,7 @@ import { AuthProvider } from './components/AuthProvider/AuthProvider';
 import { InAppToastProvider } from './components/InAppToast/InAppToastProvider';
 import { SplashScreen } from './components/SplashScreen/SplashScreen';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
+import { DeepLinkListener } from './components/DeepLinkListener/DeepLinkListener';
 import { RoomProvider } from './components/RoomContext/RoomContext';
 import { I18nProvider } from './i18n/I18nProvider';
 import { AppLayout } from './pages/AppLayout';
@@ -23,6 +24,7 @@ import { MoleculesPreview } from './pages/MoleculesPreview';
 import { Notifications } from './pages/Notifications';
 import { NotificationSettings } from './pages/NotificationSettings';
 import { OrganismsPreview } from './pages/OrganismsPreview';
+import { WidgetPreview } from './pages/WidgetPreview';
 import { Profile } from './pages/Profile';
 import { NotFound } from './pages/NotFound';
 import { DashboardReferenceScreen } from './pages/DashboardReferenceScreen';
@@ -51,6 +53,7 @@ function App() {
     <>
     <AnimatePresence>{showSplash && <SplashScreen key="splash" />}</AnimatePresence>
     <BrowserRouter>
+      <DeepLinkListener />
       <AuthProvider>
         <I18nProvider>
           <InAppToastProvider>
@@ -61,6 +64,7 @@ function App() {
                 <Route path="/atoms" element={<AtomsPreview />} />
                 <Route path="/molecules" element={<MoleculesPreview />} />
                 <Route path="/organisms" element={<OrganismsPreview />} />
+                <Route path="/widget" element={<WidgetPreview />} />
                 <Route path="/reference/dashboard" element={<DashboardReferenceScreen />} />
                 <Route path="/reference/buckets" element={<DashboardBucketsScreen />} />
                 <Route path="/reference/add-money" element={<AddMoneyReferenceScreen />} />

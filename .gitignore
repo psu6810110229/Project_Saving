@@ -36,3 +36,7 @@ supabase/.temp/
 
 # Personal Downloads dump accidentally committed once — keep out of repo
 docs/design-references/graph-redesign/Downloads/
+
+# Android signing secrets (Phase 6) — never commit
+*.keystore
+keystore.properties

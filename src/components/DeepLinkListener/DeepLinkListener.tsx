@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 
 /**
  * Routes native deep links (Android home-screen widget, external links) into
@@ -23,7 +24,12 @@ export function DeepLinkListener() {
       try {
         const parsed = new URL(url);
         // goout://dashboard?action=deposit -> host 'dashboard', no pathname
+        // goout://auth/callback?code=... -> host 'auth', pathname '/callback'
         const path = `${parsed.hostname}${parsed.pathname}`.replace(/^\/+/, '');
+        // The OAuth redirect returns through the system browser; dismiss it.
+        if (path.startsWith('auth/callback')) {
+          void Browser.close().catch(() => {});
+        }
         navigate(`/${path}${parsed.search}`);
       } catch {
         // Ignore malformed URLs.

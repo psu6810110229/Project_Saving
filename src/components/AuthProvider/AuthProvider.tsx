@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
 import { AuthContext } from './AuthContext';
@@ -144,6 +146,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   async function signInWithGoogle() {
+    // In the native app, window.location.origin is https://localhost, which
+    // Google/Supabase can't redirect back to. Instead get the auth URL, open
+    // it in the system browser, and let it redirect to our goout:// scheme —
+    // DeepLinkListener routes that back to /auth/callback to finish sign-in.
+    if (Capacitor.isNativePlatform()) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'goout://auth/callback',
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error || !data?.url) return;
+      await Browser.open({ url: data.url });
+      return;
+    }
+
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },

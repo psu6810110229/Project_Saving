@@ -80,6 +80,20 @@ Settings → allow "install from unknown sources" for the browser/file app, then
 open the APK to install. The home-screen widget then appears under
 long-press → Widgets → GO-OUT.
 
+## Required: Supabase redirect URL for native Google login
+
+The APK signs in by opening Google in the system browser and returning via the
+`goout://auth/callback` deep link. For Supabase to allow that redirect:
+
+1. Supabase dashboard → **Authentication → URL Configuration → Redirect URLs**.
+2. Add: `goout://auth/callback`
+3. Save.
+
+No Google Cloud change is needed (Google still redirects to Supabase's own
+callback; only Supabase's final redirect target must allow the app scheme).
+Without this, native login fails with a redirect/`requested path is invalid`
+error. The web app (Vercel) is unaffected.
+
 ## When to rebuild the APK vs. ship OTA
 - **OTA (Capgo bundle upload):** any web/UI/bug fix. No new APK.
 - **New APK:** native changes — the widget, `goout://` scheme,

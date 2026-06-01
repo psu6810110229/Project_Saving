@@ -6,6 +6,7 @@
     <color name="widget_well">#F1E7DC</color>
     <color name="widget_ink">#2A1A0E</color>
     <color name="widget_ink_muted">#7A6A5E</color>
+    <color name="widget_ink_soft">#9B8B7F</color>
     <color name="widget_brand">#F26B1A</color>
     <color name="widget_brand_deep">#8E3F0D</color>
 </resources>

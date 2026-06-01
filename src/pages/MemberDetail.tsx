@@ -65,9 +65,9 @@ function MemberDetailBody({ userId, md, formatShortDateKey, navigate }: MemberDe
   void formatShortDateKey;
 
   // Member-scoped data fetches. Each one is scoped to (roomId, userId)
-  // and queries only fields the Member Detail page may display. Notably
-  // the snapshot hook deliberately omits `note` / `slip_url` from
-  // savings_logs and does not touch any balance/reconcile tables.
+  // and queries only fields the Member Detail page may display. The
+  // snapshot hook reads room-visible aggregate totals only; it does not
+  // expose raw notes, slips, or private reconcile/audit rows.
   const memberIds = useMemo(() => (userId ? [userId] : []), [userId]);
   const snapshot = useMemberSavingSnapshot(activeRoomId, userId);
   const { bucketsByUser, loading: bucketsLoading } = useRoomMembersBuckets(activeRoomId, memberIds);

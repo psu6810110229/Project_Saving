@@ -42,6 +42,7 @@ export interface LeaderboardState {
 interface RawProfile { id: string; display_name: string; avatar_url?: string | null; theme_color?: ProfileTheme; }
 interface RawGoal { user_id: string; target_amount: string | number; }
 interface RawLeaderboardLog { user_id: string; amount: string | number; created_at: string; }
+interface RawRoomMemberRow { user_id: string; }
 
 const ROOM_LOGS_PAGE_SIZE = 1000;
 
@@ -114,30 +115,34 @@ export function useLeaderboard(
     async function fetchLeaderboardData() {
       const activeRoomId = roomId;
       if (!activeRoomId) return;
-      // Step 1: get user_ids for this room. The direct select is gated by
-      // room_members RLS (fixed in migration 0012). If the policy is missing
-      // in this environment the joiner only sees their own row, which would
-      // collapse the dashboard to a single tile. Fall back to a security-
-      // definer RPC (migration 0016) that returns every member's profile
-      // so the dashboard renders both players regardless.
-      const { data: memberRows } = await supabase
-        .from('room_members')
-        .select('user_id')
-        .eq('room_id', activeRoomId);
+      // Step 1: get user_ids for this room. Compare the direct RLS-gated read
+      // with the security-definer RPC and keep whichever returns more rows.
+      // Some environments partially expose `room_members` (for example only a
+      // subset of co-members), which would otherwise collapse the leaderboard.
+      const [{ data: memberRows, error: memberRowsError }, { data: rpcRows, error: rpcError }] = await Promise.all([
+        supabase
+          .from('room_members')
+          .select('user_id')
+          .eq('room_id', activeRoomId),
+        supabase.rpc('room_members_for_room', { p_room_id: activeRoomId }),
+      ]);
 
       if (cancelled) return;
 
-      let userIds = (memberRows ?? []).map((r: { user_id: string }) => r.user_id);
+      const directUserIds = ((memberRows ?? []) as RawRoomMemberRow[]).map(row => row.user_id);
+      const rpcUserIds = ((rpcRows ?? []) as RawRoomMemberRow[]).map(row => row.user_id);
 
-      if (userIds.length <= 1) {
-        const { data: rpcRows } = await supabase.rpc('room_members_for_room', { p_room_id: activeRoomId });
-        const rpcUserIds = (rpcRows ?? []).map((r: { user_id: string }) => r.user_id);
-        if (rpcUserIds.length > userIds.length) {
-          if (typeof console !== 'undefined') {
-            console.warn('[useLeaderboard] direct room_members returned fewer rows than RPC; falling back', { direct: userIds.length, rpc: rpcUserIds.length });
-          }
-          userIds = rpcUserIds;
+      let userIds = directUserIds;
+      if (rpcUserIds.length > directUserIds.length) {
+        if (typeof console !== 'undefined') {
+          console.warn('[useLeaderboard] direct room_members returned fewer rows than RPC; falling back', { direct: directUserIds.length, rpc: rpcUserIds.length });
         }
+        userIds = rpcUserIds;
+      } else if (directUserIds.length === 0 && rpcError && memberRowsError && typeof console !== 'undefined') {
+        console.warn('[useLeaderboard] both direct and RPC member reads failed', {
+          direct: memberRowsError.message,
+          rpc: rpcError.message,
+        });
       }
 
       if (cancelled) return;

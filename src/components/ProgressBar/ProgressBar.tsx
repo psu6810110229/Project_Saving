@@ -22,6 +22,7 @@ interface ProgressBarProps {
   themeHex?: string;
   /** When true, the fill animates from 0 → value on mount. */
   animate?: boolean;
+  shimmer?: boolean;
   className?: string;
 }
 
@@ -44,6 +45,7 @@ export function ProgressBar({
   size = 'md',
   themeHex,
   animate = false,
+  shimmer = false,
   className = '',
 }: ProgressBarProps) {
   const clamped = Math.max(0, Math.min(100, value));
@@ -61,9 +63,18 @@ export function ProgressBar({
       aria-valuenow={clamped}
     >
       <div
-        className={`h-full rounded-pill transition-[width] duration-500 ${TONES[tone]}`}
+        className={`relative h-full overflow-hidden rounded-pill transition-[width] duration-500 ${TONES[tone]}`}
         style={fillStyle}
-      />
+      >
+        {shimmer && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 opacity-75"
+          >
+            <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/55 to-transparent" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

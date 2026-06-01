@@ -12,6 +12,7 @@ import { usePartnerSavingPlan } from '../../hooks/usePartnerSavingPlan';
 import { useProfile } from '../../hooks/useProfile';
 import { useReconcile } from '../../hooks/useReconcile';
 import { useRoomMembersBuckets } from '../../hooks/useRoomMembersBuckets';
+import { useRoomVisibleMomentumFlows } from '../../hooks/useRoomVisibleMomentumFlows';
 import { useRoomMembersSavingPlans } from '../../hooks/useRoomMembersSavingPlans';
 import { useRoomOtherMemberIds } from '../../hooks/useRoomOtherMemberIds';
 import { useSavingPlan } from '../../hooks/useSavingPlan';
@@ -30,6 +31,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const logs = useLogs(100, roomId);
   const streakFreeze = useStreakFreeze(user?.id);
   const reconcile = useReconcile(roomId);
+  const roomVisibleMomentumFlows = useRoomVisibleMomentumFlows(roomId);
   // Feed the current user's Verified Balance (deposits + reconcile
   // adjustments) into the leaderboard so their card/%/rank and the room
   // total stay consistent with Check Balance. Other members keep recorded
@@ -60,6 +62,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     goal: goal.refetch,
     profile: profile.refetch,
     reconcile: reconcile.refetch,
+    roomVisibleMomentumFlows: roomVisibleMomentumFlows.refetch,
     savingPlan: savingPlan.refetch,
     streakFreeze: streakFreeze.refresh,
   });
@@ -70,6 +73,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       goal: goal.refetch,
       profile: profile.refetch,
       reconcile: reconcile.refetch,
+      roomVisibleMomentumFlows: roomVisibleMomentumFlows.refetch,
       savingPlan: savingPlan.refetch,
       streakFreeze: streakFreeze.refresh,
     };
@@ -86,6 +90,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       r.goal(),
       r.profile(),
       r.reconcile(),
+      r.roomVisibleMomentumFlows(),
       r.savingPlan(),
       r.streakFreeze(),
     ]);
@@ -106,6 +111,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       savingPlan,
       partnerSavingPlan,
       reconcile,
+      roomVisibleMomentumFlows,
       streakFreeze,
       otherMemberIds,
       roomMembersBuckets,
@@ -126,6 +132,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
       savingPlan,
       partnerSavingPlan,
       reconcile,
+      roomVisibleMomentumFlows,
       streakFreeze,
       otherMemberIds,
       roomMembersBuckets,

@@ -131,7 +131,7 @@ function LargeWidget({ snapshot }: { snapshot: WidgetSnapshot }) {
             <p className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-ink-muted">
               {dueMode ? 'ภาพรวม' : 'ความคืบหน้า'}
             </p>
-            <p className="mt-1 font-mono text-lg font-bold leading-none text-ink">
+            <p className="mt-0.5 font-mono text-lg font-bold leading-none text-ink">
               {progressLine(snapshot.saved, snapshot.goal)}
             </p>
           </div>
@@ -141,7 +141,7 @@ function LargeWidget({ snapshot }: { snapshot: WidgetSnapshot }) {
           </div>
         </div>
 
-        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#E8D6C6]">
+        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[#E8D6C6]">
           <div
             className="h-full rounded-full bg-brand-500"
             style={{ width: `${Math.max(pct, pct > 0 ? 6 : 0)}%` }}

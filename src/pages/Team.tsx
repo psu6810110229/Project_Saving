@@ -365,19 +365,25 @@ export function Team() {
     const entry = leaderboard.entries.find(e => e.userId === selectedMemberId);
     if (!entry) return null;
     const savedByBucket = new Map<string, number>();
+    let memberSaved = 0;
     for (const log of logs) {
+      if (log.user_id === selectedMemberId) {
+        memberSaved += log.amount;
+      }
       if (log.user_id === selectedMemberId && log.bucket_id) {
         savedByBucket.set(log.bucket_id, (savedByBucket.get(log.bucket_id) ?? 0) + log.amount);
       }
     }
-    const memberBuckets = data.roomMembersBuckets.bucketsByUser[selectedMemberId] ?? [];
+    const memberBuckets = selectedMemberId === user?.id
+      ? buckets
+      : (data.roomMembersBuckets.bucketsByUser[selectedMemberId] ?? []);
     const name = entry.displayName ?? d.partnerLabel;
     return {
       name,
       fallback: fallbackInitial(name),
       avatarUrl: entry.avatarUrl,
       themeColor: entry.themeColor,
-      saved: entry.saved,
+      saved: memberSaved,
       target: entry.personalGoalTarget ?? 0,
       buckets: memberBuckets.map(bucket => ({
         id: bucket.id,
@@ -387,13 +393,9 @@ export function Team() {
         category: bucket.category,
       })),
     };
-  }, [selectedMemberId, leaderboard.entries, logs, data.roomMembersBuckets.bucketsByUser, d.partnerLabel]);
+  }, [selectedMemberId, leaderboard.entries, logs, data.roomMembersBuckets.bucketsByUser, d.partnerLabel, user?.id, buckets]);
 
   function handleMemberClick(entry: TeamSectionMember) {
-    if (entry.isYou) {
-      navigate('/profile');
-      return;
-    }
     setSelectedMemberId(entry.userId);
   }
 

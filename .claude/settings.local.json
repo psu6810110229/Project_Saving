@@ -104,7 +104,19 @@
       "Bash(rg -n \"background|bg-bg|body|html|#root\" src/index.css src/styles* index.html)",
       "Bash(rg -n \"\\\\-mx-|\\\\-ml-|\\\\-mr-|w-screen|inset-x-0\" src/pages/Dashboard*.tsx)",
       "Bash(awk 'NR>=54 && NR<=350 && /return \\\\\\(/{print NR\": \"$0; c++} c>=2{exit}' src/pages/Team.tsx)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "mcp__plugin_supabase_supabase__list_projects",
+      "mcp__plugin_supabase_supabase__execute_sql",
+      "mcp__plugin_supabase_supabase__apply_migration",
+      "PowerShell($lines = Get-Content \"D:\\\\Fran's Folder\\\\Project\\\\src\\\\pages\\\\Team.tsx\"; \"COUNT=$\\($lines.Count\\)\"; for \\($i=0; $i -lt $lines.Count; $i++\\) { if \\($lines[$i] -match 'Room:|room %|roomPercent|percent|useLeaderboard|reconcil|verified|saved|target_amount|RoomLeaderboardList|useReconcile|total'\\) { '{0}: {1}' -f \\($i+1\\), $lines[$i].Trim\\(\\) } })",
+      "PowerShell($p=\"D:\\\\Fran's Folder\\\\Project\\\\src\\\\pages\\\\Team.tsx\"; if\\(Test-Path $p\\){ $lines=Get-Content $p; \"COUNT=$\\($lines.Count\\)\"; \\($lines | Select-Object -First 5\\) } else { \"MISSING\" })",
+      "PowerShell($tsc = npx tsc -b --pretty false 2>&1; \"----TSC----\"; $tsc; \"TSC_EXIT=$LASTEXITCODE\")",
+      "PowerShell($es = npx eslint \"src/hooks/useLeaderboard.ts\" \"src/components/DataContext/DataContext.tsx\" 2>&1; \"----ESLINT----\"; $es; \"ESLINT_EXIT=$LASTEXITCODE\")",
+      "PowerShell($tsc = npx tsc -b --pretty false 2>&1; \"----TSC----\"; $tsc; \"TSC_EXIT=$LASTEXITCODE\"; $es = npx eslint \"src/hooks/useLeaderboard.ts\" \"src/components/DataContext/DataContext.tsx\" 2>&1; \"----ESLINT----\"; $es; \"ESLINT_EXIT=$LASTEXITCODE\")",
+      "PowerShell(npx tsc -b --pretty false; \"TSC_EXIT=$LASTEXITCODE\"; npx eslint \"src/hooks/useLeaderboard.ts\" \"src/components/DataContext/DataContext.tsx\"; \"ESLINT_EXIT=$LASTEXITCODE\")",
+      "PowerShell($t = npx tsc -b --pretty false 2>&1 | Out-String; $te = $LASTEXITCODE; $e = npx eslint \"src/hooks/useLeaderboard.ts\" \"src/components/DataContext/DataContext.tsx\" 2>&1 | Out-String; $ee = $LASTEXITCODE; \"TSC_EXIT=$te\"; \"TSC_OUT=$t\"; \"ESLINT_EXIT=$ee\"; \"ESLINT_OUT=$e\")",
+      "Bash(echo \"TSC_EXIT=$?\")",
+      "Bash(echo \"ESLINT_EXIT=$?\")"
     ]
   }
 }

@@ -45,7 +45,15 @@ interface RawMemberRow {
 }
 
 function toThemeSwatch(value: string | null | undefined): ThemeSwatch | null {
-  if (value === 'terracotta' || value === 'slate' || value === 'teal') return value;
+  if (
+    value === 'terracotta'
+    || value === 'slate'
+    || value === 'teal'
+    || value === 'gold'
+    || value === 'leaf'
+    || value === 'coral'
+    || value === 'indigo'
+  ) return value;
   return null;
 }
 

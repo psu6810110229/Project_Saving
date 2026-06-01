@@ -1,4 +1,4 @@
-import type { BalanceAllocation, Bucket, BucketCategory, BucketTransfer, SavingsLog } from '../types';
+import type { BalanceAllocation, Bucket, BucketCategory, BucketTransfer, RoomVisibleMomentumFlow, SavingsLog } from '../types';
 import { BUCKET_CATEGORY_ORDER, normalizeBucketCategory } from './bucketCategories';
 import { lastSevenDateKeys } from './dashboardStats';
 import { localDateKey } from './streak';
@@ -162,6 +162,64 @@ export function purposeNetDailyMarkers(
   return markers;
 }
 
+export function purposeVisibleFlowDailySeries(
+  flows: RoomVisibleMomentumFlow[],
+  scope: MomentumPurposeScope,
+  visibleBucketsById: Map<string, Bucket>,
+  userId?: string,
+  today?: Date,
+): number[] {
+  const keys = lastSevenDateKeys(today);
+  const indexByKey = new Map(keys.map((key, index) => [key, index]));
+  const series = keys.map(() => 0);
+
+  for (const flow of flows) {
+    if (userId && flow.user_id !== userId) continue;
+    if (!visibleFlowMatchesScope(flow, scope, visibleBucketsById)) continue;
+    const index = indexByKey.get(flow.date_key);
+    if (index === undefined) continue;
+    series[index] += flow.amount;
+  }
+
+  return series.map(amount => Math.round(amount * 100) / 100);
+}
+
+export function purposeVisibleFlowDailyMarkers(
+  flows: RoomVisibleMomentumFlow[],
+  scope: MomentumPurposeScope,
+  visibleBucketsById: Map<string, Bucket>,
+  userId?: string,
+  today?: Date,
+  options?: PurposeMarkerOptions,
+): MomentumDayMarker[] {
+  const keys = lastSevenDateKeys(today);
+  const indexByKey = new Map(keys.map((key, index) => [key, index]));
+  const markers: MomentumDayMarker[] = keys.map(() => ({
+    categories: [] as BucketCategory[],
+    bucketIds: [] as string[],
+    bucketNames: [] as string[],
+  }));
+
+  for (const flow of flows) {
+    if (userId && flow.user_id !== userId) continue;
+    if (!visibleFlowMatchesScope(flow, scope, visibleBucketsById)) continue;
+    const index = indexByKey.get(flow.date_key);
+    if (index === undefined) continue;
+
+    const marker = markers[index];
+    if (flow.event_kind === 'allocation') {
+      marker.hasAdjustment = true;
+      marker.hasNegativeAdjustment = marker.hasNegativeAdjustment || flow.amount < 0;
+      marker.adjustmentAmount = Math.round(((marker.adjustmentAmount ?? 0) + flow.amount) * 100) / 100;
+    }
+    if (flow.bucket_id) {
+      addBucketToMarker(marker, flow.bucket_id, scope, visibleBucketsById, options, flow.user_id);
+    }
+  }
+
+  return markers;
+}
+
 function filterLogsByPurpose(
   logs: SavingsLog[],
   scope: MomentumPurposeScope,
@@ -202,6 +260,15 @@ function bucketMatchesScope(
   const category = normalizeBucketCategory(bucket.category);
   if (scope.kind === 'categories') return scope.categories.includes(category);
   return category === scope.category;
+}
+
+function visibleFlowMatchesScope(
+  flow: Pick<RoomVisibleMomentumFlow, 'bucket_id'>,
+  scope: MomentumPurposeScope,
+  visibleBucketsById: Map<string, Bucket>,
+): boolean {
+  if (scope.kind === 'all') return true;
+  return bucketMatchesScope(flow.bucket_id, scope, visibleBucketsById);
 }
 
 function addBucketToMarker(
@@ -268,6 +335,37 @@ export function availablePurposeCategoriesForMode(
     if (log.user_id !== userId && log.user_id !== compareMemberId) continue;
 
     const bucket = visibleBucketsById.get(log.bucket_id);
+    if (!bucket || bucket.archived_at) continue;
+    seen.add(normalizeBucketCategory(bucket.category));
+  }
+  return BUCKET_CATEGORY_ORDER.filter(cat => seen.has(cat));
+}
+
+export function availablePurposeCategoriesForModeFromFlows(
+  mode: MomentumPurposeMode,
+  userBuckets: Bucket[],
+  allVisibleBuckets: Bucket[],
+  flows: RoomVisibleMomentumFlow[],
+  visibleBucketsById: Map<string, Bucket>,
+  compareMemberId?: string | null,
+  userId?: string,
+  today?: Date,
+): BucketCategory[] {
+  if (mode === 'room') {
+    return availablePurposeCategories(allVisibleBuckets);
+  }
+  if (mode === 'me') {
+    return availablePurposeCategories(userBuckets);
+  }
+
+  const keys = new Set(lastSevenDateKeys(today));
+  const seen = new Set<BucketCategory>();
+  for (const flow of flows) {
+    if (!flow.bucket_id) continue;
+    if (!keys.has(flow.date_key)) continue;
+    if (flow.user_id !== userId && flow.user_id !== compareMemberId) continue;
+
+    const bucket = visibleBucketsById.get(flow.bucket_id);
     if (!bucket || bucket.archived_at) continue;
     seen.add(normalizeBucketCategory(bucket.category));
   }

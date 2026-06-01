@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { palette } from '../../lib/theme';
 
@@ -31,6 +31,7 @@ interface ProgressRingProps {
   delayMs?: number;
   /** Centered content (e.g. an Avatar) rendered in the ring hole. */
   children?: ReactNode;
+  shimmer?: boolean;
   className?: string;
 }
 
@@ -47,15 +48,19 @@ export function ProgressRing({
   animate = false,
   delayMs = 0,
   children,
+  shimmer = false,
   className = '',
 }: ProgressRingProps) {
   const reduceMotion = useReducedMotion();
+  const maskId = useId();
   const { outer, stroke } = SIZES[size];
   const clamped = Math.max(0, Math.min(100, value));
   const center = outer / 2;
   const r = (outer - stroke) / 2;
   const circumference = 2 * Math.PI * r;
   const targetOffset = circumference * (1 - clamped / 100);
+  const progressLength = circumference - targetOffset;
+  const shimmerLength = Math.min(progressLength * 0.22, circumference * 0.11);
 
   // Start empty, then flip to target on the next frame so the transition runs.
   // Reduced-motion (or animate=false) is filled from the initial state, so the
@@ -79,6 +84,24 @@ export function ProgressRing({
         className="absolute inset-0 -rotate-90"
         aria-hidden
       >
+        {shimmer && progressLength > 0 && (
+          <defs>
+            <mask id={maskId}>
+              <rect width={outer} height={outer} fill="black" />
+              <circle
+                cx={center}
+                cy={center}
+                r={r}
+                fill="none"
+                stroke="white"
+                strokeWidth={stroke}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={targetOffset}
+              />
+            </mask>
+          </defs>
+        )}
         <circle cx={center} cy={center} r={r} fill="none" stroke={palette.well} strokeWidth={stroke} />
         <circle
           cx={center}
@@ -93,6 +116,56 @@ export function ProgressRing({
           className="transition-[stroke-dashoffset] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
           style={{ transitionDelay: `${delayMs}ms` }}
         />
+        {shimmer && progressLength > 0 && shimmerLength > 0 && (
+          <>
+            <circle
+              cx={center}
+              cy={center}
+              r={r}
+              fill="none"
+              stroke="rgba(255,248,240,0.18)"
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={`${shimmerLength * 1.9} ${circumference}`}
+              strokeDashoffset={circumference}
+              opacity={0.48}
+              mask={`url(#${maskId})`}
+            >
+              {!reduceMotion && (
+                <animate
+                  attributeName="stroke-dashoffset"
+                  from={circumference}
+                  to={targetOffset - shimmerLength}
+                  dur="1.9s"
+                  repeatCount="indefinite"
+                />
+              )}
+            </circle>
+            <circle
+              cx={center}
+              cy={center}
+              r={r}
+              fill="none"
+              stroke="rgba(255,248,240,0.34)"
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={`${shimmerLength} ${circumference}`}
+              strokeDashoffset={circumference}
+              opacity={0.62}
+              mask={`url(#${maskId})`}
+            >
+              {!reduceMotion && (
+                <animate
+                  attributeName="stroke-dashoffset"
+                  from={circumference}
+                  to={targetOffset - shimmerLength}
+                  dur="1.9s"
+                  repeatCount="indefinite"
+                />
+              )}
+            </circle>
+          </>
+        )}
       </svg>
       <div className="relative grid place-items-center">{children}</div>
     </div>

@@ -5,7 +5,9 @@ import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
 import { FADE_TRANSITION, REDUCED_MOTION_TRANSITION, SPRING } from '../../lib/motion';
-import type { BucketCategory } from '../../types';
+import type { BucketCategory, ProfileTheme } from '../../types';
+import { themeSwatches } from '../../lib/theme';
+import { Avatar } from '../Avatar/Avatar';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 
 /**
@@ -39,10 +41,16 @@ interface MomentumChartProps {
    *  active Daily Deposit Trend mode. Mobile-safe legend uses this
    *  bounded short label rather than full member names. */
   primaryLabel?: string;
+  primaryThemeColor?: ProfileTheme;
+  primaryAvatarUrl?: string | null;
+  primaryAvatarFallback?: string;
   /** Short legend/tooltip label for the secondary series. Used in
    *  Compare mode for the one selected member. When omitted the chart
    *  falls back to `partnerName`. */
   secondaryLabel?: string;
+  secondaryThemeColor?: ProfileTheme;
+  secondaryAvatarUrl?: string | null;
+  secondaryAvatarFallback?: string;
   /** Caller-controlled header total. Overrides the legacy
    *  weekTotal-based sum so each mode (`Room` / `Me` / `Compare`) can
    *  drive its own visible total. */
@@ -80,8 +88,6 @@ export interface MomentumBarMarker {
 const COLOR_YOU = palette.brand500;
 const COLOR_PARTNER = '#4F6382';
 const COLOR_ADJUSTMENT = '#B86A16';
-const HEAT_LEVEL_COLORS = ['#F3ECE5', '#F2C9A5', '#F0A15F', '#DF6A22', '#9B430D'] as const;
-
 const W = 280;
 const H = 188;
 // 28px left gutter fits 4-char y-axis labels like "5.7k" without
@@ -215,20 +221,8 @@ function roundedTopBar(x: number, y: number, w: number, h: number, r: number): s
 }
 
 function chartValue(value: number | undefined, marker?: MomentumBarMarker): number {
-  if (marker?.hasNegativeAdjustment) return 0;
+  void marker;
   return Math.max(0, value ?? 0);
-}
-
-function heatLevelForAmount(amount: number, maxDaily: number): 0 | 1 | 2 | 3 | 4 {
-  if (amount <= 0 || maxDaily <= 0) return 0;
-  const ratio = amount / maxDaily;
-  if (ratio <= 1 / 3) return 2;
-  if (ratio <= 2 / 3) return 3;
-  return 4;
-}
-
-function heatColorForAmount(amount: number, maxDaily: number): string {
-  return HEAT_LEVEL_COLORS[heatLevelForAmount(amount, maxDaily)];
 }
 
 function formatDateKeyLabel(
@@ -252,7 +246,13 @@ export const MomentumChart = memo(function MomentumChart({
   yourName,
   partnerName,
   primaryLabel,
+  primaryThemeColor,
+  primaryAvatarUrl,
+  primaryAvatarFallback,
   secondaryLabel,
+  secondaryThemeColor,
+  secondaryAvatarUrl,
+  secondaryAvatarFallback,
   displayedTotal,
   purposePicker,
   modeControl,
@@ -273,6 +273,8 @@ export const MomentumChart = memo(function MomentumChart({
   // their current legend text.
   const resolvedYourName = primaryLabel ?? d.youLabel;
   const resolvedPartnerName = secondaryLabel ?? partnerName ?? d.partnerLabel;
+  const primaryColor = primaryThemeColor ? themeSwatches[primaryThemeColor] : COLOR_YOU;
+  const secondaryColor = secondaryThemeColor ? themeSwatches[secondaryThemeColor] : COLOR_PARTNER;
   const hasPartner = Array.isArray(partnerSeries) && partnerSeries.length === series.length;
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const chartRootRef = useRef<HTMLDivElement | null>(null);
@@ -341,10 +343,6 @@ export const MomentumChart = memo(function MomentumChart({
     ...animSeries.map((value, index) => chartValue(value, barMarkers?.[index])),
     ...(animPartner ?? []).map((value, index) => chartValue(value, partnerBarMarkers?.[index])),
   );
-  const primaryMaxDaily = Math.max(0, ...series.map((value, index) => chartValue(value, barMarkers?.[index])));
-  const partnerMaxDaily = hasPartner
-    ? Math.max(0, ...partnerSeries!.map((value, index) => chartValue(value, partnerBarMarkers?.[index])))
-    : 0;
   // Cap the y-axis at 1.25× the tallest bar so the chart hugs the data
   // and bars use more vertical space than a wide-rounded niceMax would.
   const max = rawMax * 1.25;
@@ -441,9 +439,12 @@ export const MomentumChart = memo(function MomentumChart({
         )}
 
         <div className="flex min-w-0 flex-row flex-wrap gap-x-4 gap-y-1">
-          <LegendChip
-            color={COLOR_YOU}
-            glow="rgba(242,107,26,0.55)"
+            <LegendChip
+            color={primaryColor}
+            avatarUrl={primaryAvatarUrl}
+            avatarFallback={primaryAvatarFallback}
+            avatarThemeColor={primaryThemeColor}
+            glow={`${primaryColor}66`}
             name={resolvedYourName}
             total={yourTotal}
           />
@@ -456,8 +457,11 @@ export const MomentumChart = memo(function MomentumChart({
             aria-hidden={!hasPartner}
           >
             <LegendChip
-              color={COLOR_PARTNER}
-              glow="rgba(79,99,130,0.4)"
+              color={secondaryColor}
+              avatarUrl={secondaryAvatarUrl}
+              avatarFallback={secondaryAvatarFallback}
+              avatarThemeColor={secondaryThemeColor}
+              glow={`${secondaryColor}66`}
               name={resolvedPartnerName}
               total={animPartner ? animPartner.reduce((s, v) => s + v, 0) : partnerTotal}
             />
@@ -535,8 +539,8 @@ export const MomentumChart = memo(function MomentumChart({
           const animPartnerVal = animPartner?.[i] ?? 0;
           const visualV = chartValue(animV, barMarkers?.[i]);
           const visualPartnerVal = chartValue(animPartnerVal, partnerBarMarkers?.[i]);
-          const yourBarColor = heatColorForAmount(chartValue(v, barMarkers?.[i]), primaryMaxDaily);
-          const partnerBarColor = heatColorForAmount(chartValue(partnerVal, partnerBarMarkers?.[i]), partnerMaxDaily);
+          const yourBarColor = primaryColor;
+          const partnerBarColor = secondaryColor;
           const yourH = (visualV / max) * chartH;
           const yourY = baselineY - yourH;
           const partnerH = (visualPartnerVal / max) * chartH;
@@ -564,7 +568,7 @@ export const MomentumChart = memo(function MomentumChart({
                   />
                 </g>
               )}
-              {hasPartner && partnerVal > 0 && !partnerBarMarkers?.[i]?.hasNegativeAdjustment && (
+              {hasPartner && partnerVal > 0 && (
                 <text
                   x={partnerCenterX}
                   y={partnerY - 8}
@@ -572,7 +576,7 @@ export const MomentumChart = memo(function MomentumChart({
                   fontSize="9"
                   fontWeight="200"
                   fontFamily={SVG_MONO}
-                  fill={COLOR_PARTNER}
+                  fill={secondaryColor}
                   opacity={barOpacity}
                   style={{ cursor: 'pointer' }}
                   onPointerDown={(e) => {
@@ -601,7 +605,7 @@ export const MomentumChart = memo(function MomentumChart({
                   />
                 </g>
               )}
-              {v > 0 && !barMarkers?.[i]?.hasNegativeAdjustment && (
+              {v > 0 && (
                 <text
                   x={yourCenterX}
                   y={yourY - 8}
@@ -609,7 +613,7 @@ export const MomentumChart = memo(function MomentumChart({
                   fontSize="10"
                   fontWeight="500"
                   fontFamily={SVG_MONO}
-                  fill={COLOR_YOU}
+                  fill={primaryColor}
                   opacity={barOpacity}
                   style={{ cursor: 'pointer' }}
                   onPointerDown={(e) => {
@@ -662,7 +666,7 @@ export const MomentumChart = memo(function MomentumChart({
                   fontSize="12"
                   fontWeight={todayIndex === i ? '1000' : '400'}
                   fontFamily={SVG_MONO}
-                  fill={todayIndex === i ? COLOR_YOU : palette.ink}
+                  fill={todayIndex === i ? primaryColor : palette.ink}
                 >
                   {labels[i]}
                 </text>
@@ -690,7 +694,7 @@ export const MomentumChart = memo(function MomentumChart({
         <path
           d={trendCurveD}
           fill="none"
-          stroke={COLOR_YOU}
+          stroke={primaryColor}
           strokeWidth={0.75}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -704,7 +708,7 @@ export const MomentumChart = memo(function MomentumChart({
             cy={p.y}
             r={2.5}
             fill="#FFFFFF"
-            stroke={COLOR_YOU}
+            stroke={primaryColor}
             strokeWidth={0.5}
             opacity={0}
             style={{ pointerEvents: 'none' }}
@@ -721,7 +725,7 @@ export const MomentumChart = memo(function MomentumChart({
               cy={linePoints[todayIndex].y}
               r={3.2}
               fill="#FFFFFF"
-              stroke={COLOR_YOU}
+              stroke={primaryColor}
               strokeWidth={1.5}
               style={{ pointerEvents: 'none' }}
             />
@@ -804,7 +808,7 @@ export const MomentumChart = memo(function MomentumChart({
                           {resolvedYourName}
                         </span>
                         <span className="shrink-0 font-mono text-sm font-bold text-ink">
-                          {formatCurrency(v)}
+                          <span style={{ color: primaryColor }}>{formatCurrency(v)}</span>
                         </span>
                       </div>
                       {yourCategoryText && (
@@ -849,7 +853,7 @@ export const MomentumChart = memo(function MomentumChart({
                             {resolvedPartnerName}
                           </span>
                           <span className="shrink-0 font-mono text-sm font-bold text-ink">
-                            {formatCurrency(partnerVal)}
+                          <span style={{ color: secondaryColor }}>{formatCurrency(partnerVal)}</span>
                           </span>
                         </div>
                         {partnerCategoryText && (
@@ -1065,27 +1069,47 @@ interface LegendChipProps {
   glow: string;
   name: string;
   total: number;
+  avatarUrl?: string | null;
+  avatarFallback?: string;
+  avatarThemeColor?: ProfileTheme;
 }
 
 /** Compact one-line legend chip used in the Daily Deposit Trend header.
  *  Mobile-safe: the name truncates with an ellipsis inside a bounded
  *  max width so long English / Thai member labels never wrap or push
  *  the amount off the card. */
-function LegendChip({ color, glow, name, total }: LegendChipProps) {
+function LegendChip({ color, glow, name, total, avatarUrl, avatarFallback, avatarThemeColor }: LegendChipProps) {
   return (
     <div className="inline-flex min-w-0 max-w-full items-center gap-2 font-mono text-[12px] text-ink-muted">
-      <span
-        aria-hidden
-        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-        style={{ backgroundColor: color, boxShadow: `0 0 8px ${glow}` }}
-      />
+      {avatarUrl || avatarFallback ? (
+        <span className="relative inline-flex shrink-0 items-center justify-center">
+          <Avatar
+            size="sm"
+            imageUrl={avatarUrl ?? undefined}
+            fallback={avatarFallback ?? '?'}
+            themeColor={avatarThemeColor}
+            className="[&>div]:!h-5 [&>div]:!w-5"
+          />
+          <span
+            aria-hidden
+            className="absolute -right-0.5 -bottom-0.5 inline-block h-2.5 w-2.5 rounded-full ring-2 ring-white"
+            style={{ backgroundColor: color, boxShadow: `0 0 8px ${glow}` }}
+          />
+        </span>
+      ) : (
+        <span
+          aria-hidden
+          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: color, boxShadow: `0 0 8px ${glow}` }}
+        />
+      )}
       <span
         className="max-w-[6rem] truncate whitespace-nowrap sm:max-w-[10rem]"
         title={name}
       >
         {name}
       </span>
-      <span className="shrink-0 whitespace-nowrap font-bold text-ink">
+      <span className="shrink-0 whitespace-nowrap font-bold" style={{ color }}>
         {formatCurrency(total)}
       </span>
     </div>

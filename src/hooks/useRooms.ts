@@ -5,7 +5,7 @@ import { useRoom } from './useRoom';
 import { generateInviteCode } from '../lib/inviteCode';
 import { notifyRoomJoined, notifyRoomLeft } from '../lib/notifyEvents';
 import { useI18n } from '../i18n/useI18n';
-import type { CoverTint, ProjectCategory, Room, SavingRuleType } from '../types';
+import type { CoverTint, ProfileTheme, ProjectCategory, Room, SavingRuleType } from '../types';
 import { ROOM_NAME_MAX_LENGTH } from '../lib/roomName';
 import { calcSuggestedRule } from '../lib/travelExpenseRules';
 
@@ -96,6 +96,10 @@ interface UpdateRoomCoverValues {
 
 interface UpdateMemberCoverValues extends UpdateRoomCoverValues {
   cover_tint?: CoverTint | null;
+}
+
+interface UpdateMemberThemeColorValues {
+  theme_color: ProfileTheme;
 }
 
 const ROOM_FETCH_TIMEOUT_MS = 12_000;
@@ -528,6 +532,19 @@ export function useRooms() {
     return { roomId };
   }
 
+  async function updateMemberThemeColor(roomId: string, values: UpdateMemberThemeColorValues): Promise<ActionResult> {
+    if (!userId) return { error: 'Not authenticated' };
+
+    const { error: updateError } = await supabase
+      .from('room_members')
+      .update({ theme_color: values.theme_color })
+      .eq('room_id', roomId)
+      .eq('user_id', userId);
+    if (updateError) return { error: updateError.message };
+
+    return { roomId };
+  }
+
   async function transferOwnership(roomId: string, newOwnerId: string): Promise<ActionResult> {
     if (!userId) return { error: 'Not authenticated' };
     const { error: rpcError } = await supabase.rpc('transfer_room_ownership', {
@@ -547,5 +564,5 @@ export function useRooms() {
     fetchRooms({ showLoading: currentRooms.length === 0 });
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, fetchRoomPreview, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, updateMemberCover, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
+  return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, fetchRoomPreview, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, updateMemberCover, updateMemberThemeColor, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

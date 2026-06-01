@@ -45,7 +45,7 @@ export function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, signOut } = useAuth();
   const { activeRoom, activeRoomId } = useRoom();
-  const { createRoom, joinRoomByCode, fetchRoomPreview, leaveRoom } = useRooms();
+  const { createRoom, joinRoomByCode, fetchRoomPreview, leaveRoom, updateMemberThemeColor } = useRooms();
   const { profile, loading, error, themeColor, updateProfile, uploadAvatar, updateLanguage } = useProfile();
   const { copy, language, setLanguage } = useI18n();
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
@@ -118,11 +118,22 @@ export function Profile() {
 
   async function handleProfileSave() {
     const result = await updateProfile({ display_name: displayName, theme_color: theme });
-    if (!result.error) {
-      setDisplayNameDraft(null);
-      setThemeDraft(null);
+    if (result.error) {
+      setMessage(result.error);
+      return;
     }
-    setMessage(result.error ?? copy.profile.profileUpdated);
+
+    if (activeRoomId) {
+      const roomThemeResult = await updateMemberThemeColor(activeRoomId, { theme_color: theme });
+      if (roomThemeResult.error) {
+        setMessage(roomThemeResult.error);
+        return;
+      }
+    }
+
+    setDisplayNameDraft(null);
+    setThemeDraft(null);
+    setMessage(copy.profile.profileUpdated);
   }
 
   async function handleAvatarUpload(file: File) {

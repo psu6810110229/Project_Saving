@@ -13,9 +13,9 @@ export interface LeaderboardEntry {
   themeColor?: ProfileTheme;
   /**
    * Saved amount that drives the percent, rank, and room total. For other
-   * members this is Recorded Deposits (sum of positive savings_logs). For
-   * the current user it is their Verified Balance (recorded deposits +
-   * reconcile adjustments) when available, so the leaderboard stays
+   * members this is the room-visible bucket balance
+   * (logs + allocations + net transfers). For the current user it is
+   * their Verified Balance when available, so the leaderboard stays
    * consistent with Check Balance.
    */
   saved: number;
@@ -39,44 +39,40 @@ export interface LeaderboardState {
   loading: boolean;
 }
 
-interface RawProfile { id: string; display_name: string; avatar_url?: string | null; theme_color?: ProfileTheme; }
+interface RawProfile { id: string; display_name: string; avatar_url?: string | null; }
 interface RawGoal { user_id: string; target_amount: string | number; }
 interface RawLeaderboardLog { user_id: string; amount: string | number; created_at: string; }
 interface RawRoomMemberRow { user_id: string; }
-
-const ROOM_LOGS_PAGE_SIZE = 1000;
+interface RawVisibleBalanceRow { user_id: string; total: string | number; }
+interface RawMemberThemeRow { user_id: string; theme_color: ProfileTheme | null; }
 
 async function fetchAllRoomLogs(roomId: string): Promise<Array<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id'>>> {
-  const rows: Array<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id'>> = [];
-  let from = 0;
+  const { data, error } = await supabase.rpc('room_savings_logs_for_room', {
+    p_room_id: roomId,
+  });
 
-  while (true) {
-    const to = from + ROOM_LOGS_PAGE_SIZE - 1;
-    const { data, error } = await supabase
-      .from('savings_logs')
-      .select('user_id, amount, created_at')
-      .eq('room_id', roomId)
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
-    if (error) {
-      throw error;
-    }
-
-    const batch = ((data ?? []) as RawLeaderboardLog[]).map(row => ({
-      user_id: row.user_id,
-      amount: Number(row.amount),
-      created_at: row.created_at,
-    }));
-
-    rows.push(...batch);
-
-    if (batch.length < ROOM_LOGS_PAGE_SIZE) {
-      return rows;
-    }
-
-    from += ROOM_LOGS_PAGE_SIZE;
+  if (error) {
+    throw error;
   }
+
+  return ((data ?? []) as RawLeaderboardLog[]).map(row => ({
+    user_id: row.user_id,
+    amount: Number(row.amount),
+    created_at: row.created_at,
+  }));
+}
+
+async function fetchRoomMemberVisibleBalances(roomId: string): Promise<Map<string, number>> {
+  const { data, error } = await supabase.rpc('room_member_visible_balances', {
+    p_room_id: roomId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = (data ?? []) as RawVisibleBalanceRow[];
+  return new Map(rows.map(row => [row.user_id, Number(row.total)]));
 }
 
 export function useLeaderboard(
@@ -96,6 +92,8 @@ export function useLeaderboard(
   const [profiles, setProfiles] = useState<RawProfile[]>([]);
   const [goals, setGoals] = useState<RawGoal[]>([]);
   const [roomLogs, setRoomLogs] = useState<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id'>[]>([]);
+  const [visibleBalancesByUserId, setVisibleBalancesByUserId] = useState<Map<string, number>>(new Map());
+  const [themeByUserId, setThemeByUserId] = useState<Map<string, ProfileTheme | null>>(new Map());
   const [loading, setLoading] = useState(true);
   const [today, setToday] = useState(() => localDateKey(new Date().toISOString(), APP_TZ));
 
@@ -105,6 +103,8 @@ export function useLeaderboard(
       setProfiles([]);
       setGoals([]);
       setRoomLogs([]);
+      setVisibleBalancesByUserId(new Map());
+      setThemeByUserId(new Map());
       setLoading(false);
       return;
     }
@@ -150,27 +150,37 @@ export function useLeaderboard(
       if (userIds.length === 0) {
         setProfiles([]);
         setGoals([]);
+        setVisibleBalancesByUserId(new Map());
+        setThemeByUserId(new Map());
         setLoading(false);
         return;
       }
 
       // Step 2: fetch profiles + goals in parallel.
-      const [{ data: p }, { data: g }, l] = await Promise.all([
+      const [{ data: p }, { data: g }, l, visibleBalances, { data: themedMembers, error: themedMembersError }] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, display_name, avatar_url, theme_color')
+          .select('id, display_name, avatar_url')
           .in('id', userIds),
         supabase
           .from('goals')
           .select('user_id, target_amount')
           .eq('room_id', activeRoomId),
         fetchAllRoomLogs(activeRoomId),
+        fetchRoomMemberVisibleBalances(activeRoomId),
+        supabase.rpc('room_members_for_room', { p_room_id: activeRoomId }),
       ]);
 
       if (cancelled) return;
       setProfiles((p ?? []) as RawProfile[]);
       setGoals(g ?? []);
       setRoomLogs(l);
+      setVisibleBalancesByUserId(visibleBalances);
+      if (themedMembersError && typeof console !== 'undefined') {
+        console.warn('[useLeaderboard] room_members_for_room theme fetch failed', themedMembersError.message);
+      }
+      const themeRows = (themedMembers ?? []) as RawMemberThemeRow[];
+      setThemeByUserId(new Map(themeRows.map(row => [row.user_id, row.theme_color])));
       setLoading(false);
     }
 
@@ -193,6 +203,16 @@ export function useLeaderboard(
         { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${roomId}` },
         () => { void fetchLeaderboardData(); },
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bucket_transfers', filter: `room_id=eq.${roomId}` },
+        () => { void fetchLeaderboardData(); },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'balance_allocations', filter: `room_id=eq.${roomId}` },
+        () => { void fetchLeaderboardData(); },
+      )
       .subscribe();
 
     const id = setInterval(() => {
@@ -213,13 +233,14 @@ export function useLeaderboard(
       const userLogs = roomLogs.filter(l => l.user_id === p.id);
       const isYou = p.id === myUserId;
       const recordedSaved = userLogs.reduce((sum, l) => sum + l.amount, 0);
-      // The current user's card/%/rank reflect Verified Balance (recorded +
-      // reconcile adjustments) when available; everyone else stays on
-      // Recorded Deposits. Streak/"logged today" below remain on recorded
-      // deposits since they measure the saving habit, not the balance.
+      // The current user's card/%/rank reflect their private Verified
+      // Balance when available. Other members use the room-visible bucket
+      // balance summary from the aggregate RPC. Streak/"logged today"
+      // stay on recorded deposits since they measure the saving habit,
+      // not the bucket balance.
       const saved = isYou && currentUserVerifiedBalance !== null
         ? currentUserVerifiedBalance
-        : recordedSaved;
+        : (visibleBalancesByUserId.get(p.id) ?? recordedSaved);
       const goal = goals.find(g => g.user_id === p.id);
       const target = goal ? Number(goal.target_amount) : null;
       const rawPercent = target && target > 0 ? (saved / target) * 100 : 0;
@@ -229,7 +250,7 @@ export function useLeaderboard(
         ? calcStreakWithFreezes(userLogs, today, currentUserFrozenDates)
         : calcStreak(userLogs, today);
       const hasLoggedToday = userLogs.some(l => localDateKey(l.created_at) === today);
-      return { userId: p.id, displayName: p.display_name, avatarUrl: p.avatar_url, themeColor: p.theme_color, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou };
+      return { userId: p.id, displayName: p.display_name, avatarUrl: p.avatar_url, themeColor: themeByUserId.get(p.id) ?? undefined, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou };
     });
 
     const sorted = [...raw].sort((a, b) => {
@@ -254,5 +275,5 @@ export function useLeaderboard(
     }));
 
     return { entries, loading: false };
-  }, [profiles, goals, roomLogs, loading, today, myUserId, currentUserFrozenDates, currentUserVerifiedBalance]);
+  }, [profiles, goals, roomLogs, loading, today, myUserId, currentUserFrozenDates, currentUserVerifiedBalance, visibleBalancesByUserId, themeByUserId]);
 }

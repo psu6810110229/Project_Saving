@@ -3,14 +3,18 @@ import { supabase } from '../lib/supabase';
 import type { SavingsLog } from '../types';
 
 const CAP = 500;
-
-type RawProfile = { display_name: string } | { display_name: string }[] | null;
-
-function extractDisplayName(profiles: RawProfile): string | undefined {
-  if (!profiles) return undefined;
-  if (Array.isArray(profiles)) return profiles[0]?.display_name;
-  return profiles.display_name;
-}
+type RawRoomLogRow = {
+  id: string;
+  user_id: string;
+  amount: string | number;
+  note: string | null;
+  created_at: string;
+  room_id: string;
+  bucket_id: string | null;
+  slip_url: string | null;
+  display_name?: string | null;
+  bucket_name?: string | null;
+};
 
 export function useAllLogs(roomId: string | null = null) {
   const [logs, setLogs] = useState<SavingsLog[]>([]);
@@ -18,17 +22,12 @@ export function useAllLogs(roomId: string | null = null) {
 
   async function fetchLogs() {
     if (!roomId) { setLogs([]); setLoading(false); return; }
-    const { data, error } = await supabase
-      .from('savings_logs')
-      .select('id, user_id, amount, note, created_at, room_id, bucket_id, slip_url, profiles!savings_logs_user_id_fkey(display_name), buckets(name)')
-      .eq('room_id', roomId)
-      .order('created_at', { ascending: false })
-      .limit(CAP);
+    const { data, error } = await supabase.rpc('room_savings_logs_for_room', {
+      p_room_id: roomId,
+    });
 
     if (error) return;
-    setLogs((data ?? []).map(row => {
-      const rawBucket = row.buckets as { name: string } | { name: string }[] | null;
-      const bucket_name = Array.isArray(rawBucket) ? rawBucket[0]?.name : rawBucket?.name;
+    setLogs(((data ?? []) as RawRoomLogRow[]).slice(0, CAP).map(row => {
       return {
         id: row.id,
         user_id: row.user_id,
@@ -36,9 +35,9 @@ export function useAllLogs(roomId: string | null = null) {
         amount: Number(row.amount),
         note: row.note,
         created_at: row.created_at,
-        display_name: extractDisplayName(row.profiles as RawProfile),
+        display_name: row.display_name ?? undefined,
         bucket_id: row.bucket_id ?? undefined,
-        bucket_name,
+        bucket_name: row.bucket_name ?? undefined,
         slip_url: row.slip_url,
       };
     }));

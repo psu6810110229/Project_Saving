@@ -18,36 +18,39 @@ export function AuthCallback() {
   useEffect(() => {
     let cancelled = false;
 
-    async function finishSignIn() {
-      const params = new URLSearchParams(window.location.search);
-      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-      const providerError = params.get('error_description') ?? params.get('error') ?? hashParams.get('error_description') ?? hashParams.get('error');
+    // 1. เช็ก Error จาก Provider ใน URL (โค้ดดั้งเดิมของคุณฟาน ดีอยู่แล้วครับ)
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const providerError = params.get('error_description') ?? params.get('error') ?? hashParams.get('error_description') ?? hashParams.get('error');
 
-      if (providerError) {
-        setError(providerError);
-        return;
+    if (providerError) {
+      setError(providerError);
+      return;
+    }
+
+    // 2. กางเต็นท์รอฟังสถานะ หาก Supabase แลกโค้ดอัตโนมัติสำเร็จ มันจะส่งสัญญาณมาที่นี่
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === 'SIGNED_IN' || session) {
+        navigate('/', { replace: true });
       }
+    });
 
+    // 3. Fallback: เช็กซ้ำเผื่อกรณีที่ระบบแลกโค้ดเสร็จไปแล้วตั้งแต่ก่อน useEffect ทำงาน
+    async function checkSessionFallback() {
       try {
-        const code = params.get('code');
-        if (code) {
-          const { error: exchangeError } = await withTimeout(
-            supabase.auth.exchangeCodeForSession(code),
-            CALLBACK_TIMEOUT_MS,
-            copy.auth.timeoutError,
-          );
-          if (exchangeError) throw exchangeError;
-        }
-
         const { data, error: sessionError } = await withTimeout(
           supabase.auth.getSession(),
           CALLBACK_TIMEOUT_MS,
           copy.auth.timeoutError,
         );
+        
         if (sessionError) throw sessionError;
-        if (!data.session) throw new Error(copy.auth.noSessionError);
-
-        if (!cancelled) navigate('/', { replace: true });
+        
+        // ถ้ามี Session แล้ว ก็เตะเข้าหน้าหลักเลย
+        if (data.session && !cancelled) {
+          navigate('/', { replace: true });
+        }
       } catch (caught) {
         if (!cancelled) {
           const message = caught instanceof Error ? caught.message : copy.auth.genericError;
@@ -56,12 +59,13 @@ export function AuthCallback() {
       }
     }
 
-    void finishSignIn();
+    void checkSessionFallback();
 
     return () => {
       cancelled = true;
+      subscription.unsubscribe(); // อย่าลืมทำลาย Listener ตอนเปลี่ยนหน้า
     };
-  }, [copy.auth.genericError, copy.auth.noSessionError, copy.auth.timeoutError, navigate]);
+  }, [copy.auth.genericError, copy.auth.timeoutError, navigate]);
 
   if (error) {
     return (

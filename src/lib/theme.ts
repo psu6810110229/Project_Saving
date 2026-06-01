@@ -52,11 +52,25 @@ export const themeSwatches = {
   terracotta: palette.brand500,
   slate:      palette.accentSlate,
   teal:       palette.accentTeal,
+  gold:       palette.accentGold,
+  leaf:       palette.accentLeaf,
+  coral:      '#D96C5F',
+  indigo:     '#6E7CCF',
 } as const;
 
 export type ThemeSwatch = keyof typeof themeSwatches;
 
 export const DEFAULT_THEME: ThemeSwatch = 'terracotta';
+
+export const THEME_SWATCH_ORDER: ThemeSwatch[] = [
+  'terracotta',
+  'slate',
+  'teal',
+  'gold',
+  'leaf',
+  'coral',
+  'indigo',
+];
 
 /** Pixel radii used by `<svg>` and dynamic styles. Mirror Tailwind `borderRadius`. */
 export const radius = {

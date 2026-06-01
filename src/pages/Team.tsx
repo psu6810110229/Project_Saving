@@ -19,24 +19,23 @@ import {
   IconCheck,
   IconChevronDown,
   IconTrash,
-  IconUser,
   IconVault,
 } from '../components/Icon/Icon';
 import { useAuth } from '../hooks/useAuth';
 import { useSharedData } from '../hooks/useSharedData';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useLogs } from '../hooks/useLogs';
+import { useMemberSavingSnapshot } from '../hooks/useMemberSavingSnapshot';
 import { useRoom } from '../hooks/useRoom';
 import { useSendNudge } from '../hooks/useSendNudge';
 import { useI18n } from '../i18n/useI18n';
+import { bucketSaved } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import {
-  availablePurposeCategoriesForMode,
-  purposeDailyMarkers,
-  purposeFilteredDailySeries,
-  purposeNetDailyMarkers,
-  purposeNetDailySeries,
+  availablePurposeCategoriesForModeFromFlows,
+  purposeVisibleFlowDailyMarkers,
+  purposeVisibleFlowDailySeries,
   type MomentumPurposeScope,
 } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
@@ -65,13 +64,13 @@ export function Team() {
   const { copy, language, formatMoney } = useI18n();
   const { sendNudge } = useSendNudge();
   const d = copy.dashboard;
-  const t = copy.team;
 
   const data = useSharedData();
   const { buckets } = data.buckets;
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { allocations: balanceAllocations } = data.balanceAllocations;
   const { logs } = data.logs;
+  const { flows: visibleMomentumFlows } = data.roomVisibleMomentumFlows;
   const leaderboard = data.leaderboard;
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
   const { activity: balanceActivity } = data.reconcile;
@@ -112,16 +111,16 @@ export function Team() {
   const [compareMemberId, setCompareMemberId] = useState<string | null>(null);
   const effectiveTrendMode: DailyTrendMode = purposeScope.kind === 'bucket' ? 'me' : trendMode;
   const purposeCategories = useMemo(
-    () => availablePurposeCategoriesForMode(
+    () => availablePurposeCategoriesForModeFromFlows(
       effectiveTrendMode,
       buckets,
       allVisibleBuckets,
-      logs,
+      visibleMomentumFlows,
       visibleBucketsById,
       compareMemberId,
       user?.id,
     ),
-    [effectiveTrendMode, buckets, allVisibleBuckets, logs, visibleBucketsById, compareMemberId, user?.id],
+    [effectiveTrendMode, buckets, allVisibleBuckets, visibleMomentumFlows, visibleBucketsById, compareMemberId, user?.id],
   );
   const purposePickerBuckets = effectiveTrendMode === 'me' ? buckets : allVisibleBuckets;
 
@@ -204,31 +203,27 @@ export function Team() {
     ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
     : undefined;
 
-  const meDailySeries = purposeNetDailySeries(
-    logs,
+  const meDailySeries = purposeVisibleFlowDailySeries(
+    visibleMomentumFlows,
     purposeScope,
     visibleBucketsById,
     user?.id,
-    bucketTransfers,
-    balanceAllocations,
   );
-  const meDailyMarkers = purposeNetDailyMarkers(
-    logs,
+  const meDailyMarkers = purposeVisibleFlowDailyMarkers(
+    visibleMomentumFlows,
     purposeScope,
     visibleBucketsById,
     user?.id,
-    bucketTransfers,
-    balanceAllocations,
     undefined,
     { revealBucketNamesForUserId: user?.id ?? null },
   );
   const otherDailySeriesByUserId = otherMemberIds.reduce<Record<string, number[]>>((acc, id) => {
-    acc[id] = purposeFilteredDailySeries(logs, purposeScope, visibleBucketsById, id);
+    acc[id] = purposeVisibleFlowDailySeries(visibleMomentumFlows, purposeScope, visibleBucketsById, id);
     return acc;
   }, {});
-  const otherDailyMarkersByUserId = otherMemberIds.reduce<Record<string, ReturnType<typeof purposeDailyMarkers>>>((acc, id) => {
-    acc[id] = purposeDailyMarkers(
-      logs,
+  const otherDailyMarkersByUserId = otherMemberIds.reduce<Record<string, ReturnType<typeof purposeVisibleFlowDailyMarkers>>>((acc, id) => {
+    acc[id] = purposeVisibleFlowDailyMarkers(
+      visibleMomentumFlows,
       purposeScope,
       visibleBucketsById,
       id,
@@ -237,20 +232,16 @@ export function Team() {
     );
     return acc;
   }, {});
-  const roomDailySeries = otherMemberIds.reduce<number[]>(
-    (acc, id) => {
-      const series = otherDailySeriesByUserId[id] ?? [];
-      return acc.map((value, index) => value + (series[index] ?? 0));
-    },
-    meDailySeries.slice(),
+  const roomDailySeries = purposeVisibleFlowDailySeries(
+    visibleMomentumFlows,
+    purposeScope,
+    visibleBucketsById,
   );
-  const roomDailyMarkers = purposeNetDailyMarkers(
-    logs,
+  const roomDailyMarkers = purposeVisibleFlowDailyMarkers(
+    visibleMomentumFlows,
     purposeScope,
     visibleBucketsById,
     undefined,
-    bucketTransfers,
-    balanceAllocations,
     undefined,
     { revealBucketNamesForUserId: user?.id ?? null },
   );
@@ -268,6 +259,7 @@ export function Team() {
   const compareSelectedEntry = compareMemberId
     ? leaderboard.entries.find(entry => entry.userId === compareMemberId) ?? null
     : null;
+  const youName = you?.displayName ?? profile?.display_name ?? d.youLabel;
 
   const trendModeOptions: Array<{ value: DailyTrendMode; label: string }> = [
     { value: 'room', label: d.dailyDepositModeRoom },
@@ -275,6 +267,16 @@ export function Team() {
     { value: 'compare', label: d.dailyDepositModeCompare },
   ];
   const hasOtherMembers = otherMemberIds.length > 0;
+  const primaryChartThemeColor = effectiveTrendMode === 'room' ? undefined : you?.themeColor;
+  const primaryChartAvatarUrl = effectiveTrendMode === 'room' ? null : (profile?.avatar_url ?? null);
+  const primaryChartAvatarFallback = effectiveTrendMode === 'room'
+    ? undefined
+    : fallbackInitial(profile?.display_name ?? youName);
+  const secondaryChartThemeColor = effectiveTrendMode === 'compare' ? compareSelectedEntry?.themeColor : undefined;
+  const secondaryChartAvatarUrl = effectiveTrendMode === 'compare' ? (compareSelectedEntry?.avatarUrl ?? null) : null;
+  const secondaryChartAvatarFallback = effectiveTrendMode === 'compare'
+    ? fallbackInitial(compareSelectedEntry?.displayName ?? d.partnerLabel)
+    : undefined;
 
   const { chartSeries, chartPartnerSeries, chartPrimaryLabel, chartSecondaryLabel, chartDisplayedTotal, chartBarMarkers, chartPartnerBarMarkers } = useMemo(() => {
     if (effectiveTrendMode === 'room') {
@@ -329,7 +331,6 @@ export function Team() {
       })()
     : undefined;
 
-  const youName = you?.displayName ?? profile?.display_name ?? d.youLabel;
   const leaderboardEntries: TeamSectionMember[] = useMemo(() => leaderboard.entries.length > 0
     ? leaderboard.entries.map(entry => ({
         userId: entry.userId,
@@ -350,50 +351,50 @@ export function Team() {
         imageUrl: profile?.avatar_url ?? null,
         saved: total,
         target,
-        themeColor: profile?.theme_color,
+        themeColor: you?.themeColor,
         isYou: true,
-      }] : []), [leaderboard.entries, youName, d.partnerLabel, profile?.display_name, profile?.avatar_url, profile?.theme_color, user, total, target]);
+      }] : []), [leaderboard.entries, youName, d.partnerLabel, profile?.display_name, profile?.avatar_url, you?.themeColor, user, total, target]);
 
   const chartLocale = language === 'th' ? 'th-TH' : 'en-US';
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [nudgeBusyMemberId, setNudgeBusyMemberId] = useState<string | null>(null);
+  const selectedMemberSnapshot = useMemberSavingSnapshot(activeRoomId, selectedMemberId);
 
   const selectedMember = useMemo<MemberDetailModalMember | null>(() => {
     if (!selectedMemberId) return null;
     const entry = leaderboard.entries.find(e => e.userId === selectedMemberId);
     if (!entry) return null;
-    const savedByBucket = new Map<string, number>();
-    let memberSaved = 0;
-    for (const log of logs) {
-      if (log.user_id === selectedMemberId) {
-        memberSaved += log.amount;
-      }
-      if (log.user_id === selectedMemberId && log.bucket_id) {
-        savedByBucket.set(log.bucket_id, (savedByBucket.get(log.bucket_id) ?? 0) + log.amount);
-      }
-    }
-    const memberBuckets = selectedMemberId === user?.id
+    const isSelf = selectedMemberId === user?.id;
+    const memberBuckets = isSelf
       ? buckets
       : (data.roomMembersBuckets.bucketsByUser[selectedMemberId] ?? []);
     const name = entry.displayName ?? d.partnerLabel;
+    const saved = isSelf
+      ? memberBuckets.reduce(
+          (sum, bucket) => sum + bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations),
+          0,
+        )
+      : selectedMemberSnapshot.saved;
     return {
       name,
       fallback: fallbackInitial(name),
       avatarUrl: entry.avatarUrl,
       themeColor: entry.themeColor,
-      saved: memberSaved,
+      saved,
       target: entry.personalGoalTarget ?? 0,
       buckets: memberBuckets.map(bucket => ({
         id: bucket.id,
         name: bucket.name,
-        saved: savedByBucket.get(bucket.id) ?? 0,
+        saved: isSelf
+          ? bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations)
+          : (selectedMemberSnapshot.bucketSavedById[bucket.id] ?? 0),
         target: bucket.target_amount,
         category: bucket.category,
       })),
     };
-  }, [selectedMemberId, leaderboard.entries, logs, data.roomMembersBuckets.bucketsByUser, d.partnerLabel, user?.id, buckets]);
+  }, [selectedMemberId, leaderboard.entries, data.roomMembersBuckets.bucketsByUser, d.partnerLabel, user?.id, buckets, selectedMemberSnapshot.saved, selectedMemberSnapshot.bucketSavedById, logs, bucketTransfers, balanceAllocations]);
 
   function handleMemberClick(entry: TeamSectionMember) {
     setSelectedMemberId(entry.userId);
@@ -436,19 +437,6 @@ export function Team() {
 
   return (
     <div className="flex flex-col gap-6 px-5 pt-8 pb-6">
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="font-mono text-2xl font-bold leading-tight text-ink">
-            {t.pageTitle}
-          </h1>
-          <p className="mt-0.5 font-mono text-sm text-ink-muted">{t.pageSubtitle}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5 text-ink-muted" aria-label={d.membersInRoom(leaderboard.entries.length)}>
-          <IconUser size={14} />
-          <span className="font-mono text-xs">{leaderboard.entries.length}</span>
-        </div>
-      </header>
-
       {/* Leaderboard */}
       <TeamSection
         members={leaderboardEntries}
@@ -472,7 +460,13 @@ export function Team() {
           yourName={profile?.display_name ?? d.youLabel}
           partnerName={chartSecondaryLabel}
           primaryLabel={chartPrimaryLabel}
+          primaryThemeColor={primaryChartThemeColor}
+          primaryAvatarUrl={primaryChartAvatarUrl}
+          primaryAvatarFallback={primaryChartAvatarFallback}
           secondaryLabel={chartSecondaryLabel}
+          secondaryThemeColor={secondaryChartThemeColor}
+          secondaryAvatarUrl={secondaryChartAvatarUrl}
+          secondaryAvatarFallback={secondaryChartAvatarFallback}
           displayedTotal={chartDisplayedTotal}
           emptyStateMessage={selectedPurposeEmptyMessage}
           purposePicker={purposeCategories.length > 0 ? (

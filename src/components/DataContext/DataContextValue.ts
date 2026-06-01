@@ -13,6 +13,7 @@ import type { useReconcile } from '../../hooks/useReconcile';
 import type { useRoomMembersBuckets } from '../../hooks/useRoomMembersBuckets';
 import type { useRoomMembersSavingPlans } from '../../hooks/useRoomMembersSavingPlans';
 import type { useRoomOtherMemberIds } from '../../hooks/useRoomOtherMemberIds';
+import type { useRoomVisibleMomentumFlows } from '../../hooks/useRoomVisibleMomentumFlows';
 import type { useSavingPlan } from '../../hooks/useSavingPlan';
 import type { useStreakFreeze } from '../../hooks/useStreakFreeze';
 
@@ -29,6 +30,7 @@ export interface DataContextValue {
   savingPlan: ReturnType<typeof useSavingPlan>;
   partnerSavingPlan: ReturnType<typeof usePartnerSavingPlan>;
   reconcile: ReturnType<typeof useReconcile>;
+  roomVisibleMomentumFlows: ReturnType<typeof useRoomVisibleMomentumFlows>;
   streakFreeze: ReturnType<typeof useStreakFreeze>;
   otherMemberIds: ReturnType<typeof useRoomOtherMemberIds>;
   roomMembersBuckets: ReturnType<typeof useRoomMembersBuckets>;

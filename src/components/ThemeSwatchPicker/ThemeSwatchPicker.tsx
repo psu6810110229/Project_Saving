@@ -1,11 +1,10 @@
-import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
+import { THEME_SWATCH_ORDER, themeSwatches, type ThemeSwatch } from '../../lib/theme';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { useI18n } from '../../i18n/useI18n';
 
 /**
- * Profile → Theme Colors swatch picker. Three round swatches (terracotta
- * / slate / teal) mirroring the three options on the profile-update
- * screen.
+ * Profile → Theme Colors swatch picker. Mirrors the available swatches
+ * from `themeSwatches`.
  */
 
 interface ThemeSwatchPickerProps {
@@ -14,16 +13,14 @@ interface ThemeSwatchPickerProps {
   label?: string;
 }
 
-const ORDER: ThemeSwatch[] = ['terracotta', 'slate', 'teal'];
-
 export function ThemeSwatchPicker({ value, onChange, label }: ThemeSwatchPickerProps) {
   const { copy } = useI18n();
   const resolvedLabel = label ?? copy.sharedControls.themeColors;
   return (
     <div>
       <SectionLabel tone="muted">{resolvedLabel}</SectionLabel>
-      <div className="mt-3 flex items-center gap-4">
-        {ORDER.map(key => {
+      <div className="mt-3 flex flex-wrap items-center gap-4">
+        {THEME_SWATCH_ORDER.map(key => {
           const hex = themeSwatches[key];
           const selected = key === value;
           return (

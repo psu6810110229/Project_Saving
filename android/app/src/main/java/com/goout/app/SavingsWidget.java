@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.RemoteViews;
 
 import org.json.JSONObject;
@@ -51,25 +52,15 @@ public class SavingsWidget extends AppWidgetProvider {
         Bundle options = manager.getAppWidgetOptions(appWidgetId);
         boolean compact = isCompact(options);
         int layoutId = compact ? R.layout.widget_savings_2x2 : R.layout.widget_savings_4x2;
-        int widthDp = getOptionDp(
-                options,
-                compact ? 110 : 250,
-                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
-                AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH
-        );
-        int heightDp = getOptionDp(
-                options,
-                110,
-                AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT,
-                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT
-        );
 
         RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
         Snapshot snap = readSnapshot(context);
-        views.setImageViewBitmap(
-                R.id.w_canvas,
-                SavingsWidgetBitmapRenderer.render(context, snap, compact, widthDp, heightDp)
-        );
+
+        if (compact) {
+            bindCompact(context, views, snap);
+        } else {
+            bindLarge(context, views, snap);
+        }
 
         views.setOnClickPendingIntent(R.id.w_add,
                 deepLink(context, "goout://dashboard?action=deposit", 1));
@@ -81,6 +72,85 @@ public class SavingsWidget extends AppWidgetProvider {
         }
 
         manager.updateAppWidget(appWidgetId, views);
+    }
+
+    private void bindLarge(Context context, RemoteViews views, Snapshot snap) {
+        if (snap == null) {
+            views.setTextViewText(R.id.w_room, context.getString(R.string.app_name));
+            views.setViewVisibility(R.id.w_streak, View.GONE);
+            views.setTextViewText(R.id.w_hero, context.getString(R.string.widget_empty));
+            views.setViewVisibility(R.id.w_sub, View.GONE);
+            views.setViewVisibility(R.id.w_panel, View.GONE);
+            views.setProgressBar(R.id.w_progress, 100, 0, false);
+            return;
+        }
+
+        String room = fallbackText(snap.roomName, context.getString(R.string.app_name));
+        String streak = normalizedText(streakLabel(snap));
+        String hero = fallbackText(heroText(context, snap), context.getString(R.string.widget_empty));
+        String sub = normalizedText(dueLabel(context, snap));
+        String progressLabel = "no_plan".equals(snap.todayState)
+                ? context.getString(R.string.widget_current_progress)
+                : context.getString(R.string.widget_overall_progress);
+        String saved = fallbackText(savedLine(context, snap), baht(0));
+        String pct = clampPct(snap.progressPct) + "%";
+        String support = fallbackText(
+                normalizedText(supportLine(context, snap)),
+                fallbackText(normalizedText(snap.focusBucketName), saved)
+        );
+
+        views.setTextViewText(R.id.w_room, room);
+        if (streak.isEmpty()) {
+            views.setViewVisibility(R.id.w_streak, View.GONE);
+        } else {
+            views.setViewVisibility(R.id.w_streak, View.VISIBLE);
+            views.setTextViewText(R.id.w_streak, "\uD83D\uDD25 " + streak);
+        }
+
+        views.setTextViewText(R.id.w_hero, hero);
+        if (sub.isEmpty()) {
+            views.setViewVisibility(R.id.w_sub, View.GONE);
+        } else {
+            views.setViewVisibility(R.id.w_sub, View.VISIBLE);
+            views.setTextViewText(R.id.w_sub, sub);
+        }
+
+        views.setViewVisibility(R.id.w_panel, View.VISIBLE);
+        views.setTextViewText(R.id.w_panel_label, progressLabel);
+        views.setTextViewText(R.id.w_saved, saved);
+        views.setTextViewText(R.id.w_pct, pct);
+        views.setTextViewText(R.id.w_support, support);
+        views.setProgressBar(R.id.w_progress, 100, clampPct(snap.progressPct), false);
+    }
+
+    private void bindCompact(Context context, RemoteViews views, Snapshot snap) {
+        if (snap == null) {
+            views.setTextViewText(R.id.w_room, context.getString(R.string.app_name));
+            views.setTextViewText(R.id.w_hero, context.getString(R.string.widget_empty));
+            views.setViewVisibility(R.id.w_sub, View.GONE);
+            views.setTextViewText(R.id.w_support, "");
+            views.setProgressBar(R.id.w_progress, 100, 0, false);
+            return;
+        }
+
+        String room = fallbackText(snap.roomName, context.getString(R.string.app_name));
+        String hero = fallbackText(heroText(context, snap), context.getString(R.string.widget_empty));
+        String sub = "no_plan".equals(snap.todayState) ? "" : normalizedText(dueLabel(context, snap));
+        String support = fallbackText(
+                normalizedText(compactSupportLine(context, snap)),
+                fallbackText(normalizedText(supportLine(context, snap)), baht(0))
+        );
+
+        views.setTextViewText(R.id.w_room, room);
+        views.setTextViewText(R.id.w_hero, hero);
+        if (sub.isEmpty()) {
+            views.setViewVisibility(R.id.w_sub, View.GONE);
+        } else {
+            views.setViewVisibility(R.id.w_sub, View.VISIBLE);
+            views.setTextViewText(R.id.w_sub, sub);
+        }
+        views.setTextViewText(R.id.w_support, support);
+        views.setProgressBar(R.id.w_progress, 100, clampPct(snap.progressPct), false);
     }
 
     static String heroText(Context context, Snapshot snap) {
@@ -101,13 +171,6 @@ public class SavingsWidget extends AppWidgetProvider {
             return periodLabel(context, snap.todayPeriod);
         }
         return context.getString(R.string.widget_saved_so_far);
-    }
-
-    static String compactLabel(Context context, Snapshot snap) {
-        if ("no_plan".equals(snap.todayState)) {
-            return savedLine(context, snap);
-        }
-        return dueLabel(context, snap);
     }
 
     static String savedLine(Context context, Snapshot snap) {
@@ -151,12 +214,6 @@ public class SavingsWidget extends AppWidgetProvider {
         return context.getString(R.string.widget_need_today);
     }
 
-    static String doneLabel(Context context, String period) {
-        if ("week".equals(period)) return context.getString(R.string.widget_done_week);
-        if ("month".equals(period)) return context.getString(R.string.widget_done_month);
-        return context.getString(R.string.widget_done_today);
-    }
-
     static String periodNoun(Context context, String period) {
         if ("week".equals(period)) return context.getString(R.string.widget_period_week);
         if ("month".equals(period)) return context.getString(R.string.widget_period_month);
@@ -191,14 +248,6 @@ public class SavingsWidget extends AppWidgetProvider {
         return context.getString(R.string.widget_to_go, baht(remaining));
     }
 
-    private static int getOptionDp(Bundle options, int defaultValue, String primaryKey, String fallbackKey) {
-        if (options == null) return defaultValue;
-        int value = options.getInt(primaryKey, 0);
-        if (value > 0) return value;
-        value = options.getInt(fallbackKey, 0);
-        return value > 0 ? value : defaultValue;
-    }
-
     private PendingIntent deepLink(Context context, String url, int requestCode) {
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         intent.setPackage(context.getPackageName());
@@ -214,25 +263,49 @@ public class SavingsWidget extends AppWidgetProvider {
         try {
             JSONObject json = new JSONObject(raw);
             Snapshot s = new Snapshot();
-            s.roomName = json.optString("roomName", context.getString(R.string.app_name));
+            s.roomName = cleanOptString(json, "roomName", context.getString(R.string.app_name));
             s.saved = Math.round(json.optDouble("saved", 0));
             s.goal = Math.round(json.optDouble("goal", 0));
             s.progressPct = json.optInt("progressPct", 0);
             s.todayDue = Math.round(json.optDouble("todayDue", 0));
-            s.todayState = json.optString("todayState", "no_plan");
-            s.todayPeriod = json.optString("todayPeriod", "flex");
-            s.focusBucketName = json.optString("focusBucketName", "");
+            s.todayState = cleanOptString(json, "todayState", "no_plan");
+            s.todayPeriod = cleanOptString(json, "todayPeriod", "flex");
+            s.focusBucketName = cleanOptString(json, "focusBucketName", "");
             if (s.focusBucketName.isEmpty()) s.focusBucketName = null;
             s.focusBucketCount = json.optInt("focusBucketCount", 0);
             s.focusBucketSaved = Math.round(json.optDouble("focusBucketSaved", 0));
             s.focusBucketTarget = Math.round(json.optDouble("focusBucketTarget", 0));
             s.focusBucketPct = json.optInt("focusBucketPct", 0);
             s.streak = json.optInt("streak", 0);
-            s.streakUnit = json.optString("streakUnit", "day");
+            s.streakUnit = cleanOptString(json, "streakUnit", "day");
             return s;
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static String cleanOptString(JSONObject json, String key, String fallback) {
+        String value = json.optString(key, fallback);
+        if (value == null) return fallback;
+        value = value.trim();
+        if (value.isEmpty() || "null".equalsIgnoreCase(value) || "undefined".equalsIgnoreCase(value)) {
+            return fallback;
+        }
+        return value;
+    }
+
+    private static String normalizedText(String text) {
+        if (text == null) return "";
+        String trimmed = text.trim();
+        if (trimmed.isEmpty()) return "";
+        if ("null".equalsIgnoreCase(trimmed) || "undefined".equalsIgnoreCase(trimmed)) return "";
+        return trimmed;
+    }
+
+    private static String fallbackText(String primary, String fallback) {
+        String value = normalizedText(primary);
+        if (!value.isEmpty()) return value;
+        return normalizedText(fallback);
     }
 
     static int clampPct(int value) {
@@ -240,7 +313,7 @@ public class SavingsWidget extends AppWidgetProvider {
     }
 
     static String baht(long value) {
-        return "฿" + String.format(Locale.US, "%,d", value);
+        return "\u0E3F" + String.format(Locale.US, "%,d", value);
     }
 
     static class Snapshot {

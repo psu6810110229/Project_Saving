@@ -315,7 +315,14 @@ export interface BucketIntentSettings {
 }
 
 /** Personal theme swatch keys. Mirror `themeSwatches` keys in `lib/theme.ts`. */
-export type ProfileTheme = 'terracotta' | 'slate' | 'teal';
+export type ProfileTheme =
+  | 'terracotta'
+  | 'slate'
+  | 'teal'
+  | 'gold'
+  | 'leaf'
+  | 'coral'
+  | 'indigo';
 
 /* ──────────────────────────────────────────────────────────────────────
  * Reconcile / Check Balance (migration 0027).
@@ -380,8 +387,9 @@ export interface BalanceActivityEntry {
  * One owner-only balance allocation: moving unallocated reconcile
  * surplus (actual > app) into a bucket. Append-only ledger
  * (migration 0078), RLS-scoped to `user_id = auth.uid()`. Contributes
- * to `bucket_balance` but never to Recorded Deposits (`savings_logs`),
- * so Saving Plan / streak / momentum are unaffected.
+ * to `bucket_balance` but never to Recorded Deposits (`savings_logs`).
+ * Saving Plan / streak remain deposit-based; bucket-balance views may
+ * still surface allocations.
  */
 export interface BalanceAllocation {
   id: string;
@@ -407,6 +415,15 @@ export interface AllocateBalanceResult {
 /* ──────────────────────────────────────────────────────────────────────
  * Saving Plan (Task 22.1, migration 0030).
  * ──────────────────────────────────────────────────────────────────── */
+
+/** One room-visible daily bucket movement used by Team momentum charts. */
+export interface RoomVisibleMomentumFlow {
+  user_id: string;
+  bucket_id: string | null;
+  date_key: string;
+  amount: number;
+  event_kind: 'deposit' | 'transfer_in' | 'transfer_out' | 'allocation';
+}
 
 export type SavingPlanRuleType =
   | 'fixed_daily'

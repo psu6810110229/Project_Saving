@@ -10,6 +10,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@property --status-orbit-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 @layer base {
 
   html,
@@ -137,6 +143,49 @@
   /* Halo glow used under the orange "Confirm Deposit" CTA in the mockups */
   .glow-orange {
     @apply shadow-haloOrange;
+  }
+
+  .status-orbit {
+    overflow: hidden;
+  }
+
+  .status-orbit__ring,
+  .status-orbit__glow {
+    border-radius: inherit;
+    will-change: background-image;
+    animation: status-orbit-angle var(--status-orbit-speed, 6.4s) linear infinite;
+    background:
+      linear-gradient(var(--status-orbit-static, rgba(255, 255, 255, 0.12)), var(--status-orbit-static, rgba(255, 255, 255, 0.12))),
+      conic-gradient(
+        from var(--status-orbit-angle, 0deg),
+        transparent 0deg 218deg,
+        var(--status-orbit-soft, rgba(255, 255, 255, 0.08)) 242deg,
+        var(--status-orbit-glow, rgba(255, 255, 255, 0.42)) 282deg,
+        var(--status-orbit-core, rgba(255, 255, 255, 0.9)) 314deg,
+        var(--status-orbit-glow, rgba(255, 255, 255, 0.42)) 336deg,
+        transparent 360deg
+      );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
+
+  .status-orbit__ring {
+    inset: 0;
+    padding: 1.5px;
+    opacity: 0.98;
+  }
+
+  .status-orbit__glow {
+    inset: -2px;
+    padding: 2.25px;
+    opacity: 0.9;
+    filter: blur(10px) saturate(1.08);
   }
 
   /* Hairline divider tinted to the warm palette */
@@ -560,6 +609,16 @@
 
   100% {
     background-position: -200% 0;
+  }
+}
+
+@keyframes status-orbit-angle {
+  from {
+    --status-orbit-angle: 0deg;
+  }
+
+  to {
+    --status-orbit-angle: 360deg;
   }
 }
 

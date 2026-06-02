@@ -21,6 +21,9 @@ const config: CapacitorConfig = {
       resetWhenUpdate: true,
       directUpdate: true,
     },
+    PushNotifications: {
+      presentationOptions: ['alert', 'sound'],
+    },
   },
 };
 

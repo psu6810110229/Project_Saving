@@ -29,7 +29,13 @@
 //   - CRON_SECRET            (required outside local/dev)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import webpush from 'https://esm.sh/web-push@3.6.7';
+import {
+  configureWebPush,
+  deliverPushToSubscriptions,
+  PUSH_SUBSCRIPTION_SELECT,
+  type AttemptRow,
+  type PushSubscriptionRow,
+} from '../_shared/pushDelivery.ts';
 
 interface EnqueuedRow {
   notification_id: string;
@@ -58,16 +64,6 @@ interface RemindersSummary {
   cleanup_notifications_deleted: number;
   cleanup_delivery_attempts_deleted: number;
   errors: string[];
-}
-
-interface AttemptInsert {
-  notification_id: string;
-  recipient_user_id: string;
-  push_subscription_id: string | null;
-  channel: 'push';
-  status: 'sent' | 'failed' | 'expired' | 'skipped';
-  error_code: string | null;
-  error_message: string | null;
 }
 
 const TARGET_ROUTE = '/saving-plan';
@@ -147,9 +143,6 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const vapidPublic = Deno.env.get('VAPID_PUBLIC_KEY')!;
-  const vapidPrivate = Deno.env.get('VAPID_PRIVATE_KEY')!;
-  const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:noreply@example.com';
 
   const admin = createClient(supabaseUrl, serviceKey);
 
@@ -223,7 +216,7 @@ Deno.serve(async (req) => {
     }`,
   );
 
-  webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+  configureWebPush();
 
   const recipientIds = Array.from(new Set([
     ...created.map(row => row.recipient_user_id),
@@ -238,18 +231,19 @@ Deno.serve(async (req) => {
 
   const { data: subRows } = await admin
     .from('push_subscriptions')
-    .select('id, user_id, endpoint, p256dh, auth_key')
+    .select(PUSH_SUBSCRIPTION_SELECT)
     .in('user_id', recipientIds);
-  const subsFor = new Map<string, Array<{ id: string; endpoint: string; p256dh: string; auth_key: string }>>();
-  for (const sub of (subRows ?? []) as Array<{ id: string; user_id: string; endpoint: string; p256dh: string; auth_key: string }>) {
-    if (!subsFor.has(sub.user_id)) subsFor.set(sub.user_id, []);
-    subsFor.get(sub.user_id)!.push(sub);
+  const subsFor = new Map<string, PushSubscriptionRow[]>();
+  for (const sub of (subRows ?? []) as PushSubscriptionRow[]) {
+    const list = subsFor.get(sub.user_id) ?? [];
+    list.push(sub);
+    subsFor.set(sub.user_id, list);
   }
 
   // 3. Deliver push for each newly created notification.
   const safeUrl = sanitizeRoute(TARGET_ROUTE);
   const safeFallback = sanitizeRoute(FALLBACK_ROUTE);
-  const attempts: AttemptInsert[] = [];
+  const attempts: AttemptRow[] = [];
 
   for (const note of created) {
     const subs = subsFor.get(note.recipient_user_id) ?? [];
@@ -270,7 +264,7 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const payload = JSON.stringify({
+    const payload = {
       notification_id: note.notification_id,
       event_key: 'saving_reminder_due',
       title: 'Saving reminder',
@@ -278,7 +272,7 @@ Deno.serve(async (req) => {
       url: safeUrl,
       fallback_url: safeFallback,
       tag: `saving_reminder:${note.plan_id}:${note.cadence}:${note.period_key}`,
-    });
+    };
 
     await deliverPush(note.notification_id, note.recipient_user_id, subs, payload);
   }
@@ -306,7 +300,7 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const payload = JSON.stringify({
+    const payload = {
       notification_id: note.notification_id,
       event_key: 'plan_started',
       title: 'Your saving plan starts today',
@@ -314,7 +308,7 @@ Deno.serve(async (req) => {
       url: safeUrl,
       fallback_url: safeFallback,
       tag: `plan_started:${note.plan_id}:${note.start_date}`,
-    });
+    };
 
     await deliverPush(note.notification_id, note.recipient_user_id, subs, payload);
   }
@@ -322,58 +316,29 @@ Deno.serve(async (req) => {
   async function deliverPush(
     notificationId: string,
     recipientUserId: string,
-    subs: Array<{ id: string; endpoint: string; p256dh: string; auth_key: string }>,
-    payload: string,
+    subs: PushSubscriptionRow[],
+    payload: {
+      notification_id: string;
+      event_key: string;
+      title: string;
+      body: string;
+      url: string;
+      fallback_url: string;
+      tag: string;
+    },
   ): Promise<void> {
-    await Promise.all(subs.map(async (sub) => {
-      summary.push_attempted += 1;
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-          payload,
-        );
-        summary.push_delivered += 1;
-        attempts.push({
-          notification_id: notificationId,
-          recipient_user_id: recipientUserId,
-          push_subscription_id: sub.id,
-          channel: 'push',
-          status: 'sent',
-          error_code: null,
-          error_message: null,
-        });
-      } catch (err) {
-        const status = typeof err === 'object' && err && 'statusCode' in err
-          ? Number((err as { statusCode: number }).statusCode)
-          : 0;
-        const message = typeof err === 'object' && err && 'message' in err
-          ? String((err as { message: string }).message)
-          : 'push failed';
-        if (status === 404 || status === 410) {
-          await admin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-          attempts.push({
-            notification_id: notificationId,
-            recipient_user_id: recipientUserId,
-            push_subscription_id: sub.id,
-            channel: 'push',
-            status: 'expired',
-            error_code: String(status),
-            error_message: null,
-          });
-        } else {
-          summary.errors.push(`${sub.endpoint.slice(0, 32)}...: ${message}`);
-          attempts.push({
-            notification_id: notificationId,
-            recipient_user_id: recipientUserId,
-            push_subscription_id: sub.id,
-            channel: 'push',
-            status: 'failed',
-            error_code: status ? String(status) : null,
-            error_message: message.slice(0, 500),
-          });
-        }
-      }
-    }));
+    const delivery = await deliverPushToSubscriptions(
+      admin,
+      recipientUserId,
+      notificationId,
+      subs,
+      payload,
+    );
+
+    summary.push_attempted += delivery.attempted;
+    summary.push_delivered += delivery.delivered;
+    attempts.push(...delivery.attempts);
+    summary.errors.push(...delivery.errors);
   }
 
   // 4. Persist delivery attempts in a single batched insert. The

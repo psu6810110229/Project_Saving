@@ -34,7 +34,12 @@
 // See docs/vapid-runbook.md for VAPID setup.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import webpush from 'https://esm.sh/web-push@3.6.7';
+import {
+  configureWebPush,
+  deliverPushToSubscriptions,
+  PUSH_SUBSCRIPTION_SELECT,
+  type PushSubscriptionRow,
+} from '../_shared/pushDelivery.ts';
 
 interface NudgePayload {
   to_user_id: string;
@@ -279,9 +284,6 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const vapidPublic = Deno.env.get('VAPID_PUBLIC_KEY')!;
-  const vapidPrivate = Deno.env.get('VAPID_PRIVATE_KEY')!;
-  const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:noreply@example.com';
 
   // 1. Caller identity.
   const callerClient = createClient(supabaseUrl, anonKey, {
@@ -450,7 +452,7 @@ Deno.serve(async (req) => {
   // 8. Look up active subscriptions for the recipient.
   const { data: subs } = await admin
     .from('push_subscriptions')
-    .select('id, endpoint, p256dh, auth_key')
+    .select(PUSH_SUBSCRIPTION_SELECT)
     .eq('user_id', toUserId);
 
   if (!subs || subs.length === 0) {
@@ -471,12 +473,12 @@ Deno.serve(async (req) => {
     return jsonResponse(req, result);
   }
 
-  // 9. Send push to every device. Cleanup expired endpoints.
-  webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+  // 9. Send push to every enrolled device. Cleanup expired endpoints.
+  configureWebPush();
 
   const safeUrl = sanitizeRoute(TARGET_ROUTE);
   const safeFallback = sanitizeRoute(FALLBACK_ROUTE);
-  const pushPayload = JSON.stringify({
+  const pushPayload = {
     notification_id: notificationId,
     event_key: 'nudge_received',
     title: notificationTitle,
@@ -484,78 +486,26 @@ Deno.serve(async (req) => {
     url: safeUrl,
     fallback_url: safeFallback,
     tag: `nudge:${nudgeId}`,
-  });
-
-  let delivered = 0;
-  type AttemptRow = {
-    notification_id: string | null;
-    recipient_user_id: string;
-    push_subscription_id: string | null;
-    channel: 'push';
-    status: 'sent' | 'failed' | 'expired' | 'skipped';
-    error_code: string | null;
-    error_message: string | null;
   };
-  const attempts: AttemptRow[] = [];
 
-  await Promise.all(subs.map(async (sub) => {
-    try {
-      await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-        pushPayload,
-      );
-      delivered += 1;
-      attempts.push({
-        notification_id: notificationId,
-        recipient_user_id: toUserId,
-        push_subscription_id: sub.id,
-        channel: 'push',
-        status: 'sent',
-        error_code: null,
-        error_message: null,
-      });
-    } catch (error) {
-      const status = typeof error === 'object' && error && 'statusCode' in error
-        ? Number((error as { statusCode: number }).statusCode)
-        : 0;
-      const message = typeof error === 'object' && error && 'message' in error
-        ? String((error as { message: string }).message).slice(0, 500)
-        : null;
-      if (status === 404 || status === 410) {
-        await admin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-        attempts.push({
-          notification_id: notificationId,
-          recipient_user_id: toUserId,
-          push_subscription_id: sub.id,
-          channel: 'push',
-          status: 'expired',
-          error_code: String(status),
-          error_message: null,
-        });
-      } else {
-        attempts.push({
-          notification_id: notificationId,
-          recipient_user_id: toUserId,
-          push_subscription_id: sub.id,
-          channel: 'push',
-          status: 'failed',
-          error_code: status ? String(status) : null,
-          error_message: message,
-        });
-      }
-    }
-  }));
+  const delivery = await deliverPushToSubscriptions(
+    admin,
+    toUserId,
+    notificationId,
+    subs as PushSubscriptionRow[],
+    pushPayload,
+  );
 
   // 10. Persist push delivery attempts. The table is debug audit
-  //     only — clients don't read it. Failures are non-fatal so a
+  //     only; clients don't read it. Failures are non-fatal so a
   //     missing row never breaks the sender feedback.
-  if (attempts.length > 0) {
-    await admin.from('notification_delivery_attempts').insert(attempts);
+  if (delivery.attempts.length > 0) {
+    await admin.from('notification_delivery_attempts').insert(delivery.attempts);
   }
 
   const result: NudgeResult = {
-    status: delivered > 0 ? 'sent' : 'push_failed',
-    delivered,
+    status: delivery.delivered > 0 ? 'sent' : 'push_failed',
+    delivered: delivery.delivered,
     notification_id: notificationId,
   };
 

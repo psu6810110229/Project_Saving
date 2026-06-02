@@ -55,7 +55,12 @@
 // See docs/vapid-runbook.md for VAPID setup.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import webpush from 'https://esm.sh/web-push@3.6.7';
+import {
+  configureWebPush,
+  deliverPushToSubscriptions,
+  PUSH_SUBSCRIPTION_SELECT,
+  type PushSubscriptionRow,
+} from '../_shared/pushDelivery.ts';
 
 interface DepositPushPayload {
   log_id?: string;
@@ -250,9 +255,6 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const vapidPublic = Deno.env.get('VAPID_PUBLIC_KEY')!;
-  const vapidPrivate = Deno.env.get('VAPID_PRIVATE_KEY')!;
-  const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:noreply@example.com';
 
   // 1. Caller identity. The RPC in step 2 also enforces auth via
   //    `auth.uid()`, but we authenticate explicitly here so the
@@ -378,7 +380,7 @@ Deno.serve(async (req) => {
       .in('id', recipientList),
     admin
       .from('push_subscriptions')
-      .select('id, user_id, endpoint, p256dh, auth_key')
+      .select(PUSH_SUBSCRIPTION_SELECT)
       .in('user_id', recipientList),
   ]);
 
@@ -388,13 +390,7 @@ Deno.serve(async (req) => {
     partner_activity_enabled: boolean | null;
   };
   type ProfileRow = { id: string; ui_language: string | null };
-  type SubRow = {
-    id: string;
-    user_id: string;
-    endpoint: string;
-    p256dh: string;
-    auth_key: string;
-  };
+  type SubRow = PushSubscriptionRow;
 
   const prefsById = new Map<string, PrefsRow>();
   for (const p of (prefsRows ?? []) as PrefsRow[]) prefsById.set(p.user_id, p);
@@ -409,7 +405,7 @@ Deno.serve(async (req) => {
     subsByUser.set(s.user_id, list);
   }
 
-  webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+  configureWebPush();
 
   type AttemptRow = {
     notification_id: string | null;
@@ -425,18 +421,12 @@ Deno.serve(async (req) => {
   let totalDelivered = 0;
 
   // 5. For each loaded in-app row, evaluate the push gate for THAT
-  //    recipient and push to their devices in parallel. We iterate
-  //    over notification rows (not recipientList) so a recipient with
-  //    multiple rows for the same log — which shouldn't happen, since
-  //    the RPC dedupes per recipient — would still be handled
-  //    correctly.
+  //    recipient and push to their enrolled web/native devices.
   await Promise.all((notifRows as NotifRow[]).map(async (row) => {
     const recipientId = row.recipient_user_id;
     const prefs = prefsById.get(recipientId);
     const masterEnabled = prefs?.master_enabled ?? true;
     const partnerEnabled = prefs?.partner_activity_enabled ?? true;
-    // Gate on prefs (master + category) and subscription existence.
-    // push_enabled is no longer a blocker; real subscription existence is the truth.
     const pushAllowed = Boolean(masterEnabled && partnerEnabled);
 
     if (!pushAllowed) {
@@ -489,7 +479,7 @@ Deno.serve(async (req) => {
 
     const safeUrl = sanitizeRoute(TARGET_ROUTE);
     const safeFallback = sanitizeRoute(FALLBACK_ROUTE);
-    const pushPayload = JSON.stringify({
+    const pushPayload = {
       notification_id: row.id,
       event_key: 'partner_deposited',
       title,
@@ -497,64 +487,22 @@ Deno.serve(async (req) => {
       url: safeUrl,
       fallback_url: safeFallback,
       tag: `partner_deposited:${logId}`,
-    });
+    };
 
-    let recipientDelivered = 0;
-
-    await Promise.all(subs.map(async (sub) => {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-          pushPayload,
-        );
-        recipientDelivered += 1;
-        attempts.push({
-          notification_id: row.id,
-          recipient_user_id: recipientId,
-          push_subscription_id: sub.id,
-          channel: 'push',
-          status: 'sent',
-          error_code: null,
-          error_message: null,
-        });
-      } catch (error) {
-        const status = typeof error === 'object' && error && 'statusCode' in error
-          ? Number((error as { statusCode: number }).statusCode)
-          : 0;
-        const message = typeof error === 'object' && error && 'message' in error
-          ? String((error as { message: string }).message).slice(0, 500)
-          : null;
-        if (status === 404 || status === 410) {
-          await admin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-          attempts.push({
-            notification_id: row.id,
-            recipient_user_id: recipientId,
-            push_subscription_id: sub.id,
-            channel: 'push',
-            status: 'expired',
-            error_code: String(status),
-            error_message: null,
-          });
-        } else {
-          attempts.push({
-            notification_id: row.id,
-            recipient_user_id: recipientId,
-            push_subscription_id: sub.id,
-            channel: 'push',
-            status: 'failed',
-            error_code: status ? String(status) : null,
-            error_message: message,
-          });
-        }
-      }
-    }));
-
-    totalDelivered += recipientDelivered;
+    const delivery = await deliverPushToSubscriptions(
+      admin,
+      recipientId,
+      row.id,
+      subs,
+      pushPayload,
+    );
+    attempts.push(...delivery.attempts);
+    totalDelivered += delivery.delivered;
     recipients.push({
       recipient_user_id: recipientId,
       notification_id: row.id,
-      delivered: recipientDelivered,
-      ...(recipientDelivered === 0
+      delivered: delivery.delivered,
+      ...(delivery.delivered === 0
         ? { error: 'Push could not be delivered. Notification was saved.' }
         : {}),
     });

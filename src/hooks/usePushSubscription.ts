@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
+import {
+  hasNativePushSubscription,
+  isNativeAndroidPush,
+  readNativePushPermission,
+  registerNativePush,
+  unregisterNativePush,
+} from '../lib/nativePush';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
@@ -64,10 +71,12 @@ export function usePushSubscription(): PushSubscriptionState {
   const { user } = useAuth();
   const [ready, setReady] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
-  const unsupported = typeof window === 'undefined'
+  const nativeAndroid = isNativeAndroidPush();
+  const webUnsupported = typeof window === 'undefined'
     || !('serviceWorker' in navigator)
     || !('PushManager' in window)
     || !VAPID_PUBLIC_KEY;
+  const unsupported = nativeAndroid ? false : webUnsupported;
 
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(
     () => readPermission(unsupported),
@@ -75,6 +84,32 @@ export function usePushSubscription(): PushSubscriptionState {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (nativeAndroid) {
+      if (!user) {
+        Promise.resolve().then(() => {
+          if (!cancelled) {
+            setPermission('default');
+            setSubscribed(false);
+            setReady(true);
+          }
+        });
+        return () => { cancelled = true; };
+      }
+
+      Promise.all([readNativePushPermission(), hasNativePushSubscription()])
+        .then(([nextPermission, hasSubscription]) => {
+          if (cancelled) return;
+          setPermission(nextPermission);
+          setSubscribed(nextPermission === 'granted' && hasSubscription);
+          setReady(true);
+        })
+        .catch(() => {
+          if (!cancelled) setReady(true);
+        });
+      return () => { cancelled = true; };
+    }
+
     if (unsupported || !user) {
       Promise.resolve().then(() => { if (!cancelled) setReady(true); });
       return () => { cancelled = true; };
@@ -88,9 +123,25 @@ export function usePushSubscription(): PushSubscriptionState {
       })
       .catch(() => { if (!cancelled) setReady(true); });
     return () => { cancelled = true; };
-  }, [user, unsupported]);
+  }, [user, unsupported, nativeAndroid]);
 
   const subscribe = useCallback(async (): Promise<{ error?: string }> => {
+    if (nativeAndroid) {
+      if (!user) return { error: 'Not authenticated' };
+      try {
+        await registerNativePush();
+        setPermission('granted');
+        setSubscribed(true);
+        return {};
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Push registration failed.';
+        const nextPermission = await readNativePushPermission().catch(() => 'default' as const);
+        setPermission(nextPermission);
+        setSubscribed(false);
+        return { error: message };
+      }
+    }
+
     if (unsupported || !user) return { error: 'Push not supported in this browser.' };
     if (!VAPID_PUBLIC_KEY) return { error: 'Push is not configured for this deployment.' };
     const next = await Notification.requestPermission();
@@ -113,9 +164,14 @@ export function usePushSubscription(): PushSubscriptionState {
       .from('push_subscriptions')
       .upsert({
         user_id: user.id,
+        provider: 'web',
         endpoint: json.endpoint,
         p256dh: json.keys.p256dh,
         auth_key: json.keys.auth,
+        fcm_token: null,
+        platform: 'web',
+        device_id: null,
+        app_version: null,
         user_agent: navigator.userAgent,
         updated_at: new Date().toISOString(),
         last_seen_at: new Date().toISOString(),
@@ -141,10 +197,21 @@ export function usePushSubscription(): PushSubscriptionState {
 
     setSubscribed(true);
     return {};
-  }, [user, unsupported]);
+  }, [user, unsupported, nativeAndroid]);
 
   const unsubscribe = useCallback(async (): Promise<{ error?: string }> => {
     if (!user) return { error: 'Not authenticated' };
+    if (nativeAndroid) {
+      try {
+        await unregisterNativePush();
+        setSubscribed(false);
+        setPermission(await readNativePushPermission());
+        return {};
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : 'Could not disable notifications.' };
+      }
+    }
+
     const registration = await navigator.serviceWorker.ready;
     const existing = await registration.pushManager.getSubscription();
     if (existing) {
@@ -154,7 +221,7 @@ export function usePushSubscription(): PushSubscriptionState {
     }
     setSubscribed(false);
     return {};
-  }, [user]);
+  }, [user, nativeAndroid]);
 
   const deviceState = deriveDeviceState(unsupported, permission, subscribed);
 

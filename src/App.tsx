@@ -6,6 +6,7 @@ import { InAppToastProvider } from './components/InAppToast/InAppToastProvider';
 import { SplashScreen } from './components/SplashScreen/SplashScreen';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
 import { DeepLinkListener } from './components/DeepLinkListener/DeepLinkListener';
+import { NativePushBootstrap } from './components/Notifications/NativePushBootstrap';
 import { RoomProvider } from './components/RoomContext/RoomContext';
 import { I18nProvider } from './i18n/I18nProvider';
 import { useAppHeight } from './hooks/useAppHeight';
@@ -59,6 +60,7 @@ function App() {
     <BrowserRouter>
       <DeepLinkListener />
       <AuthProvider>
+        <NativePushBootstrap />
         <I18nProvider>
           <InAppToastProvider>
             <RoomProvider>

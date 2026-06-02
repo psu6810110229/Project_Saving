@@ -40,3 +40,4 @@ docs/design-references/graph-redesign/Downloads/
 # Android signing secrets (Phase 6) — never commit
 *.keystore
 keystore.properties
+android/app/google-services.json

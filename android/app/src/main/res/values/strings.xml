@@ -4,6 +4,7 @@
     <string name="title_activity_main">GO-OUT</string>
     <string name="package_name">com.goout.app</string>
     <string name="custom_url_scheme">com.goout.app</string>
+    <string name="default_notification_channel_id">goout_updates</string>
     <string name="widget_add">＋ เติม</string>
     <string name="widget_check">✓ เช็ก</string>
     <string name="widget_empty">เปิด GO-OUT เพื่อซิงก์</string>

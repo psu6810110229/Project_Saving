@@ -1,5 +1,5 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
-import type { Bucket, BucketTransfer, SavingRuleType, SavingsLog } from '../../types';
+import type { BalanceAllocation, Bucket, BucketTransfer, SavingRuleType, SavingsLog } from '../../types';
 import { addDays, daysBetween, daysInclusive, todayBangkokKey } from '../../lib/savingPlan';
 import {
   type RuleChoice,
@@ -44,6 +44,7 @@ interface BucketEditFormProps {
   buckets: Bucket[];
   logs: SavingsLog[];
   transfers?: BucketTransfer[];
+  allocations?: BalanceAllocation[];
   goalTarget?: number | null;
   roomEndDate?: string | null;
   /** Smoothly scroll the expanding rule section (monthly reminder / custom) into view on change. */
@@ -59,6 +60,7 @@ export function BucketEditForm({
   buckets,
   logs,
   transfers,
+  allocations,
   goalTarget,
   roomEndDate,
   autoScrollOnExpand = false,
@@ -104,7 +106,7 @@ export function BucketEditForm({
   }, [ruleChoice, autoScrollOnExpand]);
 
   const targetAmount = Number(draftTarget);
-  const saved = bucketSaved(bucket.id, logs, transfers);
+  const saved = bucketSaved(bucket.id, logs, transfers, allocations);
   const totalBucketTargets = sumTargets(buckets);
   const capacityForEdit = typeof goalTarget === 'number'
     ? goalTarget - (totalBucketTargets - bucket.target_amount)

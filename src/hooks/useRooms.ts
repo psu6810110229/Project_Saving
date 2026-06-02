@@ -105,7 +105,7 @@ interface UpdateMemberThemeColorValues {
 const ROOM_FETCH_TIMEOUT_MS = 12_000;
 
 export function useRooms() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const userId = user?.id ?? null;
   const { copy } = useI18n();
   const { rooms: currentRooms, setRooms, activeRoomId, setActiveRoomId } = useRoom();
@@ -113,6 +113,7 @@ export function useRooms() {
   const [error, setError] = useState<string | null>(null);
 
   async function fetchRooms(options: { showLoading?: boolean } = {}) {
+    if (authLoading) return;
     if (!userId) { setLoading(false); return; }
     const showLoading = options.showLoading ?? currentRooms.length === 0;
     if (showLoading) setLoading(true);
@@ -562,7 +563,7 @@ export function useRooms() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRooms({ showLoading: currentRooms.length === 0 });
-  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { loading, error, refetch: fetchRooms, createRoom, createRoomWithTemplates, joinRoomByCode, fetchRoomPreview, archiveRoom, leaveRoom, restoreRoom, updateRoom, updateRoomCover, updateMemberCover, updateMemberThemeColor, renameRoom, transferOwnership, fetchActiveRoomForCreator, fetchArchivedRooms };
 }

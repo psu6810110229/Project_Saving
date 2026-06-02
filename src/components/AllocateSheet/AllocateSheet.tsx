@@ -20,6 +20,8 @@ export interface AllocateBucketOption {
 interface AllocateResultShape {
   error?: string;
   errorHint?: string;
+  allocationId?: string;
+  destinationBucketId?: string;
   amount?: number;
 }
 
@@ -34,7 +36,7 @@ interface AllocateSheetProps {
   initialBucketId?: string | null;
   allocate: (input: { bucketId: string; amount: number; clientRequestId?: string }) => Promise<AllocateResultShape>;
   /** Called after a successful allocation so the caller can refresh. */
-  onAllocated?: () => void;
+  onAllocated?: (result: AllocateResultShape, requestId: string) => void;
 }
 
 type Step = 'form' | 'done';
@@ -154,7 +156,7 @@ export function AllocateSheet({
       return;
     }
     haptic('success');
-    onAllocated?.();
+    onAllocated?.(result, requestIdRef.current);
     setStep('done');
   }
 

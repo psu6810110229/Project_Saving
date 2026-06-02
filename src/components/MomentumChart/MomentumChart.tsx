@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { palette } from '../../lib/theme';
 import { useI18n } from '../../i18n/useI18n';
@@ -97,6 +97,7 @@ const PAD_LEFT = 28;
 const PAD_RIGHT = 4;
 const PAD_TOP = 12;
 const PAD_BOTTOM = 22;
+const POPOVER_CHART_MARGIN = 8;
 
 /** Mono stack mirroring `tailwind.config.js > fontFamily.mono`, so Thai
  *  glyphs in SVG `<text>` fall through to IBM Plex Sans Thai instead of
@@ -277,7 +278,9 @@ export const MomentumChart = memo(function MomentumChart({
   const secondaryColor = secondaryThemeColor ? themeSwatches[secondaryThemeColor] : COLOR_PARTNER;
   const hasPartner = Array.isArray(partnerSeries) && partnerSeries.length === series.length;
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [popoverOffsetX, setPopoverOffsetX] = useState(0);
   const chartRootRef = useRef<HTMLDivElement | null>(null);
+  const popoverCardRef = useRef<HTMLDivElement | null>(null);
   const dateLabelFormatter = useMemo(() => new Intl.DateTimeFormat(
     language === 'th' ? 'th-TH' : 'en-US',
     {
@@ -368,6 +371,28 @@ export const MomentumChart = memo(function MomentumChart({
     const yourBarX = hasPartner ? pairX + barW + innerGap : pairX;
     return { groupX, partnerBarX, yourBarX };
   };
+
+  useLayoutEffect(() => {
+    if (selectedIndex === null) return;
+    const index = selectedIndex;
+
+    function updatePopoverOffset() {
+      const root = chartRootRef.current;
+      const popoverCard = popoverCardRef.current;
+      if (!root || !popoverCard) return;
+
+      const groupX = PAD_LEFT + index * groupStride;
+      const anchorPx = (groupX + groupW / 2) / W * root.clientWidth;
+      const halfWidth = popoverCard.offsetWidth / 2 + POPOVER_CHART_MARGIN;
+      const clampedCenter = Math.min(Math.max(anchorPx, halfWidth), root.clientWidth - halfWidth);
+      const nextOffset = clampedCenter - anchorPx;
+      setPopoverOffsetX(prev => (Math.abs(prev - nextOffset) < 0.5 ? prev : nextOffset));
+    }
+
+    updatePopoverOffset();
+    window.addEventListener('resize', updatePopoverOffset);
+    return () => window.removeEventListener('resize', updatePopoverOffset);
+  }, [groupStride, groupW, selectedIndex]);
 
   const yourTotal = series.reduce((s, v) => s + v, 0);
   const partnerTotal = hasPartner ? partnerSeries!.reduce((s, v) => s + v, 0) : 0;
@@ -775,7 +800,7 @@ export const MomentumChart = memo(function MomentumChart({
                 style={{
                   left: `${(anchorX / W) * 100}%`,
                   top: `${(topBarY / H) * 100}%`,
-                  transform: 'translate(-50%, calc(-100% - 10px))',
+                  transform: `translate(calc(-50% + ${popoverOffsetX}px), calc(-100% - 10px))`,
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -783,6 +808,7 @@ export const MomentumChart = memo(function MomentumChart({
                 transition={reduceMotion ? REDUCED_MOTION_TRANSITION : FADE_TRANSITION}
               >
                 <motion.div
+                  ref={popoverCardRef}
                   className="relative min-w-[11.5rem] max-w-[16rem] rounded-[1rem] bg-surfaceAlt p-3 shadow-soft ring-1 ring-ink/10"
                   style={{ transformOrigin: 'bottom center' }}
                   initial={reduceMotion ? false : { scale: 0.92, y: 4 }}
@@ -902,7 +928,10 @@ export const MomentumChart = memo(function MomentumChart({
                       </div>
                     )}
                   </div>
-                  <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 bg-surfaceAlt ring-1 ring-ink/10" />
+                  <div
+                    className="absolute top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 bg-surfaceAlt ring-1 ring-ink/10"
+                    style={{ left: `calc(50% - ${popoverOffsetX}px)` }}
+                  />
                 </motion.div>
               </motion.div>
             );

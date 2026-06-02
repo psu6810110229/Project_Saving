@@ -75,7 +75,7 @@ export function Team() {
   const { events: bucketActivityEvents } = data.bucketActivityEvents;
   const { activity: balanceActivity } = data.reconcile;
   const { plan: savingPlan } = data.savingPlan;
-  const { personalGoalTarget, roomGoalTarget } = data.goal;
+  const { personalGoalTarget } = data.goal;
   const { memberIds: otherMemberIds } = data.otherMemberIds;
 
   const total = useMemo(
@@ -90,7 +90,7 @@ export function Team() {
     (sum, entry) => sum + (entry.personalGoalTarget ?? 0),
     0,
   );
-  const totalTarget = roomGoalTarget ?? (legacySummedTargets > 0 ? legacySummedTargets : target);
+  const totalTarget = legacySummedTargets > 0 ? legacySummedTargets : target;
 
   const firstOtherMemberByJoinedAt = otherMemberIds[0] ?? null;
   const firstOtherEntry = firstOtherMemberByJoinedAt

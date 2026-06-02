@@ -189,6 +189,7 @@ export const th: Messages = {
     heatmapDueLegend: 'วันครบกำหนด',
     heatmapTodayLegend: 'วันนี้',
     heatmapDueDetailTitle: 'ครบกำหนด',
+    heatmapCurrentBucketAmountLabel: 'ยอดในเป้าหมายตอนนี้',
     activity: 'ความเคลื่อนไหว',
     viewAll: 'ดูทั้งหมด',
     noActivityYet: 'ยังไม่มีความเคลื่อนไหว',

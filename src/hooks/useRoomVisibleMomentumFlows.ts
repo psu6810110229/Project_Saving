@@ -14,6 +14,7 @@ export interface UseRoomVisibleMomentumFlowsResult {
   flows: RoomVisibleMomentumFlow[];
   loading: boolean;
   error: string | null;
+  addOptimisticFlow: (flow: RoomVisibleMomentumFlow) => void;
   refetch: () => Promise<void>;
 }
 
@@ -28,6 +29,23 @@ export function useRoomVisibleMomentumFlows(roomId: string | null): UseRoomVisib
   const [flows, setFlows] = useState<RoomVisibleMomentumFlow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const addOptimisticFlow = useCallback((flow: RoomVisibleMomentumFlow) => {
+    setFlows(prev => {
+      const index = prev.findIndex(item => (
+        item.user_id === flow.user_id
+        && item.bucket_id === flow.bucket_id
+        && item.date_key === flow.date_key
+        && item.event_kind === flow.event_kind
+      ));
+      if (index === -1) return [flow, ...prev];
+      return prev.map((item, itemIndex) => (
+        itemIndex === index
+          ? { ...item, amount: Math.round((item.amount + flow.amount) * 100) / 100 }
+          : item
+      ));
+    });
+  }, []);
 
   const fetchFlows = useCallback(async () => {
     if (!roomId) {
@@ -103,5 +121,5 @@ export function useRoomVisibleMomentumFlows(roomId: string | null): UseRoomVisib
     };
   }, [fetchFlows, roomId]);
 
-  return { flows, loading, error, refetch: fetchFlows };
+  return { flows, loading, error, addOptimisticFlow, refetch: fetchFlows };
 }

@@ -90,17 +90,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    supabase.auth.getSession().then(({ data }) => {
+    // Boot diagnostics: surface whether a persisted session was found and,
+    // if so, how close it is to expiry. This is the first signal when a
+    // user reports being unexpectedly logged out on the web.
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.warn('[auth] getSession on boot failed', error);
+      } else if (data.session) {
+        const expiresAt = data.session.expires_at ?? 0;
+        const secondsLeft = expiresAt - Math.floor(Date.now() / 1000);
+        console.info(`[auth] session restored on boot; expires in ${secondsLeft}s`);
+      } else {
+        console.info('[auth] no persisted session found on boot');
+      }
       if (!cancelled) applySession(data.session);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
+      // Diagnostics: TOKEN_REFRESHED confirms the refresh lifecycle is
+      // healthy; SIGNED_OUT pinpoints exactly when (and lets us correlate
+      // with a failed refresh) the session was dropped.
+      console.info(`[auth] state change: ${event}`, s ? 'session present' : 'no session');
       applySession(s);
     });
+
+    // Foreground refresh hardening. When a PWA is backgrounded/suspended the
+    // OS throttles timers, so Supabase's internal auto-refresh ticker can miss
+    // its window and the token silently expires. On returning to the
+    // foreground we (1) restart the auto-refresh ticker and (2) proactively
+    // refresh so a stale token is renewed before any data call hits a 401.
+    async function refreshOnForeground() {
+      if (document.visibilityState !== 'visible') return;
+      supabase.auth.startAutoRefresh();
+      try {
+        const { error } = await supabase.auth.refreshSession();
+        if (error) console.warn('[auth] foreground refresh failed', error);
+      } catch (caught) {
+        console.warn('[auth] foreground refresh threw', caught);
+      }
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        void refreshOnForeground();
+      } else {
+        // Stop the ticker while hidden so it doesn't fire against a throttled
+        // clock; the visible handler restarts it.
+        supabase.auth.stopAutoRefresh();
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', refreshOnForeground);
 
     return () => {
       cancelled = true;
       listener.subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', refreshOnForeground);
     };
   }, []);
 

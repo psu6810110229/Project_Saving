@@ -36,9 +36,17 @@ const SNAPSHOT_KEY = 'widget_snapshot';
 export async function writeWidgetSnapshot(snapshot: WidgetSnapshot): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   await Preferences.set({ key: SNAPSHOT_KEY, value: JSON.stringify(snapshot) });
+  console.log('[Widget] snapshot payload written to SharedPreferences key=widget_snapshot', {
+    roomName: snapshot.roomName,
+    saved: snapshot.saved,
+    goal: snapshot.goal,
+    progressPct: snapshot.progressPct,
+  });
+  console.log('[Widget] WidgetBridge.refresh called');
   try {
-    await refreshWidget();
-  } catch {
-    /* widget bridge unavailable - periodic update will catch up */
+    await refreshWidget(snapshot);
+    console.log('[Widget] native refresh returned ok');
+  } catch (error) {
+    console.warn('[Widget] native refresh failed:', error);
   }
 }

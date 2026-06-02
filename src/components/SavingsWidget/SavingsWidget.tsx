@@ -8,6 +8,7 @@ type WidgetSize = '2x2' | '4x2';
 interface SavingsWidgetProps extends Partial<WidgetSnapshot> {
   size?: WidgetSize;
   className?: string;
+  fluid?: boolean;
 }
 
 const defaultSnapshot: WidgetSnapshot = {
@@ -96,7 +97,7 @@ function StatusChip({ text }: { text: string }) {
   );
 }
 
-function LargeWidget({ snapshot }: { snapshot: WidgetSnapshot }) {
+function LargeWidget({ snapshot, fluid }: { snapshot: WidgetSnapshot; fluid?: boolean }) {
   const dueMode = snapshot.todayState !== 'no_plan';
   const pct = Math.max(0, Math.min(100, snapshot.progressPct));
   const heroText = snapshot.todayState === 'done'
@@ -111,7 +112,7 @@ function LargeWidget({ snapshot }: { snapshot: WidgetSnapshot }) {
       : 'ยอดสะสม';
 
   return (
-    <div className="flex w-full max-w-[388px] flex-col gap-2.5 rounded-[30px] bg-gradient-to-br from-[#FBF1E7] via-[#F7EBDD] to-[#EFDCC8] p-4 shadow-[0_16px_40px_rgba(45,20,7,0.28)]">
+    <div className={`flex flex-col gap-2.5 rounded-[30px] bg-gradient-to-br from-[#FBF1E7] via-[#F7EBDD] to-[#EFDCC8] p-4 shadow-[0_16px_40px_rgba(45,20,7,0.28)] ${fluid ? 'h-full w-full' : 'w-full max-w-[388px]'}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-ink-muted">
@@ -160,7 +161,7 @@ function LargeWidget({ snapshot }: { snapshot: WidgetSnapshot }) {
   );
 }
 
-function CompactWidget({ snapshot }: { snapshot: WidgetSnapshot }) {
+function CompactWidget({ snapshot, fluid }: { snapshot: WidgetSnapshot; fluid?: boolean }) {
   const pct = Math.max(0, Math.min(100, snapshot.progressPct));
   const heroText = snapshot.todayState === 'done'
     ? 'ครบแล้ว'
@@ -175,7 +176,7 @@ function CompactWidget({ snapshot }: { snapshot: WidgetSnapshot }) {
   const bucketLine = bucketProgressLine(snapshot);
 
   return (
-    <div className="flex w-[180px] flex-col rounded-[28px] bg-gradient-to-br from-[#FBF1E7] via-[#F7EBDD] to-[#EFDCC8] p-4 shadow-[0_14px_32px_rgba(45,20,7,0.26)]">
+    <div className={`flex flex-col rounded-[28px] bg-gradient-to-br from-[#FBF1E7] via-[#F7EBDD] to-[#EFDCC8] p-4 shadow-[0_14px_32px_rgba(45,20,7,0.26)] ${fluid ? 'h-full w-full' : 'w-[180px]'}`}>
       <p className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">
         {snapshot.roomName}
       </p>
@@ -204,13 +205,20 @@ function CompactWidget({ snapshot }: { snapshot: WidgetSnapshot }) {
 export function SavingsWidget({
   size = '4x2',
   className = '',
+  fluid = false,
   ...overrides
 }: SavingsWidgetProps) {
   const snapshot: WidgetSnapshot = { ...defaultSnapshot, ...overrides };
 
   return (
-    <div className={className} style={{ color: palette.ink }}>
-      {size === '2x2' ? <CompactWidget snapshot={snapshot} /> : <LargeWidget snapshot={snapshot} />}
+    <div
+      className={`${className} ${fluid ? 'h-full w-full' : ''}`}
+      data-widget-project={snapshot.roomName}
+      data-widget-amount={Math.round(snapshot.saved)}
+      data-widget-progress={Math.round(snapshot.progressPct)}
+      style={{ color: palette.ink }}
+    >
+      {size === '2x2' ? <CompactWidget snapshot={snapshot} fluid={fluid} /> : <LargeWidget snapshot={snapshot} fluid={fluid} />}
     </div>
   );
 }

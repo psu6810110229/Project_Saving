@@ -1,4 +1,5 @@
 import { registerPlugin } from '@capacitor/core';
+import type { WidgetSnapshot } from './widgetSnapshot';
 
 /**
  * Thin bridge to the native Android `WidgetBridge` plugin (implemented in the
@@ -10,11 +11,13 @@ import { registerPlugin } from '@capacitor/core';
  * plugin exists) calls reject and callers swallow the error.
  */
 interface WidgetBridgePlugin {
-  refresh(): Promise<void>;
+  refresh(options?: { snapshot?: string }): Promise<void>;
 }
 
 const WidgetBridge = registerPlugin<WidgetBridgePlugin>('WidgetBridge');
 
-export function refreshWidget(): Promise<void> {
-  return WidgetBridge.refresh();
+export function refreshWidget(snapshot?: WidgetSnapshot): Promise<void> {
+  return WidgetBridge.refresh(
+    snapshot == null ? undefined : { snapshot: JSON.stringify(snapshot) },
+  );
 }

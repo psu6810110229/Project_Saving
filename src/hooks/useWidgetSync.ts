@@ -1,4 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSharedData } from './useSharedData';
 import { useStreak } from './useStreak';
 import { useRoom } from './useRoom';
@@ -71,8 +73,8 @@ export function useWidgetSync(): void {
     ? Math.max(0, Math.min(100, Math.round((leadBucketSaved / leadBucketTarget) * 100)))
     : 0;
 
-  useEffect(() => {
-    void writeWidgetSnapshot({
+  const publishSnapshot = useCallback((reason: string) => {
+    const snapshot: WidgetSnapshot = {
       roomName,
       saved,
       goal: target,
@@ -89,7 +91,15 @@ export function useWidgetSync(): void {
       streakUnit: streak.unit,
       hasLoggedToday: streak.hasLoggedToday,
       updatedAt: new Date().toISOString(),
+    };
+
+    console.log('[Widget] publish snapshot:', reason, {
+      roomName: snapshot.roomName,
+      saved: snapshot.saved,
+      goal: snapshot.goal,
+      progressPct: snapshot.progressPct,
     });
+    void writeWidgetSnapshot(snapshot);
   }, [
     roomName,
     saved,
@@ -107,4 +117,44 @@ export function useWidgetSync(): void {
     streak.unit,
     streak.hasLoggedToday,
   ]);
+
+  useEffect(() => {
+    console.log('[Widget] useWidgetSync started');
+  }, []);
+
+  useEffect(() => {
+    publishSnapshot('data-change');
+  }, [publishSnapshot]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let cancelled = false;
+    let removeAppStateListener: (() => void) | undefined;
+
+    void App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) publishSnapshot('app-active');
+    }).then(listener => {
+      if (cancelled) {
+        void listener.remove();
+      } else {
+        removeAppStateListener = () => { void listener.remove(); };
+      }
+    });
+
+    const handleFocus = () => publishSnapshot('window-focus');
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') publishSnapshot('visibility-visible');
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      cancelled = true;
+      removeAppStateListener?.();
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [publishSnapshot]);
 }

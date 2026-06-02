@@ -3,6 +3,7 @@ import { Button, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconBell, IconCheck } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
 import { useI18n } from '../../i18n/useI18n';
+import { consumeReleaseModalSkipOnceAfterUpdate } from '../../lib/pwaUpdate';
 import { currentReleaseNotes } from '../../lib/releaseNotes';
 
 const UNDERSTOOD_KEY = 'releaseUnderstoodVersion';
@@ -88,7 +89,34 @@ export function ReleaseUpdateModal() {
 
 function shouldOpenRelease(version: string): boolean {
   if (typeof window === 'undefined') return false;
+  if (consumeReleaseModalSkipOnceAfterUpdate()) return false;
   const understood = window.localStorage.getItem(UNDERSTOOD_KEY);
   const dismissed = window.sessionStorage.getItem(SESSION_DISMISSED_KEY);
-  return understood !== version && dismissed !== version;
+  if (dismissed === version) return false;
+  if (!understood) return true;
+  if (understood === version) return false;
+
+  const current = parseSemver(version);
+  const previous = parseSemver(understood);
+  if (!current || !previous) return understood !== version;
+
+  return current.major !== previous.major || current.minor !== previous.minor;
+}
+
+interface ParsedSemver {
+  major: number;
+  minor: number;
+  patch: number;
+}
+
+function parseSemver(version: string): ParsedSemver | null {
+  const normalized = version.trim().split('+')[0].split('-')[0];
+  const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return null;
+
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+  };
 }

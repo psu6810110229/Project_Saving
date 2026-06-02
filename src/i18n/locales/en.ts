@@ -193,6 +193,7 @@ export const en = {
     heatmapTodayLegend: 'Today',
     heatmapDueDetailTitle: 'Due',
     heatmapCurrentBucketAmountLabel: 'Current bucket amount',
+    heatmapDaySavedLabel: 'Saved',
     // Activity section
     activity: 'Activity',
     viewAll: 'View all',

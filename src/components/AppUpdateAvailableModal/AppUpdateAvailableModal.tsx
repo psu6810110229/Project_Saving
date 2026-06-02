@@ -7,10 +7,11 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useI18n } from '../../i18n/useI18n';
 import { FADE_TRANSITION, SPRING } from '../../lib/motion';
 import { buildProgressKeyframes, interpolateKeyframes } from '../../lib/fakeProgress';
-import { applyAppUpdate, subscribeAppUpdate } from '../../lib/pwaUpdate';
-
-const RELEASE_UNDERSTOOD_KEY = 'releaseUnderstoodVersion';
-const RELEASE_DISMISSED_KEY = 'releaseDismissedSessionVersion';
+import {
+  applyAppUpdate,
+  skipReleaseModalOnceAfterUpdate,
+  subscribeAppUpdate,
+} from '../../lib/pwaUpdate';
 
 type Phase = 'idle' | 'loading' | 'done';
 
@@ -72,16 +73,8 @@ export function AppUpdateAvailableModal() {
     setOpen(false);
     setPhase('idle');
     setProgress(0);
-    try {
-      window.localStorage.removeItem(RELEASE_UNDERSTOOD_KEY);
-      window.sessionStorage.removeItem(RELEASE_DISMISSED_KEY);
-    } catch {
-      // storage may be unavailable
-    }
-    setOpen(false);
-    applyAppUpdate().then(() => {
-      setTimeout(() => window.location.reload(), 800);
-    });
+    skipReleaseModalOnceAfterUpdate();
+    void applyAppUpdate();
   }
 
   return createPortal(

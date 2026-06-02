@@ -7,7 +7,15 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { cascadeExpenseSchedule } from '../../lib/travelExpenseRules';
 import { clearJoinWizardDraft } from './joinWizardDraft';
+import { useSharedData } from '../../hooks/useSharedData';
 import type { JoinBucketDraft } from './JoinRoomWizard';
+
+const BUCKET_READY_RETRY_COUNT = 8;
+const BUCKET_READY_RETRY_MS = 180;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => window.setTimeout(resolve, ms));
+}
 
 interface StepReadyProps {
   roomId: string;
@@ -24,11 +32,29 @@ export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }
   const { user } = useAuth();
   const userId = user?.id ?? null;
 
+  const { buckets: bucketsCtx } = useSharedData();
+
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifPermission, setNotifPermission] = useState<'prompt' | 'granted' | 'denied'>(
     typeof Notification !== 'undefined' ? Notification.permission as 'prompt' | 'granted' | 'denied' : 'denied',
   );
+
+  const waitForBucketsReady = useCallback(async (expectedCount: number) => {
+    if (!userId || expectedCount <= 0) return;
+
+    for (let attempt = 0; attempt < BUCKET_READY_RETRY_COUNT; attempt++) {
+      const { count, error: countError } = await supabase
+        .from('buckets')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('room_id', roomId)
+        .is('archived_at', null);
+
+      if (!countError && (count ?? 0) >= expectedCount) return;
+      await sleep(BUCKET_READY_RETRY_MS);
+    }
+  }, [roomId, userId]);
 
   const handleRequestNotifications = useCallback(async () => {
     if (typeof Notification === 'undefined') return;
@@ -104,6 +130,13 @@ export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }
           .insert(bucketRows);
         if (bucketError) {
           console.warn('[JoinWizard] bucket creation failed', bucketError);
+        } else {
+          // Guard the first Dashboard paint from racing ahead of the new
+          // member's bucket rows becoming visible to the active-buckets query.
+          await waitForBucketsReady(bucketRows.length);
+          // Sync the DataContext bucket cache so Dashboard renders the new
+          // buckets immediately without needing a manual refresh.
+          await bucketsCtx.refetch();
         }
       }
 
@@ -114,7 +147,7 @@ export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }
     } finally {
       setCreating(false);
     }
-  }, [userId, roomId, personalGoal, buckets, roomEndDate, navigate, c.errorGeneric]);
+  }, [userId, roomId, personalGoal, buckets, roomEndDate, bucketsCtx, navigate, c.errorGeneric]);
 
   return (
     <div className="flex flex-col gap-5">

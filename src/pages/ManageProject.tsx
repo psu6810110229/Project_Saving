@@ -78,6 +78,7 @@ export function ManageProject() {
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers } = data.bucketTransfers;
+  const { allocations: balanceAllocations } = data.balanceAllocations;
   const { logs } = data.logs;
   const [activeModal, setActiveModal] = useState<ManageModal>(null);
   const [bucketTransferSheetOpen, setBucketTransferSheetOpen] = useState(false);
@@ -153,13 +154,10 @@ export function ManageProject() {
     setRenameError(null);
   }
 
-  // Closing the Manage Buckets modal sends the user back to the dashboard with
-  // a full page refresh so any bucket edits/archives applied inside the modal
-  // are reflected by the freshly-loaded dashboard data.
   function closeBucketsModal() {
     setActiveModal(null);
     setBucketTransferSheetOpen(false);
-    window.location.assign('/dashboard');
+    setMessage(null);
   }
 
   function mapRenameError(raw: string): string {
@@ -651,6 +649,7 @@ export function ManageProject() {
           buckets={buckets}
           logs={logs}
           transfers={bucketTransfers}
+          allocations={balanceAllocations}
           goalTarget={goalTarget}
           roomEndDate={activeRoom?.end_date ?? null}
           onUpdate={handleUpdateBucket}

@@ -193,8 +193,12 @@ public class WidgetRenderer {
             viewportW = 185; viewportH = 185;   // 2x2 square
             capW = 370;      capH = 370;         // 547 KB ARGB_8888
         } else {
-            viewportW = 400; viewportH = 230;   // 4x2 wide
-            capW = 560;      capH = 322;         // 721 KB ARGB_8888
+            // 4x2: ~2.2:1, close to a real 4x2 cell. The layout uses fitXY so the
+            // card fills the whole cell; matching this aspect keeps distortion tiny.
+            // Content (no buttons) is ~168px tall; 172 leaves a little breathing room.
+            // Capture at ~1.8x the design size so it stays sharp when scaled up.
+            viewportW = 380; viewportH = 172;
+            capW = 680;      capH = 308;         // 838 KB ARGB_8888 (< 900 KB Binder)
         }
 
         Log.d(TAG, "capture start: " + sizeName + " " + capW + "×" + capH

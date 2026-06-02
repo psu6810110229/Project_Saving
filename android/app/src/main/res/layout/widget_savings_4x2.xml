@@ -9,13 +9,17 @@
     android:id="@+id/w_card"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg">
+    android:background="@android:color/transparent">
 
+    <!-- fitXY: the captured card (aspect ~2.2:1, close to a 4x2 cell) fills the
+         whole cell, so no background rectangle shows behind it. The card's own
+         rounded corners are the only edge; the transparent corner triangles
+         reveal the wallpaper. -->
     <ImageView
         android:id="@+id/w_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:contentDescription="@null"
-        android:scaleType="fitCenter" />
+        android:scaleType="fitXY" />
 
 </FrameLayout>

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { WidgetSnapshot } from '../../lib/widgetSnapshot';
 import { palette } from '../../lib/theme';
-import { IconCheck, IconFire, IconPiggyBank, IconPlus } from '../Icon/Icon';
+import { IconFire, IconPiggyBank, IconPlus } from '../Icon/Icon';
 
 type WidgetSize = '2x2' | '4x2';
 
@@ -112,7 +112,7 @@ function LargeWidget({ snapshot, fluid }: { snapshot: WidgetSnapshot; fluid?: bo
       : 'ยอดสะสม';
 
   return (
-    <div className={`flex flex-col gap-2.5 rounded-[30px] bg-gradient-to-br from-[#FBF1E7] via-[#F7EBDD] to-[#EFDCC8] p-4 shadow-[0_16px_40px_rgba(45,20,7,0.28)] ${fluid ? 'h-full w-full' : 'w-full max-w-[388px]'}`}>
+    <div className={`flex flex-col gap-2.5 rounded-[30px] bg-gradient-to-br from-[#FBF1E7] via-[#F7EBDD] to-[#EFDCC8] p-4 ${fluid ? 'h-full w-full' : 'w-full max-w-[388px]'}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-ink-muted">
@@ -147,14 +147,6 @@ function LargeWidget({ snapshot, fluid }: { snapshot: WidgetSnapshot; fluid?: bo
             className="h-full rounded-full bg-brand-500"
             style={{ width: `${Math.max(pct, pct > 0 ? 6 : 0)}%` }}
           />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2.5">
-        <SmallButton label="เติม" icon={<IconPlus size={13} className="text-white" />} />
-        <div className="flex h-9 items-center justify-center gap-1.5 rounded-[14px] bg-white/80 px-3 font-mono text-xs font-bold text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <IconCheck size={13} className="text-brand-800" />
-          <span>เช็ก</span>
         </div>
       </div>
     </div>

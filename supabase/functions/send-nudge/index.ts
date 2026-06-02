@@ -66,6 +66,9 @@ const TARGET_ROUTE = '/dashboard';
 const FALLBACK_ROUTE = '/dashboard';
 const ALLOWED_ORIGINS = new Set([
   'https://project-saving-brown.vercel.app',
+  'capacitor://localhost',
+  'http://localhost',
+  'https://localhost',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
 ]);

@@ -41,3 +41,5 @@ docs/design-references/graph-redesign/Downloads/
 *.keystore
 keystore.properties
 android/app/google-services.json
+.secrets/
+.env.push.local

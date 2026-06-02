@@ -1,5 +1,6 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { formatShortDateKey } from '../../i18n/formatters';
 import { palette } from '../../lib/theme';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
@@ -228,13 +229,16 @@ function chartValue(value: number | undefined, marker?: MomentumBarMarker): numb
 
 function formatDateKeyLabel(
   dateKey: string | undefined,
-  formatter: Intl.DateTimeFormat,
+  language: 'th' | 'en',
   fallback: string,
 ): string {
   if (!dateKey) return fallback;
-  const [year, month, day] = dateKey.split('-').map(Number);
-  if (!year || !month || !day) return fallback;
-  return formatter.format(new Date(Date.UTC(year, month - 1, day)));
+  const shortLabel = formatShortDateKey(dateKey, language);
+  if (shortLabel === dateKey) return fallback;
+  const [year] = dateKey.split('-').map(Number);
+  if (!year) return shortLabel;
+  if (language === 'th') return `${shortLabel} ${String(year + 543).slice(-2)}`;
+  return `${shortLabel} ${String(year).slice(-2)}`;
 }
 
 export const MomentumChart = memo(function MomentumChart({
@@ -281,16 +285,6 @@ export const MomentumChart = memo(function MomentumChart({
   const [popoverOffsetX, setPopoverOffsetX] = useState(0);
   const chartRootRef = useRef<HTMLDivElement | null>(null);
   const popoverCardRef = useRef<HTMLDivElement | null>(null);
-  const dateLabelFormatter = useMemo(() => new Intl.DateTimeFormat(
-    language === 'th' ? 'th-TH' : 'en-US',
-    {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    },
-  ), [language]);
 
   // Retain the last non-null compare chips while collapsing so the
   // grid-template-rows transition has real content to shrink from
@@ -773,25 +767,11 @@ export const MomentumChart = memo(function MomentumChart({
             const topBarY = hasPartner ? Math.min(yourY, partnerY) : yourY;
             const yourCategoryText = markerCategoryText(marker, catLabels);
             const partnerCategoryText = markerCategoryText(partnerMarker, catLabels);
-            const yourBucketNames = marker?.bucketNames ?? [];
-            const partnerBucketNames = partnerMarker?.bucketNames ?? [];
-            const yourAdjustmentText = marker?.hasAdjustment && marker.adjustmentAmount
-              ? formatCurrency(marker.adjustmentAmount)
-              : null;
-            const partnerAdjustmentText = partnerMarker?.hasAdjustment && partnerMarker.adjustmentAmount
-              ? formatCurrency(partnerMarker.adjustmentAmount)
-              : null;
             const fullDateLabel = formatDateKeyLabel(
               dateKeys?.[i],
-              dateLabelFormatter,
+              language,
               labels?.[i] ?? d.last7Days,
             );
-            const footerLines = hasPartner
-              ? [
-                ...markerTooltipLines(marker, catLabels, d.dailyDepositAdjustment),
-                ...markerTooltipLines(partnerMarker, catLabels, d.dailyDepositAdjustment),
-              ].filter(Boolean)
-              : [];
 
             return (
               <motion.div
@@ -818,14 +798,9 @@ export const MomentumChart = memo(function MomentumChart({
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">
+                      <span className="font-mono text-[10px] font-bold text-ink-muted">
                         {fullDateLabel}
                       </span>
-                      {marker?.hasNegativeAdjustment && (
-                        <span className="rounded-full bg-[#FFF2E2] px-2 py-0.5 font-mono text-[9px] font-bold text-[#A95418]">
-                          {d.dailyDepositAdjustment}
-                        </span>
-                      )}
                     </div>
 
                     <div className="rounded-[0.9rem] bg-white/70 px-2.5 py-2">
@@ -839,35 +814,8 @@ export const MomentumChart = memo(function MomentumChart({
                       </div>
                       {yourCategoryText && (
                         <div className="mt-1 text-[10px] leading-[1.45] text-ink-muted">
-                          <span className="font-mono font-semibold text-ink-dim">หมวด</span>{' '}
+                          <span className="font-mono font-semibold text-ink-dim">{language === 'th' ? 'หมวด' : 'Category'}</span>{' '}
                           <span>{yourCategoryText}</span>
-                        </div>
-                      )}
-                      {yourBucketNames.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {yourBucketNames.slice(0, 3).map(name => (
-                            <span
-                              key={name}
-                              className="rounded-full bg-[#F7EEE7] px-2 py-0.5 font-mono text-[9px] text-ink-muted"
-                            >
-                              {name}
-                            </span>
-                          ))}
-                          {yourBucketNames.length > 3 && (
-                            <span className="rounded-full bg-[#F7EEE7] px-2 py-0.5 font-mono text-[9px] text-ink-muted">
-                              +{yourBucketNames.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      {yourAdjustmentText && (
-                        <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-black/5 pt-1.5">
-                          <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-dim">
-                            {d.dailyDepositAdjustment}
-                          </span>
-                          <span className="font-mono text-[10px] font-semibold text-[#A95418]">
-                            {yourAdjustmentText}
-                          </span>
                         </div>
                       )}
                     </div>
@@ -884,49 +832,13 @@ export const MomentumChart = memo(function MomentumChart({
                         </div>
                         {partnerCategoryText && (
                           <div className="mt-1 text-[10px] leading-[1.45] text-ink-muted">
-                            <span className="font-mono font-semibold text-ink-dim">หมวด</span>{' '}
+                            <span className="font-mono font-semibold text-ink-dim">{language === 'th' ? 'หมวด' : 'Category'}</span>{' '}
                             <span>{partnerCategoryText}</span>
-                          </div>
-                        )}
-                        {partnerBucketNames.length > 0 && (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {partnerBucketNames.slice(0, 3).map(name => (
-                              <span
-                                key={name}
-                                className="rounded-full bg-white/85 px-2 py-0.5 font-mono text-[9px] text-ink-muted"
-                              >
-                                {name}
-                              </span>
-                            ))}
-                            {partnerBucketNames.length > 3 && (
-                              <span className="rounded-full bg-white/85 px-2 py-0.5 font-mono text-[9px] text-ink-muted">
-                                +{partnerBucketNames.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {partnerAdjustmentText && (
-                          <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-black/5 pt-1.5">
-                            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-dim">
-                              {d.dailyDepositAdjustment}
-                            </span>
-                            <span className="font-mono text-[10px] font-semibold text-[#A95418]">
-                              {partnerAdjustmentText}
-                            </span>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {!hasPartner && footerLines.length > 0 && (
-                      <div className="text-[9px] leading-[1.45] text-ink-dim">
-                        {footerLines.map((line, idx) => (
-                          <div key={idx} className="font-mono">
-                            {line}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                   <div
                     className="absolute top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 bg-surfaceAlt ring-1 ring-ink/10"
@@ -941,32 +853,6 @@ export const MomentumChart = memo(function MomentumChart({
     </section>
   );
 });
-
-function markerTooltipLines(
-  marker: MomentumBarMarker | undefined,
-  categoryLabels: Record<BucketCategory, string>,
-  adjustmentLabel: string,
-): string[] {
-  if (!marker) return [];
-  const lines: string[] = [];
-
-  if (marker.categories.length > 0) {
-    const categoryText = marker.categories.map(cat => categoryLabels[cat]).join(', ');
-    if (!marker.bucketNames || marker.bucketNames.length === 0) {
-      lines.push(`- ${categoryText}`);
-    } else {
-      const bucketText = marker.bucketNames.slice(0, 3).join(', ');
-      const extra = marker.bucketNames.length > 3 ? ` +${marker.bucketNames.length - 3}` : '';
-      lines.push(`- ${categoryText}: ${bucketText}${extra}`);
-    }
-  }
-
-  if (marker.hasAdjustment && marker.adjustmentAmount) {
-    lines.push(`- ${adjustmentLabel}: ${formatCurrency(marker.adjustmentAmount)}`);
-  }
-
-  return lines;
-}
 
 function markerCategoryText(
   marker: MomentumBarMarker | undefined,
@@ -986,7 +872,7 @@ interface AdjustmentBadgeProps {
 }
 
 function AdjustmentBadge({ marker, centerX, y, h, baselineY, opacity }: AdjustmentBadgeProps) {
-  if (!marker?.hasAdjustment) return null;
+  if (!marker?.hasNegativeAdjustment) return null;
   const cy = h > 0 ? Math.max(PAD_TOP + 7, y - 8) : baselineY - 10;
 
   return (

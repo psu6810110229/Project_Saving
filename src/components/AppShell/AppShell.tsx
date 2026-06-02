@@ -23,7 +23,7 @@ export function AppShell({
   showReleaseModal = false,
 }: AppShellProps) {
   return (
-    <div className="flex h-[100dvh] flex-col text-ink">
+    <div className="flex h-[var(--app-height,100dvh)] flex-col text-ink">
       <div className="mx-auto w-full max-w-md flex-1 min-h-0">
         <main className="h-full pt-0">
           {children}

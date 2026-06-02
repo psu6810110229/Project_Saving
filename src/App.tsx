@@ -8,6 +8,7 @@ import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
 import { DeepLinkListener } from './components/DeepLinkListener/DeepLinkListener';
 import { RoomProvider } from './components/RoomContext/RoomContext';
 import { I18nProvider } from './i18n/I18nProvider';
+import { useAppHeight } from './hooks/useAppHeight';
 import { AppLayout } from './pages/AppLayout';
 import { ArchivedProjects } from './pages/ArchivedProjects';
 import { AtomsPreview } from './pages/AtomsPreview';
@@ -40,6 +41,9 @@ function App() {
   // Brand splash shows once per app launch (every full load), independent
   // of auth — not on in-app route changes.
   const [showSplash, setShowSplash] = useState(true);
+  // Keep --app-height in sync with the live viewport so the fixed app frame
+  // can't clip the bottom nav after a programmatic PWA update reload.
+  useAppHeight();
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), SPLASH_DURATION_MS);
     return () => clearTimeout(timer);

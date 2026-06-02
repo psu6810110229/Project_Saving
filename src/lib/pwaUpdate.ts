@@ -89,16 +89,22 @@ export async function applyAppUpdate(): Promise<void> {
     window.location.reload();
     return;
   }
+  // updateSWFn(true) posts SKIP_WAITING and installs its own
+  // `controllerchange` handler that reloads the page once the new worker
+  // claims clients (skipWaiting + clients.claim in sw.ts). We must NOT also
+  // call window.location.reload(): two competing programmatic reloads make
+  // the installed PWA repaint against an unsettled viewport, which clips the
+  // bottom nav below the fold until a manual refresh. So we let the single
+  // controllerchange reload happen and keep a timer only as a fallback for
+  // the rare case where controllerchange never fires.
   const fallbackReload = window.setTimeout(() => {
     window.location.reload();
-  }, 1500);
+  }, 3000);
 
   try {
-    // updateSWFn(true) triggers SKIP_WAITING + reload once the new
-    // service worker takes control (clients.claim in sw.ts).
     await updateSWFn(true);
-    window.clearTimeout(fallbackReload);
-    window.location.reload();
+    // Intentionally leave fallbackReload armed: the controllerchange reload
+    // discards it by navigating away; if that never happens, it recovers.
   } catch (error) {
     window.clearTimeout(fallbackReload);
     console.warn('[pwa] update failed, falling back to reload', error);

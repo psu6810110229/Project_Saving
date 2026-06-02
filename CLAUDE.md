@@ -186,6 +186,21 @@ Notifications:
 - Fan-out pattern (migration 0055): events fan out to all eligible room members, gated by per-user preferences.
 - Push delivery via edge function + `push_subscriptions` table with FCM tokens.
 
+## Android Home-Screen Widget (WebView capture)
+
+The widget renders the real React UI, not native Canvas/XML. Pipeline:
+`useWidgetSync` writes a snapshot to `@capacitor/preferences` (`CapacitorStorage` prefs, key `widget_snapshot`) and calls `WidgetBridge.refresh` → `WidgetRenderer` loads `/widget/<size>` (`small`|`medium`) in a hidden WebView, injects the snapshot via `window.__renderWidget`, waits for `data-widget-ready`, captures to a PNG, applies it with `RemoteViews.setImageViewBitmap`. React side is `src/pages/WidgetCapture.tsx` + `SavingsWidget`; native side is `WidgetRenderer.java` + `WidgetBridgePlugin.java`. Assets served from APK via `WebViewAssetLoader` (needs `androidx.webkit`).
+
+Do not reintroduce XML/Canvas rendering or redesign the widget visual. These gotchas cost real on-device debugging — keep them:
+- WebView capture: call `webView.setLayerType(LAYER_TYPE_SOFTWARE, null)` before `webView.draw(canvas)`. A hardware-accelerated, non-attached WebView draws nothing (or throws) to a software `Canvas`.
+- Bitmap lifecycle: never `bitmap.recycle()` before `AppWidgetManager.updateAppWidget()` returns — that call parcels the bitmap over Binder. Recycle after. Premature recycle → `Can't parcel a recycled bitmap`.
+- Bridge encoding: decode the injected snapshot as UTF-8 (`new TextDecoder('utf-8').decode(Uint8Array.from(atob(b64), c=>c.charCodeAt(0)))`). Plain `atob()` returns a Latin-1 byte string and turns multi-byte Thai (room/bucket names) into mojibake. Hardcoded Thai in the bundle is unaffected, so a garbled dynamic string + fine static string = encoding bug, not a font bug.
+- CSS viewport: set `settings.setUseWideViewPort(true)` (+ `setLoadWithOverviewMode(true)`) or the injected `width=` viewport meta is ignored and CSS viewport collapses to physical/density (~171px), clipping content. Do NOT pin `initial-scale`/`min`/`max-scale` — on high-DPR devices that shrinks the visual viewport and breaks layout.
+- Sizing: capture at a fixed design size tall enough for the content (text sizes are fixed, so component height is ~constant), then `fitCenter` scales the bitmap into the cell. Keep bitmaps under ~900 KB ARGB_8888 (Binder limit ~1 MB).
+- Binary fonts: bold Thai needs the matching weight imported (e.g. `@fontsource/ibm-plex-sans-thai/700.css`) or it falls back and renders as tofu/garble.
+
+Debugging on device (real phone, serial from `adb devices`): `adb -s <serial> logcat -s WidgetRenderer WidgetBridge`. Inspect the actual output instead of guessing — pull the rendered PNG with `adb -s <serial> exec-out run-as com.goout.app cat files/widgets/widget_medium.png > out.png` and the stored snapshot with `... cat shared_prefs/CapacitorStorage.xml`. adb.exe is a Windows binary: file-path args must be Windows form (`D:\...`), so install/pull from PowerShell, not Git-bash `/d/...` paths.
+
 ## Git Rules
 
 - Check branch/status before commits if asked for git work.

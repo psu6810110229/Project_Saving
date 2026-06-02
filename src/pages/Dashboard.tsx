@@ -44,6 +44,7 @@ import { ImageCropper } from '../components/ImageCropper/ImageCropper';
 import { VaultUpdatePreviewModal } from '../components/VaultUpdatePreviewModal/VaultUpdatePreviewModal';
 import { VerifiedBalanceReminderModal } from '../components/VerifiedBalanceReminderModal/VerifiedBalanceReminderModal';
 import { BellIconButton } from '../components/Notifications/BellIconButton';
+import { EnablePushPrompt } from '../components/Notifications/EnablePushPrompt';
 import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
 import { SectionLabel } from '../components/SectionLabel/SectionLabel';
 import {
@@ -1128,6 +1129,10 @@ export function Dashboard() {
           </div>
         </motion.div>
       )}
+
+      {/* Enable-push prompt. Self-managing: returns null when not needed,
+          so no wrapper motion.div (avoids a stray gap when hidden). */}
+      <EnablePushPrompt />
 
       <motion.div variants={dashboardSectionVariants} className="min-h-[14rem]">
         <HeroCard

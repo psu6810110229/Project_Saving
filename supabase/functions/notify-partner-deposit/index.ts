@@ -370,7 +370,7 @@ Deno.serve(async (req) => {
   ] = await Promise.all([
     admin
       .from('notification_preferences')
-      .select('user_id, master_enabled, push_enabled, partner_activity_enabled')
+      .select('user_id, master_enabled, partner_activity_enabled')
       .in('user_id', recipientList),
     admin
       .from('profiles')
@@ -385,7 +385,6 @@ Deno.serve(async (req) => {
   type PrefsRow = {
     user_id: string;
     master_enabled: boolean | null;
-    push_enabled: boolean | null;
     partner_activity_enabled: boolean | null;
   };
   type ProfileRow = { id: string; ui_language: string | null };
@@ -417,7 +416,7 @@ Deno.serve(async (req) => {
     recipient_user_id: string;
     push_subscription_id: string | null;
     channel: 'push';
-    status: 'sent' | 'failed' | 'expired';
+    status: 'sent' | 'failed' | 'expired' | 'skipped';
     error_code: string | null;
     error_message: string | null;
   };
@@ -436,10 +435,20 @@ Deno.serve(async (req) => {
     const prefs = prefsById.get(recipientId);
     const masterEnabled = prefs?.master_enabled ?? true;
     const partnerEnabled = prefs?.partner_activity_enabled ?? true;
-    const pushEnabled = prefs?.push_enabled ?? false;
-    const pushAllowed = Boolean(masterEnabled && partnerEnabled && pushEnabled);
+    // Gate on prefs (master + category) and subscription existence.
+    // push_enabled is no longer a blocker; real subscription existence is the truth.
+    const pushAllowed = Boolean(masterEnabled && partnerEnabled);
 
     if (!pushAllowed) {
+      attempts.push({
+        notification_id: row.id,
+        recipient_user_id: recipientId,
+        push_subscription_id: null,
+        channel: 'push',
+        status: 'skipped',
+        error_code: 'prefs_off',
+        error_message: null,
+      });
       recipients.push({
         recipient_user_id: recipientId,
         notification_id: row.id,
@@ -451,6 +460,15 @@ Deno.serve(async (req) => {
 
     const subs = subsByUser.get(recipientId) ?? [];
     if (subs.length === 0) {
+      attempts.push({
+        notification_id: row.id,
+        recipient_user_id: recipientId,
+        push_subscription_id: null,
+        channel: 'push',
+        status: 'skipped',
+        error_code: 'no_device',
+        error_message: null,
+      });
       recipients.push({
         recipient_user_id: recipientId,
         notification_id: row.id,

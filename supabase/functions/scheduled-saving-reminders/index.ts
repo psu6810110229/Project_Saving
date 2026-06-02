@@ -13,12 +13,12 @@
 //      plan, latest revision, end-date, pauses, deposit-in-cadence
 //      check, user preferences, Bangkok-day/week/month dedupe). It
 //      returns one row per newly inserted notification.
-//   3. For each new notification, checks `push_enabled` on the
-//      recipient's notification_preferences (the RPC already enforces
-//      master_enabled + saving_reminders_enabled) and sends Web Push
-//      to every active subscription. Expired endpoints (404/410)
-//      are deleted. Notification creation has already succeeded; a
-//      push failure does not roll back the in-app row.
+//   3. For each new notification, checks subscription existence for the
+//      recipient (the RPC already enforces master_enabled +
+//      saving_reminders_enabled). push_enabled is informational only —
+//      subscription existence is the source of truth. Expired endpoints
+//      (404/410) are deleted. Notification creation has already succeeded;
+//      a push failure does not roll back the in-app row.
 //   4. Returns a summary so a manual run can be eyeballed.
 //
 // Required Edge Function secrets (in addition to the standard
@@ -65,7 +65,7 @@ interface AttemptInsert {
   recipient_user_id: string;
   push_subscription_id: string | null;
   channel: 'push';
-  status: 'sent' | 'failed' | 'expired';
+  status: 'sent' | 'failed' | 'expired' | 'skipped';
   error_code: string | null;
   error_message: string | null;
 }
@@ -232,14 +232,9 @@ Deno.serve(async (req) => {
 
   // 2. Pull push prefs and subscriptions for the affected recipients
   //    in one round trip each.
-  const { data: prefsRows } = await admin
-    .from('notification_preferences')
-    .select('user_id, push_enabled')
-    .in('user_id', recipientIds);
-  const pushEnabledFor = new Map<string, boolean>();
-  for (const row of (prefsRows ?? []) as { user_id: string; push_enabled: boolean }[]) {
-    pushEnabledFor.set(row.user_id, Boolean(row.push_enabled));
-  }
+  // push_enabled is no longer a gate — subscription existence is the truth.
+  // The enqueue RPCs already enforce master_enabled + saving_reminders_enabled,
+  // so no additional prefs query is needed here.
 
   const { data: subRows } = await admin
     .from('push_subscriptions')
@@ -257,19 +252,21 @@ Deno.serve(async (req) => {
   const attempts: AttemptInsert[] = [];
 
   for (const note of created) {
-    if (!pushEnabledFor.get(note.recipient_user_id)) {
-      summary.push_skipped_no_prefs += 1;
-      console.warn(
-        `[saving-reminders] skip recipient=${note.recipient_user_id} plan=${note.plan_id} reason=push_disabled`,
-      );
-      continue;
-    }
     const subs = subsFor.get(note.recipient_user_id) ?? [];
     if (subs.length === 0) {
       summary.push_skipped_no_devices += 1;
       console.warn(
         `[saving-reminders] skip recipient=${note.recipient_user_id} plan=${note.plan_id} reason=no_devices`,
       );
+      attempts.push({
+        notification_id: note.notification_id,
+        recipient_user_id: note.recipient_user_id,
+        push_subscription_id: null,
+        channel: 'push',
+        status: 'skipped',
+        error_code: 'no_device',
+        error_message: null,
+      });
       continue;
     }
 
@@ -291,19 +288,21 @@ Deno.serve(async (req) => {
   //     union of recipients, so a plan-start recipient who is NOT in
   //     the reminder set still gets a push.
   for (const note of planStarts) {
-    if (!pushEnabledFor.get(note.recipient_user_id)) {
-      summary.push_skipped_no_prefs += 1;
-      console.warn(
-        `[saving-reminders] skip recipient=${note.recipient_user_id} plan_started=${note.plan_id} reason=push_disabled`,
-      );
-      continue;
-    }
     const subs = subsFor.get(note.recipient_user_id) ?? [];
     if (subs.length === 0) {
       summary.push_skipped_no_devices += 1;
       console.warn(
         `[saving-reminders] skip recipient=${note.recipient_user_id} plan_started=${note.plan_id} reason=no_devices`,
       );
+      attempts.push({
+        notification_id: note.notification_id,
+        recipient_user_id: note.recipient_user_id,
+        push_subscription_id: null,
+        channel: 'push',
+        status: 'skipped',
+        error_code: 'no_device',
+        error_message: null,
+      });
       continue;
     }
 

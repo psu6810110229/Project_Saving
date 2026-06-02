@@ -3,7 +3,15 @@ import { supabase } from '../lib/supabase';
 import { usePushSubscription } from './usePushSubscription';
 import { useI18n } from '../i18n/useI18n';
 
-type NudgeStatus = 'sent' | 'saved_no_push' | 'throttled';
+// Server emits the fine-grained statuses. saved_no_push is kept as a
+// deploy-skew fallback (old server responses still work on the client).
+type NudgeStatus =
+  | 'sent'
+  | 'partner_disabled'
+  | 'partner_no_device'
+  | 'push_failed'
+  | 'saved_no_push'
+  | 'throttled';
 
 interface NudgeResponse {
   status?: NudgeStatus;
@@ -59,11 +67,15 @@ function messageForStatus(
       return { status: 'sent', message: n.sent(partner) };
     case 'throttled':
       return { status: 'throttled', message: n.throttledGeneric };
+    case 'partner_disabled':
+      return { status: 'partner_disabled', message: n.partnerDisabled(partner) };
+    case 'partner_no_device':
+      return { status: 'partner_no_device', message: n.partnerNoDevice(partner) };
+    case 'push_failed':
+      return { status: 'push_failed', message: n.pushFailed(partner) };
+    // deploy-skew fallback: old server that still emits 'saved_no_push'
     case 'saved_no_push':
-      return {
-        status: 'saved_no_push',
-        message: response.error ? `${n.savedNoPush(partner)} (${response.error})` : n.savedNoPush(partner),
-      };
+      return { status: 'saved_no_push', message: n.savedNoPush(partner) };
     default:
       if ((response.delivered ?? 0) > 0) {
         return { status: 'sent', message: n.sent(partner) };

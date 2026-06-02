@@ -13,8 +13,9 @@
 //      regardless of push outcome. This row is the source of truth
 //      for the in-app Notification Center.
 //   6. Loads the recipient's notification preferences and decides
-//      whether push is allowed: master_enabled AND nudges_enabled
-//      AND push_enabled.
+//      whether push is allowed: master_enabled AND nudges_enabled.
+//      push_enabled is informational only — subscription existence is
+//      the source of truth for device readiness.
 //   7. If allowed, sends Web Push to every active subscription with
 //      a sanitized payload that includes notification_id, url,
 //      fallback_url. Expired endpoints (404/410) are cleaned up.
@@ -42,9 +43,11 @@ interface NudgePayload {
 }
 
 type NudgeStatus =
-  | 'sent'             // push delivered to >=1 device
-  | 'saved_no_push'    // notification saved; push skipped (prefs off, no subs, or all failed)
-  | 'throttled';       // recent nudge exists; nothing created
+  | 'sent'              // push delivered to >=1 device
+  | 'partner_disabled'  // prefs gate: master_enabled=false OR nudges_enabled=false
+  | 'partner_no_device' // prefs ok but no push_subscriptions registered for this user
+  | 'push_failed'       // subscriptions exist but every send failed (delivered=0)
+  | 'throttled';        // recent nudge exists; nothing created
 
 interface NudgeResult {
   status: NudgeStatus;
@@ -409,25 +412,37 @@ Deno.serve(async (req) => {
   // 7. Load recipient preferences. Service role bypasses RLS so we can
   //    upsert defaults if the recipient has not opened the settings page
   //    yet — keeps push gating consistent without forcing them to.
+  //    Gate is master_enabled AND nudges_enabled only. push_enabled is
+  //    no longer a blocker; real subscription existence is the truth.
   await admin
     .from('notification_preferences')
     .upsert({ user_id: toUserId }, { onConflict: 'user_id', ignoreDuplicates: true });
   const { data: prefs } = await admin
     .from('notification_preferences')
-    .select('master_enabled, push_enabled, nudges_enabled')
+    .select('master_enabled, nudges_enabled')
     .eq('user_id', toUserId)
     .maybeSingle();
 
   const pushAllowed = Boolean(
-    prefs?.master_enabled && prefs?.push_enabled && prefs?.nudges_enabled,
+    prefs?.master_enabled !== false && prefs?.nudges_enabled !== false,
   );
 
   if (!pushAllowed) {
+    // Log a skipped attempt so the audit trail distinguishes "prefs off"
+    // from "no device" and from a real push send.
+    await admin.from('notification_delivery_attempts').insert({
+      notification_id: notificationId,
+      recipient_user_id: toUserId,
+      push_subscription_id: null,
+      channel: 'push',
+      status: 'skipped',
+      error_code: 'prefs_off',
+      error_message: null,
+    });
     const result: NudgeResult = {
-      status: 'saved_no_push',
+      status: 'partner_disabled',
       delivered: 0,
       notification_id: notificationId,
-      error: 'คู่ของคุณปิดการแจ้งเตือนไว้',
     };
     return jsonResponse(req, result);
   }
@@ -439,11 +454,19 @@ Deno.serve(async (req) => {
     .eq('user_id', toUserId);
 
   if (!subs || subs.length === 0) {
+    await admin.from('notification_delivery_attempts').insert({
+      notification_id: notificationId,
+      recipient_user_id: toUserId,
+      push_subscription_id: null,
+      channel: 'push',
+      status: 'skipped',
+      error_code: 'no_device',
+      error_message: null,
+    });
     const result: NudgeResult = {
-      status: 'saved_no_push',
+      status: 'partner_no_device',
       delivered: 0,
       notification_id: notificationId,
-      error: 'คู่ของคุณยังไม่ได้ลงทะเบียนอุปกรณ์สำหรับรับสะกิด',
     };
     return jsonResponse(req, result);
   }
@@ -469,7 +492,7 @@ Deno.serve(async (req) => {
     recipient_user_id: string;
     push_subscription_id: string | null;
     channel: 'push';
-    status: 'sent' | 'failed' | 'expired';
+    status: 'sent' | 'failed' | 'expired' | 'skipped';
     error_code: string | null;
     error_message: string | null;
   };
@@ -531,10 +554,9 @@ Deno.serve(async (req) => {
   }
 
   const result: NudgeResult = {
-    status: delivered > 0 ? 'sent' : 'saved_no_push',
+    status: delivered > 0 ? 'sent' : 'push_failed',
     delivered,
     notification_id: notificationId,
-    ...(delivered === 0 ? { error: 'ส่งการแจ้งเตือนไปยังอุปกรณ์ไม่ได้ แต่บันทึกไว้แล้ว' } : {}),
   };
 
   return jsonResponse(req, result);

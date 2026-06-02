@@ -1296,6 +1296,14 @@ export const th: Messages = {
       subscriptionReadError: 'อ่านข้อมูลการแจ้งเตือนของอุปกรณ์ไม่ได้',
       notAuthenticated: 'ยังไม่ได้เข้าสู่ระบบ',
     },
+    enablePushPrompt: {
+      title: 'เปิดการแจ้งเตือน',
+      body: 'รับสะกิดและอัปเดตจากคู่ของคุณแม้ปิดแอปไว้',
+      enableButton: 'เปิดเลย',
+      enablingButton: 'กำลังเปิด…',
+      dismissButton: 'ไม่ใช่ตอนนี้',
+      successMessage: 'เปิดการแจ้งเตือนบนอุปกรณ์นี้แล้ว',
+    },
     categories: {
       labels: {
         nudge: 'สะกิด',
@@ -1334,6 +1342,9 @@ export const th: Messages = {
       sendError: 'ส่งสะกิดไม่ได้ ลองใหม่อีกครั้งในอีกสักครู่',
       sent: (name: string) => `ส่งสะกิดให้ ${name} แล้ว`,
       savedNoPush: (name: string) => `บันทึกการแจ้งเตือนให้ ${name} แล้ว แต่ยังส่งไปยังอุปกรณ์ไม่ได้`,
+      partnerDisabled: (name: string) => `บันทึกสะกิดให้ ${name} แล้ว แต่เขาปิดการแจ้งเตือนไว้`,
+      partnerNoDevice: (name: string) => `บันทึกสะกิดให้ ${name} แล้ว แต่ยังไม่ได้เปิดการแจ้งเตือนบนอุปกรณ์ใด`,
+      pushFailed: (name: string) => `บันทึกสะกิดให้ ${name} แล้ว แต่ส่งไปยังอุปกรณ์ไม่ได้ — ลองอีกครั้งในภายหลัง`,
     },
     events: {
       nudgeReceived: (name: string) => ({

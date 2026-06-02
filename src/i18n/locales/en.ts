@@ -1301,6 +1301,14 @@ export const en = {
       subscriptionReadError: 'Could not read the push subscription details.',
       notAuthenticated: 'Not authenticated',
     },
+    enablePushPrompt: {
+      title: 'Turn on notifications',
+      body: 'Get nudges and partner updates even when the app is closed.',
+      enableButton: 'Turn on',
+      enablingButton: 'Turning on…',
+      dismissButton: 'Not now',
+      successMessage: 'Notifications are on for this device.',
+    },
     categories: {
       labels: {
         nudge: 'Nudge',
@@ -1339,6 +1347,9 @@ export const en = {
       sendError: 'Could not send nudge. Try again in a moment.',
       sent: (name: string) => `Nudge sent to ${name}.`,
       savedNoPush: (name: string) => `Notification saved for ${name}. Push could not be delivered.`,
+      partnerDisabled: (name: string) => `Nudge saved for ${name}. They have push notifications turned off.`,
+      partnerNoDevice: (name: string) => `Nudge saved for ${name}. They haven't enabled notifications on any device yet.`,
+      pushFailed: (name: string) => `Nudge saved for ${name}. Push delivery failed — try again later.`,
     },
     events: {
       nudgeReceived: (name: string) => ({

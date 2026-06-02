@@ -116,7 +116,9 @@
       "PowerShell(npx tsc -b --pretty false; \"TSC_EXIT=$LASTEXITCODE\"; npx eslint \"src/hooks/useLeaderboard.ts\" \"src/components/DataContext/DataContext.tsx\"; \"ESLINT_EXIT=$LASTEXITCODE\")",
       "PowerShell($t = npx tsc -b --pretty false 2>&1 | Out-String; $te = $LASTEXITCODE; $e = npx eslint \"src/hooks/useLeaderboard.ts\" \"src/components/DataContext/DataContext.tsx\" 2>&1 | Out-String; $ee = $LASTEXITCODE; \"TSC_EXIT=$te\"; \"TSC_OUT=$t\"; \"ESLINT_EXIT=$ee\"; \"ESLINT_OUT=$e\")",
       "Bash(echo \"TSC_EXIT=$?\")",
-      "Bash(echo \"ESLINT_EXIT=$?\")"
+      "Bash(echo \"ESLINT_EXIT=$?\")",
+      "PowerShell(npx eslint \"src/components/AuthProvider/AuthProvider.tsx\" 2>&1 | Select-Object -First 40)",
+      "PowerShell(npx eslint src/hooks/useAppHeight.ts src/App.tsx src/components/AppShell/AppShell.tsx src/lib/pwaUpdate.ts)"
     ]
   }
 }

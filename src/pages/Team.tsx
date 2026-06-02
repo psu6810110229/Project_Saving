@@ -11,6 +11,7 @@ import { MomentumChart } from '../components/MomentumChart/MomentumChart';
 import { MomentumPurposePicker } from '../components/MomentumPurposePicker/MomentumPurposePicker';
 import { TeamSection, type TeamSectionMember } from '../components/TeamSection/TeamSection';
 import { MemberDetailModal, type MemberDetailModalMember } from '../components/MemberDetailModal/MemberDetailModal';
+import { PullToRefresh } from '../components/PullToRefresh/PullToRefresh';
 import { SavingRaceChart } from '../components/SavingRaceChart/SavingRaceChart';
 import { SavingRaceFilter } from '../components/SavingRaceFilter/SavingRaceFilter';
 import {
@@ -77,6 +78,7 @@ export function Team() {
   const { plan: savingPlan } = data.savingPlan;
   const { personalGoalTarget } = data.goal;
   const { memberIds: otherMemberIds } = data.otherMemberIds;
+  const { refreshAll } = data;
 
   const total = useMemo(
     () => logs.filter(log => log.user_id === user?.id).reduce((sum, log) => sum + log.amount, 0),
@@ -436,6 +438,7 @@ export function Team() {
   }
 
   return (
+    <PullToRefresh onRefresh={refreshAll}>
     <div className="flex flex-col gap-6 px-5 pt-8 pb-6">
       {/* Leaderboard */}
       <TeamSection
@@ -574,6 +577,7 @@ export function Team() {
         onClose={() => setSelectedMemberId(null)}
       />
     </div>
+    </PullToRefresh>
   );
 }
 

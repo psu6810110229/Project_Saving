@@ -1422,6 +1422,7 @@ export function Dashboard() {
           userId={user?.id}
           buckets={buckets}
           transfers={bucketTransfers}
+          allocations={balanceAllocations}
           roomStartIso={activeRoom?.created_at ?? null}
           roomEndDateKey={activeRoom?.end_date ?? null}
           storageKey={`savings-heatmap-scroll:${activeRoomId ?? 'no-room'}:${user?.id ?? 'anon'}`}
@@ -1498,6 +1499,7 @@ export function Dashboard() {
           buckets={buckets}
           logs={logs}
           transfers={bucketTransfers}
+          allocations={balanceAllocations}
           goalTarget={target > 0 ? target : null}
           roomEndDate={activeRoom?.end_date ?? null}
           onUpdate={handleManageBucketUpdate}
@@ -1533,6 +1535,7 @@ export function Dashboard() {
                 buckets={buckets}
                 logs={logs}
                 transfers={bucketTransfers}
+                allocations={balanceAllocations}
                 goalTarget={target > 0 ? target : null}
                 roomEndDate={activeRoom?.end_date ?? null}
                 autoScrollOnExpand

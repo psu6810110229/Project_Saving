@@ -2,6 +2,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { appVersion } from './version';
 
 const UPDATE_RELOAD_KEY = 'pwaReloadedForVersion';
+const RELEASE_MODAL_SKIP_ONCE_KEY = 'releaseSkipOnceAfterAppUpdate';
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 let lastUpdateCheckAt = 0;
@@ -62,6 +63,25 @@ export function subscribeAppUpdate(listener: () => void): () => void {
 
 export function isAppUpdateReady(): boolean {
   return updateReady;
+}
+
+export function skipReleaseModalOnceAfterUpdate(): void {
+  try {
+    window.sessionStorage.setItem(RELEASE_MODAL_SKIP_ONCE_KEY, '1');
+  } catch {
+    // Storage may be unavailable; the release modal will follow its
+    // normal rules after the update reload.
+  }
+}
+
+export function consumeReleaseModalSkipOnceAfterUpdate(): boolean {
+  try {
+    const shouldSkip = window.sessionStorage.getItem(RELEASE_MODAL_SKIP_ONCE_KEY) !== null;
+    if (shouldSkip) window.sessionStorage.removeItem(RELEASE_MODAL_SKIP_ONCE_KEY);
+    return shouldSkip;
+  } catch {
+    return false;
+  }
 }
 
 export async function applyAppUpdate(): Promise<void> {

@@ -4,9 +4,9 @@ import { IconChevronRight, IconFlag } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
 import { todayBangkokKey } from '../../lib/savingPlan';
 import { FADE_TRANSITION, REDUCED_MOTION_TRANSITION, SPRING } from '../../lib/motion';
-import { bucketPercent, bucketSaved } from '../../lib/buckets';
+import { bucketSaved } from '../../lib/buckets';
 import { buildSavingsHeatmap, type HeatLevel } from '../../lib/savingsHeatmap';
-import type { Bucket, BucketTransfer, SavingsLog } from '../../types';
+import type { BalanceAllocation, Bucket, BucketTransfer, SavingsLog } from '../../types';
 
 interface SavingsHeatmapProps {
   /** All room logs; the component filters to the current user's own deposits. */
@@ -14,8 +14,9 @@ interface SavingsHeatmapProps {
   userId: string | undefined;
   /** The current user's buckets — drive the start / due markers. */
   buckets: Bucket[];
-  /** Same-user bucket transfers — for accurate per-bucket saved totals. */
+  /** Same-user signed allocation ledger — drives real-money due popup values. */
   transfers?: BucketTransfer[];
+  allocations?: BalanceAllocation[];
   /** Room created_at (ISO) — project window start. */
   roomStartIso?: string | null;
   /** Room end_date (YYYY-MM-DD) — project window end. */
@@ -28,7 +29,7 @@ interface SavingsHeatmapProps {
 interface DueBucketInfo {
   id: string;
   name: string;
-  saved: number;
+  currentAmount: number;
   target: number;
   percent: number;
 }
@@ -87,6 +88,7 @@ export function SavingsHeatmap({
   userId,
   buckets,
   transfers,
+  allocations,
   roomStartIso,
   roomEndDateKey,
   storageKey,
@@ -141,19 +143,22 @@ export function SavingsHeatmap({
     const map = new Map<string, DueBucketInfo[]>();
     for (const b of buckets) {
       if (b.archived_at != null || !b.deadline) continue;
+      const currentAmount = bucketSaved(b.id, logs, transfers, allocations);
       const info: DueBucketInfo = {
         id: b.id,
         name: b.name,
-        saved: bucketSaved(b.id, logs, transfers),
+        currentAmount,
         target: b.target_amount,
-        percent: Math.round(bucketPercent(b, logs, transfers)),
+        percent: b.target_amount > 0
+          ? Math.min(100, Math.max(0, Math.round((currentAmount / b.target_amount) * 100)))
+          : 0,
       };
       const list = map.get(b.deadline);
       if (list) list.push(info);
       else map.set(b.deadline, [info]);
     }
     return map;
-  }, [buckets, logs, transfers]);
+  }, [allocations, buckets, logs, transfers]);
 
   // Month markers — a divider at every month boundary, plus a name label for
   // months wide enough to fit one without colliding with the next.
@@ -506,7 +511,7 @@ export function SavingsHeatmap({
                         <span className="shrink-0 font-mono text-[10px] font-bold text-ink-muted">{item.percent}%</span>
                       </div>
                       <span className="font-mono text-[10px] text-ink-dim">
-                        {formatMoney(item.saved)} / {formatMoney(item.target)}
+                        {d.heatmapCurrentBucketAmountLabel}: {formatMoney(item.currentAmount)} / {formatMoney(item.target)}
                       </span>
                     </li>
                   ))}

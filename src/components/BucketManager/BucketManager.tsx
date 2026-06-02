@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { bucketSaved, sumTargets } from '../../lib/buckets';
 import { isLowConfidenceCategory } from '../../lib/bucketCategories';
 import { type ArchiveErrorHint, useArchiveBucket } from '../../hooks/useArchiveBucket';
-import type { Bucket, BucketCategory, BucketTransfer, SavingsLog, SavingRuleType } from '../../types';
+import type { BalanceAllocation, Bucket, BucketCategory, BucketTransfer, SavingsLog, SavingRuleType } from '../../types';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { BucketCategoryReviewModal } from '../BucketCategoryReviewModal/BucketCategoryReviewModal';
 import { BucketEditForm, type BucketEditFormResult, type BucketEditValues } from '../BucketEditForm/BucketEditForm';
@@ -21,6 +21,8 @@ interface BucketManagerProps {
   logs: SavingsLog[];
   /** Caller's own bucket transfers, for transfer-aware balance display. */
   transfers?: BucketTransfer[];
+  /** Caller's own signed balance allocations, for allocation-aware balance display. */
+  allocations?: BalanceAllocation[];
   /** Bucket to flash an edge highlight on when the manager opens (e.g. tapped via the edit-mode pencil). */
   highlightBucketId?: string | null;
   goalTarget?: number | null;
@@ -84,6 +86,7 @@ export function BucketManager({
   buckets,
   logs,
   transfers,
+  allocations,
   highlightBucketId,
   goalTarget,
   roomEndDate,
@@ -105,7 +108,7 @@ export function BucketManager({
   const totalBucketTargets = sumTargets(buckets);
 
   const pendingRemoveSaved = pendingRemove
-    ? balanceOverrides[pendingRemove.id] ?? bucketSaved(pendingRemove.id, logs, transfers)
+    ? balanceOverrides[pendingRemove.id] ?? bucketSaved(pendingRemove.id, logs, transfers, allocations)
     : 0;
   const removeDestinations: RemoveBucketDestination[] = useMemo(() => {
     if (!pendingRemove) return [];
@@ -114,9 +117,9 @@ export function BucketManager({
       .map(b => ({
         id: b.id,
         name: b.name,
-        saved: balanceOverrides[b.id] ?? bucketSaved(b.id, logs, transfers),
+        saved: balanceOverrides[b.id] ?? bucketSaved(b.id, logs, transfers, allocations),
       }));
-  }, [balanceOverrides, buckets, logs, transfers, pendingRemove]);
+  }, [allocations, balanceOverrides, buckets, logs, transfers, pendingRemove]);
 
   // Mirror the dashboard's transfer-sheet shape so the "Transfer Balance
   // First" fallback opens the same sheet UI users see elsewhere.
@@ -124,11 +127,11 @@ export function BucketManager({
     () => buckets.map(b => ({
       id: b.id,
       name: b.name,
-      saved: balanceOverrides[b.id] ?? bucketSaved(b.id, logs, transfers),
+      saved: balanceOverrides[b.id] ?? bucketSaved(b.id, logs, transfers, allocations),
       target: b.target_amount,
       icon: <BucketCategoryIcon category={b.category} size={20} />,
     })),
-    [balanceOverrides, buckets, logs, transfers],
+    [allocations, balanceOverrides, buckets, logs, transfers],
   );
 
   useEffect(() => {
@@ -248,6 +251,7 @@ export function BucketManager({
         buckets={buckets}
         logs={logs}
         transfers={transfers}
+        allocations={allocations}
         goalTarget={goalTarget}
         roomEndDate={roomEndDate}
         highlightBucketId={highlightBucketId}
@@ -323,6 +327,7 @@ function BucketSummary({
   buckets,
   logs,
   transfers,
+  allocations,
   goalTarget,
   roomEndDate,
   highlightBucketId,
@@ -336,6 +341,7 @@ function BucketSummary({
   buckets: Bucket[];
   logs: SavingsLog[];
   transfers?: BucketTransfer[];
+  allocations?: BalanceAllocation[];
   goalTarget?: number | null;
   roomEndDate?: string | null;
   highlightBucketId?: string | null;
@@ -364,6 +370,7 @@ function BucketSummary({
             buckets={buckets}
             logs={logs}
             transfers={transfers}
+            allocations={allocations}
             goalTarget={goalTarget}
             roomEndDate={roomEndDate}
             onCancel={onCancelEdit}
@@ -377,7 +384,7 @@ function BucketSummary({
             <ManageBucketCard
               key={bucket.id}
               bucket={bucket}
-              saved={bucketSaved(bucket.id, logs, transfers)}
+              saved={bucketSaved(bucket.id, logs, transfers, allocations)}
               highlighted={bucket.id === highlightBucketId}
               onEdit={() => onStartEdit(bucket)}
               onAskRemove={() => onAskRemove(bucket)}

@@ -19,7 +19,7 @@ import { bucketSaved } from '../lib/buckets';
  * Mount once inside the DataProvider subtree (where `useSharedData` is valid).
  */
 export function useWidgetSync(): void {
-  const { reconcile, goal, logs, buckets, bucketTransfers, streakFreeze } = useSharedData();
+  const { reconcile, goal, logs, buckets, bucketTransfers, balanceAllocations, streakFreeze } = useSharedData();
   const { activeRoom } = useRoom();
   const { user } = useAuth();
 
@@ -67,7 +67,7 @@ export function useWidgetSync(): void {
     : buckets.buckets.find(bucket => bucket.id === leadItem.bucketId) ?? null;
   const leadBucketSaved = leadBucket == null
     ? 0
-    : bucketSaved(leadBucket.id, logs.allLogs, bucketTransfers.transfers);
+    : bucketSaved(leadBucket.id, logs.allLogs, bucketTransfers.transfers, balanceAllocations.allocations);
   const leadBucketTarget = leadBucket?.target_amount ?? 0;
   const leadBucketPct = leadBucketTarget > 0
     ? Math.max(0, Math.min(100, Math.round((leadBucketSaved / leadBucketTarget) * 100)))

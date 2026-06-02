@@ -51,7 +51,6 @@ import {
   IconCheck,
   IconEdit,
   IconRocket,
-  IconUser,
   IconX,
 } from '../components/Icon/Icon';
 import { BucketCategoryIcon } from '../components/BucketCategoryIcon/BucketCategoryIcon';
@@ -83,6 +82,7 @@ import { haptic } from '../lib/haptics';
 import { roomCoverErrorMessage } from '../lib/roomCoverImage';
 import { supabase } from '../lib/supabase';
 import { daysSince } from '../lib/reconcile';
+import { localDateKey } from '../lib/streak';
 import {
   daysBetween,
   todayBangkokKey,
@@ -239,6 +239,7 @@ export function Dashboard() {
   const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
+  const { addOptimisticFlow } = data.roomVisibleMomentumFlows;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = data.leaderboard;
@@ -1093,12 +1094,6 @@ export function Dashboard() {
             <h1 className="min-w-0 break-words font-mono text-2xl font-bold leading-tight text-ink">
               {activeRoom?.name ?? 'Japan 2027'}
             </h1>
-            <div className="flex shrink-0 items-center gap-1.5 text-ink-muted" aria-label={d.membersInRoom(leaderboard.entries.length)}>
-              <IconUser size={14} />
-              <span className="font-mono text-xs">
-                {leaderboard.entries.length}
-              </span>
-            </div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -1641,7 +1636,28 @@ export function Dashboard() {
         buckets={bucketItems}
         initialBucketId={allocationIntent?.bucketId ?? null}
         allocate={allocate}
-        onAllocated={() => { void refetchAllocations(); }}
+        onAllocated={(result, requestId) => {
+          if (user?.id && activeRoomId && result.allocationId && result.destinationBucketId && result.amount) {
+            const createdAt = new Date().toISOString();
+            data.balanceAllocations.upsertAllocation({
+              id: result.allocationId,
+              room_id: activeRoomId,
+              user_id: user.id,
+              destination_bucket_id: result.destinationBucketId,
+              amount: result.amount,
+              client_request_id: requestId,
+              created_at: createdAt,
+            });
+            addOptimisticFlow({
+              user_id: user.id,
+              bucket_id: result.destinationBucketId,
+              date_key: localDateKey(createdAt),
+              amount: result.amount,
+              event_kind: 'allocation',
+            });
+          }
+          void refetchAllocations();
+        }}
       />
 
       {/* Bucket deposit bottom sheet */}
@@ -1698,6 +1714,16 @@ export function Dashboard() {
               const prev = selectedBucketItem?.saved ?? 0;
               const result = await insert(amount, expandedBucketId);
               if (!result.error) {
+                if (user?.id) {
+                  const createdAt = new Date().toISOString();
+                  addOptimisticFlow({
+                    user_id: user.id,
+                    bucket_id: expandedBucketId,
+                    date_key: localDateKey(createdAt),
+                    amount,
+                    event_kind: 'deposit',
+                  });
+                }
                 const reached = prev < (selectedBucketItem?.target ?? 0) && prev + amount >= (selectedBucketItem?.target ?? 0);
                 haptic(reached ? 'milestone' : 'success');
                 if (selectedBucketItem) {

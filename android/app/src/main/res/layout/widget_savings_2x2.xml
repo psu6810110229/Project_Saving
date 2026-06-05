@@ -4,12 +4,17 @@
   The ImageView is filled by WidgetRenderer with a bitmap captured from
   the React /widget/small route. The card visual lives entirely in React.
   The whole widget taps to goout://dashboard (set in WidgetRenderer).
+
+  Background is transparent: the card's rounded corners are baked into the
+  captured bitmap, so any opaque background behind it would poke out past
+  those corners as a sharp-cornered frame on launchers that don't auto-mask
+  widget corners. fitCenter lets the rounded card float on the wallpaper.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/w_card"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg">
+    android:background="@android:color/transparent">
 
     <ImageView
         android:id="@+id/w_image"

@@ -11,15 +11,16 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent">
 
-    <!-- fitXY: the captured card (aspect ~2.2:1, close to a 4x2 cell) fills the
-         whole cell, so no background rectangle shows behind it. The card's own
-         rounded corners are the only edge; the transparent corner triangles
-         reveal the wallpaper. -->
+    <!-- fitCenter: scale the captured card uniformly (no distortion) and centre
+         it. A fixed-aspect bitmap can't fill an arbitrary device cell without
+         either stretching (fitXY) or cropping, so we let it float: the card's
+         baked-in rounded corners are the only edge, and the transparent margins
+         reveal the wallpaper. Identical result on every launcher. -->
     <ImageView
         android:id="@+id/w_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:contentDescription="@null"
-        android:scaleType="fitXY" />
+        android:scaleType="fitCenter" />
 
 </FrameLayout>

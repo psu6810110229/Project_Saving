@@ -237,9 +237,13 @@ function pillTier(count: number): PillTier {
 
 function TeamPill({ member, maxSaved, tier }: { member: WidgetMember; maxSaved: number; tier: PillTier }) {
   const [imgFailed, setImgFailed] = useState(false);
-  // Width is the member's share of the top saver; minWidth keeps the avatar +
-  // amount legible for small amounts. The row is flex-1 so the pill fills height.
-  const proportional = maxSaved > 0 ? (member.saved / maxSaved) * 100 : 0;
+  // Width reflects the member's real share of the top saver. It grows linearly
+  // from the content floor (minWidth — enough for avatar + amount) at a 0 share
+  // up to the full row width at the top saver, blended in CSS so the floor stays
+  // exact while mid-range amounts still read as genuinely shorter bars. (A flat
+  // px floor alone clamped everyone below it, making 0 and 1.6k look identical.)
+  const ratio = maxSaved > 0 ? member.saved / maxSaved : 0;
+  const widthCss = `calc(${tier.minWidth}px + ${ratio.toFixed(3)} * (100% - ${tier.minWidth}px))`;
   const showImage = Boolean(member.avatarUrl) && !imgFailed;
   const initial = (member.name.trim().charAt(0) || '?').toUpperCase();
 
@@ -247,7 +251,7 @@ function TeamPill({ member, maxSaved, tier }: { member: WidgetMember; maxSaved: 
     <div className="flex min-h-0 flex-1 items-center">
       <div
         className={`flex h-full max-w-full items-center gap-1.5 overflow-hidden rounded-full pl-0.5 pr-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] ${member.isYou ? 'ring-2 ring-white/90' : ''}`}
-        style={{ width: `${proportional}%`, minWidth: `${tier.minWidth}px`, backgroundColor: member.color }}
+        style={{ width: widthCss, backgroundColor: member.color }}
       >
         <div
           className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/25 ring-1 ring-white/70"

@@ -89,11 +89,22 @@ export function useWidgetSync(): void {
     })),
     [leaderboard.entries],
   );
+  // Room total + goal must match the team page's "ทุกคนรวมกัน" card exactly
+  // (src/pages/Team.tsx): sum every member's saved, and use the summed personal
+  // sub-goals — falling back to the current user's personal target — rather than
+  // the room-level rooms.target_amount.
+  const youGoalTarget = leaderboard.entries.find(e => e.isYou)?.personalGoalTarget ?? null;
   const roomSaved = useMemo(
-    () => members.reduce((sum, member) => sum + member.saved, 0),
-    [members],
+    () => leaderboard.entries.reduce((sum, entry) => sum + entry.saved, 0),
+    [leaderboard.entries],
   );
-  const roomGoal = activeRoom?.target_amount ?? 0;
+  const roomGoal = useMemo(() => {
+    const summedTargets = leaderboard.entries.reduce(
+      (sum, entry) => sum + (entry.personalGoalTarget ?? 0),
+      0,
+    );
+    return summedTargets > 0 ? summedTargets : (goal.personalGoalTarget ?? youGoalTarget ?? 0);
+  }, [leaderboard.entries, goal.personalGoalTarget, youGoalTarget]);
   const roomProgressPct = roomGoal > 0
     ? Math.min(100, Math.round((roomSaved / roomGoal) * 100))
     : 0;

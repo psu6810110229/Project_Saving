@@ -32,6 +32,23 @@ export default defineConfig(({ mode }) => ({
     __APP_BUILD_MODE__: JSON.stringify(mode),
     __APP_BUILD_ID__: JSON.stringify(buildId()),
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'vendor-react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'vendor-router', test: /[\\/]node_modules[\\/](react-router|react-router-dom)[\\/]/ },
+            { name: 'vendor-supabase', test: /[\\/]node_modules[\\/]@supabase[\\/]/ },
+            { name: 'vendor-motion', test: /[\\/]node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/]/ },
+            { name: 'vendor-dnd', test: /[\\/]node_modules[\\/]@dnd-kit[\\/]/ },
+            { name: 'vendor-icons', test: /[\\/]node_modules[\\/]@phosphor-icons[\\/]/ },
+            { name: 'vendor-capacitor', test: /[\\/]node_modules[\\/](@capacitor|@capgo)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -62,7 +79,8 @@ export default defineConfig(({ mode }) => ({
       srcDir: 'src',
       filename: 'sw.ts',
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff2}'],
+        globIgnores: ['**/hero-covers/**'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),

@@ -88,7 +88,11 @@ export function WidgetCapture() {
   const [snapshot, setSnapshot] = useState<WidgetSnapshot | null>(() => {
     // Pick up snapshot if native injected it before the component mounted.
     if (window.__WIDGET_SNAPSHOT__ != null) return window.__WIDGET_SNAPSHOT__
-    if (_pendingInject != null) return _pendingInject.snapshot
+    if (_pendingInject != null) {
+      const pending = _pendingInject.snapshot
+      _pendingInject = null
+      return pending
+    }
     return null
   })
 
@@ -103,19 +107,22 @@ export function WidgetCapture() {
 
   // Wire up the native bridge setter once on mount.
   useEffect(() => {
-    // Apply any injection that arrived before this effect ran.
-    // One-shot buffered update: not a cascade, so the lint exception is justified.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    let pendingTimeoutId: number | null = null
+
     if (_pendingInject != null) {
-      console.log('[Widget] snapshot injected from buffer:', _pendingInject.snapshot != null)
-      setSnapshot(_pendingInject.snapshot)
+      const pending = _pendingInject.snapshot
       _pendingInject = null
+      pendingTimeoutId = window.setTimeout(() => {
+        console.log('[Widget] snapshot injected from buffer:', pending != null)
+        setSnapshot(pending)
+      }, 0)
     }
     _setSnapshotFromNative = (nextSnapshot) => {
       console.log('[Widget] snapshot injected:', nextSnapshot != null)
       setSnapshot(nextSnapshot)
     }
     return () => {
+      if (pendingTimeoutId != null) window.clearTimeout(pendingTimeoutId)
       _setSnapshotFromNative = null
     }
   }, [setSnapshot])

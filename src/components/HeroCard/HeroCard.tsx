@@ -9,6 +9,7 @@ import {
   IconUser,
 } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
+import { normalizeHeroCoverUrl } from '../../lib/heroCovers';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import type { CoverTint, DailySummaryItem, ProjectCategory } from '../../types';
 
@@ -288,15 +289,16 @@ export const HeroCard = memo(function HeroCard({
     return () => window.clearInterval(id);
   }, [goalLines.length]);
   const activeLineIndex = lineIndex % goalLines.length;
+  const normalizedCoverImageUrl = normalizeHeroCoverUrl(coverImageUrl);
   const cardStyle = useMemo<HeroStyle>(() => {
     const style: HeroStyle = {};
-    if (coverImageUrl) style['--hero-card-cover'] = cssUrl(coverImageUrl);
+    if (normalizedCoverImageUrl) style['--hero-card-cover'] = cssUrl(normalizedCoverImageUrl);
     if (coverTint) {
       style['--hero-scrim-rgb'] = coverTint.rgb.join(', ');
       style['--hero-scrim-strength'] = String(coverTint.strength);
     }
     return style;
-  }, [coverImageUrl, coverTint]);
+  }, [normalizedCoverImageUrl, coverTint]);
   const metrics: MetricProps[] = [
     {
       icon: <IconUser size={13} />,

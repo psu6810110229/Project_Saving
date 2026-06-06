@@ -2,7 +2,7 @@ import { Modal } from '../Modal/Modal';
 import { Button } from '../Button/Button';
 import { IconCamera, IconCheck } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
-import { HERO_COVER_PRESETS, type HeroCoverPreset } from '../../lib/heroCovers';
+import { HERO_COVER_PRESETS, normalizeHeroCoverUrl, type HeroCoverPreset } from '../../lib/heroCovers';
 
 interface HeroCoverPickerProps {
   open: boolean;
@@ -24,6 +24,7 @@ export function HeroCoverPicker({
 }: HeroCoverPickerProps) {
   const { copy } = useI18n();
   const c = copy.createRoomWizard;
+  const normalizedSelectedUrl = normalizeHeroCoverUrl(selectedUrl);
 
   return (
     <Modal open={open} title={c.coverPickerTitle} onClose={onClose}>
@@ -33,7 +34,7 @@ export function HeroCoverPicker({
         </p>
         <div className="grid grid-cols-2 gap-3">
           {HERO_COVER_PRESETS.map((preset, index) => {
-            const active = selectedUrl === preset.url;
+            const active = normalizedSelectedUrl === preset.url;
             return (
               <button
                 key={preset.id}

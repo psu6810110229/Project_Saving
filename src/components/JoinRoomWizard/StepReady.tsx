@@ -147,7 +147,7 @@ export function StepReady({ roomId, personalGoal, buckets, roomEndDate, onBack }
     } finally {
       setCreating(false);
     }
-  }, [userId, roomId, personalGoal, buckets, roomEndDate, bucketsCtx, navigate, c.errorGeneric]);
+  }, [userId, roomId, personalGoal, buckets, roomEndDate, bucketsCtx, waitForBucketsReady, navigate, c.errorGeneric]);
 
   return (
     <div className="flex flex-col gap-5">

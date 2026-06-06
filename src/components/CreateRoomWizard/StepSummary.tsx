@@ -9,6 +9,7 @@ import iconLightbulb from '../../assets/icons/lightbulb.svg';
 import { useI18n } from '../../i18n/useI18n';
 import { useRooms } from '../../hooks/useRooms';
 import { formatCurrency } from '../../lib/format';
+import { normalizeHeroCoverUrl } from '../../lib/heroCovers';
 import { calcSuggestedRule } from '../../lib/travelExpenseRules';
 import { clearWizardDraft } from '../../lib/wizardDraft';
 import type { ExpenseDraftItem } from './wizardTypes';
@@ -125,7 +126,7 @@ export function StepSummary({
       target_amount: totalBudget > 0 ? totalBudget : expenseTotal,
       end_date: endDate,
       category,
-      cover_image_url: coverImageUrl,
+      cover_image_url: normalizeHeroCoverUrl(coverImageUrl),
       expenses: checked.map(e => {
         // Persist the affordable, leg-based suggestion when the user never
         // opened the adjust panel, so created buckets still carry a sensible

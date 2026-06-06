@@ -12,7 +12,7 @@ import {
 } from '../../hooks/useImageUpload';
 import { roomCoverErrorMessage } from '../../lib/roomCoverImage';
 import { HeroCoverPicker } from '../HeroCoverPicker/HeroCoverPicker';
-import { HERO_COVER_PRESETS, type HeroCoverPreset } from '../../lib/heroCovers';
+import { findHeroCoverPresetByUrl, normalizeHeroCoverUrl, type HeroCoverPreset } from '../../lib/heroCovers';
 import type { ProjectCategory } from '../../types';
 
 interface StepEventDateProps {
@@ -59,9 +59,9 @@ export function StepEventDate({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
 
-  const previewUrl = coverImageUrl ?? DEFAULT_COVER_IMAGES[category];
+  const previewUrl = normalizeHeroCoverUrl(coverImageUrl) ?? DEFAULT_COVER_IMAGES[category];
   const previewTint = useMemo(
-    () => HERO_COVER_PRESETS.find(preset => preset.url === previewUrl)?.tint ?? null,
+    () => findHeroCoverPresetByUrl(previewUrl)?.tint ?? null,
     [previewUrl],
   );
   const previewName = profile?.display_name?.trim() || copy.profile.youFallback;

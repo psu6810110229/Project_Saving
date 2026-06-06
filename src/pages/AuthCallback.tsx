@@ -8,25 +8,26 @@ import { supabase } from '../lib/supabase';
 
 const CALLBACK_TIMEOUT_MS = 12_000;
 
+function readProviderError(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  return params.get('error_description')
+    ?? params.get('error')
+    ?? hashParams.get('error_description')
+    ?? hashParams.get('error');
+}
+
 export function AuthCallback() {
   const navigate = useNavigate();
   const { copy } = useI18n();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => readProviderError());
   const loading = error === null;
   const { shouldShowLoader, fakeLoadingExpired } = useLoadingGate({ loading });
 
   useEffect(() => {
+    if (error !== null) return;
+
     let cancelled = false;
-
-    // 1. เช็ก Error จาก Provider ใน URL (โค้ดดั้งเดิมของคุณฟาน ดีอยู่แล้วครับ)
-    const params = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    const providerError = params.get('error_description') ?? params.get('error') ?? hashParams.get('error_description') ?? hashParams.get('error');
-
-    if (providerError) {
-      setError(providerError);
-      return;
-    }
 
     // 2. กางเต็นท์รอฟังสถานะ หาก Supabase แลกโค้ดอัตโนมัติสำเร็จ มันจะส่งสัญญาณมาที่นี่
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -65,7 +66,7 @@ export function AuthCallback() {
       cancelled = true;
       subscription.unsubscribe(); // อย่าลืมทำลาย Listener ตอนเปลี่ยนหน้า
     };
-  }, [copy.auth.genericError, copy.auth.timeoutError, navigate]);
+  }, [copy.auth.genericError, copy.auth.timeoutError, error, navigate]);
 
   if (error) {
     return (

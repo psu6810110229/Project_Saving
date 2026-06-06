@@ -1,11 +1,8 @@
 import { createRoot } from 'react-dom/client'
 import './styles/global.css'
-import App from './App.tsx'
-import { WidgetCapture } from './pages/WidgetCapture.tsx'
-import { registerAppServiceWorker } from './lib/pwaUpdate.ts'
-import { notifyLiveUpdateReady } from './lib/liveUpdate.ts'
 
 const isWidgetCapture = window.location.pathname.startsWith('/widget/')
+const root = createRoot(document.getElementById('root')!)
 
 if (isWidgetCapture) {
   console.log('[Widget] JS bundle executing:', window.location.pathname)
@@ -24,14 +21,28 @@ if (isWidgetCapture) {
   if (widgetRootEl) widgetRootEl.style.background = 'transparent'
 }
 
-if (!isWidgetCapture) {
+async function bootstrap() {
+  if (isWidgetCapture) {
+    const { WidgetCapture } = await import('./pages/WidgetCapture.tsx')
+    root.render(<WidgetCapture />)
+    return
+  }
+
+  const [
+    { default: App },
+    { registerAppServiceWorker },
+    { notifyLiveUpdateReady },
+  ] = await Promise.all([
+    import('./App.tsx'),
+    import('./lib/pwaUpdate.ts'),
+    import('./lib/liveUpdate.ts'),
+  ])
+
   registerAppServiceWorker()
   // Confirm the (possibly OTA-updated) bundle booted, so Capgo doesn't roll back.
   void notifyLiveUpdateReady()
+
+  root.render(<App />)
 }
 
-createRoot(document.getElementById('root')!).render(
-  // <StrictMode>
-    isWidgetCapture ? <WidgetCapture /> : <App />
-  // </StrictMode>
-)
+void bootstrap()

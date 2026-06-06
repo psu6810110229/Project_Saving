@@ -97,26 +97,37 @@ public class WidgetRenderer {
     // Public entry points
     // -------------------------------------------------------------------------
 
+    /** Map the legacy compact flag to a size key. */
+    private static String sizeOf(boolean compact) {
+        return compact ? "small" : "medium";
+    }
+
     /** Schedule a capture for one widget instance (posts to main thread). */
     static void render(Context ctx, int appWidgetId, boolean compact, int wPx, int hPx) {
-        render(ctx, appWidgetId, compact, wPx, hPx, null);
+        render(ctx, appWidgetId, sizeOf(compact), wPx, hPx, null);
     }
 
     /** Schedule a capture with a foreground-supplied snapshot JSON, falling back to prefs. */
     static void render(Context ctx, int appWidgetId, boolean compact, int wPx, int hPx,
                        String snapshotJsonOverride) {
+        render(ctx, appWidgetId, sizeOf(compact), wPx, hPx, snapshotJsonOverride);
+    }
+
+    /** Schedule a capture keyed by size string ("small" | "medium" | "team"). */
+    static void render(Context ctx, int appWidgetId, String size, int wPx, int hPx,
+                       String snapshotJsonOverride) {
         try {
             new Handler(Looper.getMainLooper()).post(() -> {
                 try {
-                    doCapture(ctx, appWidgetId, compact, wPx, hPx, snapshotJsonOverride);
+                    doCapture(ctx, appWidgetId, size, wPx, hPx, snapshotJsonOverride);
                 } catch (Exception e) {
                     Log.e(TAG, "capture failed before render completed: " + e.getMessage(), e);
-                    applyLastGood(ctx, appWidgetId, compact);
+                    applyLastGood(ctx, appWidgetId, size);
                 }
             });
         } catch (Exception e) {
             Log.e(TAG, "capture scheduling failed: " + e.getMessage(), e);
-            applyLastGood(ctx, appWidgetId, compact);
+            applyLastGood(ctx, appWidgetId, size);
         }
     }
 
@@ -126,14 +137,25 @@ public class WidgetRenderer {
      * evaluateJavascript callbacks). Shows a transparent placeholder if no cache.
      */
     static void applyLastGood(Context ctx, int appWidgetId, boolean compact) {
+        applyLastGood(ctx, appWidgetId, sizeOf(compact));
+    }
+
+    /** Layout shell for a size key ("small" | "medium" | "team"). */
+    private static int layoutFor(String size) {
+        if ("medium".equals(size)) return R.layout.widget_savings_4x2;
+        if ("team".equals(size)) return R.layout.widget_savings_team;
+        return R.layout.widget_savings_2x2; // small
+    }
+
+    static void applyLastGood(Context ctx, int appWidgetId, String size) {
         try {
-            String sizeName = compact ? "small" : "medium";
+            String sizeName = size;
             File cacheFile = cacheFile(ctx, sizeName);
             Log.d(TAG, "last-good " + (cacheFile.exists() ? "exists" : "missing")
                     + ": " + sizeName + " path=" + cacheFile.getPath());
 
             AppWidgetManager manager = AppWidgetManager.getInstance(ctx);
-            int layoutId = compact ? R.layout.widget_savings_2x2 : R.layout.widget_savings_4x2;
+            int layoutId = layoutFor(size);
             RemoteViews views = new RemoteViews(ctx.getPackageName(), layoutId);
 
             // Keep a reference so we can recycle AFTER updateAppWidget parcels the bitmap.
@@ -150,7 +172,7 @@ public class WidgetRenderer {
                 }
             }
             if (!applied) {
-                Bitmap placeholder = placeholderBitmap(compact);
+                Bitmap placeholder = placeholderBitmap(size);
                 views.setImageViewBitmap(R.id.w_image, placeholder);
                 Log.w(TAG, "placeholder applied: " + sizeName + " (no valid cache)");
                 bitmapToRecycle = placeholder;
@@ -173,10 +195,10 @@ public class WidgetRenderer {
     // Capture implementation (must run on main thread)
     // -------------------------------------------------------------------------
 
-    private static void doCapture(Context ctx, int appWidgetId, boolean compact,
+    private static void doCapture(Context ctx, int appWidgetId, String size,
                                    int wPx, int hPx, String snapshotJsonOverride) {
-        String sizeName = compact ? "small" : "medium";
-        String sizePath = sizeName; // URL path segment: "small" | "medium"
+        String sizeName = size;
+        String sizePath = size; // URL path segment: "small" | "medium" | "team"
 
         // Fixed design sizes. The widget content has a near-constant pixel height
         // (~213px for medium) because all text sizes are fixed, so we lay out at a
@@ -189,16 +211,17 @@ public class WidgetRenderer {
         // so CSS innerWidth == viewportW. The physical capture aspect matches the design
         // aspect, so CSS innerHeight == viewportH. Bitmaps stay under the 900 KB Binder limit.
         int capW, capH, viewportW, viewportH;
-        if (compact) {
-            viewportW = 185; viewportH = 185;   // 2x2 square
-            capW = 370;      capH = 370;         // 547 KB ARGB_8888
-        } else {
+        if ("medium".equals(size)) {
             // 4x2: ~2.2:1, close to a real 4x2 cell. The layout uses fitXY so the
             // card fills the whole cell; matching this aspect keeps distortion tiny.
             // Content (no buttons) is ~168px tall; 172 leaves a little breathing room.
             // Capture at ~1.8x the design size so it stays sharp when scaled up.
             viewportW = 380; viewportH = 172;
             capW = 680;      capH = 308;         // 838 KB ARGB_8888 (< 900 KB Binder)
+        } else {
+            // 2x2 square — "small" and "team" share the same cell geometry.
+            viewportW = 185; viewportH = 185;
+            capW = 370;      capH = 370;         // 547 KB ARGB_8888
         }
 
         Log.d(TAG, "capture start: " + sizeName + " " + capW + "×" + capH
@@ -227,7 +250,7 @@ public class WidgetRenderer {
         }
         if (resolvedSnapshotJson == null) {
             Log.w(TAG, "capture skipped: snapshot missing for " + sizeName);
-            applyLastGood(ctx, appWidgetId, compact);
+            applyLastGood(ctx, appWidgetId, size);
             return;
         }
         final String snapshotJson = resolvedSnapshotJson;
@@ -303,7 +326,7 @@ public class WidgetRenderer {
                         Log.d(TAG, "JS ping __renderWidget type=" + pingValue
                                 + " for " + sizeName);
                         injectSnapshotWhenBridgeReady(view, handler, startMs, snapshotJson,
-                                sizePath, ctx, appWidgetId, compact, sizeName, fCapW, fCapH);
+                                size, ctx, appWidgetId, fCapW, fCapH);
                     });
                 });
             }
@@ -322,13 +345,12 @@ public class WidgetRenderer {
 
     private static void injectSnapshotWhenBridgeReady(WebView webView, Handler handler,
                                                        long startMs, String snapshotJson,
-                                                       String sizePath, Context ctx,
-                                                       int appWidgetId, boolean compact,
-                                                       String sizeName, int capW, int capH) {
+                                                       String size, Context ctx,
+                                                       int appWidgetId, int capW, int capH) {
         if (SystemClock.elapsedRealtime() - startMs > CAPTURE_TIMEOUT_MS) {
-            Log.w(TAG, "snapshot injection timeout for " + sizeName + " - keeping last-good cache");
-            cleanupRender(webView, sizeName);
-            applyLastGood(ctx, appWidgetId, compact);
+            Log.w(TAG, "snapshot injection timeout for " + size + " - keeping last-good cache");
+            cleanupRender(webView, size);
+            applyLastGood(ctx, appWidgetId, size);
             return;
         }
 
@@ -346,87 +368,87 @@ public class WidgetRenderer {
 
         String injectJs = "(function(){try{"
                 + "if(typeof window.__renderWidget!=='function')return 'missing';"
-                + "window.__renderWidget(" + dataExpr + ",'" + sizePath + "');"
+                + "window.__renderWidget(" + dataExpr + ",'" + size + "');"
                 + "return 'called';"
                 + "}catch(e){console.error('[Widget] inject failed',e);return 'error:'+(e&&e.message?e.message:String(e));}})()";
 
         webView.evaluateJavascript(injectJs, value -> {
             String result = decodeJsString(value);
             if ("called".equals(result)) {
-                Log.d(TAG, "snapshot injected: " + sizeName + " data=" + (snapshotJson != null));
-                Log.d(TAG, "__renderWidget called successfully: " + sizeName);
+                Log.d(TAG, "snapshot injected: " + size + " data=" + (snapshotJson != null));
+                Log.d(TAG, "__renderWidget called successfully: " + size);
                 scheduleReadyPoll(webView, handler, startMs, ctx, appWidgetId,
-                        compact, sizeName, capW, capH);
+                        size, capW, capH);
             } else if ("missing".equals(result)) {
-                Log.d(TAG, "__renderWidget not ready yet: " + sizeName);
+                Log.d(TAG, "__renderWidget not ready yet: " + size);
                 handler.postDelayed(
                         () -> injectSnapshotWhenBridgeReady(webView, handler, startMs,
-                                snapshotJson, sizePath, ctx, appWidgetId, compact,
-                                sizeName, capW, capH),
+                                snapshotJson, size, ctx, appWidgetId,
+                                capW, capH),
                         POLL_INTERVAL_MS);
             } else {
-                Log.e(TAG, "snapshot injection failed for " + sizeName + ": " + result);
-                cleanupRender(webView, sizeName);
-                applyLastGood(ctx, appWidgetId, compact);
+                Log.e(TAG, "snapshot injection failed for " + size + ": " + result);
+                cleanupRender(webView, size);
+                applyLastGood(ctx, appWidgetId, size);
             }
         });
     }
 
     private static void scheduleReadyPoll(WebView webView, Handler handler, long startMs,
-                                           Context ctx, int appWidgetId, boolean compact,
-                                           String sizeName, int capW, int capH) {
+                                           Context ctx, int appWidgetId, String size,
+                                           int capW, int capH) {
         if (SystemClock.elapsedRealtime() - startMs > CAPTURE_TIMEOUT_MS) {
-            Log.w(TAG, "capture timeout for " + sizeName + " – keeping last-good cache");
-            cleanupRender(webView, sizeName);
-            applyLastGood(ctx, appWidgetId, compact);
+            Log.w(TAG, "capture timeout for " + size + " – keeping last-good cache");
+            cleanupRender(webView, size);
+            applyLastGood(ctx, appWidgetId, size);
             return;
         }
 
         webView.evaluateJavascript(
                 "document.documentElement.getAttribute('data-widget-ready')",
                 value -> {
-                    Log.d(TAG, "data-widget-ready value for " + sizeName + ": " + value);
+                    Log.d(TAG, "data-widget-ready value for " + size + ": " + value);
                     if ("\"true\"".equals(value) || "\"empty\"".equals(value)) {
-                        Log.d(TAG, "widget ready: " + value + " for " + sizeName);
-                        validateDomThenCapture(webView, ctx, appWidgetId, compact, sizeName, capW, capH);
+                        Log.d(TAG, "widget ready: " + value + " for " + size);
+                        validateDomThenCapture(webView, ctx, appWidgetId, size, capW, capH);
                     } else if ("\"invalid\"".equals(value)) {
-                        Log.w(TAG, "DOM validation failed in React for " + sizeName + " - keeping last-good cache");
-                        cleanupRender(webView, sizeName);
-                        applyLastGood(ctx, appWidgetId, compact);
+                        Log.w(TAG, "DOM validation failed in React for " + size + " - keeping last-good cache");
+                        cleanupRender(webView, size);
+                        applyLastGood(ctx, appWidgetId, size);
                     } else {
                         handler.postDelayed(
                                 () -> scheduleReadyPoll(webView, handler, startMs, ctx,
-                                        appWidgetId, compact, sizeName, capW, capH),
+                                        appWidgetId, size, capW, capH),
                                 POLL_INTERVAL_MS);
                     }
                 });
     }
 
     private static void validateDomThenCapture(WebView webView, Context ctx, int appWidgetId,
-                                                boolean compact, String sizeName,
-                                                int capW, int capH) {
+                                                String size, int capW, int capH) {
         webView.evaluateJavascript(DOM_VALIDATION_JS, value -> {
             try {
                 JSONObject result = parseJsJsonObject(value);
-                Log.d(TAG, "DOM validation result for " + sizeName + ": " + result);
+                Log.d(TAG, "DOM validation result for " + size + ": " + result);
                 if (result.optBoolean("ok", false)) {
-                    captureAndApply(webView, ctx, appWidgetId, compact, sizeName, capW, capH);
+                    captureAndApply(webView, ctx, appWidgetId, size, capW, capH);
                 } else {
-                    Log.w(TAG, "capture rejected by DOM validation for " + sizeName
+                    Log.w(TAG, "capture rejected by DOM validation for " + size
                             + " - keeping last-good cache");
-                    cleanupRender(webView, sizeName);
-                    applyLastGood(ctx, appWidgetId, compact);
+                    cleanupRender(webView, size);
+                    applyLastGood(ctx, appWidgetId, size);
                 }
             } catch (JSONException e) {
-                Log.e(TAG, "DOM validation parse failed for " + sizeName + ": " + e.getMessage());
-                cleanupRender(webView, sizeName);
-                applyLastGood(ctx, appWidgetId, compact);
+                Log.e(TAG, "DOM validation parse failed for " + size + ": " + e.getMessage());
+                cleanupRender(webView, size);
+                applyLastGood(ctx, appWidgetId, size);
             }
         });
     }
 
     private static void captureAndApply(WebView webView, Context ctx, int appWidgetId,
-                                         boolean compact, String sizeName, int capW, int capH) {
+                                         String size, int capW, int capH) {
+        String sizeName = size;
         try {
             // Re-measure to ensure the size is still correct.
             webView.measure(
@@ -473,7 +495,7 @@ public class WidgetRenderer {
         }
 
         // Apply cached PNG (or fall through to placeholder if save failed).
-        applyLastGood(ctx, appWidgetId, compact);
+        applyLastGood(ctx, appWidgetId, size);
     }
 
     // -------------------------------------------------------------------------
@@ -553,7 +575,8 @@ public class WidgetRenderer {
         return trimmed;
     }
 
-    private static Bitmap placeholderBitmap(boolean compact) {
+    private static Bitmap placeholderBitmap(String size) {
+        boolean compact = !"medium".equals(size); // "small" + "team" share the square placeholder
         int width = compact ? MAX_PX_SMALL : MAX_PX_MEDIUM_W;
         int height = compact ? MAX_PX_SMALL : MAX_PX_MEDIUM_H;
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);

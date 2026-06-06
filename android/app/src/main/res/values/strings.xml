@@ -31,4 +31,5 @@
     <string name="widget_focus_more">%1$s +%2$d</string>
     <string name="widget_label">เงินเก็บ GO-OUT</string>
     <string name="widget_label_compact">เงินเก็บ GO-OUT (เล็ก)</string>
+    <string name="widget_label_team">เงินเก็บ GO-OUT (ทีม)</string>
 </resources>

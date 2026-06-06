@@ -5,10 +5,11 @@ import { useSharedData } from './useSharedData';
 import { useStreak } from './useStreak';
 import { useRoom } from './useRoom';
 import { useAuth } from './useAuth';
-import { writeWidgetSnapshot, type WidgetSnapshot } from '../lib/widgetSnapshot';
+import { writeWidgetSnapshot, type WidgetMember, type WidgetSnapshot } from '../lib/widgetSnapshot';
 import { calcDailySummary } from '../lib/bucketDailySummary';
 import { todayBangkokKey } from '../lib/savingPlan';
 import { bucketSaved } from '../lib/buckets';
+import { themeSwatches, DEFAULT_THEME } from '../lib/theme';
 
 /**
  * Writes a display-only widget snapshot to native storage whenever the
@@ -19,7 +20,7 @@ import { bucketSaved } from '../lib/buckets';
  * Mount once inside the DataProvider subtree (where `useSharedData` is valid).
  */
 export function useWidgetSync(): void {
-  const { reconcile, goal, logs, buckets, bucketTransfers, balanceAllocations, streakFreeze } = useSharedData();
+  const { reconcile, goal, logs, buckets, bucketTransfers, balanceAllocations, streakFreeze, leaderboard } = useSharedData();
   const { activeRoom } = useRoom();
   const { user } = useAuth();
 
@@ -73,6 +74,30 @@ export function useWidgetSync(): void {
     ? Math.max(0, Math.min(100, Math.round((leadBucketSaved / leadBucketTarget) * 100)))
     : 0;
 
+  // Team-bars widget data. The leaderboard already provides every member's
+  // room-visible saved amount, theme color, and high → low ordering, so we
+  // only reshape it into the display-only snapshot form.
+  const members = useMemo<WidgetMember[]>(
+    () => leaderboard.entries.map(entry => ({
+      name: entry.displayName,
+      saved: Math.max(0, Math.round(entry.saved)),
+      color: themeSwatches[entry.themeColor ?? DEFAULT_THEME],
+      isYou: entry.isYou,
+      avatarUrl: entry.avatarUrl ?? null,
+      streak: entry.streak,
+      loggedToday: entry.hasLoggedToday,
+    })),
+    [leaderboard.entries],
+  );
+  const roomSaved = useMemo(
+    () => members.reduce((sum, member) => sum + member.saved, 0),
+    [members],
+  );
+  const roomGoal = activeRoom?.target_amount ?? 0;
+  const roomProgressPct = roomGoal > 0
+    ? Math.min(100, Math.round((roomSaved / roomGoal) * 100))
+    : 0;
+
   const publishSnapshot = useCallback((reason: string) => {
     const snapshot: WidgetSnapshot = {
       roomName,
@@ -91,6 +116,10 @@ export function useWidgetSync(): void {
       streakUnit: streak.unit,
       hasLoggedToday: streak.hasLoggedToday,
       updatedAt: new Date().toISOString(),
+      members,
+      roomSaved,
+      roomGoal,
+      roomProgressPct,
     };
 
     console.log('[Widget] publish snapshot:', reason, {
@@ -116,6 +145,10 @@ export function useWidgetSync(): void {
     streak.streak,
     streak.unit,
     streak.hasLoggedToday,
+    members,
+    roomSaved,
+    roomGoal,
+    roomProgressPct,
   ]);
 
   useEffect(() => {

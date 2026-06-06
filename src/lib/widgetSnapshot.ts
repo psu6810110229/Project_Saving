@@ -3,6 +3,21 @@ import { Preferences } from '@capacitor/preferences';
 import { refreshWidget } from './widgetBridge';
 
 /**
+ * One room member as shown in the team-bars widget. Derived from the
+ * leaderboard so it carries the same room-visible saved amount, ordering,
+ * and theme color the dashboard already uses.
+ */
+export interface WidgetMember {
+  name: string;
+  saved: number; // room-visible saved amount, rounded, >= 0
+  color: string; // hex from themeSwatches, used to fill the pill
+  isYou: boolean;
+  avatarUrl?: string | null; // profile photo; falls back to an initial when absent
+  streak?: number; // current saving streak in days, for F1 headline lines
+  loggedToday?: boolean; // saved today, for the "เก็บแล้ววันนี้" headline line
+}
+
+/**
  * Display-only snapshot the Android home-screen widget renders. Every value is
  * derived from numbers already shown on the dashboard. The widget never talks
  * to Supabase; it only reads this snapshot from native storage.
@@ -24,6 +39,12 @@ export interface WidgetSnapshot {
   streakUnit: 'day' | 'week' | 'month';
   hasLoggedToday: boolean;
   updatedAt: string; // ISO timestamp
+  // Team-bars (2x2) widget fields. Optional so the small/medium widgets and
+  // any existing snapshot readers ignore them; only the team variant renders them.
+  members?: WidgetMember[]; // all room members, sorted high → low
+  roomSaved?: number; // sum of every member's saved amount
+  roomGoal?: number; // rooms.target_amount (room-level goal); 0 when unset
+  roomProgressPct?: number; // 0-100, clamped = roomSaved / roomGoal
 }
 
 const SNAPSHOT_KEY = 'widget_snapshot';

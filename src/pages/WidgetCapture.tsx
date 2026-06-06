@@ -11,7 +11,7 @@ declare global {
   }
 }
 
-type WidgetSize = '2x2' | '4x2'
+type WidgetSize = '2x2' | '4x2' | 'team'
 
 interface DomValidationResult {
   valid: boolean
@@ -25,7 +25,10 @@ interface DomValidationResult {
 }
 
 function getSize(): WidgetSize {
-  return window.location.pathname.includes('/small') ? '2x2' : '4x2'
+  const path = window.location.pathname
+  if (path.includes('/team')) return 'team'
+  if (path.includes('/small')) return '2x2'
+  return '4x2'
 }
 
 function validateWidgetDom(): DomValidationResult {
@@ -133,11 +136,18 @@ export function WidgetCapture() {
       if (controller.signal.aborted) return
       console.log('[Widget] fonts ready')
 
-      // Guard for any <img> tags (icons are inline SVGs, but keep the check).
+      // Wait for images (team avatars are remote), but race each pending image
+      // against a short timeout so one slow/stalled avatar can't burn the whole
+      // capture window — the affected member just renders its initial fallback.
       const imgs = Array.from(document.images)
       await Promise.all(
         imgs.filter(img => !img.complete).map(
-          img => new Promise(r => { img.onload = img.onerror = r })
+          img => new Promise<void>(resolve => {
+            const done = () => resolve()
+            img.onload = done
+            img.onerror = done
+            setTimeout(done, 2500)
+          })
         )
       )
       if (controller.signal.aborted) return

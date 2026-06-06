@@ -80,6 +80,24 @@ export function WidgetPreview() {
             streakUnit="day"
             roomName="New Camera"
           />
+
+          <SavingsWidgetPreviewCard
+            title="2x2 · ทีม (พิล + อวตาร)"
+            size="team"
+            roomName="Japan 2027"
+            saved={18000}
+            goal={300000}
+            progressPct={26}
+            roomSaved={47000}
+            roomGoal={300000}
+            roomProgressPct={16}
+            members={[
+              { name: 'คุณ', saved: 18000, color: '#F26B1A', isYou: true, avatarUrl: 'https://i.pravatar.cc/100?img=12', streak: 7, loggedToday: true },
+              { name: 'Bee', saved: 16800, color: '#2EA079', isYou: false, avatarUrl: 'https://i.pravatar.cc/100?img=5', streak: 12, loggedToday: false },
+              { name: 'Ann', saved: 9000, color: '#6E7CCF', isYou: false, avatarUrl: null, streak: 3, loggedToday: true },
+              { name: 'Tom', saved: 5000, color: '#5C6B7A', isYou: false, avatarUrl: 'https://i.pravatar.cc/100?img=33', streak: 0, loggedToday: false },
+            ]}
+          />
         </div>
       </div>
     </div>

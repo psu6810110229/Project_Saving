@@ -1,8 +1,10 @@
-import type { WidgetSnapshot } from '../../lib/widgetSnapshot';
+import { useState } from 'react';
+import type { WidgetMember, WidgetSnapshot } from '../../lib/widgetSnapshot';
 import { palette } from '../../lib/theme';
+import { buildTeamMessage, messageSeed } from '../../lib/widgetTeamMessage';
 import { IconFire, IconPiggyBank } from '../Icon/Icon';
 
-type WidgetSize = '2x2' | '4x2';
+type WidgetSize = '2x2' | '4x2' | 'team';
 
 interface SavingsWidgetProps extends Partial<WidgetSnapshot> {
   size?: WidgetSize;
@@ -211,6 +213,102 @@ function CompactWidget({ snapshot, fluid }: { snapshot: WidgetSnapshot; fluid?: 
   );
 }
 
+function teamHeader(saved: number, goal: number): string {
+  // "฿47k / 300k" — compact both sides, ฿ only on the first.
+  if (goal <= 0) return compactBaht(saved);
+  return `${compactBaht(saved)} / ${compactBaht(goal).slice(1)}`;
+}
+
+interface PillTier {
+  avatar: number; // avatar circle px
+  amount: number; // amount font px
+  initial: number; // fallback-initial font px
+  minWidth: number; // pill min width px so avatar + amount never clip
+}
+
+// Sizes step down as the room fills so 1–7 members all fit the 2x2 cell.
+function pillTier(count: number): PillTier {
+  if (count <= 1) return { avatar: 40, amount: 18, initial: 18, minWidth: 120 };
+  if (count <= 2) return { avatar: 32, amount: 16, initial: 15, minWidth: 104 };
+  if (count <= 3) return { avatar: 27, amount: 14, initial: 13, minWidth: 92 };
+  if (count <= 5) return { avatar: 22, amount: 12, initial: 11, minWidth: 80 };
+  return { avatar: 17, amount: 10, initial: 9, minWidth: 70 };
+}
+
+function TeamPill({ member, maxSaved, tier }: { member: WidgetMember; maxSaved: number; tier: PillTier }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  // Width is the member's share of the top saver; minWidth keeps the avatar +
+  // amount legible for small amounts. The row is flex-1 so the pill fills height.
+  const proportional = maxSaved > 0 ? (member.saved / maxSaved) * 100 : 0;
+  const showImage = Boolean(member.avatarUrl) && !imgFailed;
+  const initial = (member.name.trim().charAt(0) || '?').toUpperCase();
+
+  return (
+    <div className="flex min-h-0 flex-1 items-center">
+      <div
+        className={`flex h-full max-w-full items-center gap-1.5 overflow-hidden rounded-full pl-0.5 pr-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] ${member.isYou ? 'ring-2 ring-white/90' : ''}`}
+        style={{ width: `${proportional}%`, minWidth: `${tier.minWidth}px`, backgroundColor: member.color }}
+      >
+        <div
+          className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/25 ring-1 ring-white/70"
+          style={{ width: tier.avatar, height: tier.avatar }}
+        >
+          {showImage ? (
+            <img
+              src={member.avatarUrl ?? undefined}
+              alt=""
+              className="h-full w-full object-cover"
+              onError={() => setImgFailed(true)}
+            />
+          ) : (
+            <span className="font-mono font-bold leading-none text-white" style={{ fontSize: tier.initial }}>
+              {initial}
+            </span>
+          )}
+        </div>
+        <span className="truncate font-mono font-bold leading-none text-white" style={{ fontSize: tier.amount }}>
+          {compactBaht(member.saved)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function TeamWidget({ snapshot, fluid }: { snapshot: WidgetSnapshot; fluid?: boolean }) {
+  // Prefer the team data; fall back to the current user as a single pill so the
+  // widget stays valid in a solo room or before the leaderboard has loaded.
+  const members: WidgetMember[] = snapshot.members && snapshot.members.length > 0
+    ? snapshot.members.slice(0, 7)
+    : [{ name: snapshot.roomName, saved: Math.max(0, Math.round(snapshot.saved)), color: palette.brand500, isYou: true }];
+  const roomSaved = snapshot.roomSaved ?? members.reduce((sum, member) => sum + member.saved, 0);
+  const roomGoal = snapshot.roomGoal ?? snapshot.goal;
+  const maxSaved = Math.max(0, ...members.map(member => member.saved));
+  const tier = pillTier(members.length);
+  const message = buildTeamMessage(members, messageSeed(snapshot.updatedAt));
+
+  return (
+    <div className={`flex flex-col rounded-[28px] bg-gradient-to-br from-[#FBF1E7] via-[#F7EBDD] to-[#EFDCC8] p-3.5 shadow-[0_14px_32px_rgba(45,20,7,0.26)] ${fluid ? 'h-full w-full' : 'w-[180px]'}`}>
+      <p className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">
+        {snapshot.roomName}
+      </p>
+      <p className="truncate font-mono text-[16px] font-bold leading-none text-ink">
+        {teamHeader(roomSaved, roomGoal)}
+      </p>
+      {message && (
+        <p className="mt-0.5 truncate font-mono text-[10px] font-bold leading-tight text-brand-800">
+          {message}
+        </p>
+      )}
+
+      <div className="mt-2 flex min-h-0 flex-1 flex-col gap-[3px]">
+        {members.map((member, index) => (
+          <TeamPill key={`${member.name}-${index}`} member={member} maxSaved={maxSaved} tier={tier} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SavingsWidget({
   size = '4x2',
   className = '',
@@ -227,7 +325,11 @@ export function SavingsWidget({
       data-widget-progress={Math.round(snapshot.progressPct)}
       style={{ color: palette.ink }}
     >
-      {size === '2x2' ? <CompactWidget snapshot={snapshot} fluid={fluid} /> : <LargeWidget snapshot={snapshot} fluid={fluid} />}
+      {size === 'team'
+        ? <TeamWidget snapshot={snapshot} fluid={fluid} />
+        : size === '2x2'
+          ? <CompactWidget snapshot={snapshot} fluid={fluid} />
+          : <LargeWidget snapshot={snapshot} fluid={fluid} />}
     </div>
   );
 }

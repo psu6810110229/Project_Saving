@@ -71,6 +71,19 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/savings_widget_compact_info" />
         </receiver>
+
+        <!-- Home-screen widget (team 2x2): room total + ranked per-member bars -->
+        <receiver
+            android:name=".TeamSavingsWidget"
+            android:label="@string/widget_label_team"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/savings_widget_team_info" />
+        </receiver>
     </application>
 
     <!-- Permissions -->

@@ -74,6 +74,22 @@ public class WidgetBridgePlugin extends Plugin {
                             + e.getMessage(), e);
                 }
             }
+
+            // Trigger capture for all TeamSavingsWidget (2x2 team bars) instances.
+            int[] teamIds = manager.getAppWidgetIds(
+                    new ComponentName(appCtx, TeamSavingsWidget.class));
+            Log.d(TAG, "widget ids found: team=" + teamIds.length);
+            for (int id : teamIds) {
+                try {
+                    Bundle opts = manager.getAppWidgetOptions(id);
+                    int dimDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 110);
+                    WidgetRenderer.applyLastGood(appCtx, id, "team");
+                    WidgetRenderer.render(renderCtx, id, "team", dimDp, dimDp, snapshotJson);
+                } catch (Exception e) {
+                    Log.e(TAG, "foreground team capture request failed for id=" + id + ": "
+                            + e.getMessage(), e);
+                }
+            }
         } catch (Exception e) {
             Log.e(TAG, "foreground capture bridge failed: " + e.getMessage(), e);
         }

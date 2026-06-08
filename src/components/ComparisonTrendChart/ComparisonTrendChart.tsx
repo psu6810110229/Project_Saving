@@ -1,5 +1,6 @@
-﻿import type { CSSProperties } from 'react';
+﻿import { useState, type CSSProperties } from 'react';
 import { useI18n } from '../../i18n/useI18n';
+import { useSecondaryMotionReady } from '../../lib/animationBudget';
 import { palette } from '../../lib/theme';
 
 /**
@@ -58,6 +59,8 @@ export function ComparisonTrendChart({
   theirLabel,
 }: ComparisonTrendChartProps) {
   const { copy } = useI18n();
+  const secondaryReady = useSecondaryMotionReady();
+  const [shouldAnimate] = useState(secondaryReady);
   const max = Math.max(1, ...mineSeries.map(chartValue), ...theirSeries.map(chartValue));
   const minePath = pathFor(mineSeries, max);
   const theirPath = pathFor(theirSeries, max);
@@ -67,24 +70,30 @@ export function ComparisonTrendChart({
   const mineLength = pathLength(mineSeries, max);
   const mineDrawStyle: CSSProperties = {
     strokeDasharray: mineLength,
-    strokeDashoffset: mineLength,
-    ['--path-length' as never]: mineLength,
-    animation: 'line-draw 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-    animationDelay: '0.1s',
+    strokeDashoffset: shouldAnimate ? mineLength : 0,
+    ...(shouldAnimate ? {
+      ['--path-length' as never]: mineLength,
+      animation: 'line-draw 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+      animationDelay: '0.1s',
+    } : {}),
   };
   // The opponent's line is intrinsically dashed; fading it in keeps the
   // dash pattern intact while still feeling animated.
   const theirFadeStyle: CSSProperties = {
-    opacity: 0,
-    animation: 'line-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-    animationDelay: '0.9s',
+    opacity: shouldAnimate ? 0 : 1,
+    ...(shouldAnimate ? {
+      animation: 'line-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+      animationDelay: '0.9s',
+    } : {}),
   };
   // Area fill fades in after the primary line finishes drawing so the
   // translucent wash doesn't obscure the draw-on motion.
   const areaFadeStyle: CSSProperties = {
-    opacity: 0,
-    animation: 'line-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-    animationDelay: '0.9s',
+    opacity: shouldAnimate ? 0 : 1,
+    ...(shouldAnimate ? {
+      animation: 'line-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+      animationDelay: '0.9s',
+    } : {}),
   };
 
   return (

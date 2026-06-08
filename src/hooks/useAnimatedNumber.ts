@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   acquireAnimationSlot,
+  canStartSecondaryAnimation,
+  isSecondaryMotionBlocked,
   releaseAnimationSlot,
-  isPageTransitioning,
 } from '../lib/animationBudget';
 
 const REDUCED_MOTION =
@@ -42,7 +43,7 @@ export function useAnimatedNumber(target: number, duration = 600): number {
     const from = fromRef.current;
     const delta = Math.abs(safe - from);
 
-    if (REDUCED_MOTION || duration <= 0 || delta <= SNAP_THRESHOLD || isPageTransitioning() || !acquireAnimationSlot()) {
+    if (REDUCED_MOTION || duration <= 0 || delta <= SNAP_THRESHOLD || !canStartSecondaryAnimation() || !acquireAnimationSlot()) {
       cancelAnimation();
       fromRef.current = safe;
       setValue(safe);
@@ -53,7 +54,7 @@ export function useAnimatedNumber(target: number, duration = 600): number {
     const start = performance.now();
     const to = safe;
     const tick = (now: number) => {
-      if (isPageTransitioning()) {
+      if (isSecondaryMotionBlocked()) {
         rafRef.current = null;
         fromRef.current = to;
         setValue(to);
@@ -125,7 +126,7 @@ export function useAnimatedNumbers(targets: number[], duration = 600): number[] 
       ...newTargets.map((t, i) => Math.abs(t - (froms[i] ?? 0))),
     );
 
-    if (REDUCED_MOTION || duration <= 0 || maxDelta <= SNAP_THRESHOLD || isPageTransitioning() || !acquireAnimationSlot()) {
+    if (REDUCED_MOTION || duration <= 0 || maxDelta <= SNAP_THRESHOLD || !canStartSecondaryAnimation() || !acquireAnimationSlot()) {
       cancelAnimation();
       fromsRef.current = newTargets.slice();
       setValues(newTargets.slice());
@@ -141,7 +142,7 @@ export function useAnimatedNumbers(targets: number[], duration = 600): number[] 
     const animFroms = froms.slice();
     const start = performance.now();
     const tick = (now: number) => {
-      if (isPageTransitioning()) {
+      if (isSecondaryMotionBlocked()) {
         rafRef.current = null;
         fromsRef.current = newTargets.slice();
         setValues(newTargets.slice());

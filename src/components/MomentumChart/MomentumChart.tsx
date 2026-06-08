@@ -6,6 +6,12 @@ import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
 import { FADE_TRANSITION, REDUCED_MOTION_TRANSITION, SPRING } from '../../lib/motion';
+import {
+  acquireAnimationSlot,
+  beginPrimaryMotion,
+  isPrimaryMotionActive,
+  releaseAnimationSlot,
+} from '../../lib/animationBudget';
 import type { BucketCategory, ProfileTheme } from '../../types';
 import { themeSwatches } from '../../lib/theme';
 import { Avatar } from '../Avatar/Avatar';
@@ -124,8 +130,32 @@ function useAnimatedSeries(
   const fromRef = useRef<{ series: number[]; partner: number[] | undefined }>(state);
   const rafRef = useRef<number | null>(null);
   const targetRef = useRef({ series: target, partner: targetPartner });
+  const slotRef = useRef(false);
+  const chartMotionReleaseRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    const cancelAnimation = () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (slotRef.current) {
+        releaseAnimationSlot();
+        slotRef.current = false;
+      }
+      chartMotionReleaseRef.current?.();
+      chartMotionReleaseRef.current = null;
+    };
+
+    const snapToTarget = () => {
+      const nextState = {
+        series: target.slice(),
+        partner: targetPartner ? targetPartner.slice() : undefined,
+      };
+      fromRef.current = nextState;
+      setState(nextState);
+    };
+
     const prev = targetRef.current;
     const sameSeries = prev.series.length === target.length
       && prev.series.every((v, i) => v === target[i]);
@@ -136,16 +166,27 @@ function useAnimatedSeries(
     if (sameSeries && samePartner && !reduceMotion) return;
     targetRef.current = { series: target, partner: targetPartner };
 
-    if (reduceMotion) {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      const nextState = {
-        series: target.slice(),
-        partner: targetPartner ? targetPartner.slice() : undefined,
-      };
-      fromRef.current = nextState;
-      const timeoutId = window.setTimeout(() => setState(nextState), 0);
+    const competingPrimaryActive = () => (
+      isPrimaryMotionActive('route-transitioning')
+      || isPrimaryMotionActive('sheet-opening')
+      || isPrimaryMotionActive('sheet-closing')
+      || isPrimaryMotionActive('dragging')
+      || isPrimaryMotionActive('scroll-gesture-active')
+    );
+
+    if (reduceMotion || duration <= 0 || competingPrimaryActive()) {
+      cancelAnimation();
+      const timeoutId = window.setTimeout(snapToTarget, 0);
       return () => window.clearTimeout(timeoutId);
     }
+
+    cancelAnimation();
+    if (!acquireAnimationSlot()) {
+      const timeoutId = window.setTimeout(snapToTarget, 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+    slotRef.current = true;
+    chartMotionReleaseRef.current = beginPrimaryMotion('chart-morphing', 0);
 
     const len = target.length;
     const pad = (arr: number[] | undefined): number[] =>
@@ -158,6 +199,22 @@ function useAnimatedSeries(
 
     const start = performance.now();
     const tick = (now: number) => {
+      if (competingPrimaryActive()) {
+        rafRef.current = null;
+        fromRef.current = {
+          series: target.slice(),
+          partner: targetPartner ? targetPartner.slice() : undefined,
+        };
+        setState(fromRef.current);
+        if (slotRef.current) {
+          releaseAnimationSlot();
+          slotRef.current = false;
+        }
+        chartMotionReleaseRef.current?.();
+        chartMotionReleaseRef.current = null;
+        return;
+      }
+
       const t = Math.min(1, (now - start) / duration);
       const e = 1 - Math.pow(1 - t, 3); // ease-out cubic
       const s = toS.map((to, i) => fromS[i] + (to - fromS[i]) * e);
@@ -166,12 +223,20 @@ function useAnimatedSeries(
         : undefined;
       fromRef.current = { series: s, partner: p };
       setState({ series: s, partner: p });
-      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+        if (slotRef.current) {
+          releaseAnimationSlot();
+          slotRef.current = false;
+        }
+        chartMotionReleaseRef.current?.();
+        chartMotionReleaseRef.current = null;
+      }
     };
     rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    };
+    return cancelAnimation;
   }, [target, targetPartner, duration, reduceMotion]);
 
   return state;

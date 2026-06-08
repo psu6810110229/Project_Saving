@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { PAGE_TRANSITION, REDUCED_MOTION_TRANSITION } from '../../lib/motion';
 import { setPageTransitioning } from '../../lib/animationBudget';
@@ -72,6 +72,10 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
       if (pageRef.current) pageRef.current.style.willChange = 'auto';
       setPageTransitioning(false);
     }
+  }, []);
+
+  useEffect(() => () => {
+    setPageTransitioning(false);
   }, []);
 
   return (

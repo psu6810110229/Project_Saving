@@ -12,6 +12,7 @@ import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
 import { bucketSaved } from '../../lib/buckets';
+import { useOpenClosePrimaryMotion } from '../../lib/animationBudget';
 import {
   formatDirectionalAdjustment,
   formatSignedCurrency,
@@ -51,6 +52,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   const { copy } = useI18n();
   const r = copy.reconcile;
   const sync = r.allocate.sync;
+  useOpenClosePrimaryMotion(open, 220, 350);
 
   const [step, setStep] = useState<Step>('enter');
   const [actualValue, setActualValue] = useState('');

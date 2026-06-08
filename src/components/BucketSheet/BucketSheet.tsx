@@ -11,6 +11,7 @@ import { FormField } from '../FormField/FormField';
 import { IconPiggyBank, IconTrash } from '../Icon/Icon';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
+import { setPrimaryMotionState, useOpenClosePrimaryMotion } from '../../lib/animationBudget';
 import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/motion';
 
 const contentVariants = {
@@ -76,8 +77,13 @@ export function BucketSheet({
   const innerControls = useAnimation();
   const bucketAlreadyComplete = target > 0 && saved >= target;
   const showDoneLock = isComplete && !doneLockOverridden;
+  const sheetContentReady = useOpenClosePrimaryMotion(open, 240, 350);
 
   useBodyScrollLock(open);
+
+  useEffect(() => () => {
+    setPrimaryMotionState('dragging', false);
+  }, []);
 
   const prevBucketRef = useRef<string | null>(null);
   useEffect(() => {
@@ -169,7 +175,9 @@ export function BucketSheet({
             drag="y"
             dragConstraints={{ top: 0 }}
             dragElastic={{ top: 0, bottom: 0.45 }}
+            onDragStart={() => setPrimaryMotionState('dragging', true)}
             onDragEnd={(_, info) => {
+              setPrimaryMotionState('dragging', false);
               if (info.offset.y > 90 || info.velocity.y > 550) handleClose();
             }}
           >
@@ -188,7 +196,7 @@ export function BucketSheet({
                 <motion.div
                   variants={contentVariants}
                   initial="hidden"
-                  animate="visible"
+                  animate={sheetContentReady ? 'visible' : 'hidden'}
                   className="flex flex-col gap-5"
                 >
                   {/* Bucket header */}

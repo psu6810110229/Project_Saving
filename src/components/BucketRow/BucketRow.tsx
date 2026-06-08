@@ -5,6 +5,7 @@ import { formatCurrency } from '../../lib/format';
 import Pressable from '../Pressable/Pressable';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import { useI18n } from '../../i18n/useI18n';
+import { useSecondaryMotionReady } from '../../lib/animationBudget';
 import { IconArrowUpRight, IconCheckCircle, IconClock, IconClockAlert, IconWarning } from '../Icon/Icon';
 import { CATEGORY_ACCENT, DEFAULT_ACCENT } from '../../lib/bucketAccent';
 import type { BucketCategory, PaceStatus } from '../../types';
@@ -67,6 +68,7 @@ export const BucketRow = memo(function BucketRow({
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
   const wasComplete = useRef(target > 0 && saved >= target);
   const { copy, formatShortDateKey } = useI18n();
+  const secondaryMotionReady = useSecondaryMotionReady();
   const accent = (category && CATEGORY_ACCENT[category]) || DEFAULT_ACCENT;
 
   useEffect(() => {
@@ -91,7 +93,7 @@ export const BucketRow = memo(function BucketRow({
 
   // Focus ("ลำดับปัจจุบัน") and next ("ลำดับถัดไป") cards alternate their corner
   // between the badge and the percentage every 2s; static if reduced motion is on.
-  const alternateEnabled = !REDUCED_MOTION && (status?.kind === 'focus' || status?.kind === 'next');
+  const alternateEnabled = !REDUCED_MOTION && secondaryMotionReady && (status?.kind === 'focus' || status?.kind === 'next');
   const [showPct, setShowPct] = useState(false);
 
   useEffect(() => {

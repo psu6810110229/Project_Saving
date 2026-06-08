@@ -1,5 +1,6 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
+import { useAmbientMotionReady, useSecondaryMotionReady } from '../../lib/animationBudget';
 import { palette } from '../../lib/theme';
 
 /**
@@ -52,6 +53,9 @@ export function ProgressRing({
   className = '',
 }: ProgressRingProps) {
   const reduceMotion = useReducedMotion();
+  const secondaryReady = useSecondaryMotionReady();
+  const ambientReady = useAmbientMotionReady();
+  const skippedSweepRef = useRef(animate && reduceMotion !== true && !secondaryReady);
   const maskId = useId();
   const { outer, stroke } = SIZES[size];
   const clamped = Math.max(0, Math.min(100, value));
@@ -65,12 +69,44 @@ export function ProgressRing({
   // Start empty, then flip to target on the next frame so the transition runs.
   // Reduced-motion (or animate=false) is filled from the initial state, so the
   // effect only schedules the mount sweep — no synchronous setState in-effect.
-  const [filled, setFilled] = useState(reduceMotion === true || !animate);
+  const [filled, setFilled] = useState(reduceMotion === true || !animate || !secondaryReady);
   useEffect(() => {
-    if (reduceMotion || !animate) return;
-    const id = requestAnimationFrame(() => setFilled(true));
-    return () => cancelAnimationFrame(id);
-  }, [reduceMotion, animate]);
+    let firstFrame: number | null = null;
+    let secondFrame: number | null = null;
+    const fillOnNextFrame = () => {
+      firstFrame = requestAnimationFrame(() => setFilled(true));
+    };
+
+    if (reduceMotion || !animate) {
+      fillOnNextFrame();
+      return () => {
+        if (firstFrame !== null) cancelAnimationFrame(firstFrame);
+      };
+    }
+    if (!secondaryReady) {
+      skippedSweepRef.current = true;
+      fillOnNextFrame();
+      return () => {
+        if (firstFrame !== null) cancelAnimationFrame(firstFrame);
+      };
+    }
+    if (skippedSweepRef.current) {
+      fillOnNextFrame();
+      return () => {
+        if (firstFrame !== null) cancelAnimationFrame(firstFrame);
+      };
+    }
+
+    firstFrame = requestAnimationFrame(() => {
+      setFilled(false);
+      secondFrame = requestAnimationFrame(() => setFilled(true));
+    });
+
+    return () => {
+      if (firstFrame !== null) cancelAnimationFrame(firstFrame);
+      if (secondFrame !== null) cancelAnimationFrame(secondFrame);
+    };
+  }, [reduceMotion, animate, secondaryReady]);
 
   return (
     <div
@@ -113,10 +149,10 @@ export function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={filled ? targetOffset : circumference}
-          className="transition-[stroke-dashoffset] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
-          style={{ transitionDelay: `${delayMs}ms` }}
+          className={secondaryReady ? 'transition-[stroke-dashoffset] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]' : ''}
+          style={{ transitionDelay: secondaryReady ? `${delayMs}ms` : '0ms' }}
         />
-        {shimmer && progressLength > 0 && shimmerLength > 0 && (
+        {shimmer && ambientReady && progressLength > 0 && shimmerLength > 0 && (
           <>
             <circle
               cx={center}

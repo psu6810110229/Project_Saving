@@ -1,8 +1,12 @@
+import { useAmbientMotionReady } from '../../lib/animationBudget';
+
 interface SkeletonProps {
   className?: string;
 }
 
 export function Skeleton({ className = '' }: SkeletonProps) {
+  const ambientReady = useAmbientMotionReady();
+
   return (
     <div
       aria-hidden="true"
@@ -13,7 +17,10 @@ export function Skeleton({ className = '' }: SkeletonProps) {
           so it blends naturally with the warm palette. The global
           prefers-reduced-motion guard in global.css kills the animation
           automatically, leaving a calm static block. */}
-      <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+      <div
+        className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent"
+        style={{ animationPlayState: ambientReady ? 'running' : 'paused' }}
+      />
     </div>
   );
 }

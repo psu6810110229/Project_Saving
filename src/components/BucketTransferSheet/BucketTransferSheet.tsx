@@ -7,6 +7,7 @@ import {
   useTransferBucketMoney,
 } from '../../hooks/useTransferBucketMoney';
 import { useI18n } from '../../i18n/useI18n';
+import { useAmbientMotionReady, useOpenClosePrimaryMotion } from '../../lib/animationBudget';
 import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/motion';
 import type { TransferBucketMoneyResult } from '../../types';
 import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
@@ -107,6 +108,7 @@ export function BucketTransferSheet({
   onSuccess,
 }: BucketTransferSheetProps) {
   useBodyScrollLock(open);
+  const sheetContentReady = useOpenClosePrimaryMotion(open, 240, 350);
 
   return createPortal(
     <AnimatePresence>
@@ -121,6 +123,7 @@ export function BucketTransferSheet({
           onSuggestionShown={onSuggestionShown}
           onClose={onClose}
           onSuccess={onSuccess}
+          contentReady={sheetContentReady}
         />
       )}
     </AnimatePresence>,
@@ -137,6 +140,7 @@ interface InnerProps {
   onSuggestionShown?: () => void;
   onClose: () => void;
   onSuccess?: (result: TransferBucketMoneyResult) => void;
+  contentReady: boolean;
 }
 
 function pickInitialSelections(
@@ -175,6 +179,7 @@ function BucketTransferSheetInner({
   onSuggestionShown,
   onClose,
   onSuccess,
+  contentReady,
 }: InnerProps) {
   const { copy, formatMoney } = useI18n();
   const { transfer, pending } = useTransferBucketMoney();
@@ -371,7 +376,7 @@ function BucketTransferSheetInner({
               <motion.div
                 variants={contentVariants}
                 initial="hidden"
-                animate="visible"
+                animate={contentReady ? 'visible' : 'hidden'}
                 className="flex flex-col gap-4"
               >
                 {step === 'edit' && source && destination && (
@@ -654,12 +659,14 @@ interface ReviewBucketCardProps {
 }
 
 function TransferFlowArrow() {
+  const ambientReady = useAmbientMotionReady();
+
   return (
     <div className="flex h-12 w-16 shrink-0 items-center justify-center text-brand-700">
       <motion.div
         className="flex items-center"
-        animate={{ x: [0, 5, 0], opacity: [0.72, 1, 0.72] }}
-        transition={{ duration: 1.7, repeat: Infinity, ease: 'easeInOut' }}
+        animate={ambientReady ? { x: [0, 5, 0], opacity: [0.72, 1, 0.72] } : { x: 0, opacity: 0.72 }}
+        transition={ambientReady ? { duration: 1.7, repeat: Infinity, ease: 'easeInOut' } : { duration: 0 }}
       >
         <IconArrowRight size={30} strokeWidth={2.35} />
       </motion.div>

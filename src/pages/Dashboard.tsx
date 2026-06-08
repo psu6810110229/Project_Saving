@@ -88,6 +88,7 @@ import {
   daysBetween,
   todayBangkokKey,
 } from '../lib/savingPlan';
+import { setPrimaryMotionState } from '../lib/animationBudget';
 import type { Bucket, BucketCategory, BucketCreateRuleData, BucketTransfer, SavingRuleType } from '../types';
 
 /** Framer Motion stagger variants for the Dashboard cascade. */
@@ -374,6 +375,7 @@ export function Dashboard() {
   }
 
   function handleBucketDragEnd(event: DragEndEvent) {
+    setPrimaryMotionState('dragging', false);
     // Open a short window where the post-drag click is ignored.
     if (dragEndTimerRef.current) clearTimeout(dragEndTimerRef.current);
     dragEndTimerRef.current = setTimeout(() => { justDraggedRef.current = false; }, 300);
@@ -456,14 +458,21 @@ export function Dashboard() {
   }, []);
 
   function handleBucketDragStart() {
+    setPrimaryMotionState('dragging', true);
     justDraggedRef.current = true;
     if (bucketDragMode === 'edit') return;
     if (bucketDragHintDismissed) return;
     dismissBucketDragHint();
   }
 
+  function handleBucketDragCancel() {
+    setPrimaryMotionState('dragging', false);
+    justDraggedRef.current = false;
+  }
+
   useEffect(() => () => {
     if (dragEndTimerRef.current) clearTimeout(dragEndTimerRef.current);
+    setPrimaryMotionState('dragging', false);
   }, []);
 
   const [bucketGoalOutcome, setBucketGoalOutcome] = useState<{ name: string; target: number } | null>(null);
@@ -1198,6 +1207,7 @@ export function Dashboard() {
             modifiers={bucketDragMode === 'edit' ? undefined : bucketDragModifiers}
             onDragStart={handleBucketDragStart}
             onDragEnd={handleBucketDragEnd}
+            onDragCancel={handleBucketDragCancel}
           >
             {(() => {
               const isEditing = bucketDragMode === 'edit';

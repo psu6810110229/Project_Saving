@@ -9,6 +9,7 @@ import {
   IconUser,
 } from '../Icon/Icon';
 import { formatCurrency } from '../../lib/format';
+import { useSecondaryMotionReady } from '../../lib/animationBudget';
 import { normalizeHeroCoverUrl } from '../../lib/heroCovers';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import type { CoverTint, DailySummaryItem, ProjectCategory } from '../../types';
@@ -265,6 +266,7 @@ export const HeroCard = memo(function HeroCard({
   const latestLabel = formatLastChecked(lastCheckedAt);
   const resolvedBucketCount = bucketCount ?? (hasBuckets ? 1 : 0);
   const reduceMotion = useReducedMotion();
+  const secondaryMotionReady = useSecondaryMotionReady();
   // The hero "what's left" line rotates between the overall goal and the
   // current saving-plan period goal (today / this week / this month). When
   // there is no active period goal it stays a single static line.
@@ -282,12 +284,15 @@ export const HeroCard = memo(function HeroCard({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLineIndex(0);
+  }, [goalLines.length]);
+  useEffect(() => {
+    if (!secondaryMotionReady) return;
     if (goalLines.length < 2) return;
     const id = window.setInterval(() => {
       setLineIndex(prev => (prev + 1) % goalLines.length);
     }, HERO_LINE_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [goalLines.length]);
+  }, [goalLines.length, secondaryMotionReady]);
   const activeLineIndex = lineIndex % goalLines.length;
   const normalizedCoverImageUrl = normalizeHeroCoverUrl(coverImageUrl);
   const cardStyle = useMemo<HeroStyle>(() => {

@@ -1,3 +1,6 @@
+import { type CSSProperties } from 'react';
+import { useAmbientMotionReady, useSecondaryMotionReady } from '../../lib/animationBudget';
+
 /**
  * Single-tone progress bar atom. Used everywhere a single value needs to be
  * shown against a target (Head-to-Head, Recorded Vault, individual buckets).
@@ -49,10 +52,13 @@ export function ProgressBar({
   className = '',
 }: ProgressBarProps) {
   const clamped = Math.max(0, Math.min(100, value));
-  const fillStyle: React.CSSProperties = {
+  const secondaryReady = useSecondaryMotionReady();
+  const ambientReady = useAmbientMotionReady();
+  const shouldAnimateFill = animate && secondaryReady;
+  const fillStyle: CSSProperties & { '--target-width'?: string } = {
     width: `${clamped}%`,
     ...(tone === 'theme' && themeHex ? { backgroundColor: themeHex } : {}),
-    ...(animate ? { animationName: 'fill-bar', animationDuration: '0.8s', animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)', animationFillMode: 'both', ['--target-width' as string]: `${clamped}%` } : {}),
+    ...(shouldAnimateFill ? { animationName: 'fill-bar', animationDuration: '0.8s', animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)', animationFillMode: 'both', '--target-width': `${clamped}%` } : {}),
   };
   return (
     <div
@@ -63,7 +69,7 @@ export function ProgressBar({
       aria-valuenow={clamped}
     >
       <div
-        className={`relative h-full overflow-hidden rounded-pill transition-[width] duration-500 ${TONES[tone]}`}
+        className={`relative h-full overflow-hidden rounded-pill ${secondaryReady ? 'transition-[width] duration-500' : ''} ${TONES[tone]}`}
         style={fillStyle}
       >
         {shimmer && (
@@ -71,7 +77,10 @@ export function ProgressBar({
             aria-hidden="true"
             className="absolute inset-0 opacity-75"
           >
-            <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/55 to-transparent" />
+            <div
+              className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/55 to-transparent"
+              style={{ animationPlayState: ambientReady ? 'running' : 'paused' }}
+            />
           </div>
         )}
       </div>

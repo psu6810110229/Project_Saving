@@ -42,6 +42,7 @@ import {
 import { haptic } from '../lib/haptics';
 import { formatDirectionalAdjustment } from '../lib/reconcile';
 import { plannedAmountForDate } from '../lib/savingPlan';
+import { useAmbientMotionReady } from '../lib/animationBudget';
 import type { BalanceActivityEntry, Bucket, ProfileTheme } from '../types';
 import type { BucketActivityEvent } from '../hooks/useBucketActivityEvents';
 
@@ -734,10 +735,11 @@ const TREND_MODE_HINT_STORAGE_KEY = 'daily-trend-mode-hint-seen-v1';
 
 function DailyTrendModeControl({ ariaLabel, options, value, onChange, disabledValues }: DailyTrendModeControlProps) {
   const reduceMotion = useReducedMotion();
+  const ambientMotionReady = useAmbientMotionReady();
   const [showHint, setShowHint] = useState(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion || !ambientMotionReady) return;
     try {
       if (window.localStorage.getItem(TREND_MODE_HINT_STORAGE_KEY)) return;
     } catch {
@@ -763,7 +765,7 @@ function DailyTrendModeControl({ ariaLabel, options, value, onChange, disabledVa
       window.clearTimeout(startId);
       window.clearTimeout(endId);
     };
-  }, [reduceMotion]);
+  }, [ambientMotionReady, reduceMotion]);
 
   return (
     <LayoutGroup id="trend-mode-pill">
@@ -773,7 +775,7 @@ function DailyTrendModeControl({ ariaLabel, options, value, onChange, disabledVa
         aria-label={ariaLabel}
         className="relative inline-flex h-10 w-fit items-center gap-1 self-start overflow-hidden rounded-pill bg-well p-1 shadow-[inset_2px_2px_5px_rgba(120,89,61,0.16),inset_-2px_-2px_5px_rgba(255,255,255,0.62)]"
       >
-        {showHint && (
+        {showHint && ambientMotionReady && (
           <motion.span
             aria-hidden
             initial={{ x: '-110%', opacity: 0 }}

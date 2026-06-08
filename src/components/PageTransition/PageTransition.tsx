@@ -63,6 +63,10 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
   const reduceMotion = useReducedMotion();
   const pageRef = useRef<HTMLDivElement>(null);
 
+  const setActiveWillChange = useCallback(() => {
+    if (pageRef.current) pageRef.current.style.willChange = 'transform, opacity';
+  }, []);
+
   const clearWillChange = useCallback((definition: string) => {
     if (definition === 'center') {
       if (pageRef.current) pageRef.current.style.willChange = 'auto';
@@ -82,10 +86,11 @@ export function PageTransition({ transitionKey, children }: PageTransitionProps)
           animate="center"
           exit="exit"
           transition={reduceMotion ? REDUCED_MOTION_TRANSITION : PAGE_TRANSITION}
+          onAnimationStart={setActiveWillChange}
           onAnimationComplete={clearWillChange}
           data-page-scroll
           className="relative w-full min-w-full h-full overflow-y-auto overscroll-contain bg-bg"
-          style={{ willChange: 'transform, opacity' }}
+          style={{ willChange: 'auto' }}
         >
           {children}
         </motion.div>

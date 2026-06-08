@@ -39,23 +39,72 @@ export function usePullToRefresh({
   const [pullDistance, setPullDistance] = useState(0);
   const [state, setState] = useState<PullState>('idle');
 
+  const pullDistanceRef = useRef(0);
+  const committedRoundedPullRef = useRef(0);
+  const stateRef = useRef<PullState>('idle');
   const startY = useRef(0);
   const startX = useRef(0);
   const active = useRef(false);
   const directionLocked = useRef(false);
   const crossedThreshold = useRef(false);
   const onRefreshRef = useRef(onRefresh);
+  const touchFrame = useRef<number | null>(null);
+  const pendingPullDistance = useRef<number | null>(null);
+  const pendingState = useRef<PullState | null>(null);
   useEffect(() => { onRefreshRef.current = onRefresh; });
 
+  const commitState = useCallback((nextState: PullState) => {
+    if (stateRef.current === nextState) return;
+    stateRef.current = nextState;
+    setState(nextState);
+  }, []);
+
+  const commitPullDistance = useCallback((nextDistance: number, force = false) => {
+    pullDistanceRef.current = nextDistance;
+    const rounded = Math.round(nextDistance);
+    if (!force && rounded === committedRoundedPullRef.current) return;
+    committedRoundedPullRef.current = rounded;
+    setPullDistance(nextDistance);
+  }, []);
+
+  const flushTouchFrame = useCallback(() => {
+    touchFrame.current = null;
+    const nextDistance = pendingPullDistance.current;
+    const nextState = pendingState.current;
+    pendingPullDistance.current = null;
+    pendingState.current = null;
+
+    if (nextDistance !== null) commitPullDistance(nextDistance);
+    if (nextState !== null) commitState(nextState);
+  }, [commitPullDistance, commitState]);
+
+  const cancelTouchFrame = useCallback(() => {
+    if (touchFrame.current !== null) {
+      cancelAnimationFrame(touchFrame.current);
+      touchFrame.current = null;
+    }
+    pendingPullDistance.current = null;
+    pendingState.current = null;
+  }, []);
+
+  const scheduleTouchUpdate = useCallback((nextDistance: number, nextState: PullState) => {
+    pullDistanceRef.current = nextDistance;
+    pendingPullDistance.current = nextDistance;
+    pendingState.current = nextState;
+    if (touchFrame.current !== null) return;
+    touchFrame.current = requestAnimationFrame(flushTouchFrame);
+  }, [flushTouchFrame]);
+
   const animateToZero = useCallback(() => {
-    setState('releasing');
+    cancelTouchFrame();
+    commitState('releasing');
     requestAnimationFrame(() => {
-      setPullDistance(0);
+      commitPullDistance(0, true);
       setTimeout(() => {
-        setState('idle');
+        commitState('idle');
       }, SPRING_DURATION_MS);
     });
-  }, []);
+  }, [cancelTouchFrame, commitPullDistance, commitState]);
 
   const cleanupGesture = useCallback(() => {
     active.current = false;
@@ -68,7 +117,7 @@ export function usePullToRefresh({
     if (!el) return;
 
     function onTouchStart(e: TouchEvent) {
-      if (state === 'refreshing' || state === 'releasing') return;
+      if (stateRef.current === 'refreshing' || stateRef.current === 'releasing') return;
       if (el!.scrollTop > 0) return;
       const touch = e.touches[0];
       startY.current = touch.clientY;
@@ -79,7 +128,7 @@ export function usePullToRefresh({
     }
 
     function onTouchMove(e: TouchEvent) {
-      if (!active.current || state === 'refreshing' || state === 'releasing') return;
+      if (!active.current || stateRef.current === 'refreshing' || stateRef.current === 'releasing') return;
 
       const touch = e.touches[0];
       const rawDeltaY = touch.clientY - startY.current;
@@ -94,9 +143,10 @@ export function usePullToRefresh({
       }
 
       if (rawDeltaY <= 0) {
-        if (pullDistance > 0) {
-          setPullDistance(0);
-          setState('idle');
+        if (pullDistanceRef.current > 0) {
+          cancelTouchFrame();
+          commitPullDistance(0, true);
+          commitState('idle');
         }
         return;
       }
@@ -109,8 +159,7 @@ export function usePullToRefresh({
       e.preventDefault();
 
       const dampened = Math.min(rawDeltaY * RESISTANCE, maxPull);
-      setPullDistance(dampened);
-      setState(dampened >= threshold ? 'triggered' : 'pulling');
+      scheduleTouchUpdate(dampened, dampened >= threshold ? 'triggered' : 'pulling');
 
       if (dampened >= threshold && !crossedThreshold.current) {
         crossedThreshold.current = true;
@@ -122,13 +171,14 @@ export function usePullToRefresh({
     }
 
     function onTouchEnd() {
-      if (!active.current && state !== 'pulling' && state !== 'triggered') return;
+      if (!active.current && stateRef.current !== 'pulling' && stateRef.current !== 'triggered') return;
 
       cleanupGesture();
+      cancelTouchFrame();
 
-      if (pullDistance >= threshold) {
-        setState('refreshing');
-        setPullDistance(threshold * 0.6);
+      if (pullDistanceRef.current >= threshold) {
+        commitState('refreshing');
+        commitPullDistance(threshold * 0.6, true);
 
         const start = Date.now();
         onRefreshRef.current().finally(() => {
@@ -152,8 +202,19 @@ export function usePullToRefresh({
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchmove', onTouchMove);
       el.removeEventListener('touchend', onTouchEnd);
+      cancelTouchFrame();
     };
-  }, [state, pullDistance, threshold, maxPull, minimumDuration, animateToZero, cleanupGesture]);
+  }, [
+    threshold,
+    maxPull,
+    minimumDuration,
+    animateToZero,
+    cleanupGesture,
+    cancelTouchFrame,
+    commitPullDistance,
+    commitState,
+    scheduleTouchUpdate,
+  ]);
 
   const reducedMotion = prefersReducedMotion();
   const needsTransition = state === 'refreshing' || state === 'releasing';

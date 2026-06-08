@@ -118,7 +118,16 @@
       "Bash(echo \"TSC_EXIT=$?\")",
       "Bash(echo \"ESLINT_EXIT=$?\")",
       "PowerShell(npx eslint \"src/components/AuthProvider/AuthProvider.tsx\" 2>&1 | Select-Object -First 40)",
-      "PowerShell(npx eslint src/hooks/useAppHeight.ts src/App.tsx src/components/AppShell/AppShell.tsx src/lib/pwaUpdate.ts)"
+      "PowerShell(npx eslint src/hooks/useAppHeight.ts src/App.tsx src/components/AppShell/AppShell.tsx src/lib/pwaUpdate.ts)",
+      "Bash(Get-Content *)",
+      "PowerShell(Test-Path \"D:\\\\Fran's Folder\\\\Project\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\" | Write-Host; \\(Get-Item \"D:\\\\Fran's Folder\\\\Project\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\"\\).Length / 1MB | ForEach-Object { \"APK size: $\\([math]::Round\\($_, 1\\)\\) MB\" })",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(npx cap *)",
+      "Bash(/c/Users/farnp/AppData/Local/Android/Sdk/platform-tools/adb.exe -s TSUC95G6XGQ87XV8 exec-out run-as com.goout.app cat files/widgets/widget_medium.png)",
+      "Bash(/c/Users/farnp/AppData/Local/Android/Sdk/platform-tools/adb.exe -s TSUC95G6XGQ87XV8 exec-out run-as com.goout.app cat shared_prefs/CapacitorStorage.xml)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(/c/Users/farnp/AppData/Local/Android/Sdk/platform-tools/adb.exe -s TSUC95G6XGQ87XV8 install -r '/d/Fran'\\\\''s Folder/Project/android/app/build/outputs/apk/debug/app-debug.apk')"
     ]
   }
 }

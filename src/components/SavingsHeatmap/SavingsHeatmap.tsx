@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { IconChevronRight, IconFlag } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
@@ -229,6 +229,10 @@ export function SavingsHeatmap({
 
   const sectionRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollHintFrame = useRef<number | null>(null);
+  const canScrollRightRef = useRef(false);
+  const storageWriteTimer = useRef<number | null>(null);
+  const pendingStorageScrollLeft = useRef<number | null>(null);
   const [popover, setPopover] = useState<DuePopover | null>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -261,11 +265,58 @@ export function SavingsHeatmap({
     setPopover(prev => (prev?.dateKey === dateKey ? null : { dateKey, left, top, below, dayAmount }));
   }
 
-  function updateScrollHint() {
+  const commitScrollHint = useCallback((nextCanScrollRight: boolean) => {
+    if (canScrollRightRef.current === nextCanScrollRight) return;
+    canScrollRightRef.current = nextCanScrollRight;
+    setCanScrollRight(nextCanScrollRight);
+  }, []);
+
+  const updateScrollHint = useCallback(() => {
+    if (scrollHintFrame.current !== null) return;
+    scrollHintFrame.current = requestAnimationFrame(() => {
+      scrollHintFrame.current = null;
+      const el = scrollRef.current;
+      if (!el) return;
+      commitScrollHint(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+    });
+  }, [commitScrollHint]);
+
+  const writePendingScrollPosition = useCallback(() => {
+    storageWriteTimer.current = null;
+    const scrollLeft = pendingStorageScrollLeft.current;
+    pendingStorageScrollLeft.current = null;
+    if (scrollLeft === null) return;
+    try {
+      window.sessionStorage.setItem(storageKey, String(scrollLeft));
+    } catch { /* ignore */ }
+  }, [storageKey]);
+
+  const scheduleScrollPositionWrite = useCallback((scrollLeft: number) => {
+    pendingStorageScrollLeft.current = Math.round(scrollLeft);
+    if (storageWriteTimer.current !== null) {
+      window.clearTimeout(storageWriteTimer.current);
+    }
+    storageWriteTimer.current = window.setTimeout(writePendingScrollPosition, 120);
+  }, [writePendingScrollPosition]);
+
+  const flushScrollPositionWrite = useCallback(() => {
+    if (storageWriteTimer.current !== null) {
+      window.clearTimeout(storageWriteTimer.current);
+      writePendingScrollPosition();
+    }
+  }, [writePendingScrollPosition]);
+
+  const cancelScrollHintFrame = useCallback(() => {
+    if (scrollHintFrame.current === null) return;
+    cancelAnimationFrame(scrollHintFrame.current);
+    scrollHintFrame.current = null;
+  }, []);
+
+  const updateScrollHintNow = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
-  }
+    commitScrollHint(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, [commitScrollHint]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -283,24 +334,30 @@ export function SavingsHeatmap({
     } else {
       el.scrollLeft = el.scrollWidth;
     }
-    updateScrollHint();
-  }, [storageKey, todayColumnIndex]);
+    updateScrollHintNow();
+  }, [storageKey, todayColumnIndex, updateScrollHintNow]);
 
   useEffect(() => {
     updateScrollHint();
     window.addEventListener('resize', updateScrollHint);
-    return () => window.removeEventListener('resize', updateScrollHint);
-  }, [weeks]);
+    return () => {
+      window.removeEventListener('resize', updateScrollHint);
+      cancelScrollHintFrame();
+    };
+  }, [weeks, updateScrollHint, cancelScrollHintFrame]);
 
   function handleScroll() {
     const el = scrollRef.current;
     if (!el) return;
     if (popover) setPopover(null);
     updateScrollHint();
-    try {
-      window.sessionStorage.setItem(storageKey, String(Math.round(el.scrollLeft)));
-    } catch { /* ignore */ }
+    scheduleScrollPositionWrite(el.scrollLeft);
   }
+
+  useEffect(() => () => {
+    cancelScrollHintFrame();
+    flushScrollPositionWrite();
+  }, [cancelScrollHintFrame, flushScrollPositionWrite]);
 
   return (
     <section ref={sectionRef} className="relative rounded-xl bg-surface p-4 shadow-soft" aria-label={d.heatmapTitle}>

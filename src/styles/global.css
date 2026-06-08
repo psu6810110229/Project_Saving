@@ -153,7 +153,6 @@
   .status-orbit__ring,
   .status-orbit__glow {
     border-radius: inherit;
-    will-change: background-image;
     animation: status-orbit-angle var(--status-orbit-speed, 6.4s) linear infinite;
     background:
       linear-gradient(var(--status-orbit-static, rgba(255, 255, 255, 0.12)), var(--status-orbit-static, rgba(255, 255, 255, 0.12))),
@@ -464,7 +463,6 @@
 
 .bucket-drag-demo {
   animation: bucketDragDemo 3.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-  will-change: transform, opacity;
   z-index: 20;
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ActivityHistoryModal } from '../components/ActivityHistoryModal/ActivityHistoryModal';
@@ -41,7 +41,7 @@ import {
 } from '../lib/momentumPurpose';
 import { haptic } from '../lib/haptics';
 import { formatDirectionalAdjustment } from '../lib/reconcile';
-import { plannedAmountForDate } from '../lib/savingPlan';
+import { plannedAmountForDate, todayBangkokKey } from '../lib/savingPlan';
 import { useAmbientMotionReady } from '../lib/animationBudget';
 import type { BalanceActivityEntry, Bucket, ProfileTheme } from '../types';
 import type { BucketActivityEvent } from '../hooks/useBucketActivityEvents';
@@ -80,25 +80,32 @@ export function Team() {
   const { personalGoalTarget } = data.goal;
   const { memberIds: otherMemberIds } = data.otherMemberIds;
   const { refreshAll } = data;
+  const currentUserId = user?.id;
 
   const total = useMemo(
-    () => logs.filter(log => log.user_id === user?.id).reduce((sum, log) => sum + log.amount, 0),
-    [logs, user?.id],
+    () => logs.filter(log => log.user_id === currentUserId).reduce((sum, log) => sum + log.amount, 0),
+    [currentUserId, logs],
   );
 
-  const you = leaderboard.entries.find(entry => entry.isYou);
+  const you = useMemo(() => leaderboard.entries.find(entry => entry.isYou), [leaderboard.entries]);
   const target = personalGoalTarget ?? you?.personalGoalTarget ?? 0;
-  const totalSaved = leaderboard.entries.reduce((sum, entry) => sum + entry.saved, 0);
-  const legacySummedTargets = leaderboard.entries.reduce(
-    (sum, entry) => sum + (entry.personalGoalTarget ?? 0),
-    0,
+  const totalSaved = useMemo(
+    () => leaderboard.entries.reduce((sum, entry) => sum + entry.saved, 0),
+    [leaderboard.entries],
+  );
+  const legacySummedTargets = useMemo(
+    () => leaderboard.entries.reduce((sum, entry) => sum + (entry.personalGoalTarget ?? 0), 0),
+    [leaderboard.entries],
   );
   const totalTarget = legacySummedTargets > 0 ? legacySummedTargets : target;
 
   const firstOtherMemberByJoinedAt = otherMemberIds[0] ?? null;
-  const firstOtherEntry = firstOtherMemberByJoinedAt
-    ? leaderboard.entries.find(entry => entry.userId === firstOtherMemberByJoinedAt) ?? null
-    : null;
+  const firstOtherEntry = useMemo(
+    () => (firstOtherMemberByJoinedAt
+      ? leaderboard.entries.find(entry => entry.userId === firstOtherMemberByJoinedAt) ?? null
+      : null),
+    [firstOtherMemberByJoinedAt, leaderboard.entries],
+  );
 
   // Daily Deposit Trend mode. Default `room` so 3-7 member rooms read as a
   // room total; 2-user rooms still show a clear room/me/compare experience.
@@ -121,11 +128,19 @@ export function Team() {
       visibleMomentumFlows,
       visibleBucketsById,
       compareMemberId,
-      user?.id,
+      currentUserId,
     ),
-    [effectiveTrendMode, buckets, allVisibleBuckets, visibleMomentumFlows, visibleBucketsById, compareMemberId, user?.id],
+    [effectiveTrendMode, buckets, allVisibleBuckets, visibleMomentumFlows, visibleBucketsById, compareMemberId, currentUserId],
   );
   const purposePickerBuckets = effectiveTrendMode === 'me' ? buckets : allVisibleBuckets;
+  const chartTodayKey = todayBangkokKey();
+  const chartToday = useMemo(() => new Date(`${chartTodayKey}T12:00:00+07:00`), [chartTodayKey]);
+  const chartDayKeys = useMemo(() => lastSevenDateKeys(chartToday), [chartToday]);
+  const chartLocale = language === 'th' ? 'th-TH' : 'en-US';
+  const chartLabels = useMemo(
+    () => lastSevenDayLabels(chartToday, chartLocale),
+    [chartLocale, chartToday],
+  );
 
   // Keep `compareMemberId` aligned with the current `otherMemberIds`.
   useEffect(() => {
@@ -167,19 +182,19 @@ export function Team() {
   // Activity feed — deposits + balance checks + bucket events, top 3.
   const activityItems = useMemo(() => logs.map(log => ({
     id: log.id,
-    actorName: log.display_name ?? (log.user_id === user?.id ? profile?.display_name ?? d.youLabel : d.partnerLabel),
+    actorName: log.display_name ?? (log.user_id === currentUserId ? profile?.display_name ?? d.youLabel : d.partnerLabel),
     actorFallback: fallbackInitial(log.display_name),
     bucketName: log.bucket_name ?? d.savingsFallback,
     amount: log.amount,
     occurredAt: log.created_at,
     hasSlip: Boolean(log.slip_url),
     slipUrl: log.slip_url,
-  })), [logs, user?.id, profile?.display_name, d.youLabel, d.partnerLabel, d.savingsFallback]);
+  })), [currentUserId, logs, profile?.display_name, d.youLabel, d.partnerLabel, d.savingsFallback]);
 
   const bucketEventItems = useMemo(() => {
     const resolveActor = (actorUserId: string | null) => {
       if (!actorUserId) return { name: d.partnerLabel, fallback: fallbackInitial(undefined), avatar: null as string | null | undefined };
-      if (actorUserId === user?.id) return { name: profile?.display_name ?? d.youLabel, fallback: fallbackInitial(profile?.display_name), avatar: profile?.avatar_url };
+      if (actorUserId === currentUserId) return { name: profile?.display_name ?? d.youLabel, fallback: fallbackInitial(profile?.display_name), avatar: profile?.avatar_url };
       const entry = leaderboard.entries.find(e => e.userId === actorUserId);
       return { name: entry?.displayName ?? d.partnerLabel, fallback: fallbackInitial(entry?.displayName), avatar: entry?.avatarUrl };
     };
@@ -187,88 +202,99 @@ export function Team() {
       const actor = resolveActor(event.actor_user_id);
       return { event, actorName: actor.name, actorFallback: actor.fallback, actorAvatarUrl: actor.avatar };
     });
-  }, [bucketActivityEvents, leaderboard.entries, user?.id, profile?.display_name, profile?.avatar_url, d.youLabel, d.partnerLabel]);
+  }, [bucketActivityEvents, leaderboard.entries, currentUserId, profile?.display_name, profile?.avatar_url, d.youLabel, d.partnerLabel]);
 
   const mergedActivity = useMemo(() => buildMergedActivity(
     activityItems,
     balanceActivity,
     bucketEventItems,
     3,
-    user?.id,
-  ), [activityItems, balanceActivity, bucketEventItems, user?.id]);
+    currentUserId,
+  ), [activityItems, balanceActivity, bucketEventItems, currentUserId]);
 
   // Saving Plan chart overlays: per-day Expected Progress aligned to the
   // same 7-day window the deposit charts use (Recorded vs Expected only).
   const revisions = savingPlan?.revisions ?? null;
-  const planPauses = savingPlan?.pauses ?? [];
-  const chartDayKeys = lastSevenDateKeys();
-  const expectedDailySeries = revisions
-    ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
-    : undefined;
+  const planPauses = useMemo(() => savingPlan?.pauses ?? [], [savingPlan?.pauses]);
+  const expectedDailySeries = useMemo(
+    () => (revisions
+      ? chartDayKeys.map(key => plannedAmountForDate(revisions, key, planPauses))
+      : undefined),
+    [chartDayKeys, planPauses, revisions],
+  );
 
-  const meDailySeries = purposeVisibleFlowDailySeries(
-    visibleMomentumFlows,
-    purposeScope,
-    visibleBucketsById,
-    user?.id,
-  );
-  const meDailyMarkers = purposeVisibleFlowDailyMarkers(
-    visibleMomentumFlows,
-    purposeScope,
-    visibleBucketsById,
-    user?.id,
-    undefined,
-    { revealBucketNamesForUserId: user?.id ?? null },
-  );
-  const otherDailySeriesByUserId = otherMemberIds.reduce<Record<string, number[]>>((acc, id) => {
-    acc[id] = purposeVisibleFlowDailySeries(visibleMomentumFlows, purposeScope, visibleBucketsById, id);
+  const meDailySeries = useMemo(() => purposeVisibleFlowDailySeries(
+      visibleMomentumFlows,
+      purposeScope,
+      visibleBucketsById,
+      currentUserId,
+      chartToday,
+    ), [chartToday, currentUserId, purposeScope, visibleBucketsById, visibleMomentumFlows]);
+  const meDailyMarkers = useMemo(() => purposeVisibleFlowDailyMarkers(
+      visibleMomentumFlows,
+      purposeScope,
+      visibleBucketsById,
+      currentUserId,
+      chartToday,
+      { revealBucketNamesForUserId: currentUserId ?? null },
+    ), [chartToday, currentUserId, purposeScope, visibleBucketsById, visibleMomentumFlows]);
+  const otherDailySeriesByUserId = useMemo(() => otherMemberIds.reduce<Record<string, number[]>>((acc, id) => {
+    acc[id] = purposeVisibleFlowDailySeries(visibleMomentumFlows, purposeScope, visibleBucketsById, id, chartToday);
     return acc;
-  }, {});
-  const otherDailyMarkersByUserId = otherMemberIds.reduce<Record<string, ReturnType<typeof purposeVisibleFlowDailyMarkers>>>((acc, id) => {
+  }, {}), [chartToday, otherMemberIds, purposeScope, visibleBucketsById, visibleMomentumFlows]);
+  const otherDailyMarkersByUserId = useMemo(() => otherMemberIds.reduce<Record<string, ReturnType<typeof purposeVisibleFlowDailyMarkers>>>((acc, id) => {
     acc[id] = purposeVisibleFlowDailyMarkers(
       visibleMomentumFlows,
       purposeScope,
       visibleBucketsById,
       id,
-      undefined,
+      chartToday,
       { revealBucketNamesForUserId: null },
     );
     return acc;
-  }, {});
-  const roomDailySeries = purposeVisibleFlowDailySeries(
-    visibleMomentumFlows,
-    purposeScope,
-    visibleBucketsById,
+  }, {}), [chartToday, otherMemberIds, purposeScope, visibleBucketsById, visibleMomentumFlows]);
+  const roomDailySeries = useMemo(() => purposeVisibleFlowDailySeries(
+      visibleMomentumFlows,
+      purposeScope,
+      visibleBucketsById,
+      undefined,
+      chartToday,
+    ), [chartToday, purposeScope, visibleBucketsById, visibleMomentumFlows]);
+  const roomDailyMarkers = useMemo(() => purposeVisibleFlowDailyMarkers(
+      visibleMomentumFlows,
+      purposeScope,
+      visibleBucketsById,
+      undefined,
+      chartToday,
+      { revealBucketNamesForUserId: currentUserId ?? null },
+    ), [chartToday, currentUserId, purposeScope, visibleBucketsById, visibleMomentumFlows]);
+  const compareSelectedSeries = useMemo(
+    () => (compareMemberId ? otherDailySeriesByUserId[compareMemberId] ?? null : null),
+    [compareMemberId, otherDailySeriesByUserId],
   );
-  const roomDailyMarkers = purposeVisibleFlowDailyMarkers(
-    visibleMomentumFlows,
-    purposeScope,
-    visibleBucketsById,
-    undefined,
-    undefined,
-    { revealBucketNamesForUserId: user?.id ?? null },
+  const compareSelectedMarkers = useMemo(
+    () => (compareMemberId ? otherDailyMarkersByUserId[compareMemberId] ?? null : null),
+    [compareMemberId, otherDailyMarkersByUserId],
   );
-  const compareSelectedSeries = compareMemberId
-    ? otherDailySeriesByUserId[compareMemberId] ?? null
-    : null;
-  const compareSelectedMarkers = compareMemberId
-    ? otherDailyMarkersByUserId[compareMemberId] ?? null
-    : null;
-  const weekRecordedTotal = meDailySeries.reduce((sum, v) => sum + v, 0);
-  const roomWeekTotal = roomDailySeries.reduce((sum, v) => sum + v, 0);
-  const compareSelectedTotal = compareSelectedSeries
-    ? compareSelectedSeries.reduce((sum, v) => sum + v, 0)
-    : 0;
-  const compareSelectedEntry = compareMemberId
-    ? leaderboard.entries.find(entry => entry.userId === compareMemberId) ?? null
-    : null;
+  const weekRecordedTotal = useMemo(() => meDailySeries.reduce((sum, v) => sum + v, 0), [meDailySeries]);
+  const roomWeekTotal = useMemo(() => roomDailySeries.reduce((sum, v) => sum + v, 0), [roomDailySeries]);
+  const compareSelectedTotal = useMemo(
+    () => (compareSelectedSeries ? compareSelectedSeries.reduce((sum, v) => sum + v, 0) : 0),
+    [compareSelectedSeries],
+  );
+  const compareSelectedEntry = useMemo(
+    () => (compareMemberId
+      ? leaderboard.entries.find(entry => entry.userId === compareMemberId) ?? null
+      : null),
+    [compareMemberId, leaderboard.entries],
+  );
   const youName = you?.displayName ?? profile?.display_name ?? d.youLabel;
 
-  const trendModeOptions: Array<{ value: DailyTrendMode; label: string }> = [
+  const trendModeOptions: Array<{ value: DailyTrendMode; label: string }> = useMemo(() => [
     { value: 'room', label: d.dailyDepositModeRoom },
     { value: 'me', label: d.dailyDepositModeMe },
     { value: 'compare', label: d.dailyDepositModeCompare },
-  ];
+  ], [d.dailyDepositModeCompare, d.dailyDepositModeMe, d.dailyDepositModeRoom]);
   const hasOtherMembers = otherMemberIds.length > 0;
   const primaryChartThemeColor = effectiveTrendMode === 'room' ? undefined : you?.themeColor;
   const primaryChartAvatarUrl = effectiveTrendMode === 'room' ? null : (profile?.avatar_url ?? null);
@@ -321,18 +347,24 @@ export function Team() {
       : purposeScope.kind === 'categories'
         ? `No deposits for ${purposeScope.categories.map(category => copy.bucket.categoryLabels[category]).join(', ')} buckets in ${d.last7Days}.`
         : `No deposits for ${copy.bucket.categoryLabels[purposeScope.category]} buckets in ${d.last7Days}.`;
-  const weekExpectedTotal = expectedDailySeries
-    ? expectedDailySeries.reduce((sum, v) => sum + v, 0)
-    : undefined;
-  const expectedCumulativeSeries = revisions
-    ? (() => {
+  const weekExpectedTotal = useMemo(
+    () => (expectedDailySeries
+      ? expectedDailySeries.reduce((sum, v) => sum + v, 0)
+      : undefined),
+    [expectedDailySeries],
+  );
+  const expectedCumulativeSeries = useMemo(
+    () => (revisions
+      ? (() => {
         let running = 0;
         return chartDayKeys.map(key => {
           running += plannedAmountForDate(revisions, key, planPauses);
           return running;
         });
       })()
-    : undefined;
+      : undefined),
+    [chartDayKeys, planPauses, revisions],
+  );
 
   const leaderboardEntries: TeamSectionMember[] = useMemo(() => leaderboard.entries.length > 0
     ? leaderboard.entries.map(entry => ({
@@ -347,8 +379,8 @@ export function Team() {
         streak: entry.streak,
         hasLoggedToday: entry.hasLoggedToday,
       }))
-    : (user?.id ? [{
-        userId: user.id,
+    : (currentUserId ? [{
+        userId: currentUserId,
         name: youName,
         fallback: fallbackInitial(profile?.display_name),
         imageUrl: profile?.avatar_url ?? null,
@@ -356,9 +388,7 @@ export function Team() {
         target,
         themeColor: you?.themeColor,
         isYou: true,
-      }] : []), [leaderboard.entries, youName, d.partnerLabel, profile?.display_name, profile?.avatar_url, you?.themeColor, user, total, target]);
-
-  const chartLocale = language === 'th' ? 'th-TH' : 'en-US';
+      }] : []), [leaderboard.entries, youName, d.partnerLabel, profile?.display_name, profile?.avatar_url, you?.themeColor, currentUserId, total, target]);
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -369,7 +399,7 @@ export function Team() {
     if (!selectedMemberId) return null;
     const entry = leaderboard.entries.find(e => e.userId === selectedMemberId);
     if (!entry) return null;
-    const isSelf = selectedMemberId === user?.id;
+    const isSelf = selectedMemberId === currentUserId;
     const memberBuckets = isSelf
       ? buckets
       : (data.roomMembersBuckets.bucketsByUser[selectedMemberId] ?? []);
@@ -397,13 +427,13 @@ export function Team() {
         category: bucket.category,
       })),
     };
-  }, [selectedMemberId, leaderboard.entries, data.roomMembersBuckets.bucketsByUser, d.partnerLabel, user?.id, buckets, selectedMemberSnapshot.saved, selectedMemberSnapshot.bucketSavedById, logs, bucketTransfers, balanceAllocations]);
+  }, [selectedMemberId, leaderboard.entries, data.roomMembersBuckets.bucketsByUser, d.partnerLabel, currentUserId, buckets, selectedMemberSnapshot.saved, selectedMemberSnapshot.bucketSavedById, logs, bucketTransfers, balanceAllocations]);
 
-  function handleMemberClick(entry: TeamSectionMember) {
+  const handleMemberClick = useCallback((entry: TeamSectionMember) => {
     setSelectedMemberId(entry.userId);
-  }
+  }, []);
 
-  async function handleMemberNudge(entry: TeamSectionMember) {
+  const handleMemberNudge = useCallback(async (entry: TeamSectionMember) => {
     if (entry.isYou) return;
     if (nudgeBusyMemberId === entry.userId) return;
 
@@ -432,11 +462,50 @@ export function Team() {
     } finally {
       setNudgeBusyMemberId(current => (current === entry.userId ? null : current));
     }
-  }
+  }, [activeRoomId, nudgeBusyMemberId, sendNudge, showToast]);
 
-  function handleViewAll() {
+  const handleViewAll = useCallback(() => {
     navigate('/manage-project');
-  }
+  }, [navigate]);
+
+  const compareMembers = useMemo(() => otherMemberIds.map(id => {
+    const entry = leaderboard.entries.find(e => e.userId === id);
+    return {
+      userId: id,
+      displayName: entry?.displayName ?? d.partnerLabel,
+      avatarUrl: entry?.avatarUrl ?? null,
+      themeColor: entry?.themeColor,
+    };
+  }), [d.partnerLabel, leaderboard.entries, otherMemberIds]);
+
+  const purposePickerNode = useMemo(() => (purposeCategories.length > 0 ? (
+    <MomentumPurposePicker
+      categories={purposeCategories}
+      buckets={purposePickerBuckets}
+      value={purposeScope}
+      onChange={setPurposeScope}
+      hideBucketRow={effectiveTrendMode !== 'me'}
+    />
+  ) : undefined), [effectiveTrendMode, purposeCategories, purposePickerBuckets, purposeScope]);
+
+  const modeControlNode = useMemo(() => (hasOtherMembers ? (
+    <DailyTrendModeControl
+      ariaLabel={d.dailyDepositModeAria}
+      options={trendModeOptions}
+      value={effectiveTrendMode}
+      onChange={setTrendMode}
+      disabledValues={purposeScope.kind === 'bucket' ? ['room', 'compare'] : undefined}
+    />
+  ) : undefined), [d.dailyDepositModeAria, effectiveTrendMode, hasOtherMembers, purposeScope.kind, trendModeOptions]);
+
+  const compareChipsNode = useMemo(() => (hasOtherMembers && effectiveTrendMode === 'compare' ? (
+    <CompareMemberDropdown
+      ariaLabel={d.dailyDepositCompareAria}
+      members={compareMembers}
+      selectedId={compareMemberId}
+      onSelect={setCompareMemberId}
+    />
+  ) : undefined), [compareMemberId, compareMembers, d.dailyDepositCompareAria, effectiveTrendMode, hasOtherMembers]);
 
   return (
     <PullToRefresh onRefresh={refreshAll}>
@@ -457,7 +526,7 @@ export function Team() {
         <MomentumChart
           series={chartSeries}
           partnerSeries={chartPartnerSeries}
-          labels={lastSevenDayLabels(undefined, chartLocale)}
+          labels={chartLabels}
           dateKeys={chartDayKeys}
           barMarkers={chartBarMarkers}
           partnerBarMarkers={chartPartnerBarMarkers}
@@ -473,40 +542,9 @@ export function Team() {
           secondaryAvatarFallback={secondaryChartAvatarFallback}
           displayedTotal={chartDisplayedTotal}
           emptyStateMessage={selectedPurposeEmptyMessage}
-          purposePicker={purposeCategories.length > 0 ? (
-            <MomentumPurposePicker
-              categories={purposeCategories}
-              buckets={purposePickerBuckets}
-              value={purposeScope}
-              onChange={setPurposeScope}
-              hideBucketRow={effectiveTrendMode !== 'me'}
-            />
-          ) : undefined}
-          modeControl={hasOtherMembers ? (
-            <DailyTrendModeControl
-              ariaLabel={d.dailyDepositModeAria}
-              options={trendModeOptions}
-              value={effectiveTrendMode}
-              onChange={setTrendMode}
-              disabledValues={purposeScope.kind === 'bucket' ? ['room', 'compare'] : undefined}
-            />
-          ) : undefined}
-          compareChips={hasOtherMembers && effectiveTrendMode === 'compare' ? (
-            <CompareMemberDropdown
-              ariaLabel={d.dailyDepositCompareAria}
-              members={otherMemberIds.map(id => {
-                const entry = leaderboard.entries.find(e => e.userId === id);
-                return {
-                  userId: id,
-                  displayName: entry?.displayName ?? d.partnerLabel,
-                  avatarUrl: entry?.avatarUrl ?? null,
-                  themeColor: entry?.themeColor,
-                };
-              })}
-              selectedId={compareMemberId}
-              onSelect={setCompareMemberId}
-            />
-          ) : undefined}
+          purposePicker={purposePickerNode}
+          modeControl={modeControlNode}
+          compareChips={compareChipsNode}
           expectedSeries={expectedDailySeries}
           todayIndex={6}
           weekTotal={weekRecordedTotal}
@@ -516,7 +554,7 @@ export function Team() {
           <SavingRaceSection
             logs={logs}
             buckets={[...buckets, ...data.roomMembersBuckets.allBuckets]}
-            yourUserId={user?.id}
+            yourUserId={currentUserId}
             partnerUserId={firstOtherMemberByJoinedAt}
             yourName={profile?.display_name ?? d.youLabel}
             partnerName={firstOtherEntry?.displayName ?? d.partnerLabel}

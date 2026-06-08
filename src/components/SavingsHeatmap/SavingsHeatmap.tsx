@@ -222,6 +222,11 @@ export function SavingsHeatmap({
   }, [weeks, locale]);
 
   const gridWidth = weeks.length * COL_PX;
+  const heatmapGapStyle = useMemo(() => ({ gap: GAP_PX }), []);
+  const heatmapCellStyle = useMemo(() => ({ height: CELL_PX, width: CELL_PX }), []);
+  const weekdaySpacerStyle = useMemo(() => ({ height: CELL_PX }), []);
+  const weekdayCellStyle = useMemo(() => ({ height: CELL_PX, width: 22 }), []);
+  const monthLabelRowStyle = useMemo(() => ({ height: CELL_PX, width: gridWidth }), [gridWidth]);
 
   const weekdayLabels = language === 'th'
     ? ['จ', '', 'พ', '', 'ศ', '', '']
@@ -377,13 +382,13 @@ export function SavingsHeatmap({
 
       <div className="flex gap-1.5">
         {/* Weekday gutter — aligned with the grid rows below the month row. */}
-        <div className="flex shrink-0 flex-col" style={{ gap: GAP_PX }} aria-hidden>
-          <div style={{ height: CELL_PX }} />
+        <div className="flex shrink-0 flex-col" style={heatmapGapStyle} aria-hidden>
+          <div style={weekdaySpacerStyle} />
           {weekdayLabels.map((label, row) => (
             <div
               key={row}
               className="flex items-center justify-end font-mono text-[8px] leading-none text-ink-dim"
-              style={{ height: CELL_PX, width: 22 }}
+              style={weekdayCellStyle}
             >
               {label}
             </div>
@@ -439,7 +444,7 @@ export function SavingsHeatmap({
             </div>
 
             {/* Month labels — placed above each labelled month's first column. */}
-            <div className="relative" style={{ height: CELL_PX, width: gridWidth }}>
+            <div className="relative" style={monthLabelRowStyle}>
               {monthMarks.labels.map(({ col, text }) => (
                 <span
                   key={col}
@@ -452,9 +457,9 @@ export function SavingsHeatmap({
             </div>
 
             {/* Week columns */}
-            <div className="flex" style={{ gap: GAP_PX }}>
+            <div className="flex" style={heatmapGapStyle}>
             {weeks.map((column, col) => (
-              <div key={col} className="flex flex-col" style={{ gap: GAP_PX }}>
+              <div key={col} className="flex flex-col" style={heatmapGapStyle}>
                 {column.map(cell => {
                   const title = `${formatMoney(cell.amount)} · ${cell.dateKey}`
                     + (cell.bucketDue ? ` · ${d.heatmapDueLegend}` : '')
@@ -488,7 +493,7 @@ export function SavingsHeatmap({
                           cellClass
                           + (popover?.dateKey === cell.dateKey ? ' ring-2 ring-inset ring-danger' : '')
                         }
-                        style={{ height: CELL_PX, width: CELL_PX }}
+                        style={heatmapCellStyle}
                       >
                         {flag}
                       </button>
@@ -508,7 +513,7 @@ export function SavingsHeatmap({
                           cellClass
                           + (popover?.dateKey === cell.dateKey ? ' ring-2 ring-inset ring-ink/60' : '')
                         }
-                        style={{ height: CELL_PX, width: CELL_PX }}
+                        style={heatmapCellStyle}
                       />
                     );
                   }
@@ -518,7 +523,7 @@ export function SavingsHeatmap({
                       key={cell.dateKey}
                       title={title}
                       className={cellClass}
-                      style={{ height: CELL_PX, width: CELL_PX }}
+                      style={heatmapCellStyle}
                     />
                   );
                 })}

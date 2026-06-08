@@ -410,7 +410,7 @@ export const HeroCard = memo(function HeroCard({
           <div className="mt-3 flex items-center pr-[4.25rem] min-[480px]:pr-[4.75rem]">
             <div className="min-w-0 flex-1">
               <div
-                className="h-2 w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(18,16,15,0.22)]"
+                className="hero-progress-track h-2 w-full overflow-hidden rounded-pill bg-white/[0.3] shadow-[inset_0_1px_2px_rgba(18,16,15,0.22)]"
                 role="progressbar"
                 aria-valuemin={0}
                 aria-valuemax={100}

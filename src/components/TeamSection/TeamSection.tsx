@@ -44,6 +44,8 @@ export const TeamSection = memo(function TeamSection({
   const { copy } = useI18n();
   const reduceMotion = useReducedMotion();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [visualActive, setVisualActive] = useState(true);
+  const sectionRef = useRef<HTMLElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const sorted = useMemo(() => [...members].sort((a, b) => {
@@ -53,14 +55,29 @@ export const TeamSection = memo(function TeamSection({
     return a.name.localeCompare(b.name);
   }), [members]);
 
-  const visible = sorted.slice(0, 3);
-  const roomPct = roomTarget > 0 ? Math.min(100, (roomSaved / roomTarget) * 100) : 0;
+  const visible = useMemo(() => sorted.slice(0, 3), [sorted]);
+  const roomPct = useMemo(
+    () => (roomTarget > 0 ? Math.min(100, (roomSaved / roomTarget) * 100) : 0),
+    [roomSaved, roomTarget],
+  );
   const isSolo = sorted.length === 1;
-  const ranked = visible.map((member, rank) => ({ member, rank }));
-  const order =
-    ranked.length >= 3 ? [ranked[1], ranked[0], ranked[2]]
-    : ranked.length === 2 ? [ranked[0], ranked[1]]
-    : ranked;
+  const ranked = useMemo(() => visible.map((member, rank) => ({ member, rank })), [visible]);
+  const order = useMemo(
+    () => (ranked.length >= 3 ? [ranked[1], ranked[0], ranked[2]]
+      : ranked.length === 2 ? [ranked[0], ranked[1]]
+        : ranked),
+    [ranked],
+  );
+
+  useEffect(() => {
+    const node = sectionRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => {
+      setVisualActive(entry.isIntersecting);
+    }, { rootMargin: '120px 0px', threshold: 0 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -82,7 +99,7 @@ export const TeamSection = memo(function TeamSection({
   }, [menuOpen]);
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-white/45 bg-[linear-gradient(155deg,rgba(255,255,255,0.92)_0%,rgba(255,248,242,0.88)_48%,rgba(249,239,231,0.8)_100%)] px-5 pb-3 pt-4 shadow-[0_22px_50px_rgba(104,71,43,0.12),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl">
+    <section ref={sectionRef} className="overflow-hidden rounded-[2rem] border border-white/45 bg-[linear-gradient(155deg,rgba(255,255,255,0.92)_0%,rgba(255,248,242,0.88)_48%,rgba(249,239,231,0.8)_100%)] px-5 pb-3 pt-4 shadow-[0_22px_50px_rgba(104,71,43,0.12),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h2 className="font-mono text-[1.15rem] font-semibold tracking-[-0.02em] text-ink">
@@ -166,6 +183,7 @@ export const TeamSection = memo(function TeamSection({
               isSolo
               onClick={() => onMemberClick?.(visible[0])}
               onDoubleTap={visible[0].isYou ? undefined : () => onMemberNudge?.(visible[0])}
+              visualActive={visualActive}
             />
             {emptyBody && (
               <p className="mt-4 max-w-[16rem] text-center font-mono text-xs text-ink-muted">{emptyBody}</p>
@@ -182,6 +200,7 @@ export const TeamSection = memo(function TeamSection({
                   rank={rank}
                   onClick={() => onMemberClick?.(member)}
                   onDoubleTap={member.isYou ? undefined : () => onMemberNudge?.(member)}
+                  visualActive={visualActive}
                 />
               ))}
             </div>
@@ -198,7 +217,7 @@ export const TeamSection = memo(function TeamSection({
             {formatCurrency(roomSaved)} / {formatCurrency(roomTarget)} ({Math.round(roomPct)}%)
           </span>
         </div>
-        <ProgressBar value={roomPct} size="lg" animate shimmer />
+        <ProgressBar value={roomPct} size="lg" animate shimmer={visualActive} />
       </div>
     </section>
   );
@@ -233,12 +252,14 @@ function PodiumCell({
   isSolo = false,
   onClick,
   onDoubleTap,
+  visualActive,
 }: {
   member: TeamSectionMember;
   rank: number;
   isSolo?: boolean;
   onClick: () => void;
   onDoubleTap?: () => void;
+  visualActive: boolean;
 }) {
   const reduceMotion = useReducedMotion();
   const tapTimeoutRef = useRef<number | null>(null);
@@ -307,6 +328,7 @@ function PodiumCell({
             themeHex={themeHex}
             animate
             delayMs={0}
+            motionActive={visualActive}
           >
             <RingAvatar
               imageUrl={member.imageUrl}
@@ -321,6 +343,7 @@ function PodiumCell({
             themeHex={themeHex}
             animate
             delayMs={70}
+            motionActive={visualActive}
           >
             <RingAvatar
               imageUrl={member.imageUrl}

@@ -1,4 +1,4 @@
-import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
@@ -106,6 +106,10 @@ export function BucketSheet({
   const customAmount = Number(customValue);
   const resolvedAmount =
     customValue.trim() !== '' && customAmount > 0 ? customAmount : (selectedPill ?? 0);
+  const trendPreviewMineSeries = useMemo(
+    () => trendPreview?.mineSeries(resolvedAmount),
+    [resolvedAmount, trendPreview],
+  );
 
   function handleCustomChange(event: ChangeEvent<HTMLInputElement>) {
     const next = event.target.value;
@@ -247,12 +251,12 @@ export function BucketSheet({
                         </FormField>
                       </motion.div>
 
-                      {trendPreview && (
+                      {trendPreview && trendPreviewMineSeries && sheetContentReady && (
                         <motion.div variants={itemVariants}>
                           <ComparisonTrendChart
                             mineLabel={trendPreview.mineLabel}
                             theirLabel={trendPreview.theirLabel}
-                            mineSeries={trendPreview.mineSeries(resolvedAmount)}
+                            mineSeries={trendPreviewMineSeries}
                             theirSeries={trendPreview.theirSeries}
                           />
                         </motion.div>

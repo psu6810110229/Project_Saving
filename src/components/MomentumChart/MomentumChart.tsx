@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { formatShortDateKey } from '../../i18n/formatters';
 import { palette } from '../../lib/theme';
@@ -105,6 +105,7 @@ const PAD_RIGHT = 4;
 const PAD_TOP = 12;
 const PAD_BOTTOM = 22;
 const POPOVER_CHART_MARGIN = 8;
+const GRID_FRACTIONS = [0.25, 0.5, 0.75, 1];
 
 /** Mono stack mirroring `tailwind.config.js > fontFamily.mono`, so Thai
  *  glyphs in SVG `<text>` fall through to IBM Plex Sans Thai instead of
@@ -400,11 +401,11 @@ export const MomentumChart = memo(function MomentumChart({
   // Drive the y-axis from the *animated* values so the axis labels,
   // grid lines, and trend line scale in sync with the bar tween instead
   // of snapping to the new mode's max.
-  const rawMax = Math.max(
-    1,
-    ...animSeries.map((value, index) => chartValue(value, barMarkers?.[index])),
-    ...(animPartner ?? []).map((value, index) => chartValue(value, partnerBarMarkers?.[index])),
-  );
+  const rawMax = useMemo(() => Math.max(
+      1,
+      ...animSeries.map((value, index) => chartValue(value, barMarkers?.[index])),
+      ...(animPartner ?? []).map((value, index) => chartValue(value, partnerBarMarkers?.[index])),
+    ), [animSeries, animPartner, barMarkers, partnerBarMarkers]);
   // Cap the y-axis at 1.25× the tallest bar so the chart hugs the data
   // and bars use more vertical space than a wide-rounded niceMax would.
   const max = rawMax * 1.25;
@@ -413,23 +414,47 @@ export const MomentumChart = memo(function MomentumChart({
   // Wider gap in single-bar modes (Room / Me) so bars don't read as a
   // continuous block; Compare mode keeps the tighter gap because each
   // group is already a visually separated pair.
-  const groupGap = hasPartner ? 2 : 8;
-  const innerGap = hasPartner ? 1 : 0;
-  const chartW = W - PAD_LEFT - PAD_RIGHT;
-  const groupW = (chartW - groupGap * Math.max(barCount - 1, 0)) / Math.max(barCount, 1);
-  const barW = hasPartner ? (groupW - innerGap) / 2.8 : groupW;
-  const chartH = H - PAD_TOP - PAD_BOTTOM;
-  const baselineY = PAD_TOP + chartH;
-  const groupStride = groupW + groupGap;
-  const pairW = hasPartner ? barW * 2 + innerGap : barW;
+  const {
+    groupW,
+    barW,
+    chartH,
+    baselineY,
+    groupStride,
+    barLayouts,
+  } = useMemo(() => {
+    const groupGap = hasPartner ? 2 : 8;
+    const innerGap = hasPartner ? 1 : 0;
+    const chartW = W - PAD_LEFT - PAD_RIGHT;
+    const nextGroupW = (chartW - groupGap * Math.max(barCount - 1, 0)) / Math.max(barCount, 1);
+    const nextBarW = hasPartner ? (nextGroupW - innerGap) / 2.8 : nextGroupW;
+    const nextChartH = H - PAD_TOP - PAD_BOTTOM;
+    const nextBaselineY = PAD_TOP + nextChartH;
+    const nextGroupStride = nextGroupW + groupGap;
+    const pairW = hasPartner ? nextBarW * 2 + innerGap : nextBarW;
+    const nextBarLayouts = Array.from({ length: barCount }, (_, index) => {
+      const groupX = PAD_LEFT + index * nextGroupStride;
+      const pairX = groupX + (nextGroupW - pairW) / 2;
+      const partnerBarX = hasPartner ? pairX : null;
+      const yourBarX = hasPartner ? pairX + nextBarW + innerGap : pairX;
+      return { groupX, partnerBarX, yourBarX };
+    });
 
-  const barLayoutAt = (index: number) => {
+    return {
+      groupW: nextGroupW,
+      barW: nextBarW,
+      chartH: nextChartH,
+      baselineY: nextBaselineY,
+      groupStride: nextGroupStride,
+      barLayouts: nextBarLayouts,
+    };
+  }, [barCount, hasPartner]);
+
+  const barLayoutAt = useCallback((index: number) => {
+    const layout = barLayouts[index];
+    if (layout) return layout;
     const groupX = PAD_LEFT + index * groupStride;
-    const pairX = groupX + (groupW - pairW) / 2;
-    const partnerBarX = hasPartner ? pairX : null;
-    const yourBarX = hasPartner ? pairX + barW + innerGap : pairX;
-    return { groupX, partnerBarX, yourBarX };
-  };
+    return { groupX, partnerBarX: null, yourBarX: groupX };
+  }, [barLayouts, groupStride]);
 
   useLayoutEffect(() => {
     if (selectedIndex === null) return;
@@ -440,7 +465,7 @@ export const MomentumChart = memo(function MomentumChart({
       const popoverCard = popoverCardRef.current;
       if (!root || !popoverCard) return;
 
-      const groupX = PAD_LEFT + index * groupStride;
+      const { groupX } = barLayoutAt(index);
       const anchorPx = (groupX + groupW / 2) / W * root.clientWidth;
       const halfWidth = popoverCard.offsetWidth / 2 + POPOVER_CHART_MARGIN;
       const clampedCenter = Math.min(Math.max(anchorPx, halfWidth), root.clientWidth - halfWidth);
@@ -451,35 +476,38 @@ export const MomentumChart = memo(function MomentumChart({
     updatePopoverOffset();
     window.addEventListener('resize', updatePopoverOffset);
     return () => window.removeEventListener('resize', updatePopoverOffset);
-  }, [groupStride, groupW, selectedIndex]);
+  }, [barLayoutAt, groupW, selectedIndex]);
 
-  const yourTotal = series.reduce((s, v) => s + v, 0);
-  const partnerTotal = hasPartner ? partnerSeries!.reduce((s, v) => s + v, 0) : 0;
+  const yourTotal = useMemo(() => series.reduce((s, v) => s + v, 0), [series]);
+  const partnerTotal = useMemo(
+    () => (hasPartner && partnerSeries ? partnerSeries.reduce((s, v) => s + v, 0) : 0),
+    [hasPartner, partnerSeries],
+  );
   // Header total: prefer the caller-controlled `displayedTotal` so each
   // Daily Deposit Trend mode can drive its own visible total
   // (`Room` = room total, `Me` = personal, `Compare` = visible pair).
   // Fall back to the legacy weekTotal + partner sum when the prop is
   // omitted so older call sites keep their previous behaviour.
-  const headerTotal = typeof displayedTotal === 'number'
-    ? displayedTotal
-    : typeof weekTotal === 'number'
-      ? weekTotal + (hasPartner ? partnerTotal : 0)
-      : yourTotal + partnerTotal;
+  const headerTotal = useMemo(() => (typeof displayedTotal === 'number'
+      ? displayedTotal
+      : typeof weekTotal === 'number'
+        ? weekTotal + (hasPartner ? partnerTotal : 0)
+        : yourTotal + partnerTotal),
+    [displayedTotal, hasPartner, partnerTotal, weekTotal, yourTotal],
+  );
   const showEmptyState = !!emptyStateMessage && headerTotal <= 0;
 
   // Overlay polyline coordinates — through the top-centre of every
   // "you" bar so the trend line traces the primary series. Uses the
   // animated heights so any overlay would track the tween.
-  const linePoints = animSeries.map((v, i) => {
+  const linePoints = useMemo(() => animSeries.map((v, i) => {
     const { yourBarX } = barLayoutAt(i);
     const yourX = yourBarX + barW / 2;
     const yourH = (chartValue(v, barMarkers?.[i]) / max) * chartH;
     const yourY = baselineY - yourH;
     return { x: yourX, y: yourY };
-  });
-  const trendCurveD = smoothPath(linePoints);
-
-  const gridFractions = [0.25, 0.5, 0.75, 1];
+  }), [animSeries, barLayoutAt, barMarkers, barW, baselineY, chartH, max]);
+  const trendCurveD = useMemo(() => smoothPath(linePoints), [linePoints]);
 
   return (
     <section className="relative isolate overflow-visible rounded-[2rem] bg-surface px-4 pt-4 pb-4 text-ink shadow-soft">
@@ -568,7 +596,7 @@ export const MomentumChart = memo(function MomentumChart({
         <title>{d.chartTitle(false)}</title>
 
         {/* Horizontal grid */}
-        {gridFractions.map(t => {
+        {GRID_FRACTIONS.map(t => {
           const y = baselineY - t * chartH;
           return (
             <line

@@ -228,6 +228,7 @@
   .vault-credit-card {
     position: relative;
     isolation: isolate;
+    contain: paint;
     overflow: hidden;
     background:
       radial-gradient(120% 80% at 100% 0%, rgba(255, 178, 120, 0.45) 0%, transparent 60%),
@@ -271,6 +272,7 @@
   .hero-credit-card {
     position: relative;
     isolation: isolate;
+    contain: paint;
     overflow: hidden;
     background: var(--hero-card-cover, url('/vault-card-japan-clean.jpg'));
     background-position: 60% 50%;
@@ -390,6 +392,10 @@
       linear-gradient(90deg,
         rgba(var(--scrim-rgb), calc(var(--scrim-k) * 0.5)) 0%,
         rgba(var(--scrim-rgb), 0) 55%);
+  }
+
+  .hero-progress-track {
+    contain: layout paint style;
   }
 
   @media (prefers-reduced-motion: reduce) {

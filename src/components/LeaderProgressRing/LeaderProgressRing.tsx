@@ -13,6 +13,7 @@ interface LeaderProgressRingProps {
   delayMs?: number;
   children?: ReactNode;
   className?: string;
+  motionActive?: boolean;
 }
 
 const SIZES: Record<RingSize, { outer: number; stroke: number }> = {
@@ -29,6 +30,7 @@ export function LeaderProgressRing({
   delayMs = 0,
   children,
   className = '',
+  motionActive = true,
 }: LeaderProgressRingProps) {
   const reduceMotion = useReducedMotion();
   const secondaryReady = useSecondaryMotionReady();
@@ -37,7 +39,7 @@ export function LeaderProgressRing({
   const trackGradientId = useId();
   const glowId = useId();
   const maskId = useId();
-  const shouldAnimate = animate && !reduceMotion && secondaryReady;
+  const shouldAnimate = motionActive && animate && !reduceMotion && secondaryReady;
   const baseHex = themeHex ?? palette.brand500;
   const { outer, stroke } = SIZES[size];
   const clamped = Math.max(0, Math.min(100, value));
@@ -179,7 +181,7 @@ export function LeaderProgressRing({
           />
         )}
 
-        {!reduceMotion && ambientReady && progressLength > 0 && shimmerLength > 0 && (
+        {motionActive && !reduceMotion && ambientReady && progressLength > 0 && shimmerLength > 0 && (
           <>
             <motion.circle
               cx={center}

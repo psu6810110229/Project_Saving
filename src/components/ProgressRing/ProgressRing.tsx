@@ -34,6 +34,7 @@ interface ProgressRingProps {
   children?: ReactNode;
   shimmer?: boolean;
   className?: string;
+  motionActive?: boolean;
 }
 
 const SIZES: Record<RingSize, { outer: number; stroke: number }> = {
@@ -51,11 +52,14 @@ export function ProgressRing({
   children,
   shimmer = false,
   className = '',
+  motionActive = true,
 }: ProgressRingProps) {
   const reduceMotion = useReducedMotion();
   const secondaryReady = useSecondaryMotionReady();
   const ambientReady = useAmbientMotionReady();
-  const skippedSweepRef = useRef(animate && reduceMotion !== true && !secondaryReady);
+  const ringMotionReady = motionActive && secondaryReady;
+  const ambientMotionReady = motionActive && ambientReady;
+  const skippedSweepRef = useRef(animate && reduceMotion !== true && !ringMotionReady);
   const maskId = useId();
   const { outer, stroke } = SIZES[size];
   const clamped = Math.max(0, Math.min(100, value));
@@ -69,7 +73,7 @@ export function ProgressRing({
   // Start empty, then flip to target on the next frame so the transition runs.
   // Reduced-motion (or animate=false) is filled from the initial state, so the
   // effect only schedules the mount sweep — no synchronous setState in-effect.
-  const [filled, setFilled] = useState(reduceMotion === true || !animate || !secondaryReady);
+  const [filled, setFilled] = useState(reduceMotion === true || !animate || !ringMotionReady);
   useEffect(() => {
     let firstFrame: number | null = null;
     let secondFrame: number | null = null;
@@ -77,13 +81,13 @@ export function ProgressRing({
       firstFrame = requestAnimationFrame(() => setFilled(true));
     };
 
-    if (reduceMotion || !animate) {
+    if (reduceMotion || !animate || !motionActive) {
       fillOnNextFrame();
       return () => {
         if (firstFrame !== null) cancelAnimationFrame(firstFrame);
       };
     }
-    if (!secondaryReady) {
+    if (!ringMotionReady) {
       skippedSweepRef.current = true;
       fillOnNextFrame();
       return () => {
@@ -106,7 +110,7 @@ export function ProgressRing({
       if (firstFrame !== null) cancelAnimationFrame(firstFrame);
       if (secondFrame !== null) cancelAnimationFrame(secondFrame);
     };
-  }, [reduceMotion, animate, secondaryReady]);
+  }, [reduceMotion, animate, motionActive, ringMotionReady]);
 
   return (
     <div
@@ -149,10 +153,10 @@ export function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={filled ? targetOffset : circumference}
-          className={secondaryReady ? 'transition-[stroke-dashoffset] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]' : ''}
-          style={{ transitionDelay: secondaryReady ? `${delayMs}ms` : '0ms' }}
+          className={ringMotionReady ? 'transition-[stroke-dashoffset] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]' : ''}
+          style={{ transitionDelay: ringMotionReady ? `${delayMs}ms` : '0ms' }}
         />
-        {shimmer && ambientReady && progressLength > 0 && shimmerLength > 0 && (
+        {shimmer && ambientMotionReady && progressLength > 0 && shimmerLength > 0 && (
           <>
             <circle
               cx={center}

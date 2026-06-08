@@ -1,4 +1,4 @@
-﻿import { useState, type CSSProperties } from 'react';
+﻿import { useMemo, useState, type CSSProperties } from 'react';
 import { useI18n } from '../../i18n/useI18n';
 import { useSecondaryMotionReady } from '../../lib/animationBudget';
 import { palette } from '../../lib/theme';
@@ -61,14 +61,20 @@ export function ComparisonTrendChart({
   const { copy } = useI18n();
   const secondaryReady = useSecondaryMotionReady();
   const [shouldAnimate] = useState(secondaryReady);
-  const max = Math.max(1, ...mineSeries.map(chartValue), ...theirSeries.map(chartValue));
-  const minePath = pathFor(mineSeries, max);
-  const theirPath = pathFor(theirSeries, max);
-  const minePathClosed = minePath
-    ? `${minePath} L ${(W - PAD).toFixed(1)} ${(H - PAD).toFixed(1)} L ${PAD} ${(H - PAD).toFixed(1)} Z`
-    : '';
-  const mineLength = pathLength(mineSeries, max);
-  const mineDrawStyle: CSSProperties = {
+  const max = useMemo(
+    () => Math.max(1, ...mineSeries.map(chartValue), ...theirSeries.map(chartValue)),
+    [mineSeries, theirSeries],
+  );
+  const minePath = useMemo(() => pathFor(mineSeries, max), [mineSeries, max]);
+  const theirPath = useMemo(() => pathFor(theirSeries, max), [theirSeries, max]);
+  const minePathClosed = useMemo(
+    () => (minePath
+      ? `${minePath} L ${(W - PAD).toFixed(1)} ${(H - PAD).toFixed(1)} L ${PAD} ${(H - PAD).toFixed(1)} Z`
+      : ''),
+    [minePath],
+  );
+  const mineLength = useMemo(() => pathLength(mineSeries, max), [mineSeries, max]);
+  const mineDrawStyle: CSSProperties = useMemo(() => ({
     strokeDasharray: mineLength,
     strokeDashoffset: shouldAnimate ? mineLength : 0,
     ...(shouldAnimate ? {
@@ -76,25 +82,25 @@ export function ComparisonTrendChart({
       animation: 'line-draw 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       animationDelay: '0.1s',
     } : {}),
-  };
+  }), [mineLength, shouldAnimate]);
   // The opponent's line is intrinsically dashed; fading it in keeps the
   // dash pattern intact while still feeling animated.
-  const theirFadeStyle: CSSProperties = {
+  const theirFadeStyle: CSSProperties = useMemo(() => ({
     opacity: shouldAnimate ? 0 : 1,
     ...(shouldAnimate ? {
       animation: 'line-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       animationDelay: '0.9s',
     } : {}),
-  };
+  }), [shouldAnimate]);
   // Area fill fades in after the primary line finishes drawing so the
   // translucent wash doesn't obscure the draw-on motion.
-  const areaFadeStyle: CSSProperties = {
+  const areaFadeStyle: CSSProperties = useMemo(() => ({
     opacity: shouldAnimate ? 0 : 1,
     ...(shouldAnimate ? {
       animation: 'line-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       animationDelay: '0.9s',
     } : {}),
-  };
+  }), [shouldAnimate]);
 
   return (
     <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">

@@ -1505,6 +1505,7 @@ export function Dashboard() {
         onClose={() => setManageBucketsOpen(false)}
         hidden={manageTransferSheetOpen}
         deferContentUntilOpen
+        deferredBodyReserveClassName="min-h-[52dvh] md:min-h-[28rem]"
       >
         <BucketManager
           buckets={buckets}
@@ -1540,6 +1541,7 @@ export function Dashboard() {
             title={copy.bucket.editAriaLabel(editBucket?.name ?? '')}
             onClose={() => setEditBucketId(null)}
             deferContentUntilOpen
+            deferredBodyReserveClassName="min-h-[46dvh] md:min-h-[26rem]"
           >
             {editBucket && (
               <BucketEditForm

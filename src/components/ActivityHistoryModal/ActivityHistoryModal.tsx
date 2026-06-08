@@ -71,7 +71,13 @@ export function ActivityHistoryModal({ open, onClose, items, bucketEvents = [] }
   const [sort, setSort] = useLocalStorageState<SortOrder>(SORT_STORAGE_KEY, 'newest');
 
   return (
-    <Modal open={open} title={d.activityHistory} onClose={onClose} deferContentUntilOpen>
+    <Modal
+      open={open}
+      title={d.activityHistory}
+      onClose={onClose}
+      deferContentUntilOpen
+      deferredBodyReserveClassName="min-h-[52dvh] md:min-h-[28rem]"
+    >
       <ActivityHistoryModalBody
         items={items}
         bucketEvents={bucketEvents}

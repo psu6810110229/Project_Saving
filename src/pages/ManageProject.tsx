@@ -645,6 +645,7 @@ export function ManageProject() {
         onClose={closeBucketsModal}
         hidden={bucketTransferSheetOpen}
         deferContentUntilOpen
+        deferredBodyReserveClassName="min-h-[52dvh] md:min-h-[28rem]"
       >
         <BucketManager
           buckets={buckets}

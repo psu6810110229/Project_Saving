@@ -22,6 +22,7 @@ interface ModalProps {
   bodyClassName?: string;
   closeOnBackdrop?: boolean;
   deferContentUntilOpen?: boolean;
+  deferredBodyReserveClassName?: string;
 }
 
 export function Modal({
@@ -36,18 +37,22 @@ export function Modal({
   bodyClassName = '',
   closeOnBackdrop = true,
   deferContentUntilOpen = false,
+  deferredBodyReserveClassName = '',
 }: ModalProps) {
   const { copy } = useI18n();
   useBodyScrollLock(open && !hidden);
   const deferredContentReady = useOpenClosePrimaryMotion(
     open && deferContentUntilOpen,
-    240,
+    140,
     320,
     'modal-opening',
     'modal-closing',
     deferContentUntilOpen,
   );
   const shouldRenderContent = !deferContentUntilOpen || deferredContentReady;
+  const bodyClasses = deferContentUntilOpen
+    ? deferredBodyReserveClassName
+    : bodyClassName;
 
   useEffect(() => {
     if (!open || hidden) return;
@@ -108,12 +113,28 @@ export function Modal({
                   </div>
                 </header>
                 <div
-                  className={bodyClassName}
+                  className={bodyClasses}
                   aria-busy={deferContentUntilOpen && !deferredContentReady ? true : undefined}
                 >
-                  {shouldRenderContent
-                    ? (typeof children === 'function' ? children() : children)
-                    : null}
+                  {deferContentUntilOpen ? (
+                    <AnimatePresence initial={false}>
+                      {shouldRenderContent && (
+                        <motion.div
+                          key="deferred-modal-content"
+                          className={bodyClassName}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 4 }}
+                          transition={SPRING.content}
+                        >
+                          {typeof children === 'function' ? children() : children}
+                        </motion.div>
+                      )
+                      }
+                    </AnimatePresence>
+                  ) : (
+                    typeof children === 'function' ? children() : children
+                  )}
                 </div>
               </div>
             </motion.section>

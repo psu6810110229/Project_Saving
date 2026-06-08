@@ -54,6 +54,7 @@ export function MemberDetailModal({ open, member, onClose }: MemberDetailModalPr
       onClose={onClose}
       bodyClassName="flex flex-col gap-5"
       deferContentUntilOpen
+      deferredBodyReserveClassName="min-h-[46dvh] md:min-h-[26rem]"
     >
       {() => member ? <MemberDetailModalBody member={member} themeHex={themeHex} /> : null}
     </Modal>

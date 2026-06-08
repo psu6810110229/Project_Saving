@@ -260,7 +260,7 @@ Radius scale: `lg` (14px) → `xl` (20px) → `2xl` (24px) → `3xl` (32px) → 
 
 ## Versioning
 
-Current app version: **1.0.3**
+Current app version: **1.0.7**
 
 Version is displayed as a badge in the Profile screen and app-update modal. The service worker handles background updates and shows an opt-in "Update Available" modal.
 

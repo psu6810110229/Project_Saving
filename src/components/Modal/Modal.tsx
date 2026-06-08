@@ -5,12 +5,15 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { IconButton } from '../IconButton/IconButton';
 import { IconX } from '../Icon/Icon';
 import { useI18n } from '../../i18n/useI18n';
+import { useOpenClosePrimaryMotion } from '../../lib/animationBudget';
 import { FADE_TRANSITION, SPRING } from '../../lib/motion';
+
+type ModalChildren = ReactNode | (() => ReactNode);
 
 interface ModalProps {
   open: boolean;
   title: string;
-  children: ReactNode;
+  children: ModalChildren;
   onClose: () => void;
   headerAccessory?: ReactNode;
   hidden?: boolean;
@@ -18,6 +21,7 @@ interface ModalProps {
   headerClassName?: string;
   bodyClassName?: string;
   closeOnBackdrop?: boolean;
+  deferContentUntilOpen?: boolean;
 }
 
 export function Modal({
@@ -31,9 +35,19 @@ export function Modal({
   headerClassName = '',
   bodyClassName = '',
   closeOnBackdrop = true,
+  deferContentUntilOpen = false,
 }: ModalProps) {
   const { copy } = useI18n();
   useBodyScrollLock(open && !hidden);
+  const deferredContentReady = useOpenClosePrimaryMotion(
+    open && deferContentUntilOpen,
+    240,
+    320,
+    'modal-opening',
+    'modal-closing',
+    deferContentUntilOpen,
+  );
+  const shouldRenderContent = !deferContentUntilOpen || deferredContentReady;
 
   useEffect(() => {
     if (!open || hidden) return;
@@ -93,7 +107,14 @@ export function Modal({
                     </IconButton>
                   </div>
                 </header>
-                <div className={bodyClassName}>{children}</div>
+                <div
+                  className={bodyClassName}
+                  aria-busy={deferContentUntilOpen && !deferredContentReady ? true : undefined}
+                >
+                  {shouldRenderContent
+                    ? (typeof children === 'function' ? children() : children)
+                    : null}
+                </div>
               </div>
             </motion.section>
           </motion.div>

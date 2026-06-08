@@ -1504,6 +1504,7 @@ export function Dashboard() {
         title={copy.manageProject.manageBucketsModalTitle}
         onClose={() => setManageBucketsOpen(false)}
         hidden={manageTransferSheetOpen}
+        deferContentUntilOpen
       >
         <BucketManager
           buckets={buckets}
@@ -1538,6 +1539,7 @@ export function Dashboard() {
             open={Boolean(editBucket)}
             title={copy.bucket.editAriaLabel(editBucket?.name ?? '')}
             onClose={() => setEditBucketId(null)}
+            deferContentUntilOpen
           >
             {editBucket && (
               <BucketEditForm

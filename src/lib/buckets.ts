@@ -102,6 +102,53 @@ export function bucketSaved(
   return deposits + incoming - outgoing;
 }
 
+export function bucketSavedById(
+  bucketIds: Iterable<string>,
+  logs: SavingsLog[],
+  transfers?: BucketTransfer[],
+  allocations?: BalanceAllocation[],
+): Map<string, number> {
+  const ids = new Set(bucketIds);
+  const savedById = new Map<string, number>();
+
+  ids.forEach(id => savedById.set(id, 0));
+
+  for (const log of logs) {
+    const bucketId = log.bucket_id;
+    if (!bucketId || !ids.has(bucketId)) continue;
+    savedById.set(bucketId, (savedById.get(bucketId) ?? 0) + log.amount);
+  }
+
+  if (transfers) {
+    for (const transfer of transfers) {
+      if (ids.has(transfer.destination_bucket_id)) {
+        savedById.set(
+          transfer.destination_bucket_id,
+          (savedById.get(transfer.destination_bucket_id) ?? 0) + transfer.amount,
+        );
+      }
+      if (ids.has(transfer.source_bucket_id)) {
+        savedById.set(
+          transfer.source_bucket_id,
+          (savedById.get(transfer.source_bucket_id) ?? 0) - transfer.amount,
+        );
+      }
+    }
+  }
+
+  if (allocations) {
+    for (const allocation of allocations) {
+      if (!ids.has(allocation.destination_bucket_id)) continue;
+      savedById.set(
+        allocation.destination_bucket_id,
+        (savedById.get(allocation.destination_bucket_id) ?? 0) + allocation.amount,
+      );
+    }
+  }
+
+  return savedById;
+}
+
 export function bucketPercent(
   bucket: Bucket,
   logs: SavingsLog[],

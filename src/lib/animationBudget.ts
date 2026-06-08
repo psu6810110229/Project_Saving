@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 export type AnimationPrimaryState =
   | 'route-transitioning'
+  | 'modal-opening'
+  | 'modal-closing'
   | 'sheet-opening'
   | 'sheet-closing'
   | 'dragging'
@@ -169,11 +171,17 @@ export function useOpenClosePrimaryMotion(
   closingMs: number,
   openingState: AnimationPrimaryState = 'sheet-opening',
   closingState: AnimationPrimaryState = 'sheet-closing',
+  enabled = true,
 ): boolean {
   const [openingSettled, setOpeningSettled] = useState(false);
   const previousOpenRef = useRef(open);
 
   useEffect(() => {
+    if (!enabled) {
+      previousOpenRef.current = open;
+      return;
+    }
+
     let cancelMotion: (() => void) | null = null;
     let resetTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let readyTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -199,9 +207,9 @@ export function useOpenClosePrimaryMotion(
       if (readyTimeoutId !== null) clearTimeout(readyTimeoutId);
       cancelMotion?.();
     };
-  }, [closingMs, closingState, open, openingMs, openingState]);
+  }, [closingMs, closingState, enabled, open, openingMs, openingState]);
 
-  return open && openingSettled;
+  return enabled ? open && openingSettled : true;
 }
 
 export function useAnimationSchedulerSnapshot(): AnimationSchedulerSnapshot {

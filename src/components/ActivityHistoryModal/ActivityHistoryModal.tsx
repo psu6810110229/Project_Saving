@@ -65,11 +65,42 @@ function bucketEventSearchText(event: BucketActivityEvent): string {
 }
 
 export function ActivityHistoryModal({ open, onClose, items, bucketEvents = [] }: ActivityHistoryModalProps) {
-  const { copy, formatLocalDateLabel } = useI18n();
+  const { copy } = useI18n();
   const d = copy.dashboard;
   const [query, setQuery] = useState('');
   const [sort, setSort] = useLocalStorageState<SortOrder>(SORT_STORAGE_KEY, 'newest');
 
+  return (
+    <Modal open={open} title={d.activityHistory} onClose={onClose} deferContentUntilOpen>
+      <ActivityHistoryModalBody
+        items={items}
+        bucketEvents={bucketEvents}
+        query={query}
+        sort={sort}
+        onQueryChange={setQuery}
+        onSortChange={setSort}
+      />
+    </Modal>
+  );
+}
+
+function ActivityHistoryModalBody({
+  items,
+  bucketEvents,
+  query,
+  sort,
+  onQueryChange,
+  onSortChange,
+}: {
+  items: ActivityHistoryItem[];
+  bucketEvents: ActivityHistoryBucketEventItem[];
+  query: string;
+  sort: SortOrder;
+  onQueryChange: (next: string) => void;
+  onSortChange: (next: SortOrder) => void;
+}) {
+  const { copy, formatLocalDateLabel } = useI18n();
+  const d = copy.dashboard;
   const rows: HistoryRow[] = useMemo(() => {
     const deposits: HistoryRow[] = items.map(item => ({ kind: 'deposit', at: item.occurredAt, item }));
     const events: HistoryRow[] = bucketEvents.map(item => ({
@@ -109,50 +140,48 @@ export function ActivityHistoryModal({ open, onClose, items, bucketEvents = [] }
   );
 
   return (
-    <Modal open={open} title={d.activityHistory} onClose={onClose}>
-      <div className="flex flex-col gap-4">
-        <FormField label={d.activitySearch}>
-          <TextInput
-            value={query}
-            placeholder={d.activitySearchPlaceholder}
-            onChange={event => setQuery(event.target.value)}
-          />
-        </FormField>
-        <div className="flex justify-end">
-          <Segmented<SortOrder>
-            ariaLabel={d.activitySortAriaLabel}
-            options={[
-              { value: 'newest', label: d.activitySortNewest },
-              { value: 'oldest', label: d.activitySortOldest },
-              { value: 'largest', label: d.activitySortLargest },
-            ]}
-            value={sort}
-            onChange={setSort}
-          />
-        </div>
-        {grouped.length === 0 && (
-          <p className="rounded-lg bg-well px-4 py-3 font-mono text-xs text-ink-muted">
-            {query ? d.activityNoMatchSearch : d.activityNoDeposits}
-          </p>
-        )}
-        <div className="flex flex-col gap-3 max-h-[60dvh] overflow-y-auto">
-          {grouped.map(group => (
-            <section key={group.label}>
-              <h3 className="sticky top-0 z-10 bg-surface py-1 font-mono text-[11px] uppercase tracking-wider text-ink-muted">
-                {group.label}
-              </h3>
-              <div className="rounded-lg bg-well/40 px-3 divide-y divide-well">
-                {group.rows.map(row => (
-                  row.kind === 'deposit'
-                    ? <ActivityTimelineRow key={`d-${row.item.id}`} {...row.item} />
-                    : <BucketEventHistoryRow key={`e-${row.item.event.id}`} item={row.item} />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+    <div className="flex flex-col gap-4">
+      <FormField label={d.activitySearch}>
+        <TextInput
+          value={query}
+          placeholder={d.activitySearchPlaceholder}
+          onChange={event => onQueryChange(event.target.value)}
+        />
+      </FormField>
+      <div className="flex justify-end">
+        <Segmented<SortOrder>
+          ariaLabel={d.activitySortAriaLabel}
+          options={[
+            { value: 'newest', label: d.activitySortNewest },
+            { value: 'oldest', label: d.activitySortOldest },
+            { value: 'largest', label: d.activitySortLargest },
+          ]}
+          value={sort}
+          onChange={onSortChange}
+        />
       </div>
-    </Modal>
+      {grouped.length === 0 && (
+        <p className="rounded-lg bg-well px-4 py-3 font-mono text-xs text-ink-muted">
+          {query ? d.activityNoMatchSearch : d.activityNoDeposits}
+        </p>
+      )}
+      <div className="flex flex-col gap-3 max-h-[60dvh] overflow-y-auto">
+        {grouped.map(group => (
+          <section key={group.label}>
+            <h3 className="sticky top-0 z-10 bg-surface py-1 font-mono text-[11px] uppercase tracking-wider text-ink-muted">
+              {group.label}
+            </h3>
+            <div className="rounded-lg bg-well/40 px-3 divide-y divide-well">
+              {group.rows.map(row => (
+                row.kind === 'deposit'
+                  ? <ActivityTimelineRow key={`d-${row.item.id}`} {...row.item} />
+                  : <BucketEventHistoryRow key={`e-${row.item.event.id}`} item={row.item} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }
 

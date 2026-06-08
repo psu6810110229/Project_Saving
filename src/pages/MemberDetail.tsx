@@ -73,6 +73,14 @@ function MemberDetailBody({ userId, md, formatShortDateKey, navigate }: MemberDe
   const { bucketsByUser, loading: bucketsLoading } = useRoomMembersBuckets(activeRoomId, memberIds);
 
   const memberBuckets = useMemo(() => (userId ? bucketsByUser[userId] ?? [] : []), [bucketsByUser, userId]);
+  const memberBucketItems = useMemo(() => memberBuckets.map(bucket => ({
+    id: bucket.id,
+    icon: bucketIcon(bucket.category),
+    name: bucket.name,
+    saved: snapshot.bucketSavedById[bucket.id] ?? 0,
+    target: bucket.target_amount,
+    category: bucket.category,
+  })), [memberBuckets, snapshot.bucketSavedById]);
 
   const isLoading =
     !userId ||
@@ -141,14 +149,7 @@ function MemberDetailBody({ userId, md, formatShortDateKey, navigate }: MemberDe
               />
               <MemberBucketsSection
                 name={memberName || '—'}
-                buckets={memberBuckets.map(bucket => ({
-                  id: bucket.id,
-                  icon: bucketIcon(bucket.category),
-                  name: bucket.name,
-                  saved: snapshot.bucketSavedById[bucket.id] ?? 0,
-                  target: bucket.target_amount,
-                  category: bucket.category,
-                }))}
+                buckets={memberBucketItems}
                 titleFn={md.bucketsTitle}
                 subtitleFn={md.bucketsReadOnlyHint}
                 emptyBody={md.bucketsEmptyBody}

@@ -30,7 +30,7 @@ import { useMemberSavingSnapshot } from '../hooks/useMemberSavingSnapshot';
 import { useRoom } from '../hooks/useRoom';
 import { useSendNudge } from '../hooks/useSendNudge';
 import { useI18n } from '../i18n/useI18n';
-import { bucketSaved } from '../lib/buckets';
+import { bucketSavedById } from '../lib/buckets';
 import { cumulativeRaceSeries } from '../lib/comparisonStats';
 import { fallbackInitial, lastSevenDateKeys, lastSevenDayLabels } from '../lib/dashboardStats';
 import {
@@ -394,6 +394,17 @@ export function Team() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [nudgeBusyMemberId, setNudgeBusyMemberId] = useState<string | null>(null);
   const selectedMemberSnapshot = useMemberSavingSnapshot(activeRoomId, selectedMemberId);
+  const ownBucketSavedById = useMemo(
+    () => (selectedMemberId && selectedMemberId === currentUserId
+      ? bucketSavedById(
+          buckets.map(bucket => bucket.id),
+          logs,
+          bucketTransfers,
+          balanceAllocations,
+        )
+      : null),
+    [balanceAllocations, buckets, bucketTransfers, currentUserId, logs, selectedMemberId],
+  );
 
   const selectedMember = useMemo<MemberDetailModalMember | null>(() => {
     if (!selectedMemberId) return null;
@@ -406,7 +417,7 @@ export function Team() {
     const name = entry.displayName ?? d.partnerLabel;
     const saved = isSelf
       ? memberBuckets.reduce(
-          (sum, bucket) => sum + bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations),
+          (sum, bucket) => sum + (ownBucketSavedById?.get(bucket.id) ?? 0),
           0,
         )
       : selectedMemberSnapshot.saved;
@@ -421,13 +432,13 @@ export function Team() {
         id: bucket.id,
         name: bucket.name,
         saved: isSelf
-          ? bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations)
+          ? (ownBucketSavedById?.get(bucket.id) ?? 0)
           : (selectedMemberSnapshot.bucketSavedById[bucket.id] ?? 0),
         target: bucket.target_amount,
         category: bucket.category,
       })),
     };
-  }, [selectedMemberId, leaderboard.entries, data.roomMembersBuckets.bucketsByUser, d.partnerLabel, currentUserId, buckets, selectedMemberSnapshot.saved, selectedMemberSnapshot.bucketSavedById, logs, bucketTransfers, balanceAllocations]);
+  }, [selectedMemberId, leaderboard.entries, data.roomMembersBuckets.bucketsByUser, d.partnerLabel, currentUserId, buckets, selectedMemberSnapshot.saved, selectedMemberSnapshot.bucketSavedById, ownBucketSavedById]);
 
   const handleMemberClick = useCallback((entry: TeamSectionMember) => {
     setSelectedMemberId(entry.userId);

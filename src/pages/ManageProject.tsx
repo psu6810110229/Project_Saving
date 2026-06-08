@@ -644,6 +644,7 @@ export function ManageProject() {
         title={copy.manageProject.manageBucketsModalTitle}
         onClose={closeBucketsModal}
         hidden={bucketTransferSheetOpen}
+        deferContentUntilOpen
       >
         <BucketManager
           buckets={buckets}

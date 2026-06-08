@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { Avatar } from '../Avatar/Avatar';
 import { BucketCategoryIcon } from '../BucketCategoryIcon/BucketCategoryIcon';
 import { Modal } from '../Modal/Modal';
@@ -52,44 +53,62 @@ export function MemberDetailModal({ open, member, onClose }: MemberDetailModalPr
       title={member?.name ?? md.pageTitle}
       onClose={onClose}
       bodyClassName="flex flex-col gap-5"
+      deferContentUntilOpen
     >
-      {member && (
-        <>
-          <div className="flex flex-col items-center gap-3">
-            <Avatar size="lg" imageUrl={member.avatarUrl} fallback={member.fallback} />
-            {themeHex && (
-              <div
-                className="h-1 w-16 rounded-pill"
-                style={{ backgroundColor: themeHex }}
-                aria-hidden
-              />
-            )}
-          </div>
-
-          <PersonalGoalSection
-            saved={member.saved}
-            target={member.target}
-            themeColor={member.themeColor}
-            sectionLabel={md.sectionPersonalGoal}
-            goalUnsetBody={md.goalUnsetBody}
-          />
-
-          <MemberBucketsSection
-            name={member.name}
-            buckets={member.buckets.map(bucket => ({
-              id: bucket.id,
-              icon: <BucketCategoryIcon category={bucket.category} size={22} />,
-              name: bucket.name,
-              saved: bucket.saved,
-              target: bucket.target,
-              category: bucket.category,
-            }))}
-            titleFn={md.bucketsTitle}
-            subtitleFn={md.bucketsReadOnlyHint}
-            emptyBody={md.bucketsEmptyBody}
-          />
-        </>
-      )}
+      {() => member ? <MemberDetailModalBody member={member} themeHex={themeHex} /> : null}
     </Modal>
   );
 }
+
+const MemberDetailModalBody = memo(function MemberDetailModalBody({
+  member,
+  themeHex,
+}: {
+  member: MemberDetailModalMember;
+  themeHex: string | undefined;
+}) {
+  const { copy } = useI18n();
+  const md = copy.memberDetail;
+  const bucketItems = useMemo(
+    () => member.buckets.map(bucket => ({
+      id: bucket.id,
+      icon: <BucketCategoryIcon category={bucket.category} size={22} />,
+      name: bucket.name,
+      saved: bucket.saved,
+      target: bucket.target,
+      category: bucket.category,
+    })),
+    [member.buckets],
+  );
+
+  return (
+    <>
+      <div className="flex flex-col items-center gap-3">
+        <Avatar size="lg" imageUrl={member.avatarUrl} fallback={member.fallback} />
+        {themeHex && (
+          <div
+            className="h-1 w-16 rounded-pill"
+            style={{ backgroundColor: themeHex }}
+            aria-hidden
+          />
+        )}
+      </div>
+
+      <PersonalGoalSection
+        saved={member.saved}
+        target={member.target}
+        themeColor={member.themeColor}
+        sectionLabel={md.sectionPersonalGoal}
+        goalUnsetBody={md.goalUnsetBody}
+      />
+
+      <MemberBucketsSection
+        name={member.name}
+        buckets={bucketItems}
+        titleFn={md.bucketsTitle}
+        subtitleFn={md.bucketsReadOnlyHint}
+        emptyBody={md.bucketsEmptyBody}
+      />
+    </>
+  );
+});

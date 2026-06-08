@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { bucketSaved, sumTargets } from '../../lib/buckets';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { bucketSavedById, sumTargets } from '../../lib/buckets';
 import { isLowConfidenceCategory } from '../../lib/bucketCategories';
 import { type ArchiveErrorHint, useArchiveBucket } from '../../hooks/useArchiveBucket';
 import type { BalanceAllocation, Bucket, BucketCategory, BucketTransfer, SavingsLog, SavingRuleType } from '../../types';
@@ -105,10 +105,19 @@ export function BucketManager({
   const [transferSheetSourceId, setTransferSheetSourceId] = useState<string | null>(null);
   const [balanceOverrides, setBalanceOverrides] = useState<Record<string, number>>({});
   const [localMessage, setLocalMessage] = useState<string | null>(null);
-  const totalBucketTargets = sumTargets(buckets);
+  const totalBucketTargets = useMemo(() => sumTargets(buckets), [buckets]);
+  const savedByBucketId = useMemo(
+    () => bucketSavedById(
+      buckets.map(bucket => bucket.id),
+      logs,
+      transfers,
+      allocations,
+    ),
+    [allocations, buckets, logs, transfers],
+  );
 
   const pendingRemoveSaved = pendingRemove
-    ? balanceOverrides[pendingRemove.id] ?? bucketSaved(pendingRemove.id, logs, transfers, allocations)
+    ? balanceOverrides[pendingRemove.id] ?? savedByBucketId.get(pendingRemove.id) ?? 0
     : 0;
   const removeDestinations: RemoveBucketDestination[] = useMemo(() => {
     if (!pendingRemove) return [];
@@ -117,9 +126,9 @@ export function BucketManager({
       .map(b => ({
         id: b.id,
         name: b.name,
-        saved: balanceOverrides[b.id] ?? bucketSaved(b.id, logs, transfers, allocations),
+        saved: balanceOverrides[b.id] ?? savedByBucketId.get(b.id) ?? 0,
       }));
-  }, [allocations, balanceOverrides, buckets, logs, transfers, pendingRemove]);
+  }, [balanceOverrides, buckets, pendingRemove, savedByBucketId]);
 
   // Mirror the dashboard's transfer-sheet shape so the "Transfer Balance
   // First" fallback opens the same sheet UI users see elsewhere.
@@ -127,11 +136,11 @@ export function BucketManager({
     () => buckets.map(b => ({
       id: b.id,
       name: b.name,
-      saved: balanceOverrides[b.id] ?? bucketSaved(b.id, logs, transfers, allocations),
+      saved: balanceOverrides[b.id] ?? savedByBucketId.get(b.id) ?? 0,
       target: b.target_amount,
       icon: <BucketCategoryIcon category={b.category} size={20} />,
     })),
-    [allocations, balanceOverrides, buckets, logs, transfers],
+    [balanceOverrides, buckets, savedByBucketId],
   );
 
   useEffect(() => {
@@ -142,15 +151,15 @@ export function BucketManager({
     onTransferSheetOpenChange?.(false);
   }, [onTransferSheetOpenChange]);
 
-  function startEdit(bucket: Bucket) {
+  const startEdit = useCallback((bucket: Bucket) => {
     setEditingId(bucket.id);
     setLocalMessage(null);
-  }
+  }, []);
 
-  function cancelEdit() {
+  const cancelEdit = useCallback(() => {
     setEditingId(null);
     setLocalMessage(null);
-  }
+  }, []);
 
   function handleEdited(result: { deadlineExtensionWarning?: boolean }) {
     setLocalMessage(result.deadlineExtensionWarning
@@ -159,11 +168,11 @@ export function BucketManager({
     setEditingId(null);
   }
 
-  function openRemove(bucket: Bucket) {
+  const openRemove = useCallback((bucket: Bucket) => {
     setLocalMessage(null);
     setRemoveError(null);
     setPendingRemove(bucket);
-  }
+  }, []);
 
   function closeRemove() {
     if (removePending) return;
@@ -203,7 +212,10 @@ export function BucketManager({
     setTransferSheetSourceId(sourceId);
   }
 
-  const hasReviewable = onReviewCategories && buckets.some(isLowConfidenceCategory);
+  const hasReviewable = useMemo(
+    () => Boolean(onReviewCategories && buckets.some(isLowConfidenceCategory)),
+    [buckets, onReviewCategories],
+  );
 
   async function handleReviewSave(updates: { id: string; category: BucketCategory }[]) {
     if (!onReviewCategories) return { error: 'No handler' };
@@ -252,6 +264,7 @@ export function BucketManager({
         logs={logs}
         transfers={transfers}
         allocations={allocations}
+        savedByBucketId={savedByBucketId}
         goalTarget={goalTarget}
         roomEndDate={roomEndDate}
         highlightBucketId={highlightBucketId}
@@ -328,6 +341,7 @@ function BucketSummary({
   logs,
   transfers,
   allocations,
+  savedByBucketId,
   goalTarget,
   roomEndDate,
   highlightBucketId,
@@ -342,6 +356,7 @@ function BucketSummary({
   logs: SavingsLog[];
   transfers?: BucketTransfer[];
   allocations?: BalanceAllocation[];
+  savedByBucketId: Map<string, number>;
   goalTarget?: number | null;
   roomEndDate?: string | null;
   highlightBucketId?: string | null;
@@ -384,10 +399,10 @@ function BucketSummary({
             <ManageBucketCard
               key={bucket.id}
               bucket={bucket}
-              saved={bucketSaved(bucket.id, logs, transfers, allocations)}
+              saved={savedByBucketId.get(bucket.id) ?? 0}
               highlighted={bucket.id === highlightBucketId}
-              onEdit={() => onStartEdit(bucket)}
-              onAskRemove={() => onAskRemove(bucket)}
+              onStartEdit={onStartEdit}
+              onAskRemove={onAskRemove}
             />
           ))}
         </div>
@@ -396,18 +411,18 @@ function BucketSummary({
   );
 }
 
-function ManageBucketCard({
+const ManageBucketCard = memo(function ManageBucketCard({
   bucket,
   saved,
   highlighted,
-  onEdit,
+  onStartEdit,
   onAskRemove,
 }: {
   bucket: Bucket;
   saved: number;
   highlighted: boolean;
-  onEdit: () => void;
-  onAskRemove: () => void;
+  onStartEdit: (bucket: Bucket) => void;
+  onAskRemove: (bucket: Bucket) => void;
 }) {
   const { copy, formatMoney } = useI18n();
   const accent = (bucket.category && CATEGORY_ACCENT[bucket.category]) || DEFAULT_ACCENT;
@@ -458,7 +473,7 @@ function ManageBucketCard({
           size="sm"
           ariaLabel={copy.bucket.deleteAriaLabel(bucket.name)}
           className="bg-danger/90 text-danger hover:bg-danger/35"
-          onClick={onAskRemove}
+          onClick={() => onAskRemove(bucket)}
         >
           <IconTrash size={15} />
         </IconButton>
@@ -467,11 +482,11 @@ function ManageBucketCard({
           variant="solid"
           size="sm"
           ariaLabel={copy.bucket.editAriaLabel(bucket.name)}
-          onClick={onEdit}
+          onClick={() => onStartEdit(bucket)}
         >
           <IconEdit size={15} />
         </IconButton>
       </div>
     </div>
   );
-}
+});

@@ -13,6 +13,7 @@ import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
 import { setPrimaryMotionState, useOpenClosePrimaryMotion } from '../../lib/animationBudget';
 import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/motion';
+import type { BucketCategory } from '../../types';
 
 const contentVariants = {
   hidden: {},
@@ -32,6 +33,7 @@ interface BucketSheetProps {
   name: string;
   saved: number;
   target: number;
+  category?: BucketCategory;
   quickAmounts: number[];
   onConfirm: (amount: number) => Promise<{ error?: string }>;
   onDelete?: () => void;
@@ -42,7 +44,6 @@ interface BucketSheetProps {
   onDoneLockOverride?: (bucketId: string) => void;
   smartDefaultAmount?: number | null;
   isPaused?: boolean;
-  pausedSinceLabel?: string | null;
   canPausePlan?: boolean;
   canResumePlan?: boolean;
   onRequestPausePlan?: (bucketId: string) => void;
@@ -63,6 +64,7 @@ export function BucketSheet({
   name,
   saved,
   target,
+  category,
   onConfirm,
   onDelete,
   isComplete,
@@ -72,7 +74,6 @@ export function BucketSheet({
   onDoneLockOverride,
   smartDefaultAmount,
   isPaused = false,
-  pausedSinceLabel = null,
   canPausePlan = false,
   canResumePlan = false,
   onRequestPausePlan,
@@ -219,27 +220,16 @@ export function BucketSheet({
                 >
                   {/* Bucket header */}
                   <motion.div variants={itemVariants}>
-                    <BucketHeader icon={icon} name={name} saved={saved} target={target} pendingDeposit={showDoneLock ? 0 : resolvedAmount} />
+                    <BucketHeader
+                      icon={icon}
+                      name={name}
+                      saved={saved}
+                      target={target}
+                      pendingDeposit={showDoneLock ? 0 : resolvedAmount}
+                      category={category}
+                      isPaused={isPaused}
+                    />
                   </motion.div>
-
-                  {isPaused && (
-                    <motion.div variants={itemVariants} className="rounded-xl border border-dashed border-accent-slate/35 bg-accent-slate/10 p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface text-accent-slate shadow-soft">
-                          <IconPauseCircle size={18} />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-mono text-sm font-bold text-ink">
-                            {copy.bucketPause.bannerTitle}
-                            {pausedSinceLabel ? <span className="font-normal text-ink-muted"> - {pausedSinceLabel}</span> : null}
-                          </p>
-                          <p className="mt-1 font-mono text-xs leading-5 text-ink-muted">
-                            {copy.bucketPause.bannerBody}
-                          </p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
 
                   {showDoneLock ? (
                     <>

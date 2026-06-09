@@ -1031,17 +1031,24 @@ function DepositBucketCard({
   };
   compact?: boolean;
 }) {
+  const progressPct = bucket.target > 0
+    ? Math.max(0, Math.min(999, Math.round((bucket.saved / bucket.target) * 100)))
+    : 0;
+
   return (
     <div className={compact ? 'flex flex-col gap-1.5' : 'rounded-xl bg-surfaceAlt px-3 py-3'}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <span className={`block truncate font-mono-th ${compact ? 'text-sm font-semibold' : 'text-sm font-semibold'} text-ink`}>
+          <span className={`block truncate font-mono-th text-sm font-normal text-ink`}>
             {bucket.name}
           </span>
           <span className="mt-0.5 block font-mono text-xs font-semibold text-ink-muted">
             {formatCurrency(bucket.saved)}
           </span>
         </div>
+        <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-brand-800">
+          {progressPct}%
+        </span>
       </div>
     </div>
   );

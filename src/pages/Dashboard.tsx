@@ -1937,7 +1937,7 @@ export function Dashboard() {
           : null;
         return (
           <BucketSheet
-          quickAmounts={quickAmounts}
+            quickAmounts={quickAmounts}
             open={Boolean(expandedBucketId)}
             onClose={() => setExpandedBucketId(null)}
             bucketId={expandedBucketId ?? ''}
@@ -1945,12 +1945,10 @@ export function Dashboard() {
             name={selectedBucketItem?.name ?? ''}
             saved={selectedBucketItem?.saved ?? 0}
             target={selectedBucketItem?.target ?? 0}
+            category={selectedBucket?.category}
             smartDefaultAmount={smartDefault.value}
             isComplete={isDone}
             isPaused={Boolean(selectedPauseState?.isPaused)}
-            pausedSinceLabel={selectedPauseState?.openPause?.paused_from
-              ? formatShortDateKey(selectedPauseState.openPause.paused_from)
-              : null}
             canPausePlan={canPauseSelectedPlan}
             canResumePlan={canResumeSelectedPlan}
             onRequestPausePlan={(bucketId) => {

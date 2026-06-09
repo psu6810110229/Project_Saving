@@ -99,6 +99,13 @@ export const BucketRow = memo(function BucketRow({
     : 'paceCritical'
   ] : null;
   const completedDateLabel = completedAt ? formatShortDateKey(completedAt.slice(0, 10)) : status?.label;
+  const pausedCardStyle = isPaused
+    ? {
+        borderColor: accent.border,
+        background: `linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, ${accent.tint} 100%)`,
+        filter: 'saturate(0.1)',
+      }
+    : { borderColor: accent.border };
 
   // Focus ("ลำดับปัจจุบัน") and next ("ลำดับถัดไป") cards alternate their corner
   // between the badge and the percentage every 2s; static if reduced motion is on.
@@ -155,7 +162,7 @@ export const BucketRow = memo(function BucketRow({
     <Pressable
       onClick={onClick}
       className="relative flex aspect-square w-full flex-col rounded-2xl border-[1.5px] bg-surface p-4 text-left shadow-soft"
-      style={{ borderColor: accent.border }}
+      style={pausedCardStyle}
     >
       {showBadge ? (
         <span
@@ -198,32 +205,29 @@ export const BucketRow = memo(function BucketRow({
         <ProgressBar value={animPct} tone="theme" themeHex={accent.accent} size="sm" className="bg-well" />
       </div>
 
-      {isPaused ? (
-        <div className="bucket-card-meta mt-auto flex w-full flex-col gap-1.5 rounded-lg border border-dashed border-accent-slate/35 bg-accent-slate/10 px-2 py-2 font-mono text-[10px] leading-tight text-accent-slate">
-          <span className="inline-flex w-fit items-center gap-1 rounded-pill bg-surface px-2 py-0.5 font-bold text-accent-slate shadow-soft">
-            <IconPauseCircle size={12} className="shrink-0" />
-            {copy.bucketCard.pausedPill}
-          </span>
-          {pause?.originalDeadlineLabel && (
-            <span className="truncate text-ink-muted">{pause.originalDeadlineLabel}</span>
-          )}
-          {pause?.resumeDailyLabel && (
-            <span className="truncate font-bold text-accent-slate">{pause.resumeDailyLabel}</span>
-          )}
-        </div>
-      ) : hasDeadlineInfo && paceConfig && (
-        <div className="bucket-card-meta mt-auto flex w-full items-center justify-between gap-1.5 pt-2 font-mono text-[10px] leading-tight">
-          <span className="flex min-w-0 items-center gap-1 whitespace-nowrap">
-            <CountdownIcon size={12} className={`shrink-0 ${countdownIconClass}`} />
-            <CountdownLabel remainingDays={pace!.remainingDays} copy={copy} />
-          </span>
-          <span aria-hidden="true" className="h-3 w-px shrink-0 bg-well" />
-          <span className={`flex min-w-0 items-center gap-1 whitespace-nowrap font-bold ${paceConfig.className}`}>
-            <paceConfig.Icon size={12} className="shrink-0" />
-            {paceLabel}
-          </span>
-        </div>
-      )}
+      <div className="bucket-card-meta mt-auto min-h-[28px] pt-2">
+        {isPaused && (
+          <div className="flex justify-center">
+            <span className="inline-flex items-center gap-1 rounded-pill border border-white/90 bg-surface/95 px-2.5 py-0.5 font-mono-th text-[10px] font-semibold leading-tight text-ink shadow-soft">
+              <IconPauseCircle size={11} className="shrink-0 text-ink-muted" />
+              {copy.bucketCard.pausedPill}
+            </span>
+          </div>
+        )}
+        {!isPaused && hasDeadlineInfo && paceConfig && (
+          <div className="flex w-full items-center justify-between gap-1.5 font-mono text-[10px] leading-tight">
+            <span className="flex min-w-0 items-center gap-1 whitespace-nowrap">
+              <CountdownIcon size={12} className={`shrink-0 ${countdownIconClass}`} />
+              <CountdownLabel remainingDays={pace!.remainingDays} copy={copy} />
+            </span>
+            <span aria-hidden="true" className="h-3 w-px shrink-0 bg-well" />
+            <span className={`flex min-w-0 items-center gap-1 whitespace-nowrap font-bold ${paceConfig.className}`}>
+              <paceConfig.Icon size={12} className="shrink-0" />
+              {paceLabel}
+            </span>
+          </div>
+        )}
+      </div>
     </Pressable>
   );
 });

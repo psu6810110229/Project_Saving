@@ -173,6 +173,31 @@ export interface BucketPauseStatus {
   is_paused: boolean;
 }
 
+export interface BucketPauseState {
+  bucketId: string;
+  dateKey: string;
+  isPaused: boolean;
+  openPause: BucketPlanPause | null;
+  pauseForDate: BucketPlanPause | null;
+}
+
+export type ResumePressureReason = 'daily_threshold' | 'multiplier_threshold';
+
+export interface ResumePreview {
+  bucketId: string;
+  resumeDate: string;
+  targetAmount: number;
+  currentBalance: number;
+  remainingAmount: number;
+  deadline: string | null;
+  remainingDays: number | null;
+  requiredDailyEquivalent: number | null;
+  previousDailyEquivalent: number | null;
+  ruleDailyEquivalent: number | null;
+  pressureReasons: ResumePressureReason[];
+  pressure: 'normal' | 'high';
+}
+
 /** Return shape shared by `pause_bucket_plan` and `resume_bucket_plan`. */
 export interface BucketPlanPauseMutationResult {
   pause_id: string;

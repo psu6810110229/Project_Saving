@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useBalanceAllocations } from '../../hooks/useBalanceAllocations';
+import { useBucketPlanPauses } from '../../hooks/useBucketPlanPauses';
 import { useBuckets } from '../../hooks/useBuckets';
 import { useBucketActivityEvents } from '../../hooks/useBucketActivityEvents';
 import { useBucketTransfers } from '../../hooks/useBucketTransfers';
@@ -25,6 +26,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const { user } = useAuth();
   const profile = useProfile();
   const buckets = useBuckets(roomId);
+  const bucketPlanPauses = useBucketPlanPauses(roomId);
   const bucketTransfers = useBucketTransfers(roomId);
   const balanceAllocations = useBalanceAllocations(roomId);
   const bucketActivityEvents = useBucketActivityEvents(roomId);
@@ -59,6 +61,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const refetchRef = useRef({
     logs: logs.refetch,
     buckets: buckets.refetch,
+    bucketPlanPauses: bucketPlanPauses.refetch,
     goal: goal.refetch,
     profile: profile.refetch,
     reconcile: reconcile.refetch,
@@ -70,6 +73,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     refetchRef.current = {
       logs: logs.refetch,
       buckets: buckets.refetch,
+      bucketPlanPauses: bucketPlanPauses.refetch,
       goal: goal.refetch,
       profile: profile.refetch,
       reconcile: reconcile.refetch,
@@ -87,6 +91,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     await Promise.allSettled([
       r.logs(),
       r.buckets(),
+      r.bucketPlanPauses(),
       r.goal(),
       r.profile(),
       r.reconcile(),
@@ -101,6 +106,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     () => ({
       profile,
       buckets,
+      bucketPlanPauses,
       bucketTransfers,
       balanceAllocations,
       bucketActivityEvents,
@@ -122,6 +128,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     [
       profile,
       buckets,
+      bucketPlanPauses,
       bucketTransfers,
       balanceAllocations,
       bucketActivityEvents,

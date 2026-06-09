@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 import type { useBalanceAllocations } from '../../hooks/useBalanceAllocations';
+import type { useBucketPlanPauses } from '../../hooks/useBucketPlanPauses';
 import type { useBuckets } from '../../hooks/useBuckets';
 import type { useBucketActivityEvents } from '../../hooks/useBucketActivityEvents';
 import type { useBucketTransfers } from '../../hooks/useBucketTransfers';
@@ -20,6 +21,7 @@ import type { useStreakFreeze } from '../../hooks/useStreakFreeze';
 export interface DataContextValue {
   profile: ReturnType<typeof useProfile>;
   buckets: ReturnType<typeof useBuckets>;
+  bucketPlanPauses: ReturnType<typeof useBucketPlanPauses>;
   bucketTransfers: ReturnType<typeof useBucketTransfers>;
   balanceAllocations: ReturnType<typeof useBalanceAllocations>;
   bucketActivityEvents: ReturnType<typeof useBucketActivityEvents>;

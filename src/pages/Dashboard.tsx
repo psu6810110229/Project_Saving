@@ -11,6 +11,8 @@ import { BucketGrid } from '../components/BucketGrid/BucketGrid';
 import { BucketEditForm } from '../components/BucketEditForm/BucketEditForm';
 import { BucketManager } from '../components/BucketManager/BucketManager';
 import { BucketSheet } from '../components/BucketSheet/BucketSheet';
+import { BucketPauseSheet } from '../components/BucketPauseSheet/BucketPauseSheet';
+import { BucketResumePreviewSheet } from '../components/BucketResumePreviewSheet/BucketResumePreviewSheet';
 import { BucketDragCard } from '../components/BucketDragCard/BucketDragCard';
 import { BucketDragHint } from '../components/BucketDragHint/BucketDragHint';
 import { BUCKET_EDIT_HINT_KEY, hasSeenHint, markHintSeen } from '../lib/hintSeen';
@@ -78,7 +80,13 @@ import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { calcBucketPace } from '../lib/paceCalculation';
-import { isBucketPausedOnDate } from '../lib/bucketPlanPause';
+import {
+  bucketPauseStateForDate,
+  dailyEquivalentForRule,
+  isBucketPausedOnDate,
+  previewResumePlan,
+} from '../lib/bucketPlanPause';
+import { calcRuleAmount } from '../lib/bucketRuleSuggest';
 import { cumulativeAmountSeries, cumulativeNetAmountSeries } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
 import { roomCoverErrorMessage } from '../lib/roomCoverImage';
@@ -86,11 +94,13 @@ import { supabase } from '../lib/supabase';
 import { daysSince } from '../lib/reconcile';
 import { localDateKey } from '../lib/streak';
 import {
+  addDays,
   daysBetween,
   todayBangkokKey,
 } from '../lib/savingPlan';
 import { setPrimaryMotionState } from '../lib/animationBudget';
-import type { Bucket, BucketCategory, BucketCreateRuleData, BucketTransfer, SavingRuleType } from '../types';
+import type { Bucket, BucketCategory, BucketCreateRuleData, BucketTransfer, ResumePreview, SavingRuleType } from '../types';
+import type { BucketPlanRuleSnapshotInput } from '../hooks/useBucketPlanPauses';
 
 /** Framer Motion stagger variants for the Dashboard cascade. */
 const containerVariants = {
@@ -151,6 +161,65 @@ const SHOW_NEXT_WIN = false;
 const VB_REMINDER_SESSION_KEY = 'verifiedBalanceReminderDismissed';
 
 type BucketDragMode = 'transfer' | 'edit';
+
+function hasTrackablePausePlan(bucket: Bucket | null | undefined): bucket is Bucket {
+  return Boolean(
+    bucket
+    && bucket.archived_at == null
+    && bucket.deadline
+    && bucket.saving_rule_type
+    && bucket.saving_rule_type !== 'flexible',
+  );
+}
+
+function ceilMoney(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.ceil(value);
+}
+
+function buildResumeRuleSnapshot(
+  bucket: Bucket,
+  currentBalance: number,
+  resumeDate: string,
+  deadlineOverride?: string | null,
+): BucketPlanRuleSnapshotInput {
+  const deadline = deadlineOverride ?? bucket.deadline ?? null;
+  const rule = bucket.saving_rule_type ?? 'flexible';
+  const remainingAmount = Math.max(0, bucket.target_amount - currentBalance);
+  const remainingDays = deadline ? Math.max(1, daysBetween(resumeDate, deadline)) : 1;
+  const snapshot: BucketPlanRuleSnapshotInput = {
+    deadline,
+    target_amount: bucket.target_amount,
+    saving_rule_type: rule,
+    saving_rule_amount: null,
+    saving_rule_start_amount: null,
+    saving_rule_increment: null,
+    saving_rule_cap: null,
+    saving_rule_day_count: null,
+    saving_rule_start_date: null,
+    reminder_day: null,
+  };
+
+  if (rule === 'fixed_daily' || rule === 'fixed_weekly' || rule === 'fixed_monthly') {
+    snapshot.saving_rule_amount = calcRuleAmount(remainingAmount, remainingDays, rule);
+    snapshot.reminder_day = rule === 'fixed_monthly' ? bucket.reminder_day ?? null : null;
+    return snapshot;
+  }
+
+  if (rule === 'increasing_daily' || rule === 'increasing_daily_capped') {
+    const startAmount = ceilMoney(remainingAmount / remainingDays);
+    snapshot.saving_rule_start_amount = startAmount;
+    snapshot.saving_rule_increment = bucket.saving_rule_increment ?? 0;
+    snapshot.saving_rule_day_count = remainingDays;
+    snapshot.saving_rule_start_date = resumeDate;
+    snapshot.saving_rule_cap = rule === 'increasing_daily_capped'
+      ? Math.max(startAmount, bucket.saving_rule_cap ?? startAmount)
+      : null;
+    return snapshot;
+  }
+
+  return snapshot;
+}
 
 const restrictBucketDragToViewport: Modifier = ({ activeNodeRect, transform, windowRect }) => {
   if (!activeNodeRect || !windowRect) return transform;
@@ -240,7 +309,11 @@ export function Dashboard() {
   const heroCoverTint = activeRoom?.member_cover_image_url ? (activeRoom?.member_cover_tint ?? null) : null;
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
-  const { pauses: bucketPlanPauses } = data.bucketPlanPauses;
+  const {
+    pauses: bucketPlanPauses,
+    pauseBucketPlan,
+    resumeBucketPlan,
+  } = data.bucketPlanPauses;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
   const { addOptimisticFlow } = data.roomVisibleMomentumFlows;
@@ -264,7 +337,7 @@ export function Dashboard() {
     frozenDates: streakFrozenDates,
   } = data.streakFreeze;
   const { count: unreadNotifications } = useUnreadNotificationsCount();
-  const { copy, formatMoney } = useI18n();
+  const { copy, formatMoney, formatShortDateKey } = useI18n();
   const d = copy.dashboard;
 
   // Task 32 plural fields — N-safe other-member data.
@@ -279,6 +352,12 @@ export function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
     const smartDefault = useSmartDefaultAmount(user?.id, expandedBucketId, logs);
+  const [pauseBucketId, setPauseBucketId] = useState<string | null>(null);
+  const [resumeBucketId, setResumeBucketId] = useState<string | null>(null);
+  const [pauseMutationError, setPauseMutationError] = useState<string | null>(null);
+  const [resumeMutationError, setResumeMutationError] = useState<string | null>(null);
+  const [pausing, setPausing] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [manageBucketsOpen, setManageBucketsOpen] = useState(false);
   const [checkBalanceOpen, setCheckBalanceOpen] = useState(false);
@@ -485,6 +564,7 @@ export function Dashboard() {
     depositAmount: number;
     bucketName: string;
     reachedBucket: boolean;
+    planRemainsPaused: boolean;
   } | null>(null);
   const [vbReminder, setVbReminder] = useState<{ open: boolean; days: number | null }>({ open: false, days: null });
   const vbReminderEvaluatedRef = useRef(false);
@@ -584,10 +664,21 @@ export function Dashboard() {
     }
     return map;
   }, [buckets, doneBucketIds, focusBucketId, nextBucketId]);
+  const todayKey = todayBangkokKey();
   const bucketItems = useMemo(() => {
     const statusLabels = copy.bucketIntent.status;
     return buckets.map(bucket => {
       const saved = bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations);
+      const pauseState = bucketPauseStateForDate(bucket, bucketPlanPauses, todayKey);
+      const resumePreview = pauseState.isPaused
+        ? previewResumePlan({
+            bucket,
+            currentBalance: saved,
+            resumeDate: todayKey,
+            ruleSnapshot: bucket,
+            previousDailyEquivalent: dailyEquivalentForRule(bucket),
+          })
+        : null;
       const focusState = focusStates.get(bucket.id);
       let status: { kind: 'focus' | 'next' | 'done' | 'queued' | 'overdue'; label: string } | undefined;
       if (focusState) {
@@ -608,6 +699,15 @@ export function Dashboard() {
         completedAt: bucket.completed_at,
         status,
         pace: paceResult ? { status: paceResult.status, remainingDays: paceResult.remainingDays } : null,
+        pause: pauseState.isPaused ? {
+          isPaused: true,
+          originalDeadlineLabel: bucket.deadline
+            ? copy.bucketCard.pausedOriginalDeadline(formatShortDateKey(bucket.deadline))
+            : null,
+          resumeDailyLabel: resumePreview?.pressure === 'high' && resumePreview.requiredDailyEquivalent != null
+            ? copy.bucketCard.pausedResumeDaily(formatMoney(resumePreview.requiredDailyEquivalent))
+            : null,
+        } : null,
       };
     }).sort((a, b) => {
       const kindOrder: Record<string, number> = { overdue: 0, focus: 1, next: 2, queued: 3, done: 4 };
@@ -621,7 +721,19 @@ export function Dashboard() {
       const pctB = b.target > 0 ? b.saved / b.target : 0;
       return pctB - pctA;
     });
-  }, [buckets, logs, bucketTransfers, balanceAllocations, focusStates, copy.bucketIntent.status]);
+  }, [
+    buckets,
+    logs,
+    bucketTransfers,
+    balanceAllocations,
+    bucketPlanPauses,
+    todayKey,
+    focusStates,
+    copy.bucketIntent.status,
+    copy.bucketCard,
+    formatMoney,
+    formatShortDateKey,
+  ]);
   const activeBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind !== 'done'), [bucketItems]);
   const completedBucketItems = useMemo(() => bucketItems.filter(b => b.status?.kind === 'done'), [bucketItems]);
   const manualActiveBucketItems = useMemo(() => {
@@ -677,7 +789,6 @@ export function Dashboard() {
     next.delete('action');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams, bucketsLoading, displayedActiveBucketItems]);
-  const todayKey = todayBangkokKey();
   const actionAlertBuckets = useMemo<ActionAlertBucket[]>(() => buckets
     .filter(bucket => (
       !doneBucketIds.has(bucket.id)
@@ -713,6 +824,10 @@ export function Dashboard() {
   const bucketStreak = useMemo(
     () => calcPeriodAwareStreak(buckets, logs, todayKey, streakFrozenDates, bucketTransfers, bucketPlanPauses),
     [buckets, logs, todayKey, streakFrozenDates, bucketTransfers, bucketPlanPauses],
+  );
+  const activeBucketSummaryItems = useMemo(
+    () => bucketSummaryItems.filter(item => !isBucketPausedOnDate(bucketPlanPauses, item.bucketId, todayKey)),
+    [bucketSummaryItems, bucketPlanPauses, todayKey],
   );
   const migrationBuckets = useMemo(
     () => buckets.filter(bucket => !bucket.deadline || migration.state.completedBucketIds.includes(bucket.id)),
@@ -1077,6 +1192,99 @@ export function Dashboard() {
     return result;
   }
 
+  function resumePreviewForBucket(bucket: Bucket | null, deadlineOverride: string | null): ResumePreview | null {
+    if (!bucket) return null;
+    const saved = bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations);
+    const deadline = deadlineOverride ?? bucket.deadline ?? null;
+    return previewResumePlan({
+      bucket: {
+        id: bucket.id,
+        target_amount: bucket.target_amount,
+        deadline,
+      },
+      currentBalance: saved,
+      resumeDate: todayKey,
+      ruleSnapshot: { ...bucket, deadline },
+      previousDailyEquivalent: dailyEquivalentForRule(bucket),
+    });
+  }
+
+  function resumeCadenceLabelForBucket(bucket: Bucket | null, deadlineOverride: string | null): string {
+    if (!bucket) return copy.bucketPause.noCadence;
+    const saved = bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations);
+    const snapshot = buildResumeRuleSnapshot(bucket, saved, todayKey, deadlineOverride);
+    const rule = snapshot.saving_rule_type;
+    if (rule === 'fixed_daily' && snapshot.saving_rule_amount != null) {
+      return d.bucketPlanPerDay(formatMoney(snapshot.saving_rule_amount));
+    }
+    if (rule === 'fixed_weekly' && snapshot.saving_rule_amount != null) {
+      return d.bucketPlanPerWeek(formatMoney(snapshot.saving_rule_amount));
+    }
+    if (rule === 'fixed_monthly' && snapshot.saving_rule_amount != null) {
+      return d.bucketPlanPerMonth(formatMoney(snapshot.saving_rule_amount));
+    }
+    if (
+      (rule === 'increasing_daily' || rule === 'increasing_daily_capped')
+      && snapshot.saving_rule_start_amount != null
+    ) {
+      return d.bucketPlanPerDay(formatMoney(snapshot.saving_rule_start_amount));
+    }
+    return copy.bucketPause.noCadence;
+  }
+
+  async function handleConfirmPauseBucket() {
+    if (!pauseBucketId) return;
+    setPausing(true);
+    setPauseMutationError(null);
+    const result = await pauseBucketPlan({
+      bucketId: pauseBucketId,
+      pausedFrom: todayKey,
+      clientRequestId: crypto.randomUUID(),
+    });
+    setPausing(false);
+    if (result.error) {
+      setPauseMutationError(result.error);
+      return;
+    }
+    haptic('success');
+    setPauseBucketId(null);
+  }
+
+  async function handleConfirmResumeBucket(deadlineOverride: string | null) {
+    if (!resumeBucketId) return;
+    const bucket = buckets.find(item => item.id === resumeBucketId);
+    if (!bucket) return;
+    const saved = bucketSaved(bucket.id, logs, bucketTransfers, balanceAllocations);
+    const resolvedDeadline = deadlineOverride ?? bucket.deadline ?? null;
+    const ruleSnapshot = buildResumeRuleSnapshot(bucket, saved, todayKey, resolvedDeadline);
+    setResuming(true);
+    setResumeMutationError(null);
+    const result = await resumeBucketPlan({
+      bucketId: resumeBucketId,
+      resumedFrom: todayKey,
+      clientRequestId: crypto.randomUUID(),
+      ruleSnapshot,
+    });
+    setResuming(false);
+    if (result.error) {
+      setResumeMutationError(result.error);
+      return;
+    }
+    await refetchBuckets();
+    haptic('success');
+    setResumeBucketId(null);
+  }
+
+  const pauseTargetBucket = pauseBucketId
+    ? buckets.find(bucket => bucket.id === pauseBucketId) ?? null
+    : null;
+  const resumeTargetBucket = resumeBucketId
+    ? buckets.find(bucket => bucket.id === resumeBucketId) ?? null
+    : null;
+  const resumeMinDeadline = addDays(todayKey, 1);
+  const resumePreview = resumePreviewForBucket(resumeTargetBucket, null);
+  const resumeCadenceLabel = resumeCadenceLabelForBucket(resumeTargetBucket, resumeTargetBucket?.deadline ?? null);
+
   // A bucket reorder persists via saveBuckets -> fetchBuckets, which
   // flips bucketsLoading true. The optimistic order already keeps the
   // grid correct, so don't flash the full skeleton during that save.
@@ -1160,7 +1368,7 @@ export function Dashboard() {
           roomCategory={activeRoom?.category ?? null}
           coverImageUrl={heroCoverUrl}
           validThru={activeRoom?.end_date ?? null}
-          dailySummaryItem={bucketSummaryItems[0] ?? null}
+          dailySummaryItem={activeBucketSummaryItems[0] ?? null}
           hasBuckets={buckets.length > 0}
           bucketCount={buckets.filter(bucket => bucket.archived_at == null).length}
           streak={heroStreak}
@@ -1318,6 +1526,7 @@ export function Dashboard() {
                         status={bucket.status}
                         deadline={bucket.deadline}
                         pace={bucket.pace}
+                        pause={bucket.pause}
                       />
                     </SortableBucketCard>
                   ) : (
@@ -1331,6 +1540,7 @@ export function Dashboard() {
                         status={bucket.status}
                         deadline={bucket.deadline}
                         pace={bucket.pace}
+                        pause={bucket.pause}
                         onClick={() => {
                           if (justDraggedRef.current) return;
                           setExpandedBucketId(bucket.id);
@@ -1389,6 +1599,7 @@ export function Dashboard() {
                       status={bucket.status}
                       completedAt={bucket.completedAt}
                       variant="completed"
+                      pause={bucket.pause}
                       onClick={isEditing ? undefined : () => setExpandedBucketId(bucket.id)}
                     />
                   );
@@ -1690,7 +1901,25 @@ export function Dashboard() {
       {/* Bucket deposit bottom sheet */}
       {(() => {
         const selectedBucketItem = bucketItems.find(b => b.id === expandedBucketId);
+        const selectedBucket = expandedBucketId
+          ? buckets.find(bucket => bucket.id === expandedBucketId) ?? null
+          : null;
+        const selectedPauseState = selectedBucket
+          ? bucketPauseStateForDate(selectedBucket, bucketPlanPauses, todayKey)
+          : null;
         const isDone = selectedBucketItem?.status?.kind === 'done';
+        const canPauseSelectedPlan = Boolean(
+          selectedBucket
+          && selectedBucketItem
+          && !isDone
+          && !selectedPauseState?.isPaused
+          && hasTrackablePausePlan(selectedBucket),
+        );
+        const canResumeSelectedPlan = Boolean(
+          selectedBucket
+          && selectedPauseState?.isPaused
+          && hasTrackablePausePlan(selectedBucket),
+        );
         const extraAmt = isDone && selectedBucketItem
           ? Math.max(0, selectedBucketItem.saved - selectedBucketItem.target)
           : 0;
@@ -1709,6 +1938,20 @@ export function Dashboard() {
             target={selectedBucketItem?.target ?? 0}
             smartDefaultAmount={smartDefault.value}
             isComplete={isDone}
+            isPaused={Boolean(selectedPauseState?.isPaused)}
+            pausedSinceLabel={selectedPauseState?.openPause?.paused_from
+              ? formatShortDateKey(selectedPauseState.openPause.paused_from)
+              : null}
+            canPausePlan={canPauseSelectedPlan}
+            canResumePlan={canResumeSelectedPlan}
+            onRequestPausePlan={(bucketId) => {
+              setPauseMutationError(null);
+              setPauseBucketId(bucketId);
+            }}
+            onRequestResumePlan={(bucketId) => {
+              setResumeMutationError(null);
+              setResumeBucketId(bucketId);
+            }}
             extraAmount={extraAmt}
             nextBucketName={nextBucket?.name ?? null}
             onRequestTransferExtra={(sourceBucketId) => {
@@ -1739,6 +1982,7 @@ export function Dashboard() {
             onConfirm={async amount => {
               if (!expandedBucketId) return { error: copy.bucket.validationNameAndTarget };
               const prev = selectedBucketItem?.saved ?? 0;
+              const planRemainsPaused = Boolean(selectedPauseState?.isPaused);
               const result = await insert(amount, expandedBucketId);
               if (!result.error) {
                 if (user?.id) {
@@ -1761,6 +2005,7 @@ export function Dashboard() {
                     depositAmount: amount,
                     bucketName: selectedBucketItem.name,
                     reachedBucket: reached,
+                    planRemainsPaused,
                   });
                 }
                 setExpandedBucketId(null);
@@ -1770,6 +2015,39 @@ export function Dashboard() {
           />
         );
       })()}
+
+      <BucketPauseSheet
+        open={pauseBucketId !== null}
+        bucketName={pauseTargetBucket?.name ?? ''}
+        pauseDateLabel={formatShortDateKey(todayKey)}
+        submitting={pausing}
+        error={pauseMutationError}
+        onClose={() => {
+          if (pausing) return;
+          setPauseBucketId(null);
+          setPauseMutationError(null);
+        }}
+        onConfirm={handleConfirmPauseBucket}
+      />
+
+      <BucketResumePreviewSheet
+        open={resumeBucketId !== null}
+        bucketName={resumeTargetBucket?.name ?? ''}
+        preview={resumePreview}
+        cadenceAmountLabel={resumeCadenceLabel}
+        getPreviewForDeadline={(deadline) => resumePreviewForBucket(resumeTargetBucket, deadline)}
+        getCadenceAmountLabel={(deadline) => resumeCadenceLabelForBucket(resumeTargetBucket, deadline)}
+        minDeadline={resumeMinDeadline}
+        submitting={resuming}
+        error={resumeMutationError}
+        onClose={() => {
+          if (resuming) return;
+          setResumeBucketId(null);
+          setResumeMutationError(null);
+        }}
+        onConfirm={handleConfirmResumeBucket}
+      />
+
       <VaultUpdatePreviewModal
         open={vaultPreview !== null}
         prevSaved={vaultPreview?.prevSaved ?? 0}
@@ -1783,13 +2061,14 @@ export function Dashboard() {
         roomCategory={activeRoom?.category ?? null}
         coverImageUrl={heroCoverUrl}
         validThru={activeRoom?.end_date ?? null}
-        dailySummaryItem={bucketSummaryItems[0] ?? null}
+        dailySummaryItem={activeBucketSummaryItems[0] ?? null}
         hasBuckets={buckets.length > 0}
         bucketCount={buckets.filter(bucket => bucket.archived_at == null).length}
         streak={heroStreak}
         streakUnit={heroStreakUnit}
         streakTrackable={bucketStreak.trackable}
         lastCheckedAt={latestCheckpoint?.checked_at ?? null}
+        planRemainsPaused={vaultPreview?.planRemainsPaused ?? false}
         onDone={() => setVaultPreview(null)}
       />
       <OutcomeModal

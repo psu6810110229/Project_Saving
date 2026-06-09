@@ -6,9 +6,15 @@ import Pressable from '../Pressable/Pressable';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import { useI18n } from '../../i18n/useI18n';
 import { useSecondaryMotionReady } from '../../lib/animationBudget';
-import { IconArrowUpRight, IconCheckCircle, IconClock, IconClockAlert, IconWarning } from '../Icon/Icon';
+import { IconArrowUpRight, IconCheckCircle, IconClock, IconClockAlert, IconPauseCircle, IconWarning } from '../Icon/Icon';
 import { CATEGORY_ACCENT, DEFAULT_ACCENT } from '../../lib/bucketAccent';
 import type { BucketCategory, PaceStatus } from '../../types';
+
+export interface BucketRowPauseState {
+  isPaused: boolean;
+  originalDeadlineLabel?: string | null;
+  resumeDailyLabel?: string | null;
+}
 
 interface BucketRowProps {
   icon: ReactNode;
@@ -29,6 +35,7 @@ interface BucketRowProps {
     status: PaceStatus;
     remainingDays: number;
   } | null;
+  pause?: BucketRowPauseState | null;
 }
 
 const REDUCED_MOTION =
@@ -63,6 +70,7 @@ export const BucketRow = memo(function BucketRow({
   completedAt,
   variant = 'default',
   pace,
+  pause,
 }: BucketRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
@@ -79,7 +87,8 @@ export const BucketRow = memo(function BucketRow({
     wasComplete.current = isComplete;
   }, [saved, target]);
 
-  const hasDeadlineInfo = deadline != null && pace != null;
+  const isPaused = Boolean(pause?.isPaused);
+  const hasDeadlineInfo = !isPaused && deadline != null && pace != null;
   const paceConfig = pace ? PACE_CONFIG[pace.status] : null;
   const CountdownIcon = pace && pace.remainingDays <= 7 ? IconClockAlert : IconClock;
   const countdownIconClass = pace && pace.remainingDays <= 7 ? 'text-danger' : 'text-ink-dim';
@@ -189,7 +198,20 @@ export const BucketRow = memo(function BucketRow({
         <ProgressBar value={animPct} tone="theme" themeHex={accent.accent} size="sm" className="bg-well" />
       </div>
 
-      {hasDeadlineInfo && paceConfig && (
+      {isPaused ? (
+        <div className="bucket-card-meta mt-auto flex w-full flex-col gap-1.5 rounded-lg border border-dashed border-accent-slate/35 bg-accent-slate/10 px-2 py-2 font-mono text-[10px] leading-tight text-accent-slate">
+          <span className="inline-flex w-fit items-center gap-1 rounded-pill bg-surface px-2 py-0.5 font-bold text-accent-slate shadow-soft">
+            <IconPauseCircle size={12} className="shrink-0" />
+            {copy.bucketCard.pausedPill}
+          </span>
+          {pause?.originalDeadlineLabel && (
+            <span className="truncate text-ink-muted">{pause.originalDeadlineLabel}</span>
+          )}
+          {pause?.resumeDailyLabel && (
+            <span className="truncate font-bold text-accent-slate">{pause.resumeDailyLabel}</span>
+          )}
+        </div>
+      ) : hasDeadlineInfo && paceConfig && (
         <div className="bucket-card-meta mt-auto flex w-full items-center justify-between gap-1.5 pt-2 font-mono text-[10px] leading-tight">
           <span className="flex min-w-0 items-center gap-1 whitespace-nowrap">
             <CountdownIcon size={12} className={`shrink-0 ${countdownIconClass}`} />

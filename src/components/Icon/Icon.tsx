@@ -32,8 +32,10 @@ import {
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   Palette,
+  PauseCircle,
   PencilSimple,
   PiggyBank,
+  PlayCircle,
   Plus,
   Pulse,
   QrCode,
@@ -90,6 +92,8 @@ export const IconHeart = make(Heart, 'duotone');
 export const IconPiggyBank = make(PiggyBank, 'duotone');
 export const IconRocket = make(RocketLaunch, 'duotone');
 export const IconPalette = make(Palette, 'duotone');
+export const IconPauseCircle = make(PauseCircle, 'duotone');
+export const IconPlayCircle = make(PlayCircle, 'duotone');
 export const IconBell = make(Bell, 'duotone');
 export const IconGear = make(Gear, 'duotone');
 export const IconChevronDown = make(CaretDown, 'regular');

@@ -8,7 +8,7 @@ import { CompleteBucketLock } from '../CompleteBucketLock/CompleteBucketLock';
 import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { FormField } from '../FormField/FormField';
-import { IconPiggyBank, IconTrash } from '../Icon/Icon';
+import { IconPauseCircle, IconPiggyBank, IconPlayCircle, IconTrash } from '../Icon/Icon';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
 import { setPrimaryMotionState, useOpenClosePrimaryMotion } from '../../lib/animationBudget';
@@ -41,6 +41,12 @@ interface BucketSheetProps {
   onRequestTransferExtra?: (sourceBucketId: string) => void;
   onDoneLockOverride?: (bucketId: string) => void;
   smartDefaultAmount?: number | null;
+  isPaused?: boolean;
+  pausedSinceLabel?: string | null;
+  canPausePlan?: boolean;
+  canResumePlan?: boolean;
+  onRequestPausePlan?: (bucketId: string) => void;
+  onRequestResumePlan?: (bucketId: string) => void;
   trendPreview?: {
     mineLabel: string;
     theirLabel: string;
@@ -65,6 +71,12 @@ export function BucketSheet({
   onRequestTransferExtra,
   onDoneLockOverride,
   smartDefaultAmount,
+  isPaused = false,
+  pausedSinceLabel = null,
+  canPausePlan = false,
+  canResumePlan = false,
+  onRequestPausePlan,
+  onRequestResumePlan,
   trendPreview,
 }: BucketSheetProps) {
   const { copy, formatMoney } = useI18n();
@@ -208,6 +220,25 @@ export function BucketSheet({
                     <BucketHeader icon={icon} name={name} saved={saved} target={target} pendingDeposit={showDoneLock ? 0 : resolvedAmount} />
                   </motion.div>
 
+                  {isPaused && (
+                    <motion.div variants={itemVariants} className="rounded-xl border border-dashed border-accent-slate/35 bg-accent-slate/10 p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface text-accent-slate shadow-soft">
+                          <IconPauseCircle size={18} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-mono text-sm font-bold text-ink">
+                            {copy.bucketPause.bannerTitle}
+                            {pausedSinceLabel ? <span className="font-normal text-ink-muted"> - {pausedSinceLabel}</span> : null}
+                          </p>
+                          <p className="mt-1 font-mono text-xs leading-5 text-ink-muted">
+                            {copy.bucketPause.bannerBody}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {showDoneLock ? (
                     <>
                       <motion.div variants={itemVariants}>
@@ -277,6 +308,25 @@ export function BucketSheet({
                         </Button>
                       </motion.div>
 
+                      {(canPausePlan || canResumePlan) && (
+                        <motion.div variants={itemVariants} className="flex justify-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="px-3 text-accent-slate hover:bg-accent-slate/10 hover:text-accent-slate"
+                            leadingIcon={canResumePlan ? <IconPlayCircle size={15} /> : <IconPauseCircle size={15} />}
+                            onClick={() => {
+                              handleClose();
+                              if (canResumePlan) onRequestResumePlan?.(bucketId);
+                              else onRequestPausePlan?.(bucketId);
+                            }}
+                          >
+                            {canResumePlan ? copy.bucketPause.resumeAction : copy.bucketPause.pauseAction}
+                          </Button>
+                        </motion.div>
+                      )}
+
                       {/* Delete */}
                       {onDelete && (
                         <motion.div variants={itemVariants} className="flex justify-center">
@@ -306,7 +356,9 @@ export function BucketSheet({
             body={
               bucketAlreadyComplete
                 ? copy.addMoney.completeBucketConfirmBody(name)
-                : copy.addMoney.confirmBannerBodyNoSlip
+                : isPaused
+                  ? copy.addMoney.pausedDepositSuccess
+                  : copy.addMoney.confirmBannerBodyNoSlip
             }
             confirmLabel={
               saving

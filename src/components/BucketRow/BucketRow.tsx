@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
-import { formatCurrency } from '../../lib/format';
+import { formatCompactAmount, formatPlainNumber } from '../../lib/format';
 import Pressable from '../Pressable/Pressable';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import { useI18n } from '../../i18n/useI18n';
@@ -74,6 +74,8 @@ export const BucketRow = memo(function BucketRow({
 }: BucketRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
+  const savedPreview = Math.abs(animSaved) > 999 ? formatCompactAmount(Math.round(animSaved)) : formatPlainNumber(Math.round(animSaved));
+  const targetPreview = formatPlainNumber(Math.round(animTarget));
   const wasComplete = useRef(target > 0 && saved >= target);
   const { copy, formatShortDateKey } = useI18n();
   const secondaryMotionReady = useSecondaryMotionReady();
@@ -142,10 +144,10 @@ export const BucketRow = memo(function BucketRow({
           <p className="truncate font-mono text-sm font-bold leading-tight text-ink">{name}</p>
           <p className="mt-1 flex min-w-0 items-baseline gap-1 font-mono leading-none">
             <span className="shrink-0 whitespace-nowrap text-sm font-bold" style={{ color: accent.accent }}>
-              {formatCurrency(Math.round(animSaved))}
+              {savedPreview}
             </span>
             <span className="truncate text-[11px] text-ink-dim">
-              / {formatCurrency(Math.round(animTarget))}
+              / {targetPreview}
             </span>
           </p>
         </div>
@@ -193,10 +195,10 @@ export const BucketRow = memo(function BucketRow({
         <p className="truncate font-mono text-sm font-bold leading-tight text-ink">{name}</p>
         <p className="mt-1 flex min-w-0 items-baseline gap-1 font-mono leading-none">
           <span className="shrink-0 whitespace-nowrap text-lg font-bold" style={{ color: accent.accent }}>
-            {formatCurrency(Math.round(animSaved))}
+            {savedPreview}
           </span>
           <span className="truncate text-xs text-ink-dim">
-            / {formatCurrency(Math.round(animTarget))}
+            / {targetPreview}
           </span>
         </p>
       </div>

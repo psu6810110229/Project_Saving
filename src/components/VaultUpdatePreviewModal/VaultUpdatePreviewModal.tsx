@@ -210,7 +210,7 @@ function PreviewBody({
         </span>
         <div className="min-w-0">
           <p className="truncate font-mono text-sm font-bold tabular-nums text-ink">
-            {bucketName} - +{formatMoney(depositAmount)}
+            {bucketName} +{formatMoney(depositAmount)}
           </p>
           {planRemainsPaused && (
             <p className="mt-0.5 font-mono text-[11px] leading-4 text-ink-muted">

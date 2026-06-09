@@ -343,7 +343,7 @@ export function BucketEditForm({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="min-w-0 overflow-x-hidden flex flex-col gap-3">
       {error && (
         <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>
       )}
@@ -374,7 +374,7 @@ export function BucketEditForm({
 
       {/* Plan section */}
       <FormField label={copy.bucket.editRuleLabel}>
-        <div ref={ruleSectionRef} className="flex scroll-mt-4 flex-col gap-2">
+        <div ref={ruleSectionRef} className="flex scroll-mt-4 flex-col gap-2 px-0.5">
           {ruleOptions.map(option => {
             const selected = ruleChoice === option.id;
             return (

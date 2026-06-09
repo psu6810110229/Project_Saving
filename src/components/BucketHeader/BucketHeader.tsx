@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { IconPauseCircle } from '../Icon/Icon';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { ProjectedProgressBar } from '../ProjectedProgressBar/ProjectedProgressBar';
-import { formatCurrency } from '../../lib/format';
+import { formatCompactAmount, formatPlainNumber } from '../../lib/format';
 import { useI18n } from '../../i18n/useI18n';
 import { CATEGORY_ACCENT, DEFAULT_ACCENT } from '../../lib/bucketAccent';
 import type { BucketCategory } from '../../types';
@@ -27,6 +27,8 @@ export function BucketHeader({
   isPaused = false,
 }: BucketHeaderProps) {
   const { copy, formatMoney } = useI18n();
+  const savedPreview = Math.abs(saved) > 999 ? formatCompactAmount(saved) : formatPlainNumber(saved);
+  const targetPreview = formatPlainNumber(target);
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const showProjection = pendingDeposit > 0 && target > 0;
   const projectedPct = showProjection ? Math.min(100, ((saved + pendingDeposit) / target) * 100) : pct;
@@ -58,22 +60,20 @@ export function BucketHeader({
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-mono text-xl font-bold leading-tight text-ink">{name}</h2>
           <div className="mt-2 font-mono text-sm font-medium text-ink-muted">
-            <span style={accentTextStyle}>{formatCurrency(saved)}</span> <span className="text-ink-dim">/ {formatCurrency(target)}</span>
+            <span style={accentTextStyle}>{savedPreview}</span> <span className="text-ink-dim">/ {targetPreview}</span>
           </div>
+          {isPaused && (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-pill border border-white/90 bg-surface/95 px-2.5 py-1 font-mono-th text-[11px] font-semibold leading-tight text-ink shadow-soft">
+              <IconPauseCircle size={12} className="shrink-0 text-ink-muted" />
+              {copy.bucketCard.pausedPill}
+            </span>
+          )}
         </div>
-        {(showProjection || isPaused) && (
-          <div className="flex shrink-0 flex-col items-end gap-2 self-start">
-            {showProjection && (
-              <span className="font-mono text-xs font-bold" style={accentTextStyle ?? { color: '#E16F3D' }}>
-                {projectedPctRounded}%
-              </span>
-            )}
-            {isPaused && (
-              <span className="inline-flex items-center gap-1 rounded-pill border border-white/90 bg-surface/95 px-2.5 py-1 font-mono-th text-[11px] font-semibold leading-tight text-ink shadow-soft">
-                <IconPauseCircle size={12} className="shrink-0 text-ink-muted" />
-                {copy.bucketCard.pausedPill}
-              </span>
-            )}
+        {showProjection && (
+          <div className="flex shrink-0 self-start">
+            <span className="font-mono text-xs font-bold" style={accentTextStyle ?? { color: '#E16F3D' }}>
+              {projectedPctRounded}%
+            </span>
           </div>
         )}
       </div>

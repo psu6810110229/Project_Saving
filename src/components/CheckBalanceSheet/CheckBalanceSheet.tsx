@@ -4,14 +4,20 @@ import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } 
 import { IconBubble } from '../IconBubble/IconBubble';
 import { IconCheck, IconChevronDown, IconVault } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
+import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
+import { Segmented } from '../Segmented/Segmented';
 import { Spinner } from '../Spinner/Spinner';
 import { TextInput } from '../TextInput/TextInput';
+import { useAuth } from '../../hooks/useAuth';
+import { useDepositRecorder } from '../../hooks/useDepositRecorder';
 import { useSharedData } from '../../hooks/useSharedData';
 import { useI18n } from '../../i18n/useI18n';
 import { formatCurrency } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
 import { bucketSaved } from '../../lib/buckets';
+import { bucketPauseStateForDate } from '../../lib/bucketPlanPause';
+import { todayBangkokKey } from '../../lib/savingPlan';
 import { useOpenClosePrimaryMotion } from '../../lib/animationBudget';
 import {
   formatDirectionalAdjustment,
@@ -43,15 +49,22 @@ type Step = 'enter' | 'difference' | 'done';
  * refetches on success so the Dashboard row updates automatically.
  */
 export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: CheckBalanceSheetProps) {
+  const { user } = useAuth();
   const data = useSharedData();
-  const { appBalance, createCheckpoint, overAllocated, deallocate } = data.reconcile;
+  const { appBalance, createCheckpoint, overAllocated, deallocate, refetch: refetchBalance } = data.reconcile;
   const { buckets } = data.buckets;
-  const { logs } = data.logs;
+  const { logs, insert } = data.logs;
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
+  const { addOptimisticFlow } = data.roomVisibleMomentumFlows;
+  const { quickAmounts } = data.profile;
+  const { pauses: bucketPlanPauses } = data.bucketPlanPauses;
+  const { recordDeposit } = useDepositRecorder({ userId: user?.id, insert, addOptimisticFlow });
   const { copy } = useI18n();
   const r = copy.reconcile;
+  const dep = r.deposit;
   const sync = r.allocate.sync;
+  const todayKey = todayBangkokKey();
   useOpenClosePrimaryMotion(open, 220, 350);
 
   const [step, setStep] = useState<Step>('enter');
@@ -69,6 +82,24 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncDone, setSyncDone] = useState(false);
   const [syncSpillCount, setSyncSpillCount] = useState(0);
+
+  // Deposit mode (sprint 6): single-bucket deposit inside the sheet. Writes
+  // positive `savings_logs` via the shared recorder — no checkpoint, no
+  // allocation. Verified balance refreshes naturally on continue-to-check.
+  const [mode, setMode] = useState<'check' | 'deposit'>('check');
+  const [depositValue, setDepositValue] = useState('');
+  const [depositPill, setDepositPill] = useState<number | null>(null);
+  const [depositBucketId, setDepositBucketId] = useState<string | null>(null);
+  const [depositSubmitting, setDepositSubmitting] = useState(false);
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const [depositSuccess, setDepositSuccess] = useState<null | {
+    amount: number;
+    bucketName: string;
+    newSaved: number;
+    target: number;
+    reachedTarget: boolean;
+    wasPaused: boolean;
+  }>(null);
 
   // Own active buckets that currently hold money, as write-down candidates.
   const shortfallBuckets = useMemo<ShortfallBucket[]>(() => buckets
@@ -96,6 +127,35 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
     return null;
   }, [buckets, shortfallBuckets]);
   const effectiveSyncBucketId = syncBucketId ?? focusDefaultBucketId ?? smartDefaultBucketId;
+
+  // Deposit-mode eligible buckets: own, active (not archived). A bucket is
+  // "done" when it has reached its target — used only for the default pick.
+  const depositBuckets = useMemo(() => buckets
+    .filter(b => b.archived_at == null)
+    .map(b => {
+      const saved = bucketSaved(b.id, logs, bucketTransfers, balanceAllocations);
+      return {
+        id: b.id,
+        name: b.name,
+        saved,
+        target: b.target_amount,
+        isDone: b.target_amount > 0 && saved >= b.target_amount,
+        isPaused: bucketPauseStateForDate(b, bucketPlanPauses, todayKey).isPaused,
+      };
+    }),
+    [buckets, logs, bucketTransfers, balanceAllocations, bucketPlanPauses, todayKey]);
+
+  // Default pick: first active not-done bucket (the focus), else first active.
+  const defaultDepositBucketId = useMemo(
+    () => (depositBuckets.find(b => !b.isDone) ?? depositBuckets[0])?.id ?? null,
+    [depositBuckets],
+  );
+  const effectiveDepositBucketId = depositBucketId ?? defaultDepositBucketId;
+  const selectedDepositBucket = depositBuckets.find(b => b.id === effectiveDepositBucketId) ?? null;
+  const depositAmount = depositValue.trim() !== '' && Number(depositValue) > 0
+    ? Number(depositValue)
+    : (depositPill ?? 0);
+  const showModeToggle = (mode === 'check' && step === 'enter') || (mode === 'deposit' && !depositSuccess);
 
   // Card-nudge entry: on the closed→open transition in sync mode, jump
   // straight to the shortfall panel using the stored overAllocated (no new
@@ -131,7 +191,75 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
       setSyncError(null);
       setSyncDone(false);
       setSyncSpillCount(0);
+      setMode('check');
+      setDepositValue('');
+      setDepositPill(null);
+      setDepositBucketId(null);
+      setDepositSubmitting(false);
+      setDepositError(null);
+      setDepositSuccess(null);
     }, 350);
+  }
+
+  function switchMode(next: 'check' | 'deposit') {
+    if (next === mode) return;
+    setError(null);
+    setDepositError(null);
+    if (next === 'check') {
+      setStep('enter');
+      setDepositSuccess(null);
+    } else {
+      setDepositValue('');
+      setDepositPill(null);
+      setDepositBucketId(null);
+      setDepositSuccess(null);
+    }
+    setMode(next);
+  }
+
+  async function handleConfirmDeposit() {
+    if (depositSubmitting) return;
+    if (!selectedDepositBucket || depositAmount <= 0) {
+      setDepositError(dep.errorEnterAmount);
+      return;
+    }
+    setDepositSubmitting(true);
+    setDepositError(null);
+    const result = await recordDeposit({
+      amount: depositAmount,
+      bucketId: selectedDepositBucket.id,
+      bucketName: selectedDepositBucket.name,
+      prevSaved: selectedDepositBucket.saved,
+      target: selectedDepositBucket.target,
+      wasPaused: selectedDepositBucket.isPaused,
+    });
+    setDepositSubmitting(false);
+    if (result.error) {
+      setDepositError(result.error);
+      return;
+    }
+    setDepositSuccess({
+      amount: result.amount,
+      bucketName: result.bucketName,
+      newSaved: selectedDepositBucket.saved + result.amount,
+      target: selectedDepositBucket.target,
+      reachedTarget: result.reachedTarget,
+      wasPaused: result.wasPaused,
+    });
+  }
+
+  // Deposit → "check next": refresh the verified balance (the new deposit is
+  // part of it) and drop the user back into a fresh check entry.
+  function handleContinueCheck() {
+    void refetchBalance();
+    setDepositValue('');
+    setDepositPill(null);
+    setDepositBucketId(null);
+    setDepositSuccess(null);
+    setDepositError(null);
+    setError(null);
+    setStep('enter');
+    setMode('check');
   }
 
   /**
@@ -230,6 +358,21 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
         </div>
       ) : (
         <div className="flex flex-col gap-4">
+          {showModeToggle && (
+            <div className="flex justify-center">
+              <Segmented
+                ariaLabel={dep.modeAriaLabel}
+                value={mode}
+                onChange={switchMode}
+                options={[
+                  { value: 'check', label: dep.modeCheck },
+                  { value: 'deposit', label: dep.modeDeposit },
+                ]}
+              />
+            </div>
+          )}
+
+          {mode === 'check' && (<>
           {step !== 'done' && (
             <section className="rounded-xl bg-surface p-4 shadow-soft">
               <div className="flex items-center justify-between gap-3">
@@ -397,6 +540,127 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
               <Button variant="action" fullWidth onClick={handleClose}>
                 {r.outcomeDone}
               </Button>
+            </section>
+          )}
+          </>)}
+
+          {mode === 'deposit' && !depositSuccess && (
+            <section className="flex flex-col gap-4 rounded-xl bg-surface p-4 shadow-soft">
+              {depositBuckets.length === 0 ? (
+                <p className="py-4 text-center font-mono-th text-sm text-ink-muted">{dep.emptyBuckets}</p>
+              ) : (
+                <>
+                  <label className="block">
+                    <span className="block font-mono text-sm font-semibold uppercase tracking-wider text-brand-800">
+                      {dep.amountLabel}
+                    </span>
+                    <div className="mt-3">
+                      <TextInput
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="0"
+                        value={depositValue}
+                        leadingIcon={<span className="font-mono font-semibold">฿</span>}
+                        onChange={event => {
+                          setDepositValue(event.target.value.replace(/[^0-9]/g, ''));
+                          setDepositPill(null);
+                          setDepositError(null);
+                        }}
+                      />
+                    </div>
+                  </label>
+
+                  {quickAmounts.length > 0 && (
+                    <QuickAddRow
+                      amounts={quickAmounts}
+                      selected={depositPill}
+                      onSelect={amount => {
+                        setDepositPill(amount);
+                        setDepositValue('');
+                        setDepositError(null);
+                      }}
+                    />
+                  )}
+
+                  {depositBuckets.length > 1 ? (
+                    <label className="block">
+                      <span className="mb-2 block font-mono-th text-sm font-semibold text-ink">{dep.bucketLabel}</span>
+                      <SyncBucketPicker
+                        value={effectiveDepositBucketId ?? ''}
+                        onChange={value => { setDepositBucketId(value); setDepositError(null); }}
+                        disabled={depositSubmitting}
+                        options={depositBuckets.map(b => ({
+                          id: b.id,
+                          label: b.name,
+                          detail: formatCurrency(b.saved),
+                        }))}
+                      />
+                    </label>
+                  ) : selectedDepositBucket && (
+                    <div className="rounded-lg bg-surfaceAlt px-3 py-2.5">
+                      <span className="block font-mono-th text-xs font-semibold text-ink-muted">{dep.bucketLabel}</span>
+                      <span className="mt-0.5 block font-mono-th text-sm font-semibold text-ink">{selectedDepositBucket.name}</span>
+                    </div>
+                  )}
+
+                  {selectedDepositBucket && selectedDepositBucket.target > 0 && (
+                    <p className="font-mono text-xs font-semibold text-ink-muted">
+                      {dep.bucketProgress(formatCurrency(selectedDepositBucket.saved), formatCurrency(selectedDepositBucket.target))}
+                    </p>
+                  )}
+
+                  {selectedDepositBucket?.isPaused && (
+                    <p className="rounded-lg bg-accent-slate/10 px-3 py-2.5 font-mono-th text-xs leading-5 text-ink-muted">
+                      {dep.pausedHelper}
+                    </p>
+                  )}
+
+                  {depositError && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{depositError}</p>}
+
+                  <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
+                    <Button
+                      variant="action"
+                      fullWidth
+                      size="md"
+                      onClick={handleConfirmDeposit}
+                      disabled={depositSubmitting || depositAmount <= 0 || !selectedDepositBucket}
+                    >
+                      {depositSubmitting ? dep.confirmingButton : dep.confirmButton}
+                    </Button>
+                    <Button variant="ghost" fullWidth size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={handleClose}>
+                      {r.cancelButton}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+
+          {mode === 'deposit' && depositSuccess && (
+            <section className="flex flex-col items-center gap-4 rounded-xl bg-surface p-5 text-center shadow-soft">
+              <IconBubble tone={depositSuccess.reachedTarget ? 'solid' : 'peach'} size="md">
+                {depositSuccess.reachedTarget ? <IconCheck size={22} /> : <IconVault size={22} />}
+              </IconBubble>
+              <div className="flex flex-col gap-1">
+                <p className="font-mono-th text-lg font-semibold text-ink">{dep.successTitle}</p>
+                <p className="font-mono-th text-sm leading-6 text-ink-muted">
+                  {dep.successBody(formatCurrency(depositSuccess.amount), depositSuccess.bucketName)}
+                </p>
+                {depositSuccess.target > 0 && (
+                  <p className="font-mono text-xs font-semibold text-ink-muted">
+                    {dep.successSavedSummary(formatCurrency(depositSuccess.newSaved), formatCurrency(depositSuccess.target))}
+                  </p>
+                )}
+                {depositSuccess.wasPaused && (
+                  <p className="font-mono-th text-xs text-ink-dim">{dep.successPausedNote}</p>
+                )}
+              </div>
+              <div className="flex w-full flex-col gap-2">
+                <Button variant="action" fullWidth onClick={handleClose}>{dep.doneButton}</Button>
+                <Button variant="ghost" fullWidth className={MODAL_SECONDARY_BUTTON_CLASS} onClick={handleContinueCheck}>
+                  {dep.continueCheckButton}
+                </Button>
+              </div>
             </section>
           )}
         </div>

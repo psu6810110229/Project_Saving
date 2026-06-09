@@ -724,6 +724,7 @@ export const en = {
     ruleFlexible: 'Flexible — save at your own pace',
     ruleCustom: 'Custom',
     ruleRecommended: 'Recommended',
+    ruleHardHint: (amount: string) => `Hard pace: over ${amount}/day`,
     customStartAmount: 'Start amount',
     customDailyIncrease: 'Daily increase',
     customCap: 'Cap (optional)',

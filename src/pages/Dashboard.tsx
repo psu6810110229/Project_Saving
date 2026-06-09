@@ -1767,6 +1767,7 @@ export function Dashboard() {
             open={Boolean(editBucket)}
             title={copy.bucket.editAriaLabel(editBucket?.name ?? '')}
             onClose={() => setEditBucketId(null)}
+            panelClassName="max-h-[75dvh]"
             deferContentUntilOpen
             deferredBodyReserveClassName="min-h-[46dvh] md:min-h-[26rem]"
           >

@@ -2,12 +2,14 @@ import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { BalanceAllocation, Bucket, BucketTransfer, SavingRuleType, SavingsLog } from '../../types';
 import { daysBetween, daysInclusive, todayBangkokKey } from '../../lib/savingPlan';
 import {
+  MAX_SUGGESTED_DAILY_PACE,
   type RuleChoice,
   calcDefaultDeadline,
-  calcRuleAmount,
+  describeFixedRuleSuggestion,
   initialRuleChoice,
   recommendedRule,
 } from '../../lib/bucketRuleSuggest';
+import { isFixedScheduleAnchorDate } from '../../lib/fixedSavingSchedule';
 import { bucketSaved, hasDuplicateBucketName, sumTargets } from '../../lib/buckets';
 import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
@@ -114,13 +116,27 @@ export function BucketEditForm({
   const capacityForEdit = typeof goalTarget === 'number'
     ? goalTarget - (totalBucketTargets - bucket.target_amount)
     : null;
+  const unallocatedForGoal = typeof goalTarget === 'number'
+    ? Math.max(
+      0,
+      goalTarget - ((totalBucketTargets - bucket.target_amount) + (Number.isFinite(targetAmount) ? targetAmount : bucket.target_amount)),
+    )
+    : null;
 
   const remainingTarget = Math.max(0, (Number.isFinite(targetAmount) ? targetAmount : bucket.target_amount) - saved);
+  const fixedRuleSuggestions = useMemo(() => {
+    if (!deadline || deadline < planStartKey) return null;
+    return {
+      fixed_daily: describeFixedRuleSuggestion(remainingTarget, planStartKey, deadline, 'fixed_daily'),
+      fixed_weekly: describeFixedRuleSuggestion(remainingTarget, planStartKey, deadline, 'fixed_weekly'),
+      fixed_monthly: describeFixedRuleSuggestion(remainingTarget, planStartKey, deadline, 'fixed_monthly'),
+    };
+  }, [remainingTarget, planStartKey, deadline]);
   const amounts = useMemo(() => ({
-    fixed_daily: calcRuleAmount(remainingTarget, remainingDays, 'fixed_daily'),
-    fixed_weekly: calcRuleAmount(remainingTarget, remainingDays, 'fixed_weekly'),
-    fixed_monthly: calcRuleAmount(remainingTarget, remainingDays, 'fixed_monthly'),
-  }), [remainingTarget, remainingDays]);
+    fixed_daily: fixedRuleSuggestions?.fixed_daily.amount ?? 0,
+    fixed_weekly: fixedRuleSuggestions?.fixed_weekly.amount ?? 0,
+    fixed_monthly: fixedRuleSuggestions?.fixed_monthly.amount ?? 0,
+  }), [fixedRuleSuggestions]);
   const recommended = recommendedRule(remainingDays);
 
   // Per-date amounts painted on the range calendar, for every rule type. Day 1
@@ -150,16 +166,15 @@ export function BucketEditForm({
       if (!amt || amt <= 0) return undefined;
       return (dateKey: string) => {
         if (dateKey < ref || dateKey > deadline) return undefined;
-        return daysBetween(ref, dateKey) % 7 === 0 ? amt : undefined;
+        return isFixedScheduleAnchorDate(ref, dateKey, 'fixed_weekly') ? amt : undefined;
       };
     }
     if (ruleChoice === 'fixed_monthly') {
       const amt = amounts.fixed_monthly;
       if (!amt || amt <= 0) return undefined;
-      const refDay = Number(ref.split('-')[2]);
       return (dateKey: string) => {
         if (dateKey < ref || dateKey > deadline) return undefined;
-        return Number(dateKey.split('-')[2]) === refDay ? amt : undefined;
+        return isFixedScheduleAnchorDate(ref, dateKey, 'fixed_monthly') ? amt : undefined;
       };
     }
     return undefined; // flexible — no fixed schedule
@@ -188,15 +203,17 @@ export function BucketEditForm({
       return { kind: 'custom' as const, finishDateKey: deadline, days, cap: capNum > 0 ? capNum : null, total };
     }
     const fixedRule = ruleChoice as 'fixed_daily' | 'fixed_weekly' | 'fixed_monthly';
-    const amt = amounts[fixedRule];
-    if (!amt || amt <= 0) return null;
-    const periods = fixedRule === 'fixed_weekly'
-      ? Math.ceil(days / 7)
-      : fixedRule === 'fixed_monthly'
-        ? Math.ceil(days / 30)
-        : days;
-    return { kind: fixedRule, finishDateKey: deadline, days, periods, amount: amt, total: amt * periods };
-  }, [ruleChoice, customStart, customIncrement, customCap, planStartKey, deadline, amounts]);
+    const suggestion = fixedRuleSuggestions?.[fixedRule];
+    if (!suggestion || suggestion.amount <= 0) return null;
+    return {
+      kind: fixedRule,
+      finishDateKey: deadline,
+      days,
+      periods: suggestion.periods,
+      amount: suggestion.amount,
+      total: suggestion.total,
+    };
+  }, [ruleChoice, customStart, customIncrement, customCap, planStartKey, deadline, fixedRuleSuggestions]);
 
   const ruleOptions: Array<{ id: RuleChoice; label: string }> = [
     { id: 'fixed_daily', label: copy.bucket.rulePerDay(formatMoney(amounts.fixed_daily)) },
@@ -205,6 +222,19 @@ export function BucketEditForm({
     { id: 'flexible', label: copy.bucket.ruleFlexible },
     { id: 'custom', label: copy.bucket.ruleCustom },
   ];
+  const selectedHardHint = ruleChoice === 'fixed_daily'
+    ? fixedRuleSuggestions?.fixed_daily.isHard
+      ? copy.bucket.ruleHardHint(formatMoney(MAX_SUGGESTED_DAILY_PACE))
+      : null
+    : ruleChoice === 'fixed_weekly'
+      ? fixedRuleSuggestions?.fixed_weekly.isHard
+        ? copy.bucket.ruleHardHint(formatMoney(MAX_SUGGESTED_DAILY_PACE))
+        : null
+      : ruleChoice === 'fixed_monthly'
+        ? fixedRuleSuggestions?.fixed_monthly.isHard
+          ? copy.bucket.ruleHardHint(formatMoney(MAX_SUGGESTED_DAILY_PACE))
+          : null
+        : null;
 
   async function handleSave() {
     if (!draftName.trim()) {
@@ -248,9 +278,8 @@ export function BucketEditForm({
     if (ruleChoice === 'fixed_daily' || ruleChoice === 'fixed_weekly' || ruleChoice === 'fixed_monthly') {
       savingRuleType = ruleChoice;
       savingRuleAmount = amounts[ruleChoice];
-      // Persist only a real future start; today/legacy stays null so existing
-      // buckets keep their created_at anchor and streak history is unaffected.
-      savingRuleStartDate = startDate > today ? startDate : null;
+      // Fixed plans anchor their recurring save day to the selected range start.
+      savingRuleStartDate = startDate;
     } else if (ruleChoice === 'flexible') {
       savingRuleType = 'flexible';
     } else {
@@ -328,10 +357,7 @@ export function BucketEditForm({
             onChange={(event: ChangeEvent<HTMLInputElement>) => { setDraftName(event.target.value); setError(null); }}
           />
         </FormField>
-        <FormField
-          label={copy.bucket.editTargetLabel}
-          helper={capacityForEdit !== null ? copy.bucket.capacityAvailable(formatMoney(Math.max(0, capacityForEdit))) : undefined}
-        >
+        <FormField label={copy.bucket.editTargetLabel}>
           <TextInput
             value={draftTarget}
             inputMode="numeric"
@@ -339,6 +365,11 @@ export function BucketEditForm({
             onChange={(event: ChangeEvent<HTMLInputElement>) => { setDraftTarget(event.target.value.replace(/[^0-9]/g, '')); setError(null); }}
           />
         </FormField>
+        {unallocatedForGoal !== null && (
+          <p className="col-span-2 w-full max-w-none text-left font-mono text-xs text-ink-muted">
+            {copy.bucket.capacityAvailable(formatMoney(unallocatedForGoal))}
+          </p>
+        )}
       </div>
 
       {/* Plan section */}
@@ -352,13 +383,13 @@ export function BucketEditForm({
                 type="button"
                 onClick={() => { setRuleChoice(option.id); setError(null); }}
                 className={[
-                  'flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all',
+                  'flex items-start gap-3 rounded-xl px-4 py-3 text-left transition-all',
                   selected ? 'bg-brand-100 ring-2 ring-brand-500' : 'bg-well hover:bg-brand-50',
                 ].join(' ')}
               >
                 <span
                   className={[
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                    'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
                     selected ? 'border-brand-500 bg-brand-500' : 'border-ink-dim',
                   ].join(' ')}
                 >
@@ -467,28 +498,35 @@ export function BucketEditForm({
         </section>
       )}
 
-      <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
-        <Button
-          type="button"
-          variant="primary"
-          size="md"
-          leadingIcon={<IconCheck size={16} />}
-          onClick={handleSave}
-          disabled={submitting}
-        >
-          {copy.bucket.editSave}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="md"
-          className={MODAL_SECONDARY_BUTTON_CLASS}
-          leadingIcon={<IconX size={16} />}
-          onClick={onCancel}
-          disabled={submitting}
-        >
-          {copy.bucket.editCancel}
-        </Button>
+      <div className="flex flex-col gap-2">
+        {selectedHardHint && (
+          <p className="text-right font-mono text-xs text-brand-700">
+            {selectedHardHint}
+          </p>
+        )}
+        <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            leadingIcon={<IconCheck size={16} />}
+            onClick={handleSave}
+            disabled={submitting}
+          >
+            {copy.bucket.editSave}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="md"
+            className={MODAL_SECONDARY_BUTTON_CLASS}
+            leadingIcon={<IconX size={16} />}
+            onClick={onCancel}
+            disabled={submitting}
+          >
+            {copy.bucket.editCancel}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -715,6 +715,7 @@ export const th: Messages = {
     ruleFlexible: 'ยืดหยุ่น — ออมตามจังหวะของคุณ',
     ruleCustom: 'กำหนดเอง',
     ruleRecommended: 'แนะนำ',
+    ruleHardHint: (amount: string) => `แผนค่อนข้างตึง เกิน ${amount}/วัน`,
     customStartAmount: 'ยอดเริ่มต้น',
     customDailyIncrease: 'เพิ่มขึ้นต่อวัน',
     customCap: 'ยอดสูงสุด (ไม่บังคับ)',

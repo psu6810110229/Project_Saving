@@ -7,25 +7,10 @@ import type {
   SavingRuleType,
   SavingsLog,
 } from '../types';
-import { addDays, daysBetween, todayBangkokKey } from './savingPlan';
+import { daysBetween, todayBangkokKey } from './savingPlan';
 import { calcBucketFocusStates } from './bucketFocus';
 import { isBucketPausedOnDate } from './bucketPlanPause';
-
-function weekEnd(dateKey: string): string {
-  const [y, m, d] = dateKey.split('-').map(Number);
-  const utc = new Date(Date.UTC(y, m - 1, d));
-  const dow = utc.getUTCDay();
-  const isoDow = dow === 0 ? 7 : dow;
-  return addDays(dateKey, 7 - isoDow);
-}
-
-function monthEnd(dateKey: string): string {
-  const [y, m] = dateKey.split('-').map(Number);
-  const last = new Date(Date.UTC(y, m, 0));
-  const dd = String(last.getUTCDate()).padStart(2, '0');
-  const mm = String(m).padStart(2, '0');
-  return `${y}-${mm}-${dd}`;
-}
+import { fixedSchedulePeriodForDate } from './fixedSavingSchedule';
 
 function depositsInRange(
   bucketId: string,
@@ -100,20 +85,32 @@ export function calcDailySummary(
         break;
       }
       case 'fixed_weekly': {
-        const end = weekEnd(todayKey);
-        const start = addDays(end, -6);
-        const weekDeposits = depositsInRange(b.id, logs, start, end, transfers);
+        const scheduleStart = b.saving_rule_start_date ?? b.created_at.slice(0, 10);
+        const period = fixedSchedulePeriodForDate(scheduleStart, todayKey, 'fixed_weekly');
+        if (!period) {
+          amountDue = null;
+          periodLabel = 'this week';
+          periodDeadline = null;
+          break;
+        }
+        const weekDeposits = depositsInRange(b.id, logs, period.start, period.end, transfers);
         const weekly = b.saving_rule_amount ?? 0;
         const remaining = weekly - weekDeposits;
         amountDue = remaining > 0 ? remaining : null;
         periodLabel = 'this week';
-        periodDeadline = end;
+        periodDeadline = period.end;
         break;
       }
       case 'fixed_monthly': {
-        const end = monthEnd(todayKey);
-        const start = todayKey.slice(0, 8) + '01';
-        const monthDeposits = depositsInRange(b.id, logs, start, end, transfers);
+        const scheduleStart = b.saving_rule_start_date ?? b.created_at.slice(0, 10);
+        const period = fixedSchedulePeriodForDate(scheduleStart, todayKey, 'fixed_monthly');
+        if (!period) {
+          amountDue = null;
+          periodLabel = 'this month';
+          periodDeadline = null;
+          break;
+        }
+        const monthDeposits = depositsInRange(b.id, logs, period.start, period.end, transfers);
         const monthly = b.saving_rule_amount ?? 0;
         const remaining = monthly - monthDeposits;
         if (remaining > 0) {
@@ -133,7 +130,7 @@ export function calcDailySummary(
           amountDue = null;
           periodLabel = 'this month';
         }
-        periodDeadline = end;
+        periodDeadline = period.end;
         break;
       }
       case 'increasing_daily':

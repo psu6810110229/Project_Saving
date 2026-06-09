@@ -1,8 +1,10 @@
 import type { Bucket, SavingRuleType } from '../types';
 import { addDays } from './savingPlan';
+import { addMonthsClamped, summarizeFixedScheduleInRange, type FixedScheduleRule } from './fixedSavingSchedule';
 
 export type RuleChoice = 'fixed_daily' | 'fixed_weekly' | 'fixed_monthly' | 'flexible' | 'custom';
 export type FixedRuleChoice = Exclude<RuleChoice, 'flexible' | 'custom'>;
+export const MAX_SUGGESTED_DAILY_PACE = 250;
 
 export const CATEGORY_MONTH_OFFSETS: Record<string, number> = {
   flight: -6,
@@ -15,19 +17,6 @@ export const CATEGORY_MONTH_OFFSETS: Record<string, number> = {
   home: 0,
   other: 0,
 };
-
-export function addMonthsClamped(dateKey: string, offsetMonths: number): string {
-  const [year, month, day] = dateKey.split('-').map(Number);
-  const targetMonthIndex = month - 1 + offsetMonths;
-  const firstOfTarget = new Date(Date.UTC(year, targetMonthIndex, 1));
-  const targetYear = firstOfTarget.getUTCFullYear();
-  const targetMonth = firstOfTarget.getUTCMonth();
-  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
-  const clampedDay = Math.min(day, lastDay);
-  const mm = String(targetMonth + 1).padStart(2, '0');
-  const dd = String(clampedDay).padStart(2, '0');
-  return `${targetYear}-${mm}-${dd}`;
-}
 
 export function calcDefaultDeadline(bucket: Bucket, roomEndDate: string | null, today: string): string {
   const roomEnd = roomEndDate?.slice(0, 10);
@@ -68,4 +57,41 @@ export function calcRuleAmount(targetAmount: number, remainingDays: number, rule
     case 'fixed_monthly':
       return Math.ceil(targetAmount / Math.max(1, Math.ceil(remainingDays / 30)));
   }
+}
+
+export interface FixedRuleSuggestion {
+  amount: number;
+  periods: number;
+  total: number;
+  dailyEquivalent: number;
+  isHard: boolean;
+}
+
+export function describeFixedRuleSuggestion(
+  targetAmount: number,
+  startKey: string,
+  endKey: string,
+  rule: FixedRuleChoice,
+  maxSuggestedDailyPace = MAX_SUGGESTED_DAILY_PACE,
+): FixedRuleSuggestion {
+  const { periods } = summarizeFixedScheduleInRange(
+    startKey,
+    endKey,
+    rule as FixedScheduleRule,
+  );
+  const safePeriods = Math.max(1, periods);
+  const amount = targetAmount > 0 ? Math.ceil(targetAmount / safePeriods) : 0;
+  const dailyEquivalent = rule === 'fixed_daily'
+    ? amount
+    : rule === 'fixed_weekly'
+      ? amount / 7
+      : amount / 30;
+
+  return {
+    amount,
+    periods: safePeriods,
+    total: amount * safePeriods,
+    dailyEquivalent,
+    isHard: dailyEquivalent > maxSuggestedDailyPace,
+  };
 }

@@ -1,5 +1,6 @@
 import { APP_TZ } from './streak';
 import type { SavingPlanPause, SavingPlanRevision, SavingPlanRuleType } from '../types';
+import { fixedSchedulePeriodForDate } from './fixedSavingSchedule';
 
 /**
  * Pure calculation helpers for Task 22.1 Saving Plan / Progress
@@ -57,17 +58,6 @@ export function daysBetween(startKey: string, endKey: string): number {
   return Math.round(diff / 86_400_000);
 }
 
-/** ISO week boundaries (Mon..Sun) containing the given key. */
-function weekBoundaries(dateKey: string): { start: string; end: string } {
-  const { y, m, d } = parseKey(dateKey);
-  const utc = new Date(Date.UTC(y, m - 1, d));
-  const dow = utc.getUTCDay(); // 0=Sun..6=Sat
-  const isoDow = dow === 0 ? 7 : dow;
-  const start = addDays(dateKey, 1 - isoDow);
-  const end = addDays(start, 6);
-  return { start, end };
-}
-
 // ── Pause helpers ─────────────────────────────────────────────
 
 /**
@@ -104,18 +94,6 @@ function pausedDaysInRange(
     }
   }
   return count;
-}
-
-/** Calendar-month boundaries containing the given key. */
-function monthBoundaries(dateKey: string): { start: string; end: string } {
-  const { y, m } = parseKey(dateKey);
-  const startD = new Date(Date.UTC(y, m - 1, 1));
-  const endD = new Date(Date.UTC(y, m, 0));
-  const mm = String(m).padStart(2, '0');
-  const startKey = `${y}-${mm}-01`;
-  const endKey = `${y}-${mm}-${String(endD.getUTCDate()).padStart(2, '0')}`;
-  void startD;
-  return { start: startKey, end: endKey };
 }
 
 // ── Revision selection ────────────────────────────────────────
@@ -178,18 +156,20 @@ function rawDailyForRevision(
       return Number(rev.amount ?? 0);
     }
     case 'fixed_weekly': {
-      const { start, end } = weekBoundaries(dateKey);
-      const winStart = start < rev.effective_from_date ? rev.effective_from_date : start;
-      const winEnd = end;
+      const period = fixedSchedulePeriodForDate(rev.effective_from_date, dateKey, 'fixed_weekly');
+      if (!period) return 0;
+      const winStart = period.start;
+      const winEnd = period.end;
       if (winEnd < winStart) return 0;
       const activeDays = daysInclusive(winStart, winEnd);
       if (activeDays <= 0) return 0;
       return Number(rev.amount ?? 0) / activeDays;
     }
     case 'fixed_monthly': {
-      const { start, end } = monthBoundaries(dateKey);
-      const winStart = start < rev.effective_from_date ? rev.effective_from_date : start;
-      const winEnd = end;
+      const period = fixedSchedulePeriodForDate(rev.effective_from_date, dateKey, 'fixed_monthly');
+      if (!period) return 0;
+      const winStart = period.start;
+      const winEnd = period.end;
       if (winEnd < winStart) return 0;
       const activeDays = daysInclusive(winStart, winEnd);
       if (activeDays <= 0) return 0;
@@ -300,18 +280,20 @@ function revisionDailyAmount(
       return Number(rev.amount ?? 0);
     }
     case 'fixed_weekly': {
-      const { start, end } = weekBoundaries(dateKey);
-      const winStart = start < rev.effective_from_date ? rev.effective_from_date : start;
-      const winEnd = endKey && end > endKey ? endKey : end;
+      const period = fixedSchedulePeriodForDate(rev.effective_from_date, dateKey, 'fixed_weekly');
+      if (!period) return 0;
+      const winStart = period.start;
+      const winEnd = endKey && period.end > endKey ? endKey : period.end;
       if (winEnd < winStart) return 0;
       const activeDays = daysInclusive(winStart, winEnd);
       if (activeDays <= 0) return 0;
       return Number(rev.amount ?? 0) / activeDays;
     }
     case 'fixed_monthly': {
-      const { start, end } = monthBoundaries(dateKey);
-      const winStart = start < rev.effective_from_date ? rev.effective_from_date : start;
-      const winEnd = endKey && end > endKey ? endKey : end;
+      const period = fixedSchedulePeriodForDate(rev.effective_from_date, dateKey, 'fixed_monthly');
+      if (!period) return 0;
+      const winStart = period.start;
+      const winEnd = endKey && period.end > endKey ? endKey : period.end;
       if (winEnd < winStart) return 0;
       const activeDays = daysInclusive(winStart, winEnd);
       if (activeDays <= 0) return 0;

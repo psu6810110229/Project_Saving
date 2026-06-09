@@ -12,7 +12,8 @@ import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/moti
 import type { TransferBucketMoneyResult } from '../../types';
 import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { FormField } from '../FormField/FormField';
-import { IconArrowRight, IconCheckCircle, IconPiggyBank, IconSwap } from '../Icon/Icon';
+import { IconArrowRight, IconCheckCircle, IconPiggyBank, IconSwap, IconX } from '../Icon/Icon';
+import { IconButton } from '../IconButton/IconButton';
 import { IconBubble } from '../IconBubble/IconBubble';
 import Pressable from '../Pressable/Pressable';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
@@ -358,7 +359,14 @@ function BucketTransferSheetInner({
             <div className="h-1 w-10 rounded-pill bg-well" />
           </div>
 
-          <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[85dvh] px-5 pb-8 pt-2">
+          {/* Close button — always visible, outside scroll area */}
+          <div className="flex items-center justify-end px-5 pb-1">
+            <IconButton ariaLabel={copy.common.close} size="sm" onClick={handleClose}>
+              <IconX size={18} />
+            </IconButton>
+          </div>
+
+          <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[88dvh] px-5 pb-8 pt-2">
             {tooFewBuckets ? (
               <div className="flex flex-col gap-4 py-4">
                 <SectionLabel tone="muted">{buckCopy.sheetTitle}</SectionLabel>

@@ -8,7 +8,8 @@ import { CompleteBucketLock } from '../CompleteBucketLock/CompleteBucketLock';
 import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { FormField } from '../FormField/FormField';
-import { IconPauseCircle, IconPiggyBank, IconPlayCircle, IconTrash } from '../Icon/Icon';
+import { IconPauseCircle, IconPiggyBank, IconPlayCircle, IconTrash, IconX } from '../Icon/Icon';
+import { IconButton } from '../IconButton/IconButton';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
 import { setPrimaryMotionState, useOpenClosePrimaryMotion } from '../../lib/animationBudget';
@@ -207,8 +208,15 @@ export function BucketSheet({
                 <div className="h-1 w-10 rounded-pill bg-well" />
               </div>
 
+              {/* Close button — always visible, outside scroll area */}
+              <div className="flex items-center justify-end px-5 pb-1">
+                <IconButton ariaLabel={copy.common.close} size="sm" onClick={handleClose}>
+                  <IconX size={18} />
+                </IconButton>
+              </div>
+
               {/* Scrollable content */}
-              <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[85dvh] px-5 pb-8 pt-2">
+              <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[88dvh] px-5 pb-8 pt-2">
                 <motion.div
                   variants={contentVariants}
                   initial="hidden"

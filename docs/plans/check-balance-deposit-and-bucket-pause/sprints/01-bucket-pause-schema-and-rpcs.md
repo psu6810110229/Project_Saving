@@ -131,7 +131,9 @@ Rules:
 ## RLS
 
 - Owner can select own pause/revision rows.
-- Optional co-member select only if Sprint 0 locks partner paused visibility.
+- Do not grant co-members direct select on full pause/revision history rows in the first release.
+- Partner visibility is locked to paused/resumed status only; raw paused/resumed dates stay owner-only.
+- If Sprint 1 needs partner-visible state, expose a sanitized status read model/RPC that returns bucket id, room id, owner id, and paused/resumed status without raw dates.
 - Direct insert/update/delete disabled.
 - Writes through RPCs only.
 

@@ -56,17 +56,30 @@
 - Heatmap uses `src/components/SavingsHeatmap/SavingsHeatmap.tsx` and `src/lib/savingsHeatmap.ts`
 - Momentum uses `room_visible_momentum_flows` and `src/lib/momentumPurpose.ts`
 - Legacy plan pause exists but is plan-level: `saving_plan_pauses`
+- Latest migration at Sprint 0 audit: `0087_native_push_subscriptions.sql`
+- `buckets` RLS allows room co-member select and owner-only update
+- Existing scheduled saving reminders use legacy `saving_plan_pauses`; no bucket-level reminder pipeline exists yet
+- Momentum data can contain signed negative flows, but `MomentumChart` currently clamps negative bar values to zero-height
+
+## Product Decisions Locked In Sprint 0
+
+- Resume pressure threshold:
+  - show a resume pressure suggestion if recalculated daily equivalent is `>= 300/day`
+  - also show it if recalculated daily equivalent is `> 2x` previous daily equivalent
+- Check Balance deposit release scope:
+  - first release is single-bucket deposit from Check Balance
+  - split deposit remains Sprint 7
+- Check Balance surplus allocation and streak:
+  - positive `balance_allocations` count in heatmap/activity/momentum where wired
+  - positive `balance_allocations` do not count toward streak
+- Partner visibility for bucket pause:
+  - partner may see paused/resumed status
+  - partner must not see raw paused/resumed dates in first release
+  - use sanitized status/read models or notification payloads, not direct co-member select of full pause history
 
 ## Product Decisions Still Required
 
-These are not discoverable from code and must be confirmed before implementation reaches the referenced sprint:
-
-- Resume pressure threshold before Sprint 2:
-  - candidate from discussion: `300/day`
-  - candidate multiplier: `> 2x` previous daily equivalent
-- Whether Check Balance split deposit is MVP or post-MVP before Sprint 7
-- Whether Check Balance surplus allocation should affect streak before Sprint 3
-  - current plan recommendation: heatmap/activity yes, streak no unless a new approved rule is added
+- None for Sprint 1 or Sprint 2.
 
 ## Verification Summary
 

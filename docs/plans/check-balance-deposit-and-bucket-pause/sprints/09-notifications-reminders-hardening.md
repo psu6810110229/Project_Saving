@@ -39,20 +39,16 @@ Ensure pause state is respected by reminders and any partner-visible activity.
 
 ### Partner Activity
 
-If Sprint 0 locks partner pause visibility:
+Sprint 0 locked partner pause visibility to status-only:
 
 - Add partner-visible pause/resume notification events.
 - Keep payload sanitized:
   - bucket id
   - bucket name
   - paused/resumed status
+  - no raw paused/resumed dates
   - no private note
 - Respect notification preferences.
-
-If partner pause visibility is not locked:
-
-- Do not add partner notification.
-- Keep pause state owner-only.
 
 ### Copy
 

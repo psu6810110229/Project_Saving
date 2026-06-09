@@ -1654,6 +1654,7 @@ export function Dashboard() {
           buckets={buckets}
           transfers={bucketTransfers}
           allocations={balanceAllocations}
+          pauses={bucketPlanPauses}
           roomStartIso={activeRoom?.created_at ?? null}
           roomEndDateKey={activeRoom?.end_date ?? null}
           storageKey={`savings-heatmap-scroll:${activeRoomId ?? 'no-room'}:${user?.id ?? 'anon'}`}

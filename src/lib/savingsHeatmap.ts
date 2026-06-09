@@ -11,10 +11,37 @@ import { addDays } from './savingPlan';
  */
 
 export type HeatLevel = 0 | 1 | 2 | 3 | 4;
+export type HeatmapMarker = 'surplus' | 'correction' | 'pause';
+
+export interface HeatmapDailyMovement {
+  depositAmount: number;
+  surplusAmount: number;
+  shortfallAmount: number;
+  positiveAmount: number;
+  negativeAmount: number;
+  netAmount: number;
+  hasDeposit: boolean;
+  hasSurplusAdjustment: boolean;
+  hasShortfallCorrection: boolean;
+  hasPausedActivity: boolean;
+  markers: HeatmapMarker[];
+}
 
 export interface HeatmapCell {
   dateKey: string;
+  /** Net movement for this day. Kept for older tooltip/label call sites. */
   amount: number;
+  depositAmount: number;
+  surplusAmount: number;
+  shortfallAmount: number;
+  positiveAmount: number;
+  negativeAmount: number;
+  netAmount: number;
+  hasDeposit: boolean;
+  hasSurplusAdjustment: boolean;
+  hasShortfallCorrection: boolean;
+  hasPausedActivity: boolean;
+  markers: HeatmapMarker[];
   level: HeatLevel;
   isToday: boolean;
   /** Within the real project window (start..end inclusive). */
@@ -67,8 +94,8 @@ function levelFor(amount: number, maxDaily: number): HeatLevel {
 }
 
 export interface BuildHeatmapParams {
-  /** Per-day deposit totals, keyed by Bangkok day key. */
-  dailyTotals: Map<string, number>;
+  /** Per-day signed movement totals, keyed by Bangkok day key. */
+  dailyMovements: Map<string, HeatmapDailyMovement>;
   /** Project window start day key (inclusive). */
   startKey: string;
   /** Project window end day key (inclusive). */
@@ -80,8 +107,68 @@ export interface BuildHeatmapParams {
   bucketDueKeys: Set<string>;
 }
 
+export function emptyHeatmapDailyMovement(): HeatmapDailyMovement {
+  return {
+    depositAmount: 0,
+    surplusAmount: 0,
+    shortfallAmount: 0,
+    positiveAmount: 0,
+    negativeAmount: 0,
+    netAmount: 0,
+    hasDeposit: false,
+    hasSurplusAdjustment: false,
+    hasShortfallCorrection: false,
+    hasPausedActivity: false,
+    markers: [],
+  };
+}
+
+function cloneMovement(movement?: HeatmapDailyMovement): HeatmapDailyMovement {
+  return movement
+    ? { ...movement, markers: [...movement.markers] }
+    : emptyHeatmapDailyMovement();
+}
+
+export function addHeatmapMovement(
+  dailyMovements: Map<string, HeatmapDailyMovement>,
+  dateKey: string,
+  amount: number,
+  kind: 'deposit' | 'allocation',
+  paused = false,
+) {
+  const movement = cloneMovement(dailyMovements.get(dateKey));
+  if (amount > 0) movement.positiveAmount += amount;
+  if (amount < 0) movement.negativeAmount += amount;
+  movement.netAmount += amount;
+
+  if (kind === 'deposit') movement.hasDeposit = true;
+  if (kind === 'deposit') movement.depositAmount += amount;
+  if (kind === 'allocation' && amount > 0) {
+    movement.hasSurplusAdjustment = true;
+    movement.surplusAmount += amount;
+  }
+  if (kind === 'allocation' && amount < 0) {
+    movement.hasShortfallCorrection = true;
+    movement.shortfallAmount += amount;
+  }
+  if (paused) movement.hasPausedActivity = true;
+
+  const markers = new Set<HeatmapMarker>(movement.markers);
+  if (movement.hasSurplusAdjustment) markers.add('surplus');
+  if (movement.hasShortfallCorrection) markers.add('correction');
+  if (movement.hasPausedActivity) markers.add('pause');
+  movement.markers = Array.from(markers);
+  dailyMovements.set(dateKey, movement);
+}
+
+function heatAmountFor(movement: HeatmapDailyMovement): number {
+  if (movement.netAmount > 0) return movement.netAmount;
+  if (movement.hasShortfallCorrection && movement.positiveAmount > 0) return movement.positiveAmount;
+  return 0;
+}
+
 export function buildSavingsHeatmap({
-  dailyTotals,
+  dailyMovements,
   startKey,
   endKey,
   todayKey,
@@ -95,7 +182,8 @@ export function buildSavingsHeatmap({
 
   // Intensity scales against the member's own biggest deposit day.
   let maxDaily = 0;
-  for (const value of dailyTotals.values()) {
+  for (const movement of dailyMovements.values()) {
+    const value = heatAmountFor(movement);
     if (value > maxDaily) maxDaily = value;
   }
 
@@ -105,12 +193,24 @@ export function buildSavingsHeatmap({
   let todayColumnIndex = -1;
 
   while (cursor <= gridEnd) {
-    const amount = dailyTotals.get(cursor) ?? 0;
+    const movement = cloneMovement(dailyMovements.get(cursor));
+    const heatAmount = heatAmountFor(movement);
     const inRange = cursor >= startKey && cursor <= endKey;
     const cell: HeatmapCell = {
       dateKey: cursor,
-      amount,
-      level: levelFor(amount, maxDaily),
+      amount: movement.netAmount,
+      depositAmount: movement.depositAmount,
+      surplusAmount: movement.surplusAmount,
+      shortfallAmount: movement.shortfallAmount,
+      positiveAmount: movement.positiveAmount,
+      negativeAmount: movement.negativeAmount,
+      netAmount: movement.netAmount,
+      hasDeposit: movement.hasDeposit,
+      hasSurplusAdjustment: movement.hasSurplusAdjustment,
+      hasShortfallCorrection: movement.hasShortfallCorrection,
+      hasPausedActivity: movement.hasPausedActivity,
+      markers: movement.markers,
+      level: levelFor(heatAmount, maxDaily),
       isToday: cursor === todayKey,
       inRange,
       isFuture: cursor > todayKey,

@@ -117,14 +117,15 @@ function toNum(value: number | string | null | undefined): number {
 export function useReconcile(roomId: string | null) {
   const { user } = useAuth();
   const [latest, setLatest] = useState<BalanceCheckpoint | null>(null);
+  const [latestAdjustmentAt, setLatestAdjustmentAt] = useState<string | null>(null);
   const [activity, setActivity] = useState<BalanceActivityEntry[]>([]);
   const [adjustmentSum, setAdjustmentSum] = useState(0);
   const [allocationSum, setAllocationSum] = useState(0);
   /**
-   * Server-authoritative Verified Balance for the current user in this
-   * room (positive deposits + signed adjustments). Loaded via the hardened
-   * `current_reconciled_balance` RPC so the client never has to sum a
-   * truncated log list. `null` while the first fetch is pending.
+   * Server-authoritative app ledger total for the current user in this
+   * room (positive deposits + signed adjustments). This is the "app
+   * before check" number used when comparing against a manual balance
+   * check. `null` while the first fetch is pending.
    */
   const [appBalance, setAppBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -175,6 +176,27 @@ export function useReconcile(roomId: string | null) {
     }
     const rows = (data ?? []) as { amount: number | string }[];
     setAdjustmentSum(rows.reduce((sum, row) => sum + toNum(row.amount), 0));
+  }, [user, roomId]);
+
+  const fetchLatestAdjustmentAt = useCallback(async () => {
+    if (!user || !roomId) {
+      setLatestAdjustmentAt(null);
+      return;
+    }
+    const { data, error: err } = await supabase
+      .from('balance_adjustments')
+      .select('created_at')
+      .eq('room_id', roomId)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setLatestAdjustmentAt(data?.created_at ?? null);
   }, [user, roomId]);
 
   const fetchAllocationSum = useCallback(async () => {
@@ -241,10 +263,10 @@ export function useReconcile(roomId: string | null) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
-    Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()])
+    Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchLatestAdjustmentAt(), fetchAllocationSum(), fetchAppBalance()])
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchAllocationSum, fetchAppBalance]);
+  }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchLatestAdjustmentAt, fetchAllocationSum, fetchAppBalance]);
 
   async function createCheckpoint(input: CreateCheckpointInput): Promise<CreateCheckpointResult> {
     if (!user) return { error: 'Not authenticated' };
@@ -267,7 +289,7 @@ export function useReconcile(roomId: string | null) {
     const row = (Array.isArray(data) ? data[0] : data) as CreateCheckpointRpcRow | undefined;
     if (!row) return { error: 'No checkpoint returned' };
 
-    await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()]);
+    await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchLatestAdjustmentAt(), fetchAllocationSum(), fetchAppBalance()]);
 
     // Fire-and-forget partner notification. Reuse is no-op on the
     // server side, so retrying the same checkpoint id is safe.
@@ -310,7 +332,7 @@ export function useReconcile(roomId: string | null) {
     const row = (Array.isArray(data) ? data[0] : data) as AllocateRpcRow | undefined;
     if (!row) return { error: 'No allocation returned' };
 
-    await Promise.all([fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()]);
+    await Promise.all([fetchAdjustmentSum(), fetchLatestAdjustmentAt(), fetchAllocationSum(), fetchAppBalance()]);
 
     return {
       allocationId: row.allocation_id,
@@ -347,7 +369,7 @@ export function useReconcile(roomId: string | null) {
     const row = (Array.isArray(data) ? data[0] : data) as DeallocateRpcRow | undefined;
     if (!row) return { error: 'No write-down returned' };
 
-    await Promise.all([fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()]);
+    await Promise.all([fetchAdjustmentSum(), fetchLatestAdjustmentAt(), fetchAllocationSum(), fetchAppBalance()]);
 
     return {
       deallocationId: row.deallocation_id,
@@ -361,6 +383,7 @@ export function useReconcile(roomId: string | null) {
 
   return {
     latest,
+    latestAdjustmentAt,
     activity,
     adjustmentSum,
     allocationSum,
@@ -386,7 +409,7 @@ export function useReconcile(roomId: string | null) {
     allocate,
     deallocate,
     refetch: useCallback(async () => {
-      await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchAllocationSum(), fetchAppBalance()]);
-    }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchAllocationSum, fetchAppBalance]),
+      await Promise.all([fetchLatest(), fetchActivity(), fetchAdjustmentSum(), fetchLatestAdjustmentAt(), fetchAllocationSum(), fetchAppBalance()]);
+    }, [fetchLatest, fetchActivity, fetchAdjustmentSum, fetchLatestAdjustmentAt, fetchAllocationSum, fetchAppBalance]),
   };
 }

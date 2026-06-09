@@ -14,6 +14,7 @@ interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'si
   leadingIcon?: ReactNode;
   trailingIcon?: ReactNode;
   error?: boolean;
+  inputClassName?: string;
 }
 
 export function TextInput({
@@ -21,6 +22,7 @@ export function TextInput({
   trailingIcon,
   error = false,
   className = '',
+  inputClassName = '',
   ...rest
 }: TextInputProps) {
   return (
@@ -42,7 +44,7 @@ export function TextInput({
         className={
           'flex-1 bg-transparent outline-none text-ink ' +
           'placeholder:text-brand-300 ' +
-          'font-mono text-sm'
+          `font-mono text-sm ${inputClassName}`
         }
       />
       {trailingIcon && (

@@ -2,12 +2,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useRef, useState } from 'react';
 import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { IconBubble } from '../IconBubble/IconBubble';
-import { IconCheck, IconChevronDown, IconVault } from '../Icon/Icon';
+import { IconCheck, IconChevronDown, IconInfo, IconVault } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { Segmented } from '../Segmented/Segmented';
 import { Spinner } from '../Spinner/Spinner';
 import { TextInput } from '../TextInput/TextInput';
+import Pressable from '../Pressable/Pressable';
 import { useAuth } from '../../hooks/useAuth';
 import { useDepositRecorder } from '../../hooks/useDepositRecorder';
 import { useSharedData } from '../../hooks/useSharedData';
@@ -20,6 +21,7 @@ import { bucketPauseStateForDate } from '../../lib/bucketPlanPause';
 import { todayBangkokKey } from '../../lib/savingPlan';
 import { useOpenClosePrimaryMotion } from '../../lib/animationBudget';
 import {
+  hasDepositsAfterCheck,
   formatDirectionalAdjustment,
   formatSignedCurrency,
   RECONCILE_REASONS,
@@ -51,15 +53,15 @@ type Step = 'enter' | 'difference' | 'done';
 export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: CheckBalanceSheetProps) {
   const { user } = useAuth();
   const data = useSharedData();
-  const { appBalance, createCheckpoint, overAllocated, deallocate, refetch: refetchBalance } = data.reconcile;
+  const { latest, latestAdjustmentAt, appBalance, createCheckpoint, overAllocated, deallocate, refetch: refetchBalance } = data.reconcile;
   const { buckets } = data.buckets;
-  const { logs, insert, insertBatch } = data.logs;
+  const { allLogs, logs, insert, insertBatch } = data.logs;
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
   const { addOptimisticFlow } = data.roomVisibleMomentumFlows;
   const { pauses: bucketPlanPauses } = data.bucketPlanPauses;
   const { recordDeposit, recordDepositBatch } = useDepositRecorder({ userId: user?.id, insert, insertBatch, addOptimisticFlow });
-  const { copy } = useI18n();
+  const { copy, formatRelativeTime } = useI18n();
   const r = copy.reconcile;
   const dep = r.deposit;
   const sync = r.allocate.sync;
@@ -186,9 +188,26 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   }
 
   const displayedAppBalance = appBalance ?? 0;
+  const latestDepositAt = useMemo(() => {
+    let newest: string | null = null;
+    for (const log of allLogs) {
+      if (log.user_id !== user?.id) continue;
+      if (!newest || Date.parse(log.created_at) > Date.parse(newest)) newest = log.created_at;
+    }
+    return newest;
+  }, [allLogs, user?.id]);
+  const appBalanceUpdatedAt = useMemo(() => {
+    const candidates = [latestDepositAt, latestAdjustmentAt].filter((value): value is string => Boolean(value));
+    if (candidates.length === 0) return null;
+    return candidates.reduce((newest, current) => (
+      Date.parse(current) > Date.parse(newest) ? current : newest
+    ));
+  }, [latestAdjustmentAt, latestDepositAt]);
+  const needsFreshCheckAfterDeposit = hasDepositsAfterCheck(logs, user?.id, latest?.checked_at ?? null);
   const actualNumber = Number(actualValue);
   const actualValid = actualValue.trim().length > 0 && Number.isFinite(actualNumber) && actualNumber >= 0;
   const difference = actualValid ? Math.round((actualNumber - displayedAppBalance) * 100) / 100 : 0;
+  const sheetTitle = mode === 'deposit' ? dep.modeDeposit : dep.modeCheck;
 
   function handleClose() {
     onClose();
@@ -480,7 +499,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   const loading = appBalance === null;
 
   return (
-    <Modal open={open} title={r.pageTitle} onClose={handleClose}>
+    <Modal open={open} title={sheetTitle} onClose={handleClose}>
       {loading ? (
         <div className="flex justify-center py-10">
           <Spinner size="sm" tone="neutral" />
@@ -504,22 +523,35 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
           {mode === 'check' && (<>
           {step !== 'done' && (
             <section className="rounded-xl bg-surface p-4 shadow-soft">
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-mono text-sm font-semibold uppercase tracking-wider text-brand-800">
-                  {r.verifiedBalanceLabel}
-                </p>
-                <span className="font-mono text-xl font-semibold text-ink">{formatCurrency(displayedAppBalance)}</span>
+              <div className="rounded-lg bg-surfaceAlt px-3 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-800">
+                    {r.appBalanceNowLabel}
+                  </p>
+                  {appBalanceUpdatedAt && (
+                    <span className="text-right font-mono-th text-[11px] leading-4 text-ink-muted">
+                      {r.appBalanceUpdatedLabel} {formatRelativeTime(appBalanceUpdatedAt)}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 font-mono text-xl font-semibold text-ink">{formatCurrency(displayedAppBalance)}</p>
               </div>
+              {needsFreshCheckAfterDeposit && (
+                <div className="mt-2 flex items-start gap-1.5 text-ink-muted">
+                  <IconInfo size={14} className="mt-0.5 shrink-0 text-ink-muted" />
+                  <p className="font-mono-th text-[11px] leading-4 text-ink-muted">{r.recheckAfterDepositHint}</p>
+                </div>
+              )}
             </section>
           )}
 
           {step === 'enter' && (
-            <section className="rounded-xl bg-surface p-4 shadow-soft">
-              <label className="block">
+            <section className="rounded-xl bg-surface px-4 py-3.5 shadow-soft">
+              <label className="flex flex-col gap-2.5">
                 <span className="block font-mono text-sm font-semibold uppercase tracking-wider text-brand-800">
                   {r.actualBalanceLabel}
                 </span>
-                <div className="mt-3">
+                <div>
                   <TextInput
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -532,10 +564,10 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                     }}
                   />
                 </div>
-                <span className="mt-3 block font-mono text-sm text-ink-muted">{r.actualHelper}</span>
+                <span className="block font-mono text-xs leading-5 text-ink-muted">{r.actualHelper}</span>
               </label>
-              {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
-              <div className={`mt-4 ${MODAL_ACTION_ROW_REVERSE_CLASS}`}>
+              {error && <p className="mt-2.5 rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>}
+              <div className={`mt-3 ${MODAL_ACTION_ROW_REVERSE_CLASS}`}>
                 <Button variant="action" fullWidth size="md" onClick={handleConfirmMatch} disabled={submitting || !actualValid}>
                   {submitting ? r.savingButton : r.saveCheckButton}
                 </Button>
@@ -549,17 +581,19 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
           {step === 'difference' && (
             <section className="rounded-xl bg-surface p-4 shadow-soft">
               <SectionLabel tone="brand">{r.differenceLabel}</SectionLabel>
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 rounded-lg bg-surfaceAlt px-3 py-3">
-                <SummaryStat label={r.statActual} value={formatCurrency(actualNumber)} />
-                <SummaryStat label={r.inlineStatApp} value={formatCurrency(displayedAppBalance)} />
-                <SummaryStat
-                  label={difference > 0 ? r.statAdjustedUp : r.statAdjustedDown}
-                  value={formatSignedCurrency(difference)}
-                  emphasized
-                  positive={difference > 0}
-                />
+              <div className="mt-3 rounded-xl bg-surfaceAlt px-3 py-3.5 shadow-soft">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3">
+                  <SummaryStat label={r.inlineStatApp} value={formatCurrency(displayedAppBalance)} />
+                  <SummaryStat label={r.statActual} value={formatCurrency(actualNumber)} />
+                  <SummaryStat
+                    label={difference > 0 ? r.statAdjustedUp : r.statAdjustedDown}
+                    value={formatSignedCurrency(difference)}
+                    emphasized
+                    positive={difference > 0}
+                  />
+                </div>
               </div>
-              <div className="mt-4 flex flex-col gap-2">
+              <div className="mt-5 flex flex-wrap gap-2">
                 {RECONCILE_REASONS.map(option => (
                   <button
                     key={option.id}
@@ -569,10 +603,10 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                       setError(null);
                     }}
                     className={
-                      'w-full rounded-lg px-4 py-3 text-left font-mono text-sm font-semibold transition-colors ' +
+                      'inline-flex min-h-8 items-center justify-center rounded-pill px-3 py-1.5 text-center font-mono-th text-xs transition-colors ' +
                       (reason === option.id
-                        ? 'bg-brand-800 text-ink-inverse'
-                        : 'bg-surfaceAlt text-ink hover:bg-brand-50')
+                        ? 'bg-brand-800 font-normal text-ink-inverse shadow-[0_6px_14px_rgba(92,40,7,0.18)]'
+                        : 'bg-surfaceAlt font-light text-ink hover:bg-brand-50')
                     }
                   >
                     {r.reasons[option.id].label}
@@ -689,6 +723,8 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                         pattern="[0-9]*"
                         placeholder="0"
                         value={depositValue}
+                        className="px-3 py-2.5"
+                        inputClassName="text-xs"
                         leadingIcon={<span className="font-mono font-semibold">฿</span>}
                         onChange={event => {
                           setDepositValue(sanitizeDepositAmount(event.target.value));
@@ -698,26 +734,21 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                     </div>
                   </label>
 
-                  {depositBuckets.length > 1 ? (
-                    <label className="block">
-                      <span className="mb-2 block font-mono-th text-sm font-semibold text-ink">{dep.bucketLabel}</span>
-                      <SyncBucketPicker
-                        value={effectiveDepositBucketId ?? ''}
-                        onChange={value => { setDepositBucketId(value); setDepositError(null); }}
+                  <div className="block">
+                    <span className="mb-2 block font-mono-th text-sm font-semibold text-ink">{dep.bucketLabel}</span>
+                    {depositBuckets.length > 1 ? (
+                      <DepositBucketCardPicker
+                        buckets={depositBuckets}
+                        selectedId={effectiveDepositBucketId}
                         disabled={depositSubmitting}
-                        options={depositBuckets.map(b => ({
-                          id: b.id,
-                          label: b.name,
-                          detail: formatCurrency(b.saved),
-                        }))}
+                        onSelect={value => { setDepositBucketId(value); setDepositError(null); }}
                       />
-                    </label>
-                  ) : selectedDepositBucket && (
-                    <div className="rounded-lg bg-surfaceAlt px-3 py-2.5">
-                      <span className="block font-mono-th text-xs font-semibold text-ink-muted">{dep.bucketLabel}</span>
-                      <span className="mt-0.5 block font-mono-th text-sm font-semibold text-ink">{selectedDepositBucket.name}</span>
-                    </div>
-                  )}
+                    ) : selectedDepositBucket ? (
+                      <DepositBucketCard
+                        bucket={selectedDepositBucket}
+                      />
+                    ) : null}
+                  </div>
 
                   {selectedDepositBucket && selectedDepositBucket.target > 0 && (
                     <p className="font-mono text-xs font-semibold text-ink-muted">
@@ -903,11 +934,20 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                     </>
                   )}
                 </div>
+                <div className="flex w-full items-start gap-2 rounded-xl bg-brand-50 px-3 py-2.5 text-left shadow-soft">
+                  <IconInfo size={16} className="mt-0.5 shrink-0 text-brand-900" />
+                  <div className="min-w-0">
+                    <p className="font-mono-th text-sm font-semibold text-brand-900">{dep.checkNowTitle}</p>
+                    <p className="mt-0.5 font-mono-th text-xs leading-5 text-brand-900/90">
+                      {dep.checkNowBody}
+                    </p>
+                  </div>
+                </div>
                 <div className="flex w-full flex-col gap-2">
-                  <Button variant="action" fullWidth onClick={handleClose}>{dep.doneButton}</Button>
-                  <Button variant="ghost" fullWidth className={MODAL_SECONDARY_BUTTON_CLASS} onClick={handleContinueCheck}>
+                  <Button variant="action" fullWidth onClick={handleContinueCheck}>
                     {dep.continueCheckButton}
                   </Button>
+                  <Button variant="ghost" fullWidth className={MODAL_SECONDARY_BUTTON_CLASS} onClick={handleClose}>{dep.doneButton}</Button>
                 </div>
               </section>
             );
@@ -933,6 +973,76 @@ function SummaryStat({ label, value, emphasized, positive }: { label: string; va
       <span className={`max-w-full truncate font-mono font-semibold leading-none tabular-nums ${valueColor} ${emphasized ? 'text-base' : 'text-sm'}`}>
         {value}
       </span>
+    </div>
+  );
+}
+
+function DepositBucketCardPicker({
+  buckets,
+  selectedId,
+  onSelect,
+  disabled,
+}: {
+  buckets: Array<{
+    id: string;
+    name: string;
+    saved: number;
+    target: number;
+    isDone: boolean;
+    isPaused: boolean;
+  }>;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1 snap-x">
+      {buckets.map(bucket => (
+        <Pressable
+          key={bucket.id}
+          onClick={() => onSelect(bucket.id)}
+          disabled={disabled}
+          className={
+            'w-[120px] shrink-0 snap-start rounded-2xl border px-3 py-2.5 text-left transition-all ' +
+            (bucket.id === selectedId
+              ? 'border-brand-500 bg-brand-50 shadow-soft'
+              : 'border-brand-100 bg-surface hover:border-brand-300')
+            + (disabled ? ' opacity-60' : '')
+          }
+        >
+          <DepositBucketCard bucket={bucket} compact />
+        </Pressable>
+      ))}
+    </div>
+  );
+}
+
+function DepositBucketCard({
+  bucket,
+  compact = false,
+}: {
+  bucket: {
+    id: string;
+    name: string;
+    saved: number;
+    target: number;
+    isDone: boolean;
+    isPaused: boolean;
+  };
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? 'flex flex-col gap-1.5' : 'rounded-xl bg-surfaceAlt px-3 py-3'}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <span className={`block truncate font-mono-th ${compact ? 'text-sm font-semibold' : 'text-sm font-semibold'} text-ink`}>
+            {bucket.name}
+          </span>
+          <span className="mt-0.5 block font-mono text-xs font-semibold text-ink-muted">
+            {formatCurrency(bucket.saved)}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

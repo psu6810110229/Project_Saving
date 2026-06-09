@@ -1490,6 +1490,16 @@ export const en = {
         body: `${name} updated ${bucketName ?? 'a bucket'}.`,
         ctaLabel: 'View buckets',
       }),
+      bucketPlanPaused: (name: string, bucketName: string | null) => ({
+        title: 'Bucket plan paused',
+        body: `${name} paused ${bucketName ?? 'a bucket'}.`,
+        ctaLabel: 'View buckets',
+      }),
+      bucketPlanResumed: (name: string, bucketName: string | null) => ({
+        title: 'Bucket plan resumed',
+        body: `${name} resumed ${bucketName ?? 'a bucket'}.`,
+        ctaLabel: 'View buckets',
+      }),
       bucketTransferred: (
         name: string,
         amount: string | null,

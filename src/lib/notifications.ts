@@ -76,6 +76,8 @@ const IN_APP_TOAST_EVENT_KEYS = new Set<string>([
   'plan_paused',
   'plan_resumed',
   'plan_started',
+  'bucket_plan_paused',
+  'bucket_plan_resumed',
   'room_joined',
   'room_left',
   'overtaking',
@@ -110,6 +112,8 @@ export function notificationIconKind(eventKey: NotificationEventKey | string): '
     case 'plan_resumed':
     case 'plan_created':
     case 'plan_started':
+    case 'bucket_plan_paused':
+    case 'bucket_plan_resumed':
       return 'calendar';
     case 'balance_checked':
     case 'goal_reached':

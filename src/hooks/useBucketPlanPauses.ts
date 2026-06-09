@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { notifyBucketPlanPaused, notifyBucketPlanResumed } from '../lib/notifyEvents';
 import { useAuth } from './useAuth';
 import type {
   BucketPauseStatus,
@@ -277,6 +278,7 @@ export function useBucketPlanPauses(roomId: string | null): UseBucketPlanPausesR
 
     const row = (Array.isArray(data) ? data[0] : data) as RawPauseMutationRow | undefined;
     if (!row) return { error: 'No pause returned' };
+    if (!row.reused) notifyBucketPlanPaused(row.pause_id);
     await fetchAll();
     return { data: normalizeMutation(row) };
   }, [fetchAll]);
@@ -302,6 +304,7 @@ export function useBucketPlanPauses(roomId: string | null): UseBucketPlanPausesR
 
     const row = (Array.isArray(data) ? data[0] : data) as RawPauseMutationRow | undefined;
     if (!row) return { error: 'No resume returned' };
+    if (!row.reused) notifyBucketPlanResumed(row.pause_id);
     await fetchAll();
     return { data: normalizeMutation(row) };
   }, [fetchAll]);

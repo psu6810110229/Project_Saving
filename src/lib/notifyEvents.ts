@@ -107,6 +107,14 @@ export function notifyBucketUpdated(bucketId: string): void {
   void call('notify_bucket_updated', { p_bucket_id: bucketId });
 }
 
+export function notifyBucketPlanPaused(pauseId: string): void {
+  void call('notify_bucket_plan_paused', { p_pause_id: pauseId });
+}
+
+export function notifyBucketPlanResumed(pauseId: string): void {
+  void call('notify_bucket_plan_resumed', { p_pause_id: pauseId });
+}
+
 /**
  * In-app fan-out for a successful bucket-to-bucket transfer. Migration
  * 0060 enforces actor ownership and partner-preference gating. Push is

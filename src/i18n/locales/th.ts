@@ -1485,6 +1485,16 @@ export const th: Messages = {
         body: `${name} อัปเดต ${bucketName ?? 'เป้าหมายย่อย'}`,
         ctaLabel: 'ดูเป้าหมายย่อย',
       }),
+      bucketPlanPaused: (name: string, bucketName: string | null) => ({
+        title: 'พักแผนเป้าหมายย่อย',
+        body: `${name} พักแผนของ ${bucketName ?? 'เป้าหมายย่อย'}`,
+        ctaLabel: 'ดูเป้าหมายย่อย',
+      }),
+      bucketPlanResumed: (name: string, bucketName: string | null) => ({
+        title: 'กลับมาใช้แผนเป้าหมายย่อย',
+        body: `${name} กลับมาใช้แผนของ ${bucketName ?? 'เป้าหมายย่อย'}`,
+        ctaLabel: 'ดูเป้าหมายย่อย',
+      }),
       bucketTransferred: (
         name: string,
         amount: string | null,

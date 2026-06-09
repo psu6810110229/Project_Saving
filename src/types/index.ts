@@ -597,6 +597,8 @@ export type NotificationEventKey =
   | 'goal_reached'
   | 'bucket_added'
   | 'bucket_updated'
+  | 'bucket_plan_paused'
+  | 'bucket_plan_resumed'
   | 'bucket_removed'
   | 'bucket_transferred'
   | 'bucket_goal_reached'

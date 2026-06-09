@@ -73,6 +73,8 @@ function toneForNotification(eventKey: string): 'neutral' | 'success' | 'warning
     case 'plan_paused':
     case 'plan_resumed':
     case 'plan_started':
+    case 'bucket_plan_paused':
+    case 'bucket_plan_resumed':
     case 'overtaking':
     default:
       return 'neutral';

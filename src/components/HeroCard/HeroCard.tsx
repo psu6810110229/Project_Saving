@@ -226,7 +226,7 @@ function MetricItem({ icon, label, value, helper }: MetricProps) {
         <span className="mt-1 block truncate font-mono-th text-[0.68rem] font-medium leading-none tracking-[0.02em] text-white/85">
           {value}
         </span>
-        <span className="mt-0.5 block truncate font-mono-th text-[0.5rem] font-medium leading-[0.72rem] tracking-[0.02em] text-white/85">
+        <span className="mt-0.5 block truncate font-mono-th text-[0.45rem] font-medium leading-[0.62rem] tracking-[0.005em] text-white/85">
           {helper}
         </span>
       </span>
@@ -327,7 +327,7 @@ export const HeroCard = memo(function HeroCard({
       icon: <IconCheckCircle size={13} />,
       label: 'CHECKED',
       value: latestLabel,
-      helper: 'ที่เช็คยอดล่าสุด',
+      helper: '?????????????',
     },
   ];
 
@@ -440,9 +440,9 @@ export const HeroCard = memo(function HeroCard({
           </div>
         </div>
 
-        <div className="relative z-10 mt-4 grid grid-cols-4 border-t border-white/25 pt-3">
+        <div className="relative z-10 mt-4 grid grid-cols-[1.18fr_0.88fr_0.92fr_1.02fr] border-t border-white/25 pt-3">
           {metrics.map((metric, index) => (
-            <div key={metric.label} className={index === 0 ? 'min-w-0' : 'min-w-0 border-l border-white/50 pl-1.5'}>
+            <div key={metric.label} className={index === 0 ? 'min-w-0' : 'min-w-0 border-l border-white/50 pl-1'}>
               <MetricItem {...metric} />
             </div>
           ))}

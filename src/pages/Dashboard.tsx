@@ -53,6 +53,7 @@ import {
   IconCalendar,
   IconCheck,
   IconEdit,
+  IconPauseCircle,
   IconRocket,
   IconX,
 } from '../components/Icon/Icon';
@@ -1756,17 +1757,47 @@ export function Dashboard() {
             return result;
           }}
           onTransferSheetOpenChange={setManageTransferSheetOpen}
+          isBucketPaused={(bucket) => bucketPauseStateForDate(bucket, bucketPlanPauses, todayKey).isPaused}
+          canPauseBucketPlan={(bucket) => (
+            !doneBucketIds.has(bucket.id)
+            && !bucketPauseStateForDate(bucket, bucketPlanPauses, todayKey).isPaused
+            && hasTrackablePausePlan(bucket)
+          )}
+          canResumeBucketPlan={(bucket) => (
+            bucketPauseStateForDate(bucket, bucketPlanPauses, todayKey).isPaused
+            && hasTrackablePausePlan(bucket)
+          )}
+          onRequestPauseBucketPlan={(bucketId) => {
+            setPauseMutationError(null);
+            setPauseBucketId(bucketId);
+          }}
+          onRequestResumeBucketPlan={(bucketId) => {
+            setResumeMutationError(null);
+            setResumeBucketId(bucketId);
+          }}
           onRemoved={refetchBuckets}
         />
       </Modal>
 
       {(() => {
         const editBucket = editBucketId ? buckets.find(b => b.id === editBucketId) : null;
+        const editPauseState = editBucket
+          ? bucketPauseStateForDate(editBucket, bucketPlanPauses, todayKey)
+          : null;
         return (
           <Modal
             open={Boolean(editBucket)}
             title={copy.bucket.editAriaLabel(editBucket?.name ?? '')}
             onClose={() => setEditBucketId(null)}
+            headerAccessory={editPauseState?.isPaused ? (
+              <span
+                aria-label={copy.bucketCard.pausedPill}
+                title={copy.bucketCard.pausedPill}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/60 bg-brand-50 text-ink shadow-soft"
+              >
+                <IconPauseCircle size={18} />
+              </span>
+            ) : undefined}
             panelClassName="max-h-[75dvh]"
             deferContentUntilOpen
             deferredBodyReserveClassName="min-h-[46dvh] md:min-h-[26rem]"

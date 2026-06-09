@@ -974,8 +974,8 @@ export const MomentumChart = memo(function MomentumChart({
                         </div>
                       )}
                       {marker?.hasAdjustment && typeof marker.adjustmentAmount === 'number' && (
-                        <div className="mt-1 text-[10px] leading-[1.45] text-ink-muted">
-                          <span className="font-mono font-semibold text-ink-dim">{d.dailyDepositAdjustment}</span>{' '}
+                        <div className="mt-1 grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 text-[10px] leading-[1.45] text-ink-muted">
+                          <span className="font-mono font-semibold text-ink-dim">{d.dailyDepositAdjustment}</span>
                           <span className={marker.adjustmentAmount < 0 ? 'font-mono font-bold text-danger' : 'font-mono font-bold text-accent-leaf'}>
                             {formatCurrency(marker.adjustmentAmount)}
                           </span>
@@ -1008,8 +1008,8 @@ export const MomentumChart = memo(function MomentumChart({
                           </div>
                         )}
                         {partnerMarker?.hasAdjustment && typeof partnerMarker.adjustmentAmount === 'number' && (
-                          <div className="mt-1 text-[10px] leading-[1.45] text-ink-muted">
-                            <span className="font-mono font-semibold text-ink-dim">{d.dailyDepositAdjustment}</span>{' '}
+                          <div className="mt-1 grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 text-[10px] leading-[1.45] text-ink-muted">
+                            <span className="font-mono font-semibold text-ink-dim">{d.dailyDepositAdjustment}</span>
                             <span className={partnerMarker.adjustmentAmount < 0 ? 'font-mono font-bold text-danger' : 'font-mono font-bold text-accent-leaf'}>
                               {formatCurrency(partnerMarker.adjustmentAmount)}
                             </span>

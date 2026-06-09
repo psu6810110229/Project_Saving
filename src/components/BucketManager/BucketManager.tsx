@@ -9,7 +9,7 @@ import { BucketEditForm, type BucketEditFormResult, type BucketEditValues } from
 import { BucketTransferSheet, type TransferBucketOption } from '../BucketTransferSheet/BucketTransferSheet';
 import { CATEGORY_ACCENT, DEFAULT_ACCENT } from '../../lib/bucketAccent';
 import { Button } from '../Button/Button';
-import { IconEdit, IconTrash } from '../Icon/Icon';
+import { IconEdit, IconPauseCircle, IconPlayCircle, IconTrash } from '../Icon/Icon';
 import { IconButton } from '../IconButton/IconButton';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { RemoveBucketModal, type RemoveBucketDestination } from '../RemoveBucketModal/RemoveBucketModal';
@@ -32,6 +32,11 @@ interface BucketManagerProps {
   roomEndDate?: string | null;
   onReviewCategories?: (updates: { id: string; category: BucketCategory }[]) => Promise<{ error?: string }>;
   onTransferSheetOpenChange?: (open: boolean) => void;
+  isBucketPaused?: (bucket: Bucket) => boolean;
+  canPauseBucketPlan?: (bucket: Bucket) => boolean;
+  canResumeBucketPlan?: (bucket: Bucket) => boolean;
+  onRequestPauseBucketPlan?: (bucketId: string) => void;
+  onRequestResumeBucketPlan?: (bucketId: string) => void;
   /**
    * Called after a bucket is archived (with or without a balance
    * transfer) so the parent can refresh server-side state the local
@@ -94,6 +99,11 @@ export function BucketManager({
   onUpdate,
   onReviewCategories,
   onTransferSheetOpenChange,
+  isBucketPaused,
+  canPauseBucketPlan,
+  canResumeBucketPlan,
+  onRequestPauseBucketPlan,
+  onRequestResumeBucketPlan,
   onRemoved,
 }: BucketManagerProps) {
   const { copy } = useI18n();
@@ -269,6 +279,11 @@ export function BucketManager({
         roomEndDate={roomEndDate}
         highlightBucketId={highlightBucketId}
         editingId={editingId}
+        isBucketPaused={isBucketPaused}
+        canPauseBucketPlan={canPauseBucketPlan}
+        canResumeBucketPlan={canResumeBucketPlan}
+        onRequestPauseBucketPlan={onRequestPauseBucketPlan}
+        onRequestResumeBucketPlan={onRequestResumeBucketPlan}
         onStartEdit={startEdit}
         onCancelEdit={cancelEdit}
         onSave={onUpdate}
@@ -346,6 +361,11 @@ function BucketSummary({
   roomEndDate,
   highlightBucketId,
   editingId,
+  isBucketPaused,
+  canPauseBucketPlan,
+  canResumeBucketPlan,
+  onRequestPauseBucketPlan,
+  onRequestResumeBucketPlan,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -361,6 +381,11 @@ function BucketSummary({
   roomEndDate?: string | null;
   highlightBucketId?: string | null;
   editingId: string | null;
+  isBucketPaused?: (bucket: Bucket) => boolean;
+  canPauseBucketPlan?: (bucket: Bucket) => boolean;
+  canResumeBucketPlan?: (bucket: Bucket) => boolean;
+  onRequestPauseBucketPlan?: (bucketId: string) => void;
+  onRequestResumeBucketPlan?: (bucketId: string) => void;
   onStartEdit: (bucket: Bucket) => void;
   onCancelEdit: () => void;
   onSave: (bucket: Bucket, next: BucketEditValues) => Promise<BucketEditFormResult>;
@@ -401,6 +426,11 @@ function BucketSummary({
               bucket={bucket}
               saved={savedByBucketId.get(bucket.id) ?? 0}
               highlighted={bucket.id === highlightBucketId}
+              isPaused={isBucketPaused?.(bucket) ?? false}
+              canPausePlan={canPauseBucketPlan?.(bucket) ?? false}
+              canResumePlan={canResumeBucketPlan?.(bucket) ?? false}
+              onRequestPausePlan={onRequestPauseBucketPlan}
+              onRequestResumePlan={onRequestResumeBucketPlan}
               onStartEdit={onStartEdit}
               onAskRemove={onAskRemove}
             />
@@ -415,18 +445,29 @@ const ManageBucketCard = memo(function ManageBucketCard({
   bucket,
   saved,
   highlighted,
+  isPaused,
+  canPausePlan,
+  canResumePlan,
+  onRequestPausePlan,
+  onRequestResumePlan,
   onStartEdit,
   onAskRemove,
 }: {
   bucket: Bucket;
   saved: number;
   highlighted: boolean;
+  isPaused: boolean;
+  canPausePlan: boolean;
+  canResumePlan: boolean;
+  onRequestPausePlan?: (bucketId: string) => void;
+  onRequestResumePlan?: (bucketId: string) => void;
   onStartEdit: (bucket: Bucket) => void;
   onAskRemove: (bucket: Bucket) => void;
 }) {
   const { copy, formatMoney } = useI18n();
   const accent = (bucket.category && CATEGORY_ACCENT[bucket.category]) || DEFAULT_ACCENT;
   const pct = bucket.target_amount > 0 ? (saved / bucket.target_amount) * 100 : 0;
+  const showPauseCta = (canPausePlan && onRequestPausePlan) || (canResumePlan && onRequestResumePlan);
 
   return (
     <div
@@ -477,6 +518,27 @@ const ManageBucketCard = memo(function ManageBucketCard({
         >
           <IconTrash size={15} />
         </IconButton>
+        {showPauseCta ? (
+          <IconButton
+            type="button"
+            variant="solid"
+            size="sm"
+            ariaLabel={canResumePlan ? copy.bucketPause.resumeAction : copy.bucketPause.pauseAction}
+            className={
+              canResumePlan
+                ? 'bg-accent-leaf/90 text-accent-leaf hover:bg-accent-leaf/20'
+                : 'bg-accent-slate/90 text-accent-slate hover:bg-accent-slate/20'
+            }
+            onClick={() => {
+              if (canResumePlan) onRequestResumePlan?.(bucket.id);
+              else onRequestPausePlan?.(bucket.id);
+            }}
+          >
+            {isPaused ? <IconPlayCircle size={15} /> : <IconPauseCircle size={15} />}
+          </IconButton>
+        ) : (
+          <span className="h-8 w-8 shrink-0" aria-hidden="true" />
+        )}
         <IconButton
           type="button"
           variant="solid"

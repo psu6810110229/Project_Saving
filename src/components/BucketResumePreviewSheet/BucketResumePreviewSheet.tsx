@@ -49,8 +49,11 @@ export function BucketResumePreviewSheet({
 
   useEffect(() => {
     if (!open) return;
-    setAdjusting(false);
-    setDraftDeadline(preview?.deadline ?? minDeadline);
+    const frameId = window.requestAnimationFrame(() => {
+      setAdjusting(false);
+      setDraftDeadline(preview?.deadline ?? minDeadline);
+    });
+    return () => window.cancelAnimationFrame(frameId);
   }, [open, preview?.deadline, minDeadline]);
 
   const shownPreview = adjusting ? getPreviewForDeadline(draftDeadline) : preview;
@@ -66,11 +69,11 @@ export function BucketResumePreviewSheet({
       {shownPreview ? (
         <div className="flex flex-col gap-4">
           <div className="rounded-xl border border-brand-100 bg-brand-50/70 p-4">
-            <div className="flex items-start gap-3">
+            <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-surface text-brand-800 shadow-soft">
                 <IconPlayCircle size={20} />
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="font-mono text-sm font-bold text-ink">{pause.resumeSubtitle}</p>
                 {showPressure && (
                   <p className="mt-1 font-mono text-xs leading-5 text-ink-muted">

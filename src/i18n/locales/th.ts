@@ -330,7 +330,7 @@ export const th: Messages = {
     dailyDepositModeRoom: 'รวม',
     dailyDepositModeTotal: 'รวม',
     dailyDepositModeMe: 'ฉัน',
-    dailyDepositModeCompare: 'เทียบกับเพื่อน',
+    dailyDepositModeCompare: 'เพื่อน',
     dailyDepositModeAria: 'โหมดกราฟยอดออมรายวัน',
     dailyDepositPurposeAria: 'ขอบเขตเป้าหมายของกราฟยอดออมรายวัน',
     dailyDepositPurposeAll: 'ทั้งหมด',

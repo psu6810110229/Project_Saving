@@ -4,7 +4,6 @@ import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } 
 import { IconBubble } from '../IconBubble/IconBubble';
 import { IconCheck, IconChevronDown, IconVault } from '../Icon/Icon';
 import { Modal } from '../Modal/Modal';
-import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { Segmented } from '../Segmented/Segmented';
 import { Spinner } from '../Spinner/Spinner';
@@ -13,6 +12,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useDepositRecorder } from '../../hooks/useDepositRecorder';
 import { useSharedData } from '../../hooks/useSharedData';
 import { useI18n } from '../../i18n/useI18n';
+import { sanitizeDepositAmount } from '../../lib/deposit';
 import { formatCurrency } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
 import { bucketSaved } from '../../lib/buckets';
@@ -57,7 +57,6 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
   const { addOptimisticFlow } = data.roomVisibleMomentumFlows;
-  const { quickAmounts } = data.profile;
   const { pauses: bucketPlanPauses } = data.bucketPlanPauses;
   const { recordDeposit, recordDepositBatch } = useDepositRecorder({ userId: user?.id, insert, insertBatch, addOptimisticFlow });
   const { copy } = useI18n();
@@ -88,7 +87,6 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   // allocation. Verified balance refreshes naturally on continue-to-check.
   const [mode, setMode] = useState<'check' | 'deposit'>('check');
   const [depositValue, setDepositValue] = useState('');
-  const [depositPill, setDepositPill] = useState<number | null>(null);
   const [depositBucketId, setDepositBucketId] = useState<string | null>(null);
   const [depositSubmitting, setDepositSubmitting] = useState(false);
   const [depositError, setDepositError] = useState<string | null>(null);
@@ -164,9 +162,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   );
   const effectiveDepositBucketId = depositBucketId ?? defaultDepositBucketId;
   const selectedDepositBucket = depositBuckets.find(b => b.id === effectiveDepositBucketId) ?? null;
-  const depositAmount = depositValue.trim() !== '' && Number(depositValue) > 0
-    ? Number(depositValue)
-    : (depositPill ?? 0);
+  const depositAmount = depositValue.trim() !== '' && Number(depositValue) > 0 ? Number(depositValue) : 0;
   const showModeToggle = (mode === 'check' && step === 'enter') || (mode === 'deposit' && !depositSuccess && !splitMode);
 
   // Split allocation tracking. Total is locked to the entered deposit amount;
@@ -212,7 +208,6 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
       setSyncSpillCount(0);
       setMode('check');
       setDepositValue('');
-      setDepositPill(null);
       setDepositBucketId(null);
       setDepositSubmitting(false);
       setDepositError(null);
@@ -235,7 +230,6 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
       setDepositSuccess(null);
     } else {
       setDepositValue('');
-      setDepositPill(null);
       setDepositBucketId(null);
       setDepositSuccess(null);
     }
@@ -386,7 +380,6 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   function handleContinueCheck() {
     void refetchBalance();
     setDepositValue('');
-    setDepositPill(null);
     setDepositBucketId(null);
     setDepositSuccess(null);
     setDepositError(null);
@@ -698,25 +691,12 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                         value={depositValue}
                         leadingIcon={<span className="font-mono font-semibold">฿</span>}
                         onChange={event => {
-                          setDepositValue(event.target.value.replace(/[^0-9]/g, ''));
-                          setDepositPill(null);
+                          setDepositValue(sanitizeDepositAmount(event.target.value));
                           setDepositError(null);
                         }}
                       />
                     </div>
                   </label>
-
-                  {quickAmounts.length > 0 && (
-                    <QuickAddRow
-                      amounts={quickAmounts}
-                      selected={depositPill}
-                      onSelect={amount => {
-                        setDepositPill(amount);
-                        setDepositValue('');
-                        setDepositError(null);
-                      }}
-                    />
-                  )}
 
                   {depositBuckets.length > 1 ? (
                     <label className="block">

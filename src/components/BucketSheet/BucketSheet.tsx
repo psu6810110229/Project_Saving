@@ -1,11 +1,10 @@
-import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { BucketHeader } from '../BucketHeader/BucketHeader';
 import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CompleteBucketLock } from '../CompleteBucketLock/CompleteBucketLock';
-import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { FormField } from '../FormField/FormField';
 import { IconPauseCircle, IconPiggyBank, IconPlayCircle, IconTrash, IconX } from '../Icon/Icon';
@@ -78,7 +77,6 @@ export function BucketSheet({
   canResumePlan = false,
   onRequestPausePlan,
   onRequestResumePlan,
-  trendPreview,
 }: BucketSheetProps) {
   const { copy, formatMoney } = useI18n();
   const [selectedPill, setSelectedPill] = useState<number | null>(null);
@@ -119,10 +117,6 @@ export function BucketSheet({
   const customAmount = Number(customValue);
   const resolvedAmount =
     customValue.trim() !== '' && customAmount > 0 ? customAmount : (selectedPill ?? 0);
-  const trendPreviewMineSeries = useMemo(
-    () => trendPreview?.mineSeries(resolvedAmount),
-    [resolvedAmount, trendPreview],
-  );
 
   function handleCustomChange(event: ChangeEvent<HTMLInputElement>) {
     const next = event.target.value;
@@ -216,7 +210,7 @@ export function BucketSheet({
               </div>
 
               {/* Scrollable content */}
-              <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[88dvh] px-5 pb-8 pt-2">
+              <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[60dvh] px-5 pb-8 pt-2">
                 <motion.div
                   variants={contentVariants}
                   initial="hidden"
@@ -289,17 +283,6 @@ export function BucketSheet({
                           />
                         </FormField>
                       </motion.div>
-
-                      {trendPreview && trendPreviewMineSeries && sheetContentReady && (
-                        <motion.div variants={itemVariants}>
-                          <ComparisonTrendChart
-                            mineLabel={trendPreview.mineLabel}
-                            theirLabel={trendPreview.theirLabel}
-                            mineSeries={trendPreviewMineSeries}
-                            theirSeries={trendPreview.theirSeries}
-                          />
-                        </motion.div>
-                      )}
 
                       {/* Actions */}
                       <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_REVERSE_CLASS}>

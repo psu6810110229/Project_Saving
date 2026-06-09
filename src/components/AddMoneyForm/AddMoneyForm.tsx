@@ -1,7 +1,6 @@
 import type { ChangeEvent, FormEvent, ReactNode } from 'react';
 import { BucketHeader } from '../BucketHeader/BucketHeader';
 import { Button } from '../Button/Button';
-import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { FormField } from '../FormField/FormField';
 import { IconPiggyBank } from '../Icon/Icon';
 import { QuickAddRow } from '../QuickAddRow/QuickAddRow';
@@ -46,16 +45,11 @@ export function AddMoneyForm({
   onSlipChange,
   onSubmit,
   onEditQuickAmounts,
-  mineLabel,
-  theirLabel,
-  mineSeries,
-  theirSeries,
   submitting = false,
 }: AddMoneyFormProps) {
   const { copy } = useI18n();
   const amount = resolveDepositAmount(amountValue, selectedQuickAmount);
   const cleanedQuickAmounts = cleanQuickAmounts(quickAmounts);
-  const showTrendPreview = mineLabel && theirLabel && mineSeries && theirSeries;
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
@@ -98,14 +92,6 @@ export function AddMoneyForm({
             }}
           />
         </div>
-      )}
-      {showTrendPreview && (
-        <ComparisonTrendChart
-          mineLabel={mineLabel}
-          theirLabel={theirLabel}
-          mineSeries={mineSeries}
-          theirSeries={theirSeries}
-        />
       )}
       {SHOW_ATTACHED_SLIP && <SlipAttachField file={slip} onChange={onSlipChange} />}
       <Button variant="action" fullWidth type="submit" disabled={submitting || amount <= 0}>

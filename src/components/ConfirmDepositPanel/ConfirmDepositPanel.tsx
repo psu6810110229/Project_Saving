@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { Button, MODAL_ACTION_ROW_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
-import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { MicroCopyBanner } from '../MicroCopyBanner/MicroCopyBanner';
 import { useI18n } from '../../i18n/useI18n';
 
@@ -26,10 +25,6 @@ export function ConfirmDepositPanel({
   bannerTitle,
   bannerBody,
   bannerTone = 'cheer',
-  mineLabel,
-  theirLabel,
-  mineSeries,
-  theirSeries,
   primaryLabel,
   secondaryLabel,
   onPrimary,
@@ -42,12 +37,6 @@ export function ConfirmDepositPanel({
   return (
     <section className="flex flex-col gap-3">
       <MicroCopyBanner icon={bannerIcon} title={bannerTitle} body={bannerBody} tone={bannerTone} />
-      <ComparisonTrendChart
-        mineLabel={mineLabel}
-        theirLabel={theirLabel}
-        mineSeries={mineSeries}
-        theirSeries={theirSeries}
-      />
       <div className={onSecondary ? MODAL_ACTION_ROW_CLASS : ''}>
         <Button variant="action" fullWidth size="md" onClick={onPrimary}>{resolvedPrimaryLabel}</Button>
         {onSecondary && (

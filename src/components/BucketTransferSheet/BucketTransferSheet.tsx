@@ -366,7 +366,7 @@ function BucketTransferSheetInner({
             </IconButton>
           </div>
 
-          <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[88dvh] px-5 pb-8 pt-2">
+          <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[60dvh] px-5 pb-8 pt-2">
             {tooFewBuckets ? (
               <div className="flex flex-col gap-4 py-4">
                 <SectionLabel tone="muted">{buckCopy.sheetTitle}</SectionLabel>

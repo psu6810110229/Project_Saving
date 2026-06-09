@@ -96,14 +96,14 @@ export function Modal({
               role="dialog"
               aria-modal="true"
               aria-labelledby="modal-title"
-              className={`relative pointer-events-auto max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-bg p-4 shadow-neuRaised md:rounded-xl md:p-5 ${panelClassName}`}
+              className={`relative pointer-events-auto flex max-h-[60dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-bg p-4 shadow-neuRaised md:rounded-xl md:p-5 ${panelClassName}`}
               initial={{ opacity: 0, y: 28, scale: 0.95 }}
               animate={{ opacity: hidden ? 0 : 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 14, scale: 0.97 }}
               transition={SPRING.modal}
             >
-              <div>
-                <header className={`mb-4 flex items-center justify-between gap-3 ${headerClassName}`}>
+              <div className="flex min-h-0 flex-1 flex-col">
+                <header className={`mb-4 flex shrink-0 items-center justify-between gap-3 ${headerClassName}`}>
                   <h2 id="modal-title" className="min-w-0 flex-1 font-mono text-xl font-semibold text-ink">{title}</h2>
                   <div className="flex shrink-0 items-center gap-2">
                     {headerAccessory}
@@ -113,7 +113,7 @@ export function Modal({
                   </div>
                 </header>
                 <div
-                  className={bodyClasses}
+                  className={`min-h-0 flex-1 overflow-y-auto ${bodyClasses}`}
                   aria-busy={deferContentUntilOpen && !deferredContentReady ? true : undefined}
                 >
                   {deferContentUntilOpen ? (

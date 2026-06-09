@@ -28,6 +28,7 @@ interface VaultUpdatePreviewModalProps {
   streakUnit?: 'day' | 'week' | 'month';
   streakTrackable?: boolean;
   lastCheckedAt?: string | null;
+  planRemainsPaused?: boolean;
   onDone: () => void;
 }
 
@@ -51,6 +52,7 @@ export function VaultUpdatePreviewModal({
   streakUnit,
   streakTrackable,
   lastCheckedAt,
+  planRemainsPaused = false,
   onDone,
 }: VaultUpdatePreviewModalProps) {
   if (typeof document === 'undefined') return null;
@@ -93,6 +95,7 @@ export function VaultUpdatePreviewModal({
               streakUnit={streakUnit}
               streakTrackable={streakTrackable}
               lastCheckedAt={lastCheckedAt}
+              planRemainsPaused={planRemainsPaused}
               onDone={onDone}
             />
           </motion.section>
@@ -122,6 +125,7 @@ interface PreviewBodyProps {
   streakUnit?: 'day' | 'week' | 'month';
   streakTrackable?: boolean;
   lastCheckedAt?: string | null;
+  planRemainsPaused?: boolean;
   onDone: () => void;
 }
 
@@ -147,6 +151,7 @@ function PreviewBody({
   streakUnit,
   streakTrackable,
   lastCheckedAt,
+  planRemainsPaused = false,
   onDone,
 }: PreviewBodyProps) {
   const { copy, formatMoney } = useI18n();
@@ -203,9 +208,16 @@ function PreviewBody({
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent-teal/15 text-accent-teal">
           <IconCheck size={14} />
         </span>
-        <p className="font-mono text-sm font-bold tabular-nums text-ink">
-          {bucketName} · +{formatMoney(depositAmount)}
-        </p>
+        <div className="min-w-0">
+          <p className="truncate font-mono text-sm font-bold tabular-nums text-ink">
+            {bucketName} +{formatMoney(depositAmount)}
+          </p>
+          {planRemainsPaused && (
+            <p className="mt-0.5 font-mono text-[11px] leading-4 text-ink-muted">
+              {copy.addMoney.pausedDepositSuccess}
+            </p>
+          )}
+        </div>
       </div>
       <Button
         variant="action"

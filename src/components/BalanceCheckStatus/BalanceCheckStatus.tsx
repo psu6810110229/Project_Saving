@@ -26,6 +26,8 @@ interface BalanceCheckStatusProps {
   canAllocate?: boolean;
   /** Tap fallback for allocation (keyboard/touch/reduced-motion). */
   onAllocate?: () => void;
+  /** At least one deposit was recorded after the latest manual balance check. */
+  needsFreshCheck?: boolean;
 }
 
 type StatusOrbitTone = 'amber' | 'red' | 'green';
@@ -129,6 +131,7 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
   onSync,
   canAllocate = false,
   onAllocate,
+  needsFreshCheck = false,
 }: BalanceCheckStatusProps) {
   const { copy } = useI18n();
   const a = copy.reconcile.allocate;
@@ -136,6 +139,7 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
   const hasSurplus = unallocatedPool > 0.005;
   const hasShortfall = !hasSurplus && overAllocated > 0.005;
   const needsFirstCheck = !hasSurplus && !hasShortfall && latest === null;
+  const needsCheckAttention = !hasSurplus && !hasShortfall && (needsFirstCheck || needsFreshCheck);
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: ALLOCATION_DRAG_ID,
@@ -198,7 +202,7 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
   if (!hasSurplus) {
     return (
       <StatusCardShell
-        tone={needsFirstCheck ? 'amber' : null}
+        tone={needsCheckAttention ? 'amber' : null}
         className="rounded-xl bg-surface px-4 py-3 shadow-soft"
       >
         <div className="flex items-center gap-3">
@@ -213,14 +217,21 @@ export const BalanceCheckStatus = memo(function BalanceCheckStatus({
               {checkedText ? (
                 <>
                   <p className="min-w-0 truncate font-mono text-lg font-bold text-ink">{checkedText}</p>
-                  <p className="shrink-0 truncate font-mono-th text-xs font-semibold text-ink-muted">
-                    {a.cardMatched}
-                  </p>
+                  {!needsFreshCheck && (
+                    <p className="shrink-0 truncate font-mono-th text-xs font-semibold text-ink-muted">
+                      {a.cardMatched}
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="truncate font-mono-th text-xs text-ink-dim">{a.cardNeverChecked}</p>
               )}
             </div>
+            {checkedText && needsFreshCheck && (
+              <p className="mt-1 font-mono-th text-[11px] leading-snug text-brand-800">
+                {a.cardNeedsFreshCheck}
+              </p>
+            )}
             {!checkedText && (
               <p className="mt-1 font-mono-th text-[11px] leading-snug text-ink-muted">
                 {a.cardCheckIntro}

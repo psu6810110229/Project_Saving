@@ -84,6 +84,8 @@ interface MomentumChartProps {
 export interface MomentumBarMarker {
   categories: BucketCategory[];
   bucketNames?: string[];
+  positiveAmount?: number;
+  negativeAmount?: number;
   hasAdjustment?: boolean;
   hasNegativeAdjustment?: boolean;
   adjustmentAmount?: number;
@@ -288,9 +290,28 @@ function roundedTopBar(x: number, y: number, w: number, h: number, r: number): s
   ].join(' ');
 }
 
-function chartValue(value: number | undefined, marker?: MomentumBarMarker): number {
-  void marker;
-  return Math.max(0, value ?? 0);
+function roundedBottomBar(x: number, y: number, w: number, h: number, r: number): string {
+  const actualH = Math.max(h, 0);
+  if (actualH === 0) return '';
+  const actualR = Math.min(r, w / 2, actualH);
+  return [
+    `M ${x},${y}`,
+    `L ${x},${y + actualH - actualR}`,
+    `A ${actualR},${actualR} 0 0,0 ${x + actualR},${y + actualH}`,
+    `L ${x + w - actualR},${y + actualH}`,
+    `A ${actualR},${actualR} 0 0,0 ${x + w},${y + actualH - actualR}`,
+    `L ${x + w},${y}`,
+    'Z',
+  ].join(' ');
+}
+
+function chartValue(value: number | undefined): number {
+  return value ?? 0;
+}
+
+function fmtSignedShort(v: number): string {
+  if (v < 0) return `-${fmtShort(Math.abs(v))}`;
+  return fmtShort(v);
 }
 
 function formatDateKeyLabel(
@@ -401,14 +422,19 @@ export const MomentumChart = memo(function MomentumChart({
   // Drive the y-axis from the *animated* values so the axis labels,
   // grid lines, and trend line scale in sync with the bar tween instead
   // of snapping to the new mode's max.
-  const rawMax = useMemo(() => Math.max(
-      1,
-      ...animSeries.map((value, index) => chartValue(value, barMarkers?.[index])),
-      ...(animPartner ?? []).map((value, index) => chartValue(value, partnerBarMarkers?.[index])),
-    ), [animSeries, animPartner, barMarkers, partnerBarMarkers]);
-  // Cap the y-axis at 1.25× the tallest bar so the chart hugs the data
-  // and bars use more vertical space than a wide-rounded niceMax would.
-  const max = rawMax * 1.25;
+  const { min, max, hasNegativeValues } = useMemo(() => {
+    const values = [
+      ...animSeries.map(value => chartValue(value)),
+      ...(animPartner ?? []).map(value => chartValue(value)),
+    ];
+    const rawMax = Math.max(1, ...values);
+    const rawMin = Math.min(0, ...values);
+    return {
+      max: rawMax * 1.25,
+      min: rawMin < 0 ? rawMin * 1.25 : 0,
+      hasNegativeValues: rawMin < 0,
+    };
+  }, [animSeries, animPartner]);
 
   const barCount = series.length;
   // Wider gap in single-bar modes (Room / Me) so bars don't read as a
@@ -418,7 +444,6 @@ export const MomentumChart = memo(function MomentumChart({
     groupW,
     barW,
     chartH,
-    baselineY,
     groupStride,
     barLayouts,
   } = useMemo(() => {
@@ -428,7 +453,6 @@ export const MomentumChart = memo(function MomentumChart({
     const nextGroupW = (chartW - groupGap * Math.max(barCount - 1, 0)) / Math.max(barCount, 1);
     const nextBarW = hasPartner ? (nextGroupW - innerGap) / 2.8 : nextGroupW;
     const nextChartH = H - PAD_TOP - PAD_BOTTOM;
-    const nextBaselineY = PAD_TOP + nextChartH;
     const nextGroupStride = nextGroupW + groupGap;
     const pairW = hasPartner ? nextBarW * 2 + innerGap : nextBarW;
     const nextBarLayouts = Array.from({ length: barCount }, (_, index) => {
@@ -443,7 +467,6 @@ export const MomentumChart = memo(function MomentumChart({
       groupW: nextGroupW,
       barW: nextBarW,
       chartH: nextChartH,
-      baselineY: nextBaselineY,
       groupStride: nextGroupStride,
       barLayouts: nextBarLayouts,
     };
@@ -455,6 +478,11 @@ export const MomentumChart = memo(function MomentumChart({
     const groupX = PAD_LEFT + index * groupStride;
     return { groupX, partnerBarX: null, yourBarX: groupX };
   }, [barLayouts, groupStride]);
+  const valueRange = Math.max(1, max - min);
+  const valueToY = useCallback((value: number) => (
+    PAD_TOP + ((max - value) / valueRange) * chartH
+  ), [chartH, max, valueRange]);
+  const zeroY = valueToY(0);
 
   useLayoutEffect(() => {
     if (selectedIndex === null) return;
@@ -495,7 +523,13 @@ export const MomentumChart = memo(function MomentumChart({
         : yourTotal + partnerTotal),
     [displayedTotal, hasPartner, partnerTotal, weekTotal, yourTotal],
   );
-  const showEmptyState = !!emptyStateMessage && headerTotal <= 0;
+  const hasAnyChartActivity = useMemo(() => (
+    series.some(value => value !== 0)
+    || (hasPartner && (partnerSeries?.some(value => value !== 0) ?? false))
+    || (barMarkers?.some(marker => marker.hasAdjustment || marker.categories.length > 0) ?? false)
+    || (partnerBarMarkers?.some(marker => marker.hasAdjustment || marker.categories.length > 0) ?? false)
+  ), [barMarkers, hasPartner, partnerBarMarkers, partnerSeries, series]);
+  const showEmptyState = !!emptyStateMessage && !hasAnyChartActivity;
 
   // Overlay polyline coordinates — through the top-centre of every
   // "you" bar so the trend line traces the primary series. Uses the
@@ -503,10 +537,9 @@ export const MomentumChart = memo(function MomentumChart({
   const linePoints = useMemo(() => animSeries.map((v, i) => {
     const { yourBarX } = barLayoutAt(i);
     const yourX = yourBarX + barW / 2;
-    const yourH = (chartValue(v, barMarkers?.[i]) / max) * chartH;
-    const yourY = baselineY - yourH;
+    const yourY = valueToY(chartValue(v));
     return { x: yourX, y: yourY };
-  }), [animSeries, barLayoutAt, barMarkers, barW, baselineY, chartH, max]);
+  }), [animSeries, barLayoutAt, barW, valueToY]);
   const trendCurveD = useMemo(() => smoothPath(linePoints), [linePoints]);
 
   return (
@@ -596,11 +629,14 @@ export const MomentumChart = memo(function MomentumChart({
         <title>{d.chartTitle(false)}</title>
 
         {/* Horizontal grid */}
-        {GRID_FRACTIONS.map(t => {
-          const y = baselineY - t * chartH;
+        {(hasNegativeValues
+          ? [min, min / 2, 0, max / 2, max]
+          : GRID_FRACTIONS.map(t => t * max)
+        ).map(value => {
+          const y = valueToY(value);
           return (
             <line
-              key={t}
+              key={value}
               x1={PAD_LEFT}
               x2={W - PAD_RIGHT}
               y1={y}
@@ -614,15 +650,15 @@ export const MomentumChart = memo(function MomentumChart({
         <line
           x1={PAD_LEFT}
           x2={W - PAD_RIGHT}
-          y1={baselineY}
-          y2={baselineY}
+          y1={zeroY}
+          y2={zeroY}
           stroke="rgba(160,176,200,0.7)"
           strokeWidth={0.6}
         />
 
         {/* Y-axis labels — 0 / mid / max */}
-        {[0, max / 2, max].map((tick, i) => {
-          const y = baselineY - (tick / max) * chartH;
+        {(hasNegativeValues ? [min, 0, max] : [0, max / 2, max]).map((tick, i) => {
+          const y = valueToY(tick);
           return (
             <text
               key={`y-${i}`}
@@ -634,7 +670,7 @@ export const MomentumChart = memo(function MomentumChart({
               fontFamily={SVG_MONO}
               fill={palette.ink}
             >
-              {fmtShort(tick)}
+              {fmtSignedShort(tick)}
             </text>
           );
         })}
@@ -649,14 +685,18 @@ export const MomentumChart = memo(function MomentumChart({
           const partnerVal = hasPartner ? partnerSeries![i] : 0;
           const animV = animSeries[i] ?? 0;
           const animPartnerVal = animPartner?.[i] ?? 0;
-          const visualV = chartValue(animV, barMarkers?.[i]);
-          const visualPartnerVal = chartValue(animPartnerVal, partnerBarMarkers?.[i]);
-          const yourBarColor = primaryColor;
-          const partnerBarColor = secondaryColor;
-          const yourH = (visualV / max) * chartH;
-          const yourY = baselineY - yourH;
-          const partnerH = (visualPartnerVal / max) * chartH;
-          const partnerY = baselineY - partnerH;
+          const visualV = chartValue(animV);
+          const visualPartnerVal = chartValue(animPartnerVal);
+          const yourBarColor = visualV < 0 ? COLOR_ADJUSTMENT : primaryColor;
+          const partnerBarColor = visualPartnerVal < 0 ? COLOR_ADJUSTMENT : secondaryColor;
+          const yourValueY = valueToY(visualV);
+          const yourH = Math.abs(yourValueY - zeroY);
+          const yourY = Math.min(yourValueY, zeroY);
+          const partnerValueY = valueToY(visualPartnerVal);
+          const partnerH = Math.abs(partnerValueY - zeroY);
+          const partnerY = Math.min(partnerValueY, zeroY);
+          const yourLabelY = visualV < 0 ? zeroY + Math.max(yourH, 2) + 10 : yourY - 8;
+          const partnerLabelY = visualPartnerVal < 0 ? zeroY + Math.max(partnerH, 2) + 10 : partnerY - 8;
           const yourCenterX = yourBarX + barW / 2;
           const partnerCenterX = partnerBarX !== null ? partnerBarX + barW / 2 : 0;
           const dimmed = selectedIndex !== null && selectedIndex !== i;
@@ -665,10 +705,12 @@ export const MomentumChart = memo(function MomentumChart({
           return (
             <g key={i}>
               {/* Partner bar — left of the pair */}
-              {hasPartner && visualPartnerVal > 0 && (
+              {hasPartner && visualPartnerVal !== 0 && (
                 <g>
                   <path
-                    d={roundedTopBar(partnerBarX!, partnerY, barW, Math.max(partnerH, 2), barW / 2)}
+                    d={visualPartnerVal < 0
+                      ? roundedBottomBar(partnerBarX!, zeroY, barW, Math.max(partnerH, 2), barW / 2)
+                      : roundedTopBar(partnerBarX!, partnerY, barW, Math.max(partnerH, 2), barW / 2)}
                     fill={partnerBarColor}
                     opacity={barOpacity}
                     style={{ cursor: 'pointer' }}
@@ -680,15 +722,15 @@ export const MomentumChart = memo(function MomentumChart({
                   />
                 </g>
               )}
-              {hasPartner && partnerVal > 0 && (
+              {hasPartner && partnerVal !== 0 && (
                 <text
                   x={partnerCenterX}
-                  y={partnerY - 8}
+                  y={partnerLabelY}
                   textAnchor="middle"
                   fontSize="9"
                   fontWeight="200"
                   fontFamily={SVG_MONO}
-                  fill={secondaryColor}
+                  fill={partnerBarColor}
                   opacity={barOpacity}
                   style={{ cursor: 'pointer' }}
                   onPointerDown={(e) => {
@@ -697,15 +739,17 @@ export const MomentumChart = memo(function MomentumChart({
                     haptic('success');
                   }}
                 >
-                  {fmtShort(partnerVal)}
+                  {fmtSignedShort(partnerVal)}
                 </text>
               )}
 
               {/* You bar — right of the pair, or the only bar */}
-              {visualV > 0 && (
+              {visualV !== 0 && (
                 <g>
                   <path
-                    d={roundedTopBar(yourBarX, yourY, barW, Math.max(yourH, 2), barW / 2)}
+                    d={visualV < 0
+                      ? roundedBottomBar(yourBarX, zeroY, barW, Math.max(yourH, 2), barW / 2)
+                      : roundedTopBar(yourBarX, yourY, barW, Math.max(yourH, 2), barW / 2)}
                     fill={yourBarColor}
                     opacity={barOpacity}
                     style={{ cursor: 'pointer' }}
@@ -717,15 +761,15 @@ export const MomentumChart = memo(function MomentumChart({
                   />
                 </g>
               )}
-              {v > 0 && (
+              {v !== 0 && (
                 <text
                   x={yourCenterX}
-                  y={yourY - 8}
+                  y={yourLabelY}
                   textAnchor="middle"
                   fontSize="10"
                   fontWeight="500"
                   fontFamily={SVG_MONO}
-                  fill={primaryColor}
+                  fill={yourBarColor}
                   opacity={barOpacity}
                   style={{ cursor: 'pointer' }}
                   onPointerDown={(e) => {
@@ -734,7 +778,7 @@ export const MomentumChart = memo(function MomentumChart({
                     haptic('success');
                   }}
                 >
-                  {fmtShort(v)}
+                  {fmtSignedShort(v)}
                 </text>
               )}
 
@@ -745,8 +789,18 @@ export const MomentumChart = memo(function MomentumChart({
                   y={partnerY}
                   h={partnerH}
                   barW={barW}
-                  baselineY={baselineY}
+                  baselineY={zeroY}
                   categoryLabels={catLabels}
+                  opacity={barOpacity}
+                />
+              )}
+              {hasPartner && (
+                <AdjustmentBadge
+                  marker={partnerBarMarkers?.[i]}
+                  centerX={partnerCenterX}
+                  y={partnerY}
+                  h={partnerH}
+                  baselineY={zeroY}
                   opacity={barOpacity}
                 />
               )}
@@ -756,7 +810,7 @@ export const MomentumChart = memo(function MomentumChart({
                 y={yourY}
                 h={yourH}
                 barW={barW}
-                baselineY={baselineY}
+                baselineY={zeroY}
                 categoryLabels={catLabels}
                 opacity={barOpacity}
               />
@@ -765,7 +819,7 @@ export const MomentumChart = memo(function MomentumChart({
                 centerX={yourCenterX}
                 y={yourY}
                 h={yourH}
-                baselineY={baselineY}
+                baselineY={zeroY}
                 opacity={barOpacity}
               />
 
@@ -853,11 +907,11 @@ export const MomentumChart = memo(function MomentumChart({
             const partnerMarker = partnerBarMarkers?.[i];
             const { groupX } = barLayoutAt(i);
             const anchorX = groupX + groupW / 2;
-            const yourH = (chartValue(v, marker) / max) * chartH;
-            const yourY = baselineY - yourH;
-            const partnerH = (chartValue(partnerVal, partnerMarker) / max) * chartH;
-            const partnerY = baselineY - partnerH;
-            const topBarY = hasPartner ? Math.min(yourY, partnerY) : yourY;
+            const yourValueY = valueToY(chartValue(v));
+            const yourY = Math.min(yourValueY, zeroY);
+            const partnerValueY = valueToY(chartValue(partnerVal));
+            const partnerY = Math.min(partnerValueY, zeroY);
+            const topBarY = Math.min(hasPartner ? Math.min(yourY, partnerY) : yourY, zeroY);
             const yourCategoryText = markerCategoryText(marker, catLabels);
             const partnerCategoryText = markerCategoryText(partnerMarker, catLabels);
             const fullDateLabel = formatDateKeyLabel(
@@ -911,6 +965,22 @@ export const MomentumChart = memo(function MomentumChart({
                           <span>{yourCategoryText}</span>
                         </div>
                       )}
+                      {marker && (marker.positiveAmount ?? 0) > 0 && (marker.negativeAmount ?? 0) < 0 && (
+                        <div className="mt-1 grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 text-[10px] leading-[1.45] text-ink-muted">
+                          <span>{d.dailyDepositPositiveMovement}</span>
+                          <span className="font-mono font-bold text-accent-leaf">{formatCurrency(marker.positiveAmount ?? 0)}</span>
+                          <span>{d.dailyDepositNegativeMovement}</span>
+                          <span className="font-mono font-bold text-danger">{formatCurrency(marker.negativeAmount ?? 0)}</span>
+                        </div>
+                      )}
+                      {marker?.hasAdjustment && typeof marker.adjustmentAmount === 'number' && (
+                        <div className="mt-1 grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 text-[10px] leading-[1.45] text-ink-muted">
+                          <span className="font-mono font-semibold text-ink-dim">{d.dailyDepositAdjustment}</span>
+                          <span className={marker.adjustmentAmount < 0 ? 'font-mono font-bold text-danger' : 'font-mono font-bold text-accent-leaf'}>
+                            {formatCurrency(marker.adjustmentAmount)}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {hasPartner && (
@@ -927,6 +997,22 @@ export const MomentumChart = memo(function MomentumChart({
                           <div className="mt-1 text-[10px] leading-[1.45] text-ink-muted">
                             <span className="font-mono font-semibold text-ink-dim">{language === 'th' ? 'หมวด' : 'Category'}</span>{' '}
                             <span>{partnerCategoryText}</span>
+                          </div>
+                        )}
+                        {partnerMarker && (partnerMarker.positiveAmount ?? 0) > 0 && (partnerMarker.negativeAmount ?? 0) < 0 && (
+                          <div className="mt-1 grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 text-[10px] leading-[1.45] text-ink-muted">
+                            <span>{d.dailyDepositPositiveMovement}</span>
+                            <span className="font-mono font-bold text-accent-leaf">{formatCurrency(partnerMarker.positiveAmount ?? 0)}</span>
+                            <span>{d.dailyDepositNegativeMovement}</span>
+                            <span className="font-mono font-bold text-danger">{formatCurrency(partnerMarker.negativeAmount ?? 0)}</span>
+                          </div>
+                        )}
+                        {partnerMarker?.hasAdjustment && typeof partnerMarker.adjustmentAmount === 'number' && (
+                          <div className="mt-1 grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 text-[10px] leading-[1.45] text-ink-muted">
+                            <span className="font-mono font-semibold text-ink-dim">{d.dailyDepositAdjustment}</span>
+                            <span className={partnerMarker.adjustmentAmount < 0 ? 'font-mono font-bold text-danger' : 'font-mono font-bold text-accent-leaf'}>
+                              {formatCurrency(partnerMarker.adjustmentAmount)}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -965,8 +1051,9 @@ interface AdjustmentBadgeProps {
 }
 
 function AdjustmentBadge({ marker, centerX, y, h, baselineY, opacity }: AdjustmentBadgeProps) {
-  if (!marker?.hasNegativeAdjustment) return null;
+  if (!marker?.hasAdjustment) return null;
   const cy = h > 0 ? Math.max(PAD_TOP + 7, y - 8) : baselineY - 10;
+  const negative = marker.hasNegativeAdjustment;
 
   return (
     <g opacity={opacity} style={{ pointerEvents: 'none' }}>
@@ -974,8 +1061,8 @@ function AdjustmentBadge({ marker, centerX, y, h, baselineY, opacity }: Adjustme
         cx={centerX}
         cy={cy}
         r={6}
-        fill="#FFF6E8"
-        stroke={COLOR_ADJUSTMENT}
+        fill={negative ? '#FFF6E8' : '#F0F8EC'}
+        stroke={negative ? COLOR_ADJUSTMENT : '#5B8F55'}
         strokeWidth={1.25}
       />
       <text
@@ -985,9 +1072,9 @@ function AdjustmentBadge({ marker, centerX, y, h, baselineY, opacity }: Adjustme
         fontSize="9"
         fontWeight="900"
         fontFamily={SVG_MONO}
-        fill={COLOR_ADJUSTMENT}
+        fill={negative ? COLOR_ADJUSTMENT : '#47783F'}
       >
-        !
+        {negative ? '!' : '+'}
       </text>
     </g>
   );

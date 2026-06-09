@@ -13,11 +13,11 @@ import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useSharedData } from '../hooks/useSharedData';
 import { useI18n } from '../i18n/useI18n';
 import { formatCurrency } from '../lib/format';
+import { isFixedScheduleAnchorDate } from '../lib/fixedSavingSchedule';
 import { haptic } from '../lib/haptics';
 import {
   activeRevisionAt,
   addDays,
-  daysBetween,
   daysInclusive,
   plannedCumulativeThroughDate,
   projectedCompletionDate,
@@ -349,20 +349,19 @@ export function SavingPlan() {
     if (ruleType === 'fixed_weekly') {
       const amountNum = Number(amount);
       if (!amountNum || amountNum <= 0) return undefined;
-      const ref = todayBangkokKey();
+      const ref = planStartDate || todayBangkokKey();
       return (dateKey: string) => {
-        const diff = daysBetween(ref, dateKey);
-        if (diff < 0) return undefined;
-        return diff % 7 === 0 ? amountNum : undefined;
+        if (dateKey < ref) return undefined;
+        return isFixedScheduleAnchorDate(ref, dateKey, 'fixed_weekly') ? amountNum : undefined;
       };
     }
     if (ruleType === 'fixed_monthly') {
       const amountNum = Number(amount);
       if (!amountNum || amountNum <= 0) return undefined;
-      const refDay = Number(todayBangkokKey().split('-')[2]);
+      const ref = planStartDate || todayBangkokKey();
       return (dateKey: string) => {
-        const d = Number(dateKey.split('-')[2]);
-        return d === refDay && dateKey >= todayBangkokKey() ? amountNum : undefined;
+        if (dateKey < ref) return undefined;
+        return isFixedScheduleAnchorDate(ref, dateKey, 'fixed_monthly') ? amountNum : undefined;
       };
     }
     return undefined;

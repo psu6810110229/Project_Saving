@@ -1,29 +1,16 @@
 import type {
   Bucket,
   BucketCategory,
+  BucketPlanPause,
   BucketTransfer,
   DailySummaryItem,
   SavingRuleType,
   SavingsLog,
 } from '../types';
-import { addDays, daysBetween, todayBangkokKey } from './savingPlan';
+import { daysBetween, todayBangkokKey } from './savingPlan';
 import { calcBucketFocusStates } from './bucketFocus';
-
-function weekEnd(dateKey: string): string {
-  const [y, m, d] = dateKey.split('-').map(Number);
-  const utc = new Date(Date.UTC(y, m - 1, d));
-  const dow = utc.getUTCDay();
-  const isoDow = dow === 0 ? 7 : dow;
-  return addDays(dateKey, 7 - isoDow);
-}
-
-function monthEnd(dateKey: string): string {
-  const [y, m] = dateKey.split('-').map(Number);
-  const last = new Date(Date.UTC(y, m, 0));
-  const dd = String(last.getUTCDate()).padStart(2, '0');
-  const mm = String(m).padStart(2, '0');
-  return `${y}-${mm}-${dd}`;
-}
+import { isBucketPausedOnDate } from './bucketPlanPause';
+import { fixedSchedulePeriodForDate } from './fixedSavingSchedule';
 
 function depositsInRange(
   bucketId: string,
@@ -69,6 +56,7 @@ export function calcDailySummary(
   logs: SavingsLog[],
   today?: string,
   transfers?: BucketTransfer[],
+  pauses: BucketPlanPause[] = [],
 ): DailySummaryItem[] {
   const todayKey = today ?? todayBangkokKey();
   const active = buckets.filter(b => b.archived_at == null);
@@ -81,6 +69,7 @@ export function calcDailySummary(
 
     const rule: SavingRuleType = b.saving_rule_type ?? 'flexible';
     const category: BucketCategory = b.category ?? 'other';
+    const pausedToday = isBucketPausedOnDate(pauses, b.id, todayKey);
 
     let amountDue: number | null = null;
     let periodLabel: string;
@@ -96,20 +85,32 @@ export function calcDailySummary(
         break;
       }
       case 'fixed_weekly': {
-        const end = weekEnd(todayKey);
-        const start = addDays(end, -6);
-        const weekDeposits = depositsInRange(b.id, logs, start, end, transfers);
+        const scheduleStart = b.saving_rule_start_date ?? b.created_at.slice(0, 10);
+        const period = fixedSchedulePeriodForDate(scheduleStart, todayKey, 'fixed_weekly');
+        if (!period) {
+          amountDue = null;
+          periodLabel = 'this week';
+          periodDeadline = null;
+          break;
+        }
+        const weekDeposits = depositsInRange(b.id, logs, period.start, period.end, transfers);
         const weekly = b.saving_rule_amount ?? 0;
         const remaining = weekly - weekDeposits;
         amountDue = remaining > 0 ? remaining : null;
         periodLabel = 'this week';
-        periodDeadline = end;
+        periodDeadline = period.end;
         break;
       }
       case 'fixed_monthly': {
-        const end = monthEnd(todayKey);
-        const start = todayKey.slice(0, 8) + '01';
-        const monthDeposits = depositsInRange(b.id, logs, start, end, transfers);
+        const scheduleStart = b.saving_rule_start_date ?? b.created_at.slice(0, 10);
+        const period = fixedSchedulePeriodForDate(scheduleStart, todayKey, 'fixed_monthly');
+        if (!period) {
+          amountDue = null;
+          periodLabel = 'this month';
+          periodDeadline = null;
+          break;
+        }
+        const monthDeposits = depositsInRange(b.id, logs, period.start, period.end, transfers);
         const monthly = b.saving_rule_amount ?? 0;
         const remaining = monthly - monthDeposits;
         if (remaining > 0) {
@@ -129,7 +130,7 @@ export function calcDailySummary(
           amountDue = null;
           periodLabel = 'this month';
         }
-        periodDeadline = end;
+        periodDeadline = period.end;
         break;
       }
       case 'increasing_daily':
@@ -157,6 +158,22 @@ export function calcDailySummary(
         periodDeadline = null;
         break;
       }
+    }
+
+    // Fixed rules now honour a future start date (migration 0081): nothing is
+    // due before the plan begins. Falls back to created_at so existing buckets
+    // (start_date null) keep charging from today as before.
+    if (rule === 'fixed_daily' || rule === 'fixed_weekly' || rule === 'fixed_monthly') {
+      const scheduleStart = b.saving_rule_start_date ?? b.created_at.slice(0, 10);
+      if (todayKey < scheduleStart) {
+        amountDue = null;
+        periodDeadline = null;
+      }
+    }
+
+    if (pausedToday) {
+      amountDue = null;
+      periodDeadline = null;
     }
 
     items.push({

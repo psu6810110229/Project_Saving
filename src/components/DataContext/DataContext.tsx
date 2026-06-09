@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useBalanceAllocations } from '../../hooks/useBalanceAllocations';
+import { useBucketPlanPauses } from '../../hooks/useBucketPlanPauses';
 import { useBuckets } from '../../hooks/useBuckets';
 import { useBucketActivityEvents } from '../../hooks/useBucketActivityEvents';
 import { useBucketTransfers } from '../../hooks/useBucketTransfers';
@@ -25,6 +26,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const { user } = useAuth();
   const profile = useProfile();
   const buckets = useBuckets(roomId);
+  const bucketPlanPauses = useBucketPlanPauses(roomId);
   const bucketTransfers = useBucketTransfers(roomId);
   const balanceAllocations = useBalanceAllocations(roomId);
   const bucketActivityEvents = useBucketActivityEvents(roomId);
@@ -32,11 +34,19 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const streakFreeze = useStreakFreeze(user?.id);
   const reconcile = useReconcile(roomId);
   const roomVisibleMomentumFlows = useRoomVisibleMomentumFlows(roomId);
-  // Feed the current user's Verified Balance (deposits + reconcile
+  // Feed the current user's app ledger total (deposits + reconcile
   // adjustments) into the leaderboard so their card/%/rank and the room
-  // total stay consistent with Check Balance. Other members keep recorded
-  // deposits since their verified balance is private.
-  const leaderboard = useLeaderboard(user?.id, roomId, streakFreeze.frozenDates, reconcile.appBalance);
+  // total stay consistent with their own current app total. Other members
+  // keep recorded deposits since their private balance-check data stays private.
+  const leaderboard = useLeaderboard(
+    user?.id,
+    roomId,
+    streakFreeze.frozenDates,
+    reconcile.appBalance,
+    buckets.buckets,
+    bucketTransfers.transfers,
+    bucketPlanPauses.pauses,
+  );
   const goal = useGoal(roomId);
 
   // N-safe per-member data layer. The plural fields below are the
@@ -59,6 +69,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const refetchRef = useRef({
     logs: logs.refetch,
     buckets: buckets.refetch,
+    bucketPlanPauses: bucketPlanPauses.refetch,
     goal: goal.refetch,
     profile: profile.refetch,
     reconcile: reconcile.refetch,
@@ -70,6 +81,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     refetchRef.current = {
       logs: logs.refetch,
       buckets: buckets.refetch,
+      bucketPlanPauses: bucketPlanPauses.refetch,
       goal: goal.refetch,
       profile: profile.refetch,
       reconcile: reconcile.refetch,
@@ -87,6 +99,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     await Promise.allSettled([
       r.logs(),
       r.buckets(),
+      r.bucketPlanPauses(),
       r.goal(),
       r.profile(),
       r.reconcile(),
@@ -101,6 +114,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     () => ({
       profile,
       buckets,
+      bucketPlanPauses,
       bucketTransfers,
       balanceAllocations,
       bucketActivityEvents,
@@ -122,6 +136,7 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
     [
       profile,
       buckets,
+      bucketPlanPauses,
       bucketTransfers,
       balanceAllocations,
       bucketActivityEvents,

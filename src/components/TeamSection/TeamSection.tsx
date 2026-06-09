@@ -6,7 +6,7 @@ import { LeaderProgressRing } from '../LeaderProgressRing/LeaderProgressRing';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { ProgressRing } from '../ProgressRing/ProgressRing';
 import { useI18n } from '../../i18n/useI18n';
-import { formatCurrency } from '../../lib/format';
+import { formatCompactAmount, formatCurrency } from '../../lib/format';
 import { SPRING } from '../../lib/motion';
 import { themeSwatches, type ThemeSwatch } from '../../lib/theme';
 
@@ -222,20 +222,6 @@ export const TeamSection = memo(function TeamSection({
     </section>
   );
 });
-
-function formatCompactAmount(value: number): string {
-  const abs = Math.abs(value);
-  if (abs >= 1000) {
-    const compact = new Intl.NumberFormat('en', {
-      notation: 'compact',
-      maximumFractionDigits: abs >= 100000 ? 0 : 1,
-    }).format(value);
-    return compact.toLowerCase();
-  }
-  return new Intl.NumberFormat('en', {
-    maximumFractionDigits: value % 1 === 0 ? 0 : 1,
-  }).format(value);
-}
 
 function Spotlight({ className = '' }: { className?: string }) {
   return (

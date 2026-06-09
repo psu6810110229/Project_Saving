@@ -15,6 +15,8 @@ export interface MomentumDayMarker {
   categories: BucketCategory[];
   bucketIds: string[];
   bucketNames: string[];
+  positiveAmount?: number;
+  negativeAmount?: number;
   hasAdjustment?: boolean;
   hasNegativeAdjustment?: boolean;
   adjustmentAmount?: number;
@@ -97,12 +99,18 @@ export function purposeDailyMarkers(
   return keys.map(key => {
     const categories = new Set<BucketCategory>();
     const buckets = new Map<string, string>();
+    const marker: MomentumDayMarker = {
+      categories: [],
+      bucketIds: [],
+      bucketNames: [],
+    };
 
     for (const log of filtered) {
       if (userId && log.user_id !== userId) continue;
       if (localDateKey(log.created_at) !== key) continue;
       if (!log.bucket_id) continue;
 
+      addSignedAmountToMarker(marker, log.amount);
       const bucket = visibleBucketsById.get(log.bucket_id);
       if (!bucket) continue;
       categories.add(normalizeBucketCategory(bucket.category));
@@ -115,11 +123,10 @@ export function purposeDailyMarkers(
       }
     }
 
-    return {
-      categories: BUCKET_CATEGORY_ORDER.filter(cat => categories.has(cat)),
-      bucketIds: Array.from(buckets.keys()),
-      bucketNames: Array.from(buckets.values()),
-    };
+    marker.categories = BUCKET_CATEGORY_ORDER.filter(cat => categories.has(cat));
+    marker.bucketIds = Array.from(buckets.keys());
+    marker.bucketNames = Array.from(buckets.values());
+    return marker;
   });
 }
 
@@ -143,7 +150,13 @@ export function purposeNetDailyMarkers(
     if (index === undefined) continue;
 
     addBucketToMarker(markers[index], transfer.destination_bucket_id, scope, visibleBucketsById, options, transfer.user_id);
+    if (bucketMatchesScope(transfer.destination_bucket_id, scope, visibleBucketsById)) {
+      addSignedAmountToMarker(markers[index], transfer.amount);
+    }
     addBucketToMarker(markers[index], transfer.source_bucket_id, scope, visibleBucketsById, options, transfer.user_id);
+    if (bucketMatchesScope(transfer.source_bucket_id, scope, visibleBucketsById)) {
+      addSignedAmountToMarker(markers[index], -transfer.amount);
+    }
   }
 
   for (const allocation of allocations) {
@@ -153,6 +166,7 @@ export function purposeNetDailyMarkers(
     if (index === undefined) continue;
 
     const marker = markers[index];
+    addSignedAmountToMarker(marker, allocation.amount);
     marker.hasAdjustment = true;
     marker.hasNegativeAdjustment = marker.hasNegativeAdjustment || allocation.amount < 0;
     marker.adjustmentAmount = Math.round(((marker.adjustmentAmount ?? 0) + allocation.amount) * 100) / 100;
@@ -212,12 +226,21 @@ export function purposeVisibleFlowDailyMarkers(
       marker.hasNegativeAdjustment = marker.hasNegativeAdjustment || flow.amount < 0;
       marker.adjustmentAmount = Math.round(((marker.adjustmentAmount ?? 0) + flow.amount) * 100) / 100;
     }
+    addSignedAmountToMarker(marker, flow.amount);
     if (flow.bucket_id) {
       addBucketToMarker(marker, flow.bucket_id, scope, visibleBucketsById, options, flow.user_id);
     }
   }
 
   return markers;
+}
+
+function addSignedAmountToMarker(marker: MomentumDayMarker, amount: number) {
+  if (amount > 0) {
+    marker.positiveAmount = Math.round(((marker.positiveAmount ?? 0) + amount) * 100) / 100;
+  } else if (amount < 0) {
+    marker.negativeAmount = Math.round(((marker.negativeAmount ?? 0) + amount) * 100) / 100;
+  }
 }
 
 function filterLogsByPurpose(

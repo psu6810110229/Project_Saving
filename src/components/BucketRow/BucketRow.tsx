@@ -1,14 +1,20 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
-import { formatCurrency } from '../../lib/format';
+import { formatCompactAmount, formatPlainNumber } from '../../lib/format';
 import Pressable from '../Pressable/Pressable';
 import { useAnimatedNumbers } from '../../hooks/useAnimatedNumber';
 import { useI18n } from '../../i18n/useI18n';
 import { useSecondaryMotionReady } from '../../lib/animationBudget';
-import { IconArrowUpRight, IconCheckCircle, IconClock, IconClockAlert, IconWarning } from '../Icon/Icon';
+import { IconArrowUpRight, IconCheckCircle, IconClock, IconClockAlert, IconPauseCircle, IconWarning } from '../Icon/Icon';
 import { CATEGORY_ACCENT, DEFAULT_ACCENT } from '../../lib/bucketAccent';
 import type { BucketCategory, PaceStatus } from '../../types';
+
+export interface BucketRowPauseState {
+  isPaused: boolean;
+  originalDeadlineLabel?: string | null;
+  resumeDailyLabel?: string | null;
+}
 
 interface BucketRowProps {
   icon: ReactNode;
@@ -29,6 +35,7 @@ interface BucketRowProps {
     status: PaceStatus;
     remainingDays: number;
   } | null;
+  pause?: BucketRowPauseState | null;
 }
 
 const REDUCED_MOTION =
@@ -63,9 +70,12 @@ export const BucketRow = memo(function BucketRow({
   completedAt,
   variant = 'default',
   pace,
+  pause,
 }: BucketRowProps) {
   const pct = target > 0 ? (saved / target) * 100 : 0;
   const [animSaved, animTarget, animPct] = useAnimatedNumbers([saved, target, pct]);
+  const savedPreview = Math.abs(animSaved) > 999 ? formatCompactAmount(Math.round(animSaved)) : formatPlainNumber(Math.round(animSaved));
+  const targetPreview = formatPlainNumber(Math.round(animTarget));
   const wasComplete = useRef(target > 0 && saved >= target);
   const { copy, formatShortDateKey } = useI18n();
   const secondaryMotionReady = useSecondaryMotionReady();
@@ -79,7 +89,8 @@ export const BucketRow = memo(function BucketRow({
     wasComplete.current = isComplete;
   }, [saved, target]);
 
-  const hasDeadlineInfo = deadline != null && pace != null;
+  const isPaused = Boolean(pause?.isPaused);
+  const hasDeadlineInfo = !isPaused && deadline != null && pace != null;
   const paceConfig = pace ? PACE_CONFIG[pace.status] : null;
   const CountdownIcon = pace && pace.remainingDays <= 7 ? IconClockAlert : IconClock;
   const countdownIconClass = pace && pace.remainingDays <= 7 ? 'text-danger' : 'text-ink-dim';
@@ -90,6 +101,13 @@ export const BucketRow = memo(function BucketRow({
     : 'paceCritical'
   ] : null;
   const completedDateLabel = completedAt ? formatShortDateKey(completedAt.slice(0, 10)) : status?.label;
+  const pausedCardStyle = isPaused
+    ? {
+        borderColor: accent.border,
+        background: `linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, ${accent.tint} 100%)`,
+        filter: 'saturate(0.1)',
+      }
+    : { borderColor: accent.border };
 
   // Focus ("ลำดับปัจจุบัน") and next ("ลำดับถัดไป") cards alternate their corner
   // between the badge and the percentage every 2s; static if reduced motion is on.
@@ -126,10 +144,10 @@ export const BucketRow = memo(function BucketRow({
           <p className="truncate font-mono text-sm font-bold leading-tight text-ink">{name}</p>
           <p className="mt-1 flex min-w-0 items-baseline gap-1 font-mono leading-none">
             <span className="shrink-0 whitespace-nowrap text-sm font-bold" style={{ color: accent.accent }}>
-              {formatCurrency(Math.round(animSaved))}
+              {savedPreview}
             </span>
             <span className="truncate text-[11px] text-ink-dim">
-              / {formatCurrency(Math.round(animTarget))}
+              / {targetPreview}
             </span>
           </p>
         </div>
@@ -146,7 +164,7 @@ export const BucketRow = memo(function BucketRow({
     <Pressable
       onClick={onClick}
       className="relative flex aspect-square w-full flex-col rounded-2xl border-[1.5px] bg-surface p-4 text-left shadow-soft"
-      style={{ borderColor: accent.border }}
+      style={pausedCardStyle}
     >
       {showBadge ? (
         <span
@@ -177,10 +195,10 @@ export const BucketRow = memo(function BucketRow({
         <p className="truncate font-mono text-sm font-bold leading-tight text-ink">{name}</p>
         <p className="mt-1 flex min-w-0 items-baseline gap-1 font-mono leading-none">
           <span className="shrink-0 whitespace-nowrap text-lg font-bold" style={{ color: accent.accent }}>
-            {formatCurrency(Math.round(animSaved))}
+            {savedPreview}
           </span>
           <span className="truncate text-xs text-ink-dim">
-            / {formatCurrency(Math.round(animTarget))}
+            / {targetPreview}
           </span>
         </p>
       </div>
@@ -189,19 +207,29 @@ export const BucketRow = memo(function BucketRow({
         <ProgressBar value={animPct} tone="theme" themeHex={accent.accent} size="sm" className="bg-well" />
       </div>
 
-      {hasDeadlineInfo && paceConfig && (
-        <div className="bucket-card-meta mt-auto flex w-full items-center justify-between gap-1.5 pt-2 font-mono text-[10px] leading-tight">
-          <span className="flex min-w-0 items-center gap-1 whitespace-nowrap">
-            <CountdownIcon size={12} className={`shrink-0 ${countdownIconClass}`} />
-            <CountdownLabel remainingDays={pace!.remainingDays} copy={copy} />
-          </span>
-          <span aria-hidden="true" className="h-3 w-px shrink-0 bg-well" />
-          <span className={`flex min-w-0 items-center gap-1 whitespace-nowrap font-bold ${paceConfig.className}`}>
-            <paceConfig.Icon size={12} className="shrink-0" />
-            {paceLabel}
-          </span>
-        </div>
-      )}
+      <div className="bucket-card-meta mt-auto min-h-[28px] pt-2">
+        {isPaused && (
+          <div className="flex justify-center">
+            <span className="inline-flex items-center gap-1 rounded-pill border border-white/90 bg-surface/95 px-2.5 py-0.5 font-mono-th text-[10px] font-semibold leading-tight text-ink shadow-soft">
+              <IconPauseCircle size={11} className="shrink-0 text-ink-muted" />
+              {copy.bucketCard.pausedPill}
+            </span>
+          </div>
+        )}
+        {!isPaused && hasDeadlineInfo && paceConfig && (
+          <div className="flex w-full items-center justify-between gap-1.5 font-mono text-[10px] leading-tight">
+            <span className="flex min-w-0 items-center gap-1 whitespace-nowrap">
+              <CountdownIcon size={12} className={`shrink-0 ${countdownIconClass}`} />
+              <CountdownLabel remainingDays={pace!.remainingDays} copy={copy} />
+            </span>
+            <span aria-hidden="true" className="h-3 w-px shrink-0 bg-well" />
+            <span className={`flex min-w-0 items-center gap-1 whitespace-nowrap font-bold ${paceConfig.className}`}>
+              <paceConfig.Icon size={12} className="shrink-0" />
+              {paceLabel}
+            </span>
+          </div>
+        )}
+      </div>
     </Pressable>
   );
 });

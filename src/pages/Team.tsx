@@ -340,7 +340,13 @@ export function Team() {
       };
     }
   }, [effectiveTrendMode, roomDailySeries, roomWeekTotal, roomDailyMarkers, meDailySeries, weekRecordedTotal, meDailyMarkers, compareSelectedSeries, compareSelectedEntry?.displayName, d.partnerLabel, compareSelectedTotal, compareSelectedMarkers, d.dailyDepositModeRoom, d.dailyDepositModeMe]);
-  const selectedPurposeEmptyMessage = purposeScope.kind === 'all' || chartDisplayedTotal > 0
+  const chartHasAnyMovement = useMemo(() => (
+    chartSeries.some(value => value !== 0)
+    || (chartPartnerSeries?.some(value => value !== 0) ?? false)
+    || chartBarMarkers.some(marker => marker.categories.length > 0 || marker.hasAdjustment)
+    || (chartPartnerBarMarkers?.some(marker => marker.categories.length > 0 || marker.hasAdjustment) ?? false)
+  ), [chartBarMarkers, chartPartnerBarMarkers, chartPartnerSeries, chartSeries]);
+  const selectedPurposeEmptyMessage = purposeScope.kind === 'all' || chartHasAnyMovement
     ? undefined
     : purposeScope.kind === 'bucket'
       ? `No deposits for ${visibleBucketsById.get(purposeScope.bucketId)?.name ?? d.savingsFallback} in ${d.last7Days}.`

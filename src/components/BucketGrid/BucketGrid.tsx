@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from 'react';
-import { BucketRow } from '../BucketRow/BucketRow';
+import { BucketRow, type BucketRowPauseState } from '../BucketRow/BucketRow';
 import { Button } from '../Button/Button';
 import type { BucketCategory } from '../../types';
 
@@ -20,6 +20,7 @@ export interface BucketGridItem {
     status: 'ahead' | 'on_track' | 'behind' | 'critical';
     remainingDays: number;
   } | null;
+  pause?: BucketRowPauseState | null;
 }
 
 interface BucketGridProps {
@@ -99,6 +100,7 @@ export const BucketGrid = memo(function BucketGrid({
               deadline={bucket.deadline}
               completedAt={bucket.completedAt}
               pace={bucket.pace}
+              pause={bucket.pause}
               onClick={() => onBucketClick?.(bucket.id)}
             />
           )

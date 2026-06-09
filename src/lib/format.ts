@@ -2,6 +2,27 @@ export function formatCurrency(n: number): string {
   return '฿' + n.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+export function formatCompactAmount(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1000) {
+    const compact = new Intl.NumberFormat('en', {
+      notation: 'compact',
+      maximumFractionDigits: abs >= 100000 ? 0 : 1,
+    }).format(value);
+    return compact.toLowerCase();
+  }
+  return new Intl.NumberFormat('en', {
+    maximumFractionDigits: value % 1 === 0 ? 0 : 1,
+  }).format(value);
+}
+
+export function formatPlainNumber(value: number): string {
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: Number.isInteger(value) ? 0 : 1,
+  });
+}
+
 export function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);

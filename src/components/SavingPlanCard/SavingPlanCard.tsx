@@ -67,6 +67,8 @@ interface SavingPlanCardProps {
    */
   bucketSummaryItems?: DailySummaryItem[];
   hasBucketRules?: boolean;
+  pausedBucketCount?: number;
+  allFocusBucketsPaused?: boolean;
   onDeposit?: () => void;
   compact?: boolean;
 }
@@ -167,6 +169,8 @@ export const SavingPlanCard = memo(function SavingPlanCard({
   progressPct = 0,
   bucketSummaryItems,
   hasBucketRules = false,
+  pausedBucketCount = 0,
+  allFocusBucketsPaused = false,
   onDeposit,
   compact = false,
 }: SavingPlanCardProps) {
@@ -221,8 +225,8 @@ export const SavingPlanCard = memo(function SavingPlanCard({
   }
 
   if (bucketSummaryItems) {
-    const totalDueToday = dailyRuleDueTotal(bucketSummaryItems);
-    const hasItems = bucketSummaryItems.length > 0;
+    const totalDueToday = allFocusBucketsPaused ? 0 : dailyRuleDueTotal(bucketSummaryItems);
+    const hasItems = !allFocusBucketsPaused && bucketSummaryItems.length > 0;
 
     return (
       <section className="rounded-xl border border-white/60 bg-surface p-5 shadow-soft">
@@ -233,13 +237,20 @@ export const SavingPlanCard = memo(function SavingPlanCard({
             </h2>
             <p className="mt-1 font-mono text-sm font-bold text-ink-muted">
               {hasBucketRules
-                ? hasItems
+                ? allFocusBucketsPaused
+                  ? d.bucketPlanAllPaused
+                  : hasItems
                   ? d.bucketPlanFocusCount(bucketSummaryItems.length)
                   : d.bucketPlanNoFocus
                 : d.bucketPlanSetupPrompt}
             </p>
+            {pausedBucketCount > 0 && !allFocusBucketsPaused && (
+              <p className="mt-1 font-mono text-xs text-accent-slate">
+                {d.bucketPlanPausedCount(pausedBucketCount)}
+              </p>
+            )}
           </div>
-          {onDeposit && hasItems && (
+          {onDeposit && (hasItems || allFocusBucketsPaused) && (
             <Button
               variant="action"
               size="sm"
@@ -271,6 +282,13 @@ export const SavingPlanCard = memo(function SavingPlanCard({
               </div>
             ))}
           </div>
+        ) : allFocusBucketsPaused ? (
+          <div className="mt-4 rounded-lg border border-dashed border-accent-slate/35 bg-accent-slate/10 px-4 py-3">
+            <p className="font-mono text-sm font-bold text-ink">{d.bucketPlanAllPaused}</p>
+            <p className="mt-1 font-mono text-xs leading-5 text-ink-muted">
+              {d.bucketPlanAllPausedBody}
+            </p>
+          </div>
         ) : (
           <div className="mt-4 rounded-lg bg-brand-50 px-4 py-3">
             <p className="font-mono text-sm font-bold text-ink">
@@ -298,11 +316,11 @@ export const SavingPlanCard = memo(function SavingPlanCard({
               <div className="min-w-0">
                 <p className="font-mono text-[11px] leading-tight text-ink-muted">{copy.common.today}</p>
                 <p className="truncate font-mono text-sm font-bold text-ink">
-                  {formatCurrency(Math.round(totalDueToday))}
+                  {allFocusBucketsPaused ? d.planPaused : formatCurrency(Math.round(totalDueToday))}
                 </p>
               </div>
             </div>
-            {habit.streak > 0 && (
+            {(habit.streak > 0 || allFocusBucketsPaused) && (
               <div className="flex min-w-0 items-center gap-2 text-right">
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-700">
                   <IconVault size={16} />

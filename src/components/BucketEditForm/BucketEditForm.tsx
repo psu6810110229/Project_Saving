@@ -1,13 +1,15 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { BalanceAllocation, Bucket, BucketTransfer, SavingRuleType, SavingsLog } from '../../types';
-import { addDays, daysBetween, daysInclusive, todayBangkokKey } from '../../lib/savingPlan';
+import { daysBetween, daysInclusive, todayBangkokKey } from '../../lib/savingPlan';
 import {
+  MAX_SUGGESTED_DAILY_PACE,
   type RuleChoice,
   calcDefaultDeadline,
-  calcRuleAmount,
+  describeFixedRuleSuggestion,
   initialRuleChoice,
   recommendedRule,
 } from '../../lib/bucketRuleSuggest';
+import { isFixedScheduleAnchorDate } from '../../lib/fixedSavingSchedule';
 import { bucketSaved, hasDuplicateBucketName, sumTargets } from '../../lib/buckets';
 import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CalendarPicker } from '../CalendarPicker/CalendarPicker';
@@ -76,7 +78,10 @@ export function BucketEditForm({
   const [deadline, setDeadline] = useState(() => bucket.deadline?.slice(0, 10) ?? calcDefaultDeadline(bucket, roomEndDate ?? null, today));
   // Custom (increasing-daily) plans can pick their own start date; falls back to today.
   const [startDate, setStartDate] = useState(() => bucket.saving_rule_start_date?.slice(0, 10) ?? today);
-  const remainingDays = deadline ? Math.max(1, daysBetween(today, deadline)) : 1;
+  // Saving window runs from the chosen start (future starts are honoured)
+  // to the deadline, so per-period amounts reflect the span the user picked.
+  const planStartKey = startDate && startDate > today ? startDate : today;
+  const remainingDays = deadline ? Math.max(1, daysBetween(planStartKey, deadline)) : 1;
   const [ruleChoice, setRuleChoice] = useState<RuleChoice>(() => initialRuleChoice(bucket.saving_rule_type, remainingDays));
   const [reminderDay, setReminderDay] = useState(bucket.reminder_day ?? 25);
   const [customStart, setCustomStart] = useState(() => (bucket.saving_rule_start_amount ? String(Math.round(bucket.saving_rule_start_amount)) : ''));
@@ -111,50 +116,104 @@ export function BucketEditForm({
   const capacityForEdit = typeof goalTarget === 'number'
     ? goalTarget - (totalBucketTargets - bucket.target_amount)
     : null;
+  const unallocatedForGoal = typeof goalTarget === 'number'
+    ? Math.max(
+      0,
+      goalTarget - ((totalBucketTargets - bucket.target_amount) + (Number.isFinite(targetAmount) ? targetAmount : bucket.target_amount)),
+    )
+    : null;
 
   const remainingTarget = Math.max(0, (Number.isFinite(targetAmount) ? targetAmount : bucket.target_amount) - saved);
+  const fixedRuleSuggestions = useMemo(() => {
+    if (!deadline || deadline < planStartKey) return null;
+    return {
+      fixed_daily: describeFixedRuleSuggestion(remainingTarget, planStartKey, deadline, 'fixed_daily'),
+      fixed_weekly: describeFixedRuleSuggestion(remainingTarget, planStartKey, deadline, 'fixed_weekly'),
+      fixed_monthly: describeFixedRuleSuggestion(remainingTarget, planStartKey, deadline, 'fixed_monthly'),
+    };
+  }, [remainingTarget, planStartKey, deadline]);
   const amounts = useMemo(() => ({
-    fixed_daily: calcRuleAmount(remainingTarget, remainingDays, 'fixed_daily'),
-    fixed_weekly: calcRuleAmount(remainingTarget, remainingDays, 'fixed_weekly'),
-    fixed_monthly: calcRuleAmount(remainingTarget, remainingDays, 'fixed_monthly'),
-  }), [remainingTarget, remainingDays]);
+    fixed_daily: fixedRuleSuggestions?.fixed_daily.amount ?? 0,
+    fixed_weekly: fixedRuleSuggestions?.fixed_weekly.amount ?? 0,
+    fixed_monthly: fixedRuleSuggestions?.fixed_monthly.amount ?? 0,
+  }), [fixedRuleSuggestions]);
   const recommended = recommendedRule(remainingDays);
 
-  // Per-day preview for the custom (increasing-daily) range calendar. Day 1 is
-  // the chosen start date, matching how the bucket actually charges each day.
-  const getCustomAmountForDate = useMemo<((dateKey: string) => number | undefined) | undefined>(() => {
-    if (ruleChoice !== 'custom') return undefined;
-    const startNum = Number(customStart);
-    const incNum = Number(customIncrement || '0');
-    const capNum = Number(customCap || '0');
-    if (!Number.isFinite(startNum) || startNum <= 0) return undefined;
-    return (dateKey: string) => {
-      if (!startDate || dateKey < startDate) return undefined;
-      if (deadline && dateKey > deadline) return undefined;
-      const idx = daysBetween(startDate, dateKey); // 0-based: start day → start amount
-      const raw = startNum + idx * incNum;
-      return capNum > 0 ? Math.min(raw, capNum) : raw;
-    };
-  }, [ruleChoice, customStart, customIncrement, customCap, startDate, deadline]);
-
-  // Summary card for the custom plan: finish date, length, cap, and the
-  // expected total across the whole start→end range.
-  const customPreview = useMemo(() => {
-    if (ruleChoice !== 'custom') return null;
-    const startNum = Number(customStart);
-    const incNum = Number(customIncrement || '0');
-    const capNum = Number(customCap || '0');
-    if (!Number.isFinite(startNum) || startNum <= 0) return null;
-    if (!startDate || !deadline || deadline <= startDate) return null;
-    const days = daysInclusive(startDate, deadline);
-    if (days <= 0) return null;
-    let total = 0;
-    for (let idx = 0; idx < days; idx++) {
-      const raw = startNum + idx * incNum;
-      total += capNum > 0 ? Math.min(raw, capNum) : raw;
+  // Per-date amounts painted on the range calendar, for every rule type. Day 1
+  // is the chosen start date, matching how the bucket actually charges.
+  const getAmountForDate = useMemo<((dateKey: string) => number | undefined) | undefined>(() => {
+    if (!deadline) return undefined;
+    const ref = planStartKey;
+    if (ruleChoice === 'custom') {
+      const startNum = Number(customStart);
+      const incNum = Number(customIncrement || '0');
+      const capNum = Number(customCap || '0');
+      if (!Number.isFinite(startNum) || startNum <= 0) return undefined;
+      return (dateKey: string) => {
+        if (dateKey < ref || dateKey > deadline) return undefined;
+        const idx = daysBetween(ref, dateKey); // 0-based: start day → start amount
+        const raw = startNum + idx * incNum;
+        return capNum > 0 ? Math.min(raw, capNum) : raw;
+      };
     }
-    return { finishDateKey: deadline, days, cap: capNum > 0 ? capNum : null, total };
-  }, [ruleChoice, customStart, customIncrement, customCap, startDate, deadline]);
+    if (ruleChoice === 'fixed_daily') {
+      const amt = amounts.fixed_daily;
+      if (!amt || amt <= 0) return undefined;
+      return (dateKey: string) => (dateKey >= ref && dateKey <= deadline ? amt : undefined);
+    }
+    if (ruleChoice === 'fixed_weekly') {
+      const amt = amounts.fixed_weekly;
+      if (!amt || amt <= 0) return undefined;
+      return (dateKey: string) => {
+        if (dateKey < ref || dateKey > deadline) return undefined;
+        return isFixedScheduleAnchorDate(ref, dateKey, 'fixed_weekly') ? amt : undefined;
+      };
+    }
+    if (ruleChoice === 'fixed_monthly') {
+      const amt = amounts.fixed_monthly;
+      if (!amt || amt <= 0) return undefined;
+      return (dateKey: string) => {
+        if (dateKey < ref || dateKey > deadline) return undefined;
+        return isFixedScheduleAnchorDate(ref, dateKey, 'fixed_monthly') ? amt : undefined;
+      };
+    }
+    return undefined; // flexible — no fixed schedule
+  }, [ruleChoice, customStart, customIncrement, customCap, planStartKey, deadline, amounts]);
+
+  // Live preview for every rule type: finish date, length, per-period amount,
+  // and the expected total across the whole start→end window.
+  const preview = useMemo(() => {
+    if (!deadline || deadline <= planStartKey) return null;
+    const days = daysInclusive(planStartKey, deadline);
+    if (days <= 0) return null;
+
+    if (ruleChoice === 'flexible') {
+      return { kind: 'flexible' as const, finishDateKey: deadline, days };
+    }
+    if (ruleChoice === 'custom') {
+      const startNum = Number(customStart);
+      const incNum = Number(customIncrement || '0');
+      const capNum = Number(customCap || '0');
+      if (!Number.isFinite(startNum) || startNum <= 0) return null;
+      let total = 0;
+      for (let idx = 0; idx < days; idx++) {
+        const raw = startNum + idx * incNum;
+        total += capNum > 0 ? Math.min(raw, capNum) : raw;
+      }
+      return { kind: 'custom' as const, finishDateKey: deadline, days, cap: capNum > 0 ? capNum : null, total };
+    }
+    const fixedRule = ruleChoice as 'fixed_daily' | 'fixed_weekly' | 'fixed_monthly';
+    const suggestion = fixedRuleSuggestions?.[fixedRule];
+    if (!suggestion || suggestion.amount <= 0) return null;
+    return {
+      kind: fixedRule,
+      finishDateKey: deadline,
+      days,
+      periods: suggestion.periods,
+      amount: suggestion.amount,
+      total: suggestion.total,
+    };
+  }, [ruleChoice, customStart, customIncrement, customCap, planStartKey, deadline, fixedRuleSuggestions]);
 
   const ruleOptions: Array<{ id: RuleChoice; label: string }> = [
     { id: 'fixed_daily', label: copy.bucket.rulePerDay(formatMoney(amounts.fixed_daily)) },
@@ -163,6 +222,19 @@ export function BucketEditForm({
     { id: 'flexible', label: copy.bucket.ruleFlexible },
     { id: 'custom', label: copy.bucket.ruleCustom },
   ];
+  const selectedHardHint = ruleChoice === 'fixed_daily'
+    ? fixedRuleSuggestions?.fixed_daily.isHard
+      ? copy.bucket.ruleHardHint(formatMoney(MAX_SUGGESTED_DAILY_PACE))
+      : null
+    : ruleChoice === 'fixed_weekly'
+      ? fixedRuleSuggestions?.fixed_weekly.isHard
+        ? copy.bucket.ruleHardHint(formatMoney(MAX_SUGGESTED_DAILY_PACE))
+        : null
+      : ruleChoice === 'fixed_monthly'
+        ? fixedRuleSuggestions?.fixed_monthly.isHard
+          ? copy.bucket.ruleHardHint(formatMoney(MAX_SUGGESTED_DAILY_PACE))
+          : null
+        : null;
 
   async function handleSave() {
     if (!draftName.trim()) {
@@ -189,6 +261,11 @@ export function BucketEditForm({
       setError(copy.bucket.validationDeadlineFuture);
       return;
     }
+    // A genuinely future start must still finish after it begins.
+    if (startDate > today && deadline <= startDate) {
+      setError(copy.bucket.validationCustomRange);
+      return;
+    }
 
     let savingRuleType: SavingRuleType;
     let savingRuleAmount: number | null = null;
@@ -201,6 +278,8 @@ export function BucketEditForm({
     if (ruleChoice === 'fixed_daily' || ruleChoice === 'fixed_weekly' || ruleChoice === 'fixed_monthly') {
       savingRuleType = ruleChoice;
       savingRuleAmount = amounts[ruleChoice];
+      // Fixed plans anchor their recurring save day to the selected range start.
+      savingRuleStartDate = startDate;
     } else if (ruleChoice === 'flexible') {
       savingRuleType = 'flexible';
     } else {
@@ -264,39 +343,38 @@ export function BucketEditForm({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="min-w-0 overflow-x-hidden flex flex-col gap-3">
       {error && (
         <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{error}</p>
       )}
 
-      <FormField label={copy.bucket.editNameLabel}>
-        <TextInput
-          value={draftName}
-          leadingIcon={<IconEdit size={16} />}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => { setDraftName(event.target.value); setError(null); }}
-        />
-      </FormField>
-
-      <FormField
-        label={copy.bucket.editTargetLabel}
-        helper={capacityForEdit !== null ? copy.bucket.capacityAvailable(formatMoney(Math.max(0, capacityForEdit))) : undefined}
-      >
-        <TextInput
-          value={draftTarget}
-          inputMode="numeric"
-          leadingIcon={<IconPiggyBank size={16} />}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => { setDraftTarget(event.target.value.replace(/[^0-9]/g, '')); setError(null); }}
-        />
-      </FormField>
-
-      {ruleChoice !== 'custom' && (
-        <FormField label={copy.bucket.editDeadlineLabel}>
-          <CalendarPicker value={deadline} onChange={value => { setDeadline(value); setError(null); }} minDate={addDays(today, 1)} />
+      {/* Name + goal amount — two compact columns */}
+      <div className="grid grid-cols-2 gap-3">
+        <FormField label={copy.bucket.editNameLabel}>
+          <TextInput
+            value={draftName}
+            leadingIcon={<IconEdit size={16} />}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => { setDraftName(event.target.value); setError(null); }}
+          />
         </FormField>
-      )}
+        <FormField label={copy.bucket.editTargetLabel}>
+          <TextInput
+            value={draftTarget}
+            inputMode="numeric"
+            leadingIcon={<IconPiggyBank size={16} />}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => { setDraftTarget(event.target.value.replace(/[^0-9]/g, '')); setError(null); }}
+          />
+        </FormField>
+        {unallocatedForGoal !== null && (
+          <p className="col-span-2 w-full max-w-none text-left font-mono text-xs text-ink-muted">
+            {copy.bucket.capacityAvailable(formatMoney(unallocatedForGoal))}
+          </p>
+        )}
+      </div>
 
+      {/* Plan section */}
       <FormField label={copy.bucket.editRuleLabel}>
-        <div ref={ruleSectionRef} className="flex scroll-mt-4 flex-col gap-2">
+        <div ref={ruleSectionRef} className="flex scroll-mt-4 flex-col gap-2 px-0.5">
           {ruleOptions.map(option => {
             const selected = ruleChoice === option.id;
             return (
@@ -305,13 +383,13 @@ export function BucketEditForm({
                 type="button"
                 onClick={() => { setRuleChoice(option.id); setError(null); }}
                 className={[
-                  'flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all',
+                  'flex items-start gap-3 rounded-xl px-4 py-3 text-left transition-all',
                   selected ? 'bg-brand-100 ring-2 ring-brand-500' : 'bg-well hover:bg-brand-50',
                 ].join(' ')}
               >
                 <span
                   className={[
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                    'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
                     selected ? 'border-brand-500 bg-brand-500' : 'border-ink-dim',
                   ].join(' ')}
                 >
@@ -343,8 +421,9 @@ export function BucketEditForm({
         </div>
       )}
 
+      {/* Increasing-daily inputs — three compact columns */}
       {ruleChoice === 'custom' && (
-        <div ref={customRuleRef} className="flex scroll-mt-4 flex-col gap-3 rounded-xl bg-well p-4">
+        <div ref={customRuleRef} className="grid scroll-mt-4 grid-cols-3 gap-2 rounded-xl bg-well p-4">
           <FormField label={copy.bucket.customStartAmount}>
             <TextInput
               value={customStart}
@@ -369,57 +448,85 @@ export function BucketEditForm({
               onChange={(event: ChangeEvent<HTMLInputElement>) => { setCustomCap(event.target.value.replace(/[^0-9]/g, '')); setError(null); }}
             />
           </FormField>
-          <FormField label={copy.bucket.editPlanRangeLabel}>
-            <CalendarPicker
-              mode="range"
-              rangeStart={startDate}
-              rangeEnd={deadline}
-              onRangeChange={(start, end) => { setStartDate(start); setDeadline(end); setError(null); }}
-              minDate={today}
-              getAmountForDate={getCustomAmountForDate}
-            />
-          </FormField>
-
-          {customPreview && (
-            <section className="rounded-xl bg-surface p-4 shadow-soft">
-              <p className="font-mono text-base font-bold uppercase tracking-[0.18em] text-brand-800">
-                {copy.savingPlan.previewLabel}
-              </p>
-              <dl className="mt-2 divide-y divide-well font-mono text-xs">
-                <PreviewRow label={copy.savingPlan.estimatedFinish} value={formatShortDateKey(customPreview.finishDateKey)} />
-                <PreviewRow label={copy.savingPlan.savingDays} value={copy.savingPlan.savingDaysValue(customPreview.days)} />
-                {customPreview.cap != null && (
-                  <PreviewRow label={copy.savingPlan.dailyCap} value={formatMoney(Math.round(customPreview.cap))} />
-                )}
-                <PreviewRow label={copy.savingPlan.expectedTotal} value={formatMoney(Math.round(customPreview.total))} />
-              </dl>
-            </section>
-          )}
         </div>
       )}
 
-      <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
-        <Button
-          type="button"
-          variant="primary"
-          size="md"
-          leadingIcon={<IconCheck size={16} />}
-          onClick={handleSave}
-          disabled={submitting}
-        >
-          {copy.bucket.editSave}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="md"
-          className={MODAL_SECONDARY_BUTTON_CLASS}
-          leadingIcon={<IconX size={16} />}
-          onClick={onCancel}
-          disabled={submitting}
-        >
-          {copy.bucket.editCancel}
-        </Button>
+      {/* Calendar — pick start + end for every plan */}
+      <FormField label={copy.bucket.editPlanRangeLabel}>
+        <CalendarPicker
+          mode="range"
+          rangeStart={startDate}
+          rangeEnd={deadline}
+          onRangeChange={(start, end) => { setStartDate(start); setDeadline(end); setError(null); }}
+          minDate={today}
+          getAmountForDate={getAmountForDate}
+        />
+      </FormField>
+
+      {/* Preview — every plan */}
+      {preview && (
+        <section className="rounded-xl bg-surface p-4 shadow-soft">
+          <p className="font-mono text-base font-bold uppercase tracking-[0.18em] text-brand-800">
+            {copy.savingPlan.previewLabel}
+          </p>
+          <dl className="mt-2 divide-y divide-well font-mono text-xs">
+            <PreviewRow label={copy.savingPlan.estimatedFinish} value={formatShortDateKey(preview.finishDateKey)} />
+            {preview.kind === 'flexible' ? (
+              <PreviewRow label={copy.savingPlan.savingDays} value={copy.savingPlan.savingDaysValue(preview.days)} />
+            ) : preview.kind === 'custom' ? (
+              <>
+                <PreviewRow label={copy.savingPlan.savingDays} value={copy.savingPlan.savingDaysValue(preview.days)} />
+                {preview.cap != null && (
+                  <PreviewRow label={copy.savingPlan.dailyCap} value={formatMoney(Math.round(preview.cap))} />
+                )}
+                <PreviewRow label={copy.savingPlan.expectedTotal} value={formatMoney(Math.round(preview.total))} />
+              </>
+            ) : (
+              <>
+                <PreviewRow
+                  label={preview.kind === 'fixed_weekly' ? copy.savingPlan.savingWeeks : preview.kind === 'fixed_monthly' ? copy.savingPlan.savingMonths : copy.savingPlan.savingDays}
+                  value={preview.kind === 'fixed_weekly' ? copy.savingPlan.savingWeeksValue(preview.periods) : preview.kind === 'fixed_monthly' ? copy.savingPlan.savingMonthsValue(preview.periods) : copy.savingPlan.savingDaysValue(preview.days)}
+                />
+                <PreviewRow
+                  label={preview.kind === 'fixed_weekly' ? copy.savingPlan.perWeek : preview.kind === 'fixed_monthly' ? copy.savingPlan.perMonth : copy.savingPlan.perDay}
+                  value={formatMoney(Math.round(preview.amount))}
+                />
+                <PreviewRow label={copy.savingPlan.expectedTotal} value={formatMoney(Math.round(preview.total))} />
+              </>
+            )}
+          </dl>
+        </section>
+      )}
+
+      <div className="flex flex-col gap-2">
+        {selectedHardHint && (
+          <p className="text-right font-mono text-xs text-brand-700">
+            {selectedHardHint}
+          </p>
+        )}
+        <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            leadingIcon={<IconCheck size={16} />}
+            onClick={handleSave}
+            disabled={submitting}
+          >
+            {copy.bucket.editSave}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="md"
+            className={MODAL_SECONDARY_BUTTON_CLASS}
+            leadingIcon={<IconX size={16} />}
+            onClick={onCancel}
+            disabled={submitting}
+          >
+            {copy.bucket.editCancel}
+          </Button>
+        </div>
       </div>
     </div>
   );

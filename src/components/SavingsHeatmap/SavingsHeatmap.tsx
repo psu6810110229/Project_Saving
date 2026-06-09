@@ -5,8 +5,16 @@ import { useI18n } from '../../i18n/useI18n';
 import { todayBangkokKey } from '../../lib/savingPlan';
 import { FADE_TRANSITION, REDUCED_MOTION_TRANSITION, SPRING } from '../../lib/motion';
 import { bucketSaved } from '../../lib/buckets';
-import { buildSavingsHeatmap, type HeatLevel } from '../../lib/savingsHeatmap';
-import type { BalanceAllocation, Bucket, BucketTransfer, SavingsLog } from '../../types';
+import { isBucketPausedOnDate } from '../../lib/bucketPlanPause';
+import {
+  addHeatmapMovement,
+  buildSavingsHeatmap,
+  type HeatLevel,
+  type HeatmapCell,
+  type HeatmapDailyMovement,
+  type HeatmapMarker,
+} from '../../lib/savingsHeatmap';
+import type { BalanceAllocation, Bucket, BucketPlanPause, BucketTransfer, SavingsLog } from '../../types';
 
 interface SavingsHeatmapProps {
   /** All room logs; the component filters to the current user's own deposits. */
@@ -17,6 +25,7 @@ interface SavingsHeatmapProps {
   /** Same-user signed allocation ledger — drives real-money due popup values. */
   transfers?: BucketTransfer[];
   allocations?: BalanceAllocation[];
+  pauses?: BucketPlanPause[];
   /** Room created_at (ISO) — project window start. */
   roomStartIso?: string | null;
   /** Room end_date (YYYY-MM-DD) — project window end. */
@@ -47,11 +56,11 @@ interface DuePopover {
    * Set for non-flag cells — the raw daily saved amount.
    * Undefined for flag (bucket-due) cells, which show bucket progress instead.
    */
-  dayAmount?: number;
+  movement?: HeatmapCell;
 }
 
 const POPOVER_WIDTH = 192;
-const POPOVER_DAY_WIDTH = 90;
+const POPOVER_DAY_WIDTH = 176;
 const POPOVER_MARGIN = 8;
 /** Estimated popup height used for the above/below flip decision. */
 const POPOVER_HEIGHT_EST = 100;
@@ -70,6 +79,12 @@ const LEVEL_CLASS: Record<HeatLevel, string> = {
   4: 'bg-[#9B430D]',
 };
 
+const MARKER_CLASS: Record<HeatmapMarker, string> = {
+  surplus: 'bg-accent-leaf',
+  correction: 'bg-danger',
+  pause: 'bg-accent-slate',
+};
+
 function dayKeyOf(iso: string): string {
   return todayBangkokKey(new Date(iso));
 }
@@ -86,6 +101,29 @@ function maxKey(keys: string[]): string | null {
   return max;
 }
 
+function hasCellMovement(cell: HeatmapCell): boolean {
+  return cell.hasDeposit
+    || cell.hasSurplusAdjustment
+    || cell.hasShortfallCorrection
+    || cell.hasPausedActivity
+    || cell.netAmount !== 0;
+}
+
+function heatmapCellTitle(
+  cell: HeatmapCell,
+  d: ReturnType<typeof useI18n>['copy']['dashboard'],
+  formatMoney: (amount: number) => string,
+): string {
+  if (!hasCellMovement(cell)) return `${formatMoney(0)} · ${cell.dateKey}`;
+  const parts = [cell.dateKey];
+  if (cell.hasDeposit) parts.push(`${d.heatmapDepositsLabel}: ${formatMoney(cell.depositAmount)}`);
+  if (cell.hasSurplusAdjustment) parts.push(`${d.heatmapSurplusLabel}: ${formatMoney(cell.surplusAmount)}`);
+  if (cell.hasShortfallCorrection) parts.push(`${d.heatmapShortfallLabel}: ${formatMoney(cell.shortfallAmount)}`);
+  parts.push(`${d.heatmapNetLabel}: ${formatMoney(cell.netAmount)}`);
+  if (cell.hasPausedActivity) parts.push(d.heatmapPausedNote);
+  return parts.join(' · ');
+}
+
 /**
  * GitHub-style contributions calendar of the current user's own daily
  * deposits. Cell colour intensity scales with the deposit amount that day
@@ -100,6 +138,7 @@ export function SavingsHeatmap({
   buckets,
   transfers,
   allocations,
+  pauses = [],
   roomStartIso,
   roomEndDateKey,
   storageKey,
@@ -111,21 +150,19 @@ export function SavingsHeatmap({
   const reduceMotion = useReducedMotion();
 
   const { weeks, todayColumnIndex } = useMemo(() => {
-    const dailyTotals = new Map<string, number>();
+    const dailyMovements = new Map<string, HeatmapDailyMovement>();
     for (const log of logs) {
       if (userId && log.user_id !== userId) continue;
       if (log.amount <= 0) continue;
       const key = dayKeyOf(log.created_at);
-      dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + log.amount);
+      const paused = !!log.bucket_id && isBucketPausedOnDate(pauses, log.bucket_id, key);
+      addHeatmapMovement(dailyMovements, key, log.amount, 'deposit', paused);
     }
-    // Positive balance allocations (reconcile surplus moved into buckets) also
-    // count as daily saving activity. Negative allocations are write-downs and
-    // should not reduce the displayed heat.
     for (const alloc of (allocations ?? [])) {
       if (userId && alloc.user_id !== userId) continue;
-      if (alloc.amount <= 0) continue;
       const key = dayKeyOf(alloc.created_at);
-      dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + alloc.amount);
+      const paused = isBucketPausedOnDate(pauses, alloc.destination_bucket_id, key);
+      addHeatmapMovement(dailyMovements, key, alloc.amount, 'allocation', paused);
     }
 
     const activeBuckets = buckets.filter(b => b.archived_at == null);
@@ -136,7 +173,7 @@ export function SavingsHeatmap({
 
     const startCandidates = [
       ...(projectStartKey ? [projectStartKey] : []),
-      ...dailyTotals.keys(),
+      ...dailyMovements.keys(),
     ];
     let startKey = minKey(startCandidates) ?? todayKey;
     if (startKey > todayKey) startKey = todayKey;
@@ -149,14 +186,14 @@ export function SavingsHeatmap({
     const endKey = maxKey(endCandidates) ?? todayKey;
 
     return buildSavingsHeatmap({
-      dailyTotals,
+      dailyMovements,
       startKey,
       endKey,
       todayKey,
       projectStartKey,
       bucketDueKeys,
     });
-  }, [logs, allocations, userId, buckets, roomStartIso, roomEndDateKey, todayKey]);
+  }, [logs, allocations, pauses, userId, buckets, roomStartIso, roomEndDateKey, todayKey]);
 
   // Buckets due on each day, with progress — drives the tappable due-marker popover.
   const dueByDate = useMemo(() => {
@@ -247,9 +284,8 @@ export function SavingsHeatmap({
   );
 
   function handleCellClick(
-    dateKey: string,
+    cell: HeatmapCell,
     e: React.MouseEvent<HTMLButtonElement>,
-    dayAmount?: number,
   ) {
     // Read DOM rects synchronously — the synthetic event is reused and
     // its currentTarget is null by the time a setState updater runs.
@@ -259,7 +295,7 @@ export function SavingsHeatmap({
     const sectionRect = section.getBoundingClientRect();
     // Horizontal: clamp within the section so the popup never clips left/right.
     const rawLeft = cellRect.left - sectionRect.left + cellRect.width / 2;
-    const pw = dayAmount !== undefined ? POPOVER_DAY_WIDTH : POPOVER_WIDTH;
+    const pw = hasCellMovement(cell) ? POPOVER_DAY_WIDTH : POPOVER_WIDTH;
     const half = pw / 2 + POPOVER_MARGIN;
     const left = Math.min(Math.max(rawLeft, half), sectionRect.width - half);
     // Vertical: flip below the cell when there is not enough viewport space above.
@@ -267,7 +303,13 @@ export function SavingsHeatmap({
     const top = below
       ? cellRect.bottom - sectionRect.top
       : cellRect.top - sectionRect.top;
-    setPopover(prev => (prev?.dateKey === dateKey ? null : { dateKey, left, top, below, dayAmount }));
+    setPopover(prev => (prev?.dateKey === cell.dateKey ? null : {
+      dateKey: cell.dateKey,
+      left,
+      top,
+      below,
+      movement: hasCellMovement(cell) ? cell : undefined,
+    }));
   }
 
   const commitScrollHint = useCallback((nextCanScrollRight: boolean) => {
@@ -461,12 +503,13 @@ export function SavingsHeatmap({
             {weeks.map((column, col) => (
               <div key={col} className="flex flex-col" style={heatmapGapStyle}>
                 {column.map(cell => {
-                  const title = `${formatMoney(cell.amount)} · ${cell.dateKey}`
+                  const title = heatmapCellTitle(cell, d, formatMoney)
                     + (cell.bucketDue ? ` · ${d.heatmapDueLegend}` : '')
                     + (cell.projectStart ? ` · ${d.heatmapStartLegend}` : '');
                   const cellClass =
                     'relative rounded-[4px] shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] '
                     + LEVEL_CLASS[cell.level]
+                    + (cell.hasShortfallCorrection && cell.level === 0 ? ' !bg-[#FBE8DF] ring-1 ring-inset ring-danger/50' : '')
                     + (cell.isFuture ? ' opacity-40' : '')
                     + (!cell.inRange ? ' opacity-30' : '')
                     + (cell.isToday ? ' ring-2 ring-inset ring-ink' : '')
@@ -479,42 +522,45 @@ export function SavingsHeatmap({
                       <IconFlag size={11} strokeWidth={3} />
                     </span>
                   );
+                  const movementMarkers = cell.markers.slice(0, 3);
+                  const markerDots = movementMarkers.length > 0 && (
+                    <span
+                      className="absolute bottom-[1px] right-[1px] flex max-w-[12px] flex-wrap justify-end gap-[1px]"
+                      aria-hidden
+                    >
+                      {movementMarkers.map(marker => (
+                        <span
+                          key={marker}
+                          className={`h-[3px] w-[3px] rounded-full ring-[0.5px] ring-white/80 ${MARKER_CLASS[marker]}`}
+                        />
+                      ))}
+                    </span>
+                  );
+                  const hasMovement = hasCellMovement(cell);
+                  const activeCellAria = [
+                    cell.bucketDue ? d.heatmapDueLegend : null,
+                    hasMovement ? d.heatmapDaySavedLabel : null,
+                    cell.dateKey,
+                  ].filter(Boolean).join(' · ');
 
-                  if (cell.bucketDue) {
+                  if (cell.bucketDue || hasMovement) {
                     return (
                       <button
                         key={cell.dateKey}
                         type="button"
                         title={title}
-                        aria-label={`${d.heatmapDueLegend} · ${cell.dateKey}`}
+                        aria-label={activeCellAria}
                         aria-expanded={popover?.dateKey === cell.dateKey}
-                        onClick={e => handleCellClick(cell.dateKey, e)}
+                        onClick={e => handleCellClick(cell, e)}
                         className={
                           cellClass
-                          + (popover?.dateKey === cell.dateKey ? ' ring-2 ring-inset ring-danger' : '')
+                          + (popover?.dateKey === cell.dateKey ? ` ring-2 ring-inset ${cell.bucketDue ? 'ring-danger' : 'ring-ink/60'}` : '')
                         }
                         style={heatmapCellStyle}
                       >
                         {flag}
+                        {markerDots}
                       </button>
-                    );
-                  }
-
-                  if (cell.amount >= 1) {
-                    return (
-                      <button
-                        key={cell.dateKey}
-                        type="button"
-                        title={title}
-                        aria-label={`${d.heatmapDaySavedLabel} · ${cell.dateKey}`}
-                        aria-expanded={popover?.dateKey === cell.dateKey}
-                        onClick={e => handleCellClick(cell.dateKey, e, cell.amount)}
-                        className={
-                          cellClass
-                          + (popover?.dateKey === cell.dateKey ? ' ring-2 ring-inset ring-ink/60' : '')
-                        }
-                        style={heatmapCellStyle}
-                      />
                     );
                   }
 
@@ -562,6 +608,18 @@ export function SavingsHeatmap({
           <span className="h-[10px] w-[10px] rounded-[2px] bg-well ring-2 ring-ink" />
           {d.heatmapTodayLegend}
         </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-[7px] w-[7px] rounded-full bg-accent-leaf ring-1 ring-white" />
+          {d.heatmapSurplusLegend}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-[7px] w-[7px] rounded-full bg-danger ring-1 ring-white" />
+          {d.heatmapCorrectionLegend}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-[7px] w-[7px] rounded-full bg-accent-slate ring-1 ring-white" />
+          {d.heatmapPauseLegend}
+        </span>
       </div>
 
       {/* Outside-tap dismiss layer. */}
@@ -578,16 +636,18 @@ export function SavingsHeatmap({
       {/* Cell popover: tap a flag for bucket due info; tap a colored cell for daily savings. */}
       <AnimatePresence>
         {popover && (() => {
-          const isFlagCell = popover.dayAmount === undefined;
-          const items = isFlagCell ? (dueByDate.get(popover.dateKey) ?? []) : [];
-          if (isFlagCell && items.length === 0) return null;
+          const movement = popover.movement;
+          const items = dueByDate.get(popover.dateKey) ?? [];
+          const hasDue = items.length > 0;
+          const hasMovement = !!movement && hasCellMovement(movement);
+          if (!hasDue && !hasMovement) return null;
           const [py, pm, pd] = popover.dateKey.split('-').map(Number);
           const dateLabel = dueDateFmt.format(new Date(Date.UTC(py, pm - 1, pd)));
           const origin = popover.below ? 'top center' : 'bottom center';
           const transform = popover.below
             ? 'translate(-50%, 8px)'
             : 'translate(-50%, calc(-100% - 8px))';
-          const popoverWidth = isFlagCell ? POPOVER_WIDTH : POPOVER_DAY_WIDTH;
+          const popoverWidth = hasDue && !hasMovement ? POPOVER_WIDTH : POPOVER_DAY_WIDTH;
           return (
             <motion.div
               key={popover.dateKey}
@@ -605,17 +665,17 @@ export function SavingsHeatmap({
             >
               <motion.div
                 role="dialog"
-                aria-label={isFlagCell
+                aria-label={hasDue && !hasMovement
                   ? `${d.heatmapDueDetailTitle} · ${dateLabel}`
                   : `${d.heatmapDaySavedLabel} · ${dateLabel}`}
-                className={`rounded-lg bg-surfaceAlt shadow-soft ring-1 ring-ink/10 ${isFlagCell ? 'p-2.5' : 'p-2'}`}
+                className={`rounded-lg bg-surfaceAlt shadow-soft ring-1 ring-ink/10 ${hasDue ? 'p-2.5' : 'p-2'}`}
                 style={{ transformOrigin: origin }}
                 initial={reduceMotion ? false : { scale: 0.92, y: popover.below ? -4 : 4 }}
                 animate={reduceMotion ? {} : { scale: 1, y: 0 }}
                 exit={reduceMotion ? {} : { scale: 0.92, y: popover.below ? -4 : 4 }}
                 transition={reduceMotion ? REDUCED_MOTION_TRANSITION : SPRING.content}
               >
-                {isFlagCell ? (
+                {hasDue && (
                   <>
                     <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] font-bold text-danger">
                       <IconFlag size={10} strokeWidth={2.5} />
@@ -635,14 +695,32 @@ export function SavingsHeatmap({
                       ))}
                     </ul>
                   </>
-                ) : (
-                  <>
+                )}
+                {hasMovement && movement && (
+                  <div className={hasDue ? 'mt-2 border-t border-ink/10 pt-2' : ''}>
                     <div className="font-mono text-[9px] text-ink-muted">{dateLabel}</div>
-                    <div className="font-mono text-[12px] font-bold text-ink leading-tight mt-0.5">
-                      {formatMoney(popover.dayAmount!)}
+                    <div className="mt-1 flex flex-col gap-0.5 font-mono text-[10px] leading-tight">
+                      {movement.hasDeposit && (
+                        <BreakdownRow label={d.heatmapDepositsLabel} value={formatMoney(movement.depositAmount)} />
+                      )}
+                      {movement.hasSurplusAdjustment && (
+                        <BreakdownRow label={d.heatmapSurplusLabel} value={formatMoney(movement.surplusAmount)} />
+                      )}
+                      {movement.hasShortfallCorrection && (
+                        <BreakdownRow
+                          label={d.heatmapShortfallLabel}
+                          value={formatMoney(movement.shortfallAmount)}
+                          tone="danger"
+                        />
+                      )}
+                      <BreakdownRow label={d.heatmapNetLabel} value={formatMoney(movement.netAmount)} strong />
                     </div>
-                    <div className="font-mono text-[9px] text-ink-dim">{d.heatmapDaySavedLabel}</div>
-                  </>
+                    {movement.hasPausedActivity && (
+                      <div className="mt-1.5 rounded-md bg-accent-slate/10 px-1.5 py-1 font-mono text-[9px] leading-tight text-accent-slate">
+                        {d.heatmapPausedNote}
+                      </div>
+                    )}
+                  </div>
                 )}
               </motion.div>
             </motion.div>
@@ -650,5 +728,26 @@ export function SavingsHeatmap({
         })()}
       </AnimatePresence>
     </section>
+  );
+}
+
+function BreakdownRow({
+  label,
+  value,
+  tone = 'default',
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'danger';
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="min-w-0 truncate text-ink-muted">{label}</span>
+      <span className={`shrink-0 ${strong ? 'font-bold text-ink' : tone === 'danger' ? 'font-bold text-danger' : 'text-ink'}`}>
+        {value}
+      </span>
+    </div>
   );
 }

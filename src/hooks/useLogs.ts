@@ -124,6 +124,64 @@ export function useLogs(limit = 30, roomId: string | null = null) {
     return {};
   }
 
+  /**
+   * Batch insert for split deposits (sprint 7): write several positive
+   * `savings_logs` rows in one operation so a single saved amount can be
+   * spread across buckets. All-or-nothing — on failure every optimistic row
+   * is rolled back and nothing is persisted (no partial split). Each row gets
+   * a stable UUID up front so notification + smart-event side effects fire
+   * per inserted log and realtime de-dupes against the optimistic rows.
+   */
+  async function insertBatch(
+    rows: Array<{ amount: number; bucketId: string; note?: string; slipUrl?: string | null }>,
+  ): Promise<{ error?: string; ids?: string[] }> {
+    if (!user) return { error: 'Not authenticated' };
+    if (!roomId) return { error: 'No active room' };
+    if (rows.length === 0) return { error: 'No rows to insert' };
+    if (rows.some(row => !row.bucketId)) return { error: 'No bucket selected' };
+    if (rows.some(row => !(row.amount > 0))) return { error: 'Invalid amount' };
+
+    const createdAt = new Date().toISOString();
+    const prepared = rows.map(row => ({
+      id: crypto.randomUUID(),
+      user_id: user.id,
+      room_id: roomId,
+      bucket_id: row.bucketId,
+      amount: row.amount,
+      note: row.note ?? null,
+      slip_url: row.slipUrl ?? null,
+    }));
+
+    const tempLogs: SavingsLog[] = prepared.map(row => ({
+      id: row.id,
+      user_id: row.user_id,
+      room_id: row.room_id,
+      amount: row.amount,
+      note: row.note,
+      created_at: createdAt,
+      display_name: undefined,
+      bucket_id: row.bucket_id,
+      slip_url: row.slip_url,
+    }));
+
+    setLogs(prev => [...tempLogs, ...prev]);
+
+    const { error: err } = await supabase.from('savings_logs').insert(prepared);
+    if (err) {
+      const tempIds = new Set<string>(prepared.map(row => row.id));
+      setLogs(prev => prev.filter(l => !tempIds.has(l.id)));
+      return { error: err.message };
+    }
+
+    // Per-row side effects (each swallows its own errors). Multiple rows can
+    // mean multiple partner notifications — grouping is a separate sprint.
+    for (const row of prepared) {
+      notifyPartnerDeposit(row.id);
+      evaluateSmartEventsAfterDeposit(row.id);
+    }
+    return { ids: prepared.map(row => row.id) };
+  }
+
   return {
     allLogs: logs,
     logs: logs.slice(0, limit),
@@ -131,6 +189,7 @@ export function useLogs(limit = 30, roomId: string | null = null) {
     loading,
     error,
     insert,
+    insertBatch,
     refetch: fetchLogs,
   };
 }

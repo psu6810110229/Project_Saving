@@ -1,18 +1,19 @@
-import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { BucketHeader } from '../BucketHeader/BucketHeader';
 import { Button, MODAL_ACTION_ROW_REVERSE_CLASS, MODAL_SECONDARY_BUTTON_CLASS } from '../Button/Button';
 import { CompleteBucketLock } from '../CompleteBucketLock/CompleteBucketLock';
-import { ComparisonTrendChart } from '../ComparisonTrendChart/ComparisonTrendChart';
 import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 import { FormField } from '../FormField/FormField';
-import { IconPiggyBank, IconTrash } from '../Icon/Icon';
+import { IconPauseCircle, IconPiggyBank, IconPlayCircle, IconTrash, IconX } from '../Icon/Icon';
+import { IconButton } from '../IconButton/IconButton';
 import { TextInput } from '../TextInput/TextInput';
 import { useI18n } from '../../i18n/useI18n';
 import { setPrimaryMotionState, useOpenClosePrimaryMotion } from '../../lib/animationBudget';
 import { FADE_TRANSITION, MICRO_BOUNCE_TRANSITION, SPRING } from '../../lib/motion';
+import type { BucketCategory } from '../../types';
 
 const contentVariants = {
   hidden: {},
@@ -32,6 +33,7 @@ interface BucketSheetProps {
   name: string;
   saved: number;
   target: number;
+  category?: BucketCategory;
   quickAmounts: number[];
   onConfirm: (amount: number) => Promise<{ error?: string }>;
   onDelete?: () => void;
@@ -41,6 +43,11 @@ interface BucketSheetProps {
   onRequestTransferExtra?: (sourceBucketId: string) => void;
   onDoneLockOverride?: (bucketId: string) => void;
   smartDefaultAmount?: number | null;
+  isPaused?: boolean;
+  canPausePlan?: boolean;
+  canResumePlan?: boolean;
+  onRequestPausePlan?: (bucketId: string) => void;
+  onRequestResumePlan?: (bucketId: string) => void;
   trendPreview?: {
     mineLabel: string;
     theirLabel: string;
@@ -57,6 +64,7 @@ export function BucketSheet({
   name,
   saved,
   target,
+  category,
   onConfirm,
   onDelete,
   isComplete,
@@ -65,7 +73,11 @@ export function BucketSheet({
   onRequestTransferExtra,
   onDoneLockOverride,
   smartDefaultAmount,
-  trendPreview,
+  isPaused = false,
+  canPausePlan = false,
+  canResumePlan = false,
+  onRequestPausePlan,
+  onRequestResumePlan,
 }: BucketSheetProps) {
   const { copy, formatMoney } = useI18n();
   const [selectedPill, setSelectedPill] = useState<number | null>(null);
@@ -106,10 +118,6 @@ export function BucketSheet({
   const customAmount = Number(customValue);
   const resolvedAmount =
     customValue.trim() !== '' && customAmount > 0 ? customAmount : (selectedPill ?? 0);
-  const trendPreviewMineSeries = useMemo(
-    () => trendPreview?.mineSeries(resolvedAmount),
-    [resolvedAmount, trendPreview],
-  );
 
   function handleCustomChange(event: ChangeEvent<HTMLInputElement>) {
     const next = event.target.value;
@@ -195,8 +203,15 @@ export function BucketSheet({
                 <div className="h-1 w-10 rounded-pill bg-well" />
               </div>
 
+              {/* Close button — always visible, outside scroll area */}
+              <div className="flex items-center justify-end px-5 pb-1">
+                <IconButton ariaLabel={copy.common.close} size="sm" onClick={handleClose}>
+                  <IconX size={18} />
+                </IconButton>
+              </div>
+
               {/* Scrollable content */}
-              <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[85dvh] px-5 pb-8 pt-2">
+              <div className="touch-pan-y overflow-y-auto overscroll-contain max-h-[60dvh] px-5 pb-8 pt-2">
                 <motion.div
                   variants={contentVariants}
                   initial="hidden"
@@ -205,7 +220,15 @@ export function BucketSheet({
                 >
                   {/* Bucket header */}
                   <motion.div variants={itemVariants}>
-                    <BucketHeader icon={icon} name={name} saved={saved} target={target} pendingDeposit={showDoneLock ? 0 : resolvedAmount} />
+                    <BucketHeader
+                      icon={icon}
+                      name={name}
+                      saved={saved}
+                      target={target}
+                      pendingDeposit={showDoneLock ? 0 : resolvedAmount}
+                      category={category}
+                      isPaused={isPaused}
+                    />
                   </motion.div>
 
                   {showDoneLock ? (
@@ -251,17 +274,6 @@ export function BucketSheet({
                         </FormField>
                       </motion.div>
 
-                      {trendPreview && trendPreviewMineSeries && sheetContentReady && (
-                        <motion.div variants={itemVariants}>
-                          <ComparisonTrendChart
-                            mineLabel={trendPreview.mineLabel}
-                            theirLabel={trendPreview.theirLabel}
-                            mineSeries={trendPreviewMineSeries}
-                            theirSeries={trendPreview.theirSeries}
-                          />
-                        </motion.div>
-                      )}
-
                       {/* Actions */}
                       <motion.div variants={itemVariants} className={MODAL_ACTION_ROW_REVERSE_CLASS}>
                         <Button
@@ -276,6 +288,25 @@ export function BucketSheet({
                           {copy.common.cancel}
                         </Button>
                       </motion.div>
+
+                      {(canPausePlan || canResumePlan) && (
+                        <motion.div variants={itemVariants} className="flex justify-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="px-3 text-accent-slate hover:bg-accent-slate/10 hover:text-accent-slate"
+                            leadingIcon={canResumePlan ? <IconPlayCircle size={15} /> : <IconPauseCircle size={15} />}
+                            onClick={() => {
+                              handleClose();
+                              if (canResumePlan) onRequestResumePlan?.(bucketId);
+                              else onRequestPausePlan?.(bucketId);
+                            }}
+                          >
+                            {canResumePlan ? copy.bucketPause.resumeAction : copy.bucketPause.pauseAction}
+                          </Button>
+                        </motion.div>
+                      )}
 
                       {/* Delete */}
                       {onDelete && (
@@ -306,7 +337,9 @@ export function BucketSheet({
             body={
               bucketAlreadyComplete
                 ? copy.addMoney.completeBucketConfirmBody(name)
-                : copy.addMoney.confirmBannerBodyNoSlip
+                : isPaused
+                  ? copy.addMoney.pausedDepositSuccess
+                  : copy.addMoney.confirmBannerBodyNoSlip
             }
             confirmLabel={
               saving

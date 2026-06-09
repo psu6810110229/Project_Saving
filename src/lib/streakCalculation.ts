@@ -1,7 +1,8 @@
-import type { Bucket, BucketTransfer, SavingsLog, SavingRuleType } from '../types';
+import type { Bucket, BucketPlanPause, BucketTransfer, SavingsLog, SavingRuleType } from '../types';
 import { addDays, daysBetween, todayBangkokKey } from './savingPlan';
 import { localDateKey } from './streak';
 import { calcBucketFocusStates } from './bucketFocus';
+import { isBucketPausedOnDate } from './bucketPlanPause';
 
 export type StreakGranularity = 'day' | 'week' | 'month';
 
@@ -13,6 +14,9 @@ export interface PeriodAwareStreakResult {
   hasLoggedToday: boolean;
   lastDepositDateKey: string | null;
   focusBucketIds: string[];
+  hasPausedCurrentPeriod: boolean;
+  allTrackedPaused: boolean;
+  pausedBucketIds: string[];
 }
 
 interface PeriodWindow {
@@ -101,12 +105,14 @@ function sumBucketActivityInRange(
   startKey: string,
   endKey: string,
   transfers?: BucketTransfer[],
+  pauses: BucketPlanPause[] = [],
 ): number {
   let total = 0;
 
   for (const log of logs) {
     if (log.bucket_id !== bucketId || log.amount <= 0) continue;
     const key = localDateKey(log.created_at);
+    if (isBucketPausedOnDate(pauses, bucketId, key)) continue;
     if (key >= startKey && key <= endKey) total += log.amount;
   }
 
@@ -114,6 +120,7 @@ function sumBucketActivityInRange(
     for (const transfer of transfers) {
       const key = localDateKey(transfer.created_at);
       if (key < startKey || key > endKey) continue;
+      if (isBucketPausedOnDate(pauses, bucketId, key)) continue;
       if (transfer.destination_bucket_id === bucketId) total += transfer.amount;
       if (transfer.source_bucket_id === bucketId) total -= transfer.amount;
     }
@@ -127,8 +134,9 @@ function bucketSavedThrough(
   logs: SavingsLog[],
   endKey: string,
   transfers?: BucketTransfer[],
+  pauses: BucketPlanPause[] = [],
 ): number {
-  return sumBucketActivityInRange(bucketId, logs, '0000-01-01', endKey, transfers);
+  return sumBucketActivityInRange(bucketId, logs, '0000-01-01', endKey, transfers, pauses);
 }
 
 function increasingDailyAmount(bucket: Bucket, dateKey: string): number {
@@ -169,12 +177,21 @@ function periodHasFrozenDate(period: PeriodWindow, frozenDates: ReadonlySet<stri
   return false;
 }
 
+function bucketPausedInPeriod(bucketId: string, pauses: BucketPlanPause[], period: PeriodWindow): boolean {
+  return pauses.some(pause => {
+    if (pause.bucket_id !== bucketId) return false;
+    const pauseEnd = pause.resumed_from ?? '9999-12-31';
+    return pause.paused_from <= period.end && pauseEnd > period.start;
+  });
+}
+
 function bucketObligationMet(
   bucket: Bucket,
   period: PeriodWindow,
   todayKey: string,
   logs: SavingsLog[],
   transfers?: BucketTransfer[],
+  pauses: BucketPlanPause[] = [],
 ): boolean | null {
   const rule = bucket.saving_rule_type;
   const granularity = ruleGranularity(rule);
@@ -185,10 +202,13 @@ function bucketObligationMet(
 
   const completedKey = bucketCompletedKey(bucket);
   if (completedKey && completedKey <= period.end) return true;
-  if (bucketSavedThrough(bucket.id, logs, period.end, transfers) >= bucket.target_amount) return true;
 
   const ownPeriod = periodFor(period.end, granularity);
-  const amountSaved = sumBucketActivityInRange(bucket.id, logs, ownPeriod.start, ownPeriod.end, transfers);
+  if (bucketPausedInPeriod(bucket.id, pauses, ownPeriod)) return null;
+
+  if (bucketSavedThrough(bucket.id, logs, period.end, transfers, pauses) >= bucket.target_amount) return true;
+
+  const amountSaved = sumBucketActivityInRange(bucket.id, logs, ownPeriod.start, ownPeriod.end, transfers, pauses);
   const required = requiredAmountForOwnPeriod(bucket, ownPeriod);
   if (amountSaved + 0.005 >= required) return true;
 
@@ -206,11 +226,12 @@ function periodMetForAllBuckets(
   logs: SavingsLog[],
   frozenDates: ReadonlySet<string>,
   transfers?: BucketTransfer[],
+  pauses: BucketPlanPause[] = [],
 ): { met: boolean; applicable: boolean } {
   let applicable = false;
 
   for (const bucket of buckets) {
-    const met = bucketObligationMet(bucket, period, todayKey, logs, transfers);
+    const met = bucketObligationMet(bucket, period, todayKey, logs, transfers, pauses);
     if (met === null) continue;
     applicable = true;
     if (!met) {
@@ -224,12 +245,18 @@ function periodMetForAllBuckets(
   return { applicable, met: applicable };
 }
 
-function latestDepositDateForBuckets(bucketIds: Set<string>, logs: SavingsLog[], todayKey: string): string | null {
+function latestDepositDateForBuckets(
+  bucketIds: Set<string>,
+  logs: SavingsLog[],
+  todayKey: string,
+  pauses: BucketPlanPause[] = [],
+): string | null {
   let latest: string | null = null;
   for (const log of logs) {
     if (!log.bucket_id || !bucketIds.has(log.bucket_id) || log.amount <= 0) continue;
     const key = localDateKey(log.created_at);
     if (key > todayKey) continue;
+    if (isBucketPausedOnDate(pauses, log.bucket_id, key)) continue;
     if (!latest || key > latest) latest = key;
   }
   return latest;
@@ -241,6 +268,7 @@ export function calcPeriodAwareStreak(
   today?: string,
   frozenDates: ReadonlySet<string> = new Set(),
   transfers?: BucketTransfer[],
+  pauses: BucketPlanPause[] = [],
 ): PeriodAwareStreakResult {
   const todayKey = today ?? todayBangkokKey();
   const active = buckets.filter(bucket => bucket.archived_at == null);
@@ -251,8 +279,14 @@ export function calcPeriodAwareStreak(
   ));
   const focusBucketIds = focusBuckets.map(bucket => bucket.id);
   const trackedBucketIds = new Set(trackedBuckets.map(bucket => bucket.id));
-  const lastDepositDateKey = latestDepositDateForBuckets(trackedBucketIds, logs, todayKey);
+  const lastDepositDateKey = latestDepositDateForBuckets(trackedBucketIds, logs, todayKey, pauses);
   const hasLoggedToday = lastDepositDateKey === todayKey;
+  const pausedBucketIds = trackedBuckets
+    .filter(bucket => isBucketPausedOnDate(pauses, bucket.id, todayKey))
+    .map(bucket => bucket.id);
+  const pausedBucketIdSet = new Set(pausedBucketIds);
+  const allTrackedPaused = trackedBuckets.length > 0
+    && trackedBuckets.every(bucket => pausedBucketIdSet.has(bucket.id));
 
   if (trackedBuckets.length === 0) {
     return {
@@ -263,6 +297,9 @@ export function calcPeriodAwareStreak(
       hasLoggedToday,
       lastDepositDateKey,
       focusBucketIds,
+      hasPausedCurrentPeriod: false,
+      allTrackedPaused: false,
+      pausedBucketIds,
     };
   }
 
@@ -275,7 +312,11 @@ export function calcPeriodAwareStreak(
     logs,
     frozenDates,
     transfers,
+    pauses,
   );
+  const hasPausedCurrentPeriod = trackedBuckets.some(bucket => (
+    bucketPausedInPeriod(bucket.id, pauses, currentPeriod)
+  ));
 
   let cursor = currentPeriod;
   if (unit !== 'day' && current.applicable && !current.met && currentPeriod.end >= todayKey) {
@@ -285,8 +326,14 @@ export function calcPeriodAwareStreak(
   const maxPeriods = unit === 'day' ? 4000 : unit === 'week' ? 600 : 240;
   let streak = 0;
   for (let i = 0; i < maxPeriods; i++) {
-    const result = periodMetForAllBuckets(trackedBuckets, cursor, todayKey, logs, frozenDates, transfers);
-    if (!result.applicable) break;
+    const result = periodMetForAllBuckets(trackedBuckets, cursor, todayKey, logs, frozenDates, transfers, pauses);
+    if (!result.applicable) {
+      if (trackedBuckets.some(bucket => bucketPausedInPeriod(bucket.id, pauses, cursor))) {
+        cursor = previousPeriod(cursor, unit);
+        continue;
+      }
+      break;
+    }
     if (!result.met) break;
     streak += 1;
     cursor = previousPeriod(cursor, unit);
@@ -300,5 +347,8 @@ export function calcPeriodAwareStreak(
     hasLoggedToday,
     lastDepositDateKey,
     focusBucketIds,
+    hasPausedCurrentPeriod,
+    allTrackedPaused,
+    pausedBucketIds,
   };
 }

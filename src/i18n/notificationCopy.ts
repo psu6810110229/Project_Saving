@@ -97,6 +97,16 @@ export function notificationDisplayCopy(
         item,
         n.events.bucketUpdated(actorName(payload, fallbackPartner), payloadString(payload, 'bucket_name')),
       );
+    case 'bucket_plan_paused':
+      return withStoredFallback(
+        item,
+        n.events.bucketPlanPaused(actorName(payload, fallbackPartner), payloadString(payload, 'bucket_name')),
+      );
+    case 'bucket_plan_resumed':
+      return withStoredFallback(
+        item,
+        n.events.bucketPlanResumed(actorName(payload, fallbackPartner), payloadString(payload, 'bucket_name')),
+      );
     case 'bucket_transferred': {
       const amount = payloadNumber(payload, 'amount');
       return withStoredFallback(

@@ -133,3 +133,33 @@ export function daysSince(iso: string, now: Date = new Date()): number {
   if (!Number.isFinite(diffMs) || diffMs <= 0) return 0;
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
+
+/**
+ * Whether the user has recorded at least one deposit after their latest
+ * manual balance check. When there has never been a manual check, any
+ * existing deposit means the user still has money in-app that has not yet
+ * been manually confirmed against the real account/cash balance.
+ */
+export function hasDepositsAfterCheck(
+  logs: Array<{ user_id: string; created_at: string }>,
+  userId: string | undefined,
+  checkedAt: string | null | undefined,
+): boolean {
+  if (!userId) return false;
+
+  let latestDepositMs = Number.NEGATIVE_INFINITY;
+  for (const log of logs) {
+    if (log.user_id !== userId) continue;
+    const createdAtMs = Date.parse(log.created_at);
+    if (Number.isFinite(createdAtMs) && createdAtMs > latestDepositMs) {
+      latestDepositMs = createdAtMs;
+    }
+  }
+
+  if (!Number.isFinite(latestDepositMs)) return false;
+  if (!checkedAt) return true;
+
+  const checkedAtMs = Date.parse(checkedAt);
+  if (!Number.isFinite(checkedAtMs)) return true;
+  return latestDepositMs > checkedAtMs;
+}

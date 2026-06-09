@@ -34,10 +34,10 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   const streakFreeze = useStreakFreeze(user?.id);
   const reconcile = useReconcile(roomId);
   const roomVisibleMomentumFlows = useRoomVisibleMomentumFlows(roomId);
-  // Feed the current user's Verified Balance (deposits + reconcile
+  // Feed the current user's app ledger total (deposits + reconcile
   // adjustments) into the leaderboard so their card/%/rank and the room
-  // total stay consistent with Check Balance. Other members keep recorded
-  // deposits since their verified balance is private.
+  // total stay consistent with their own current app total. Other members
+  // keep recorded deposits since their private balance-check data stays private.
   const leaderboard = useLeaderboard(
     user?.id,
     roomId,

@@ -735,7 +735,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                   </label>
 
                   <div className="block">
-                    <span className="mb-2 block font-mono-th text-sm font-semibold text-ink">{dep.bucketLabel}</span>
+                    <span className="mb-2 block font-mono text-sm font-semibold uppercase tracking-wider text-brand-800">{dep.bucketLabel}</span>
                     {depositBuckets.length > 1 ? (
                       <DepositBucketCardPicker
                         buckets={depositBuckets}

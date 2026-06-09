@@ -92,7 +92,7 @@ import { cumulativeAmountSeries, cumulativeNetAmountSeries } from '../lib/dashbo
 import { haptic } from '../lib/haptics';
 import { roomCoverErrorMessage } from '../lib/roomCoverImage';
 import { supabase } from '../lib/supabase';
-import { daysSince } from '../lib/reconcile';
+import { daysSince, hasDepositsAfterCheck } from '../lib/reconcile';
 import { localDateKey } from '../lib/streak';
 import {
   addDays,
@@ -330,6 +330,10 @@ export function Dashboard() {
     allocate,
     loading: reconcileLoading,
   } = data.reconcile;
+  const needsFreshCheckAfterDeposit = useMemo(
+    () => hasDepositsAfterCheck(logs, user?.id, latestCheckpoint?.checked_at ?? null),
+    [logs, user?.id, latestCheckpoint?.checked_at],
+  );
   // Option A (plan 56 slice 4a): the hero number equals the sum of the
   // user's bucket cards (Recorded Deposits + signed allocations), so hero =
   // buckets = Verified Balance right after a check — never three competing
@@ -1477,6 +1481,7 @@ export function Dashboard() {
                         latest={latestCheckpoint}
                         unallocatedPool={unallocatedPool}
                         overAllocated={overAllocated}
+                        needsFreshCheck={needsFreshCheckAfterDeposit}
                         onCheck={handleCheckBalance}
                         onSync={handleSyncShortfall}
                         canAllocate={!isEditing && activeBucketItems.length > 0}

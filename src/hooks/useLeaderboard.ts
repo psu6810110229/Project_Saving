@@ -84,11 +84,11 @@ export function useLeaderboard(
   // data is plumbed in only for the current user. Partner streaks
   // continue to use the raw chain via `calcStreak`.
   currentUserFrozenDates: ReadonlySet<string> = EMPTY_FROZEN_DATES,
-  // Current user's Verified Balance (recorded deposits + reconcile
-  // adjustments) from `current_reconciled_balance`. When provided, it
-  // replaces the current user's Recorded Deposits as the leaderboard
-  // `saved` value so the %, rank, and room total match Check Balance.
-  // Other members' verified balance is private, so they stay on recorded.
+  // Current user's current app ledger total (recorded deposits +
+  // reconcile adjustments) from `current_reconciled_balance`. When
+  // provided, it replaces the current user's Recorded Deposits as the
+  // leaderboard `saved` value. Other members keep recorded deposits
+  // because their private balance-check data is not exposed.
   currentUserVerifiedBalance: number | null = null,
   currentUserBuckets: Bucket[] = [],
   currentUserTransfers: BucketTransfer[] = [],

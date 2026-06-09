@@ -127,7 +127,8 @@
       "Bash(/c/Users/farnp/AppData/Local/Android/Sdk/platform-tools/adb.exe -s TSUC95G6XGQ87XV8 exec-out run-as com.goout.app cat shared_prefs/CapacitorStorage.xml)",
       "Bash(python3 -c ' *)",
       "Bash(node -e ' *)",
-      "Bash(/c/Users/farnp/AppData/Local/Android/Sdk/platform-tools/adb.exe -s TSUC95G6XGQ87XV8 install -r '/d/Fran'\\\\''s Folder/Project/android/app/build/outputs/apk/debug/app-debug.apk')"
+      "Bash(/c/Users/farnp/AppData/Local/Android/Sdk/platform-tools/adb.exe -s TSUC95G6XGQ87XV8 install -r '/d/Fran'\\\\''s Folder/Project/android/app/build/outputs/apk/debug/app-debug.apk')",
+      "Bash(rg -n \"export const \\(en|th\\)|: Copy|typeof en|Translation\" src/i18n/locales/en.ts src/i18n/locales/th.ts src/i18n/*.ts)"
     ]
   }
 }

@@ -68,6 +68,7 @@ import { Skeleton } from '../components/Skeleton/Skeleton';
 import { Spinner } from '../components/Spinner/Spinner';
 import { useLoadingGate } from '../hooks/useLoadingGate';
 import { useSharedData } from '../hooks/useSharedData';
+import { useDepositRecorder } from '../hooks/useDepositRecorder';
 import { useMigrationState } from '../hooks/useMigrationState';
 import { useLogs } from '../hooks/useLogs';
 import { useBucketIntentSettings } from '../hooks/useBucketIntentSettings';
@@ -318,6 +319,7 @@ export function Dashboard() {
   const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
   const { addOptimisticFlow } = data.roomVisibleMomentumFlows;
   const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
+  const { recordDeposit } = useDepositRecorder({ userId: user?.id, insert, addOptimisticFlow });
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = data.leaderboard;
   const {
@@ -1981,22 +1983,15 @@ export function Dashboard() {
             }}
             onConfirm={async amount => {
               if (!expandedBucketId) return { error: copy.bucket.validationNameAndTarget };
-              const prev = selectedBucketItem?.saved ?? 0;
-              const planRemainsPaused = Boolean(selectedPauseState?.isPaused);
-              const result = await insert(amount, expandedBucketId);
+              const result = await recordDeposit({
+                amount,
+                bucketId: expandedBucketId,
+                bucketName: selectedBucketItem?.name ?? '',
+                prevSaved: selectedBucketItem?.saved ?? 0,
+                target: selectedBucketItem?.target ?? 0,
+                wasPaused: Boolean(selectedPauseState?.isPaused),
+              });
               if (!result.error) {
-                if (user?.id) {
-                  const createdAt = new Date().toISOString();
-                  addOptimisticFlow({
-                    user_id: user.id,
-                    bucket_id: expandedBucketId,
-                    date_key: localDateKey(createdAt),
-                    amount,
-                    event_kind: 'deposit',
-                  });
-                }
-                const reached = prev < (selectedBucketItem?.target ?? 0) && prev + amount >= (selectedBucketItem?.target ?? 0);
-                haptic(reached ? 'milestone' : 'success');
                 if (selectedBucketItem) {
                   setVaultPreview({
                     prevSaved: heroSaved,
@@ -2004,13 +1999,13 @@ export function Dashboard() {
                     target,
                     depositAmount: amount,
                     bucketName: selectedBucketItem.name,
-                    reachedBucket: reached,
-                    planRemainsPaused,
+                    reachedBucket: result.reachedTarget,
+                    planRemainsPaused: result.wasPaused,
                   });
                 }
                 setExpandedBucketId(null);
               }
-              return result;
+              return { error: result.error };
             }}
           />
         );

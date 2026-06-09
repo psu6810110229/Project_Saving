@@ -163,6 +163,17 @@ export function calcDailySummary(
       }
     }
 
+    // Fixed rules now honour a future start date (migration 0081): nothing is
+    // due before the plan begins. Falls back to created_at so existing buckets
+    // (start_date null) keep charging from today as before.
+    if (rule === 'fixed_daily' || rule === 'fixed_weekly' || rule === 'fixed_monthly') {
+      const scheduleStart = b.saving_rule_start_date ?? b.created_at.slice(0, 10);
+      if (todayKey < scheduleStart) {
+        amountDue = null;
+        periodDeadline = null;
+      }
+    }
+
     if (pausedToday) {
       amountDue = null;
       periodDeadline = null;

@@ -44,6 +44,29 @@ export interface DepositRecorderResult {
   error?: string;
 }
 
+/** One bucket's slice of a split deposit (sprint 7). */
+export interface RecordDepositBatchRow {
+  amount: number;
+  bucketId: string;
+  bucketName: string;
+  prevSaved: number;
+  target: number;
+  wasPaused: boolean;
+}
+
+export interface DepositBatchRowResult {
+  amount: number;
+  bucketId: string;
+  bucketName: string;
+  reachedTarget: boolean;
+  wasPaused: boolean;
+}
+
+export interface DepositBatchResult {
+  rows: DepositBatchRowResult[];
+  error?: string;
+}
+
 interface UseDepositRecorderDeps {
   userId: string | undefined;
   insert: (
@@ -52,10 +75,13 @@ interface UseDepositRecorderDeps {
     note?: string,
     slipUrl?: string | null,
   ) => Promise<{ error?: string }>;
+  insertBatch: (
+    rows: Array<{ amount: number; bucketId: string; note?: string; slipUrl?: string | null }>,
+  ) => Promise<{ error?: string; ids?: string[] }>;
   addOptimisticFlow: (flow: RoomVisibleMomentumFlow) => void;
 }
 
-export function useDepositRecorder({ userId, insert, addOptimisticFlow }: UseDepositRecorderDeps) {
+export function useDepositRecorder({ userId, insert, insertBatch, addOptimisticFlow }: UseDepositRecorderDeps) {
   const recordDeposit = useCallback(
     async (input: RecordDepositInput): Promise<DepositRecorderResult> => {
       const { amount, bucketId, bucketName, prevSaved, target, wasPaused, note, slipUrl } = input;
@@ -91,5 +117,48 @@ export function useDepositRecorder({ userId, insert, addOptimisticFlow }: UseDep
     [userId, insert, addOptimisticFlow],
   );
 
-  return { recordDeposit };
+  /**
+   * Split deposit (sprint 7): record several positive `savings_logs` rows from
+   * one saved amount in a single batch. The batch is all-or-nothing; on
+   * success we add the optimistic momentum flow per bucket row and compute
+   * each row's `reachedTarget`, then fire one haptic for the whole confirm.
+   */
+  const recordDepositBatch = useCallback(
+    async (rows: RecordDepositBatchRow[]): Promise<DepositBatchResult> => {
+      const rowResults: DepositBatchRowResult[] = rows.map(row => ({
+        amount: row.amount,
+        bucketId: row.bucketId,
+        bucketName: row.bucketName,
+        reachedTarget: row.prevSaved < row.target && row.prevSaved + row.amount >= row.target,
+        wasPaused: row.wasPaused,
+      }));
+
+      const result = await insertBatch(
+        rows.map(row => ({ amount: row.amount, bucketId: row.bucketId })),
+      );
+      if (result.error) {
+        return { rows: rowResults, error: result.error };
+      }
+
+      if (userId) {
+        const createdAt = new Date().toISOString();
+        const dateKey = localDateKey(createdAt);
+        for (const row of rows) {
+          addOptimisticFlow({
+            user_id: userId,
+            bucket_id: row.bucketId,
+            date_key: dateKey,
+            amount: row.amount,
+            event_kind: 'deposit',
+          });
+        }
+      }
+
+      haptic(rowResults.some(row => row.reachedTarget) ? 'milestone' : 'success');
+      return { rows: rowResults };
+    },
+    [userId, insertBatch, addOptimisticFlow],
+  );
+
+  return { recordDeposit, recordDepositBatch };
 }

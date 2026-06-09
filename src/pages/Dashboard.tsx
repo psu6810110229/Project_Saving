@@ -318,8 +318,8 @@ export function Dashboard() {
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
   const { addOptimisticFlow } = data.roomVisibleMomentumFlows;
-  const { logs, loading: logsLoading, error: logsError, insert } = data.logs;
-  const { recordDeposit } = useDepositRecorder({ userId: user?.id, insert, addOptimisticFlow });
+  const { logs, loading: logsLoading, error: logsError, insert, insertBatch } = data.logs;
+  const { recordDeposit } = useDepositRecorder({ userId: user?.id, insert, insertBatch, addOptimisticFlow });
   const { total } = useSavingsTotal(user?.id, logs);
   const leaderboard = data.leaderboard;
   const {

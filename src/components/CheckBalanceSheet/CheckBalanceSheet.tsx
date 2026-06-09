@@ -53,13 +53,13 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   const data = useSharedData();
   const { appBalance, createCheckpoint, overAllocated, deallocate, refetch: refetchBalance } = data.reconcile;
   const { buckets } = data.buckets;
-  const { logs, insert } = data.logs;
+  const { logs, insert, insertBatch } = data.logs;
   const { transfers: bucketTransfers } = data.bucketTransfers;
   const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
   const { addOptimisticFlow } = data.roomVisibleMomentumFlows;
   const { quickAmounts } = data.profile;
   const { pauses: bucketPlanPauses } = data.bucketPlanPauses;
-  const { recordDeposit } = useDepositRecorder({ userId: user?.id, insert, addOptimisticFlow });
+  const { recordDeposit, recordDepositBatch } = useDepositRecorder({ userId: user?.id, insert, insertBatch, addOptimisticFlow });
   const { copy } = useI18n();
   const r = copy.reconcile;
   const dep = r.deposit;
@@ -92,14 +92,26 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   const [depositBucketId, setDepositBucketId] = useState<string | null>(null);
   const [depositSubmitting, setDepositSubmitting] = useState(false);
   const [depositError, setDepositError] = useState<string | null>(null);
+  // Unified success shape for single + split deposits: one row for a single
+  // bucket, several rows for a split. `totalAmount` is the saved amount.
   const [depositSuccess, setDepositSuccess] = useState<null | {
-    amount: number;
-    bucketName: string;
-    newSaved: number;
-    target: number;
-    reachedTarget: boolean;
-    wasPaused: boolean;
+    rows: Array<{
+      amount: number;
+      bucketName: string;
+      newSaved: number;
+      target: number;
+      reachedTarget: boolean;
+      wasPaused: boolean;
+    }>;
+    totalAmount: number;
   }>(null);
+
+  // Split mode (sprint 7): spread one saved amount across multiple buckets.
+  // `splitAmounts` maps bucketId → integer-baht string; the total is fixed to
+  // the entered deposit amount and confirm requires an exact allocation match.
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>({});
+  const [splitError, setSplitError] = useState<string | null>(null);
 
   // Own active buckets that currently hold money, as write-down candidates.
   const shortfallBuckets = useMemo<ShortfallBucket[]>(() => buckets
@@ -155,7 +167,14 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
   const depositAmount = depositValue.trim() !== '' && Number(depositValue) > 0
     ? Number(depositValue)
     : (depositPill ?? 0);
-  const showModeToggle = (mode === 'check' && step === 'enter') || (mode === 'deposit' && !depositSuccess);
+  const showModeToggle = (mode === 'check' && step === 'enter') || (mode === 'deposit' && !depositSuccess && !splitMode);
+
+  // Split allocation tracking. Total is locked to the entered deposit amount;
+  // confirm is enabled only when the per-bucket inputs sum to it exactly.
+  const splitTotal = depositAmount;
+  const splitAllocated = depositBuckets.reduce((sum, b) => sum + (Number(splitAmounts[b.id]) || 0), 0);
+  const splitRemaining = splitTotal - splitAllocated;
+  const splitValid = splitTotal > 0 && splitRemaining === 0;
 
   // Card-nudge entry: on the closed→open transition in sync mode, jump
   // straight to the shortfall panel using the stored overAllocated (no new
@@ -198,6 +217,9 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
       setDepositSubmitting(false);
       setDepositError(null);
       setDepositSuccess(null);
+      setSplitMode(false);
+      setSplitAmounts({});
+      setSplitError(null);
     }, 350);
   }
 
@@ -205,6 +227,9 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
     if (next === mode) return;
     setError(null);
     setDepositError(null);
+    setSplitMode(false);
+    setSplitAmounts({});
+    setSplitError(null);
     if (next === 'check') {
       setStep('enter');
       setDepositSuccess(null);
@@ -239,13 +264,121 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
       return;
     }
     setDepositSuccess({
-      amount: result.amount,
-      bucketName: result.bucketName,
-      newSaved: selectedDepositBucket.saved + result.amount,
-      target: selectedDepositBucket.target,
-      reachedTarget: result.reachedTarget,
-      wasPaused: result.wasPaused,
+      rows: [{
+        amount: result.amount,
+        bucketName: result.bucketName,
+        newSaved: selectedDepositBucket.saved + result.amount,
+        target: selectedDepositBucket.target,
+        reachedTarget: result.reachedTarget,
+        wasPaused: result.wasPaused,
+      }],
+      totalAmount: result.amount,
     });
+  }
+
+  // ── Split mode helpers (sprint 7) ──
+
+  function openSplit() {
+    if (depositAmount <= 0 || depositBuckets.length < 2) return;
+    // Seed the whole total onto the default/selected bucket so the allocation
+    // starts balanced; the user then carves amounts out to other buckets.
+    const seedId = selectedDepositBucket?.id ?? depositBuckets[0].id;
+    setSplitAmounts({ [seedId]: String(depositAmount) });
+    setSplitError(null);
+    setSplitMode(true);
+  }
+
+  function closeSplit() {
+    setSplitMode(false);
+    setSplitAmounts({});
+    setSplitError(null);
+  }
+
+  function setSplitRow(bucketId: string, raw: string) {
+    const digits = raw.replace(/[^0-9]/g, '');
+    setSplitAmounts(prev => ({ ...prev, [bucketId]: digits }));
+    setSplitError(null);
+  }
+
+  // Spread the total evenly across all eligible buckets (remainder lands on
+  // the first buckets, one baht each, so the sum stays exact).
+  function splitEven() {
+    const n = depositBuckets.length;
+    if (n === 0 || splitTotal <= 0) return;
+    const base = Math.floor(splitTotal / n);
+    let remainder = splitTotal - base * n;
+    const next: Record<string, string> = {};
+    for (const b of depositBuckets) {
+      const extra = remainder > 0 ? 1 : 0;
+      remainder -= extra;
+      const amount = base + extra;
+      if (amount > 0) next[b.id] = String(amount);
+    }
+    setSplitAmounts(next);
+    setSplitError(null);
+  }
+
+  // Fill each bucket up to its remaining target in order; any leftover (all
+  // targets met, or buckets without a target) lands on the first bucket so the
+  // allocation still matches the total exactly.
+  function splitFill() {
+    if (splitTotal <= 0 || depositBuckets.length === 0) return;
+    let pool = splitTotal;
+    const next: Record<string, string> = {};
+    for (const b of depositBuckets) {
+      if (pool <= 0) break;
+      const remainingToTarget = b.target > 0 ? Math.max(0, b.target - b.saved) : 0;
+      const give = Math.min(pool, remainingToTarget);
+      if (give > 0) {
+        next[b.id] = String(give);
+        pool -= give;
+      }
+    }
+    if (pool > 0) {
+      const firstId = depositBuckets[0].id;
+      next[firstId] = String((Number(next[firstId]) || 0) + pool);
+    }
+    setSplitAmounts(next);
+    setSplitError(null);
+  }
+
+  async function handleConfirmSplit() {
+    if (depositSubmitting || !splitValid) return;
+    const rows = depositBuckets
+      .map(b => ({ bucket: b, amount: Number(splitAmounts[b.id]) || 0 }))
+      .filter(x => x.amount > 0)
+      .map(({ bucket, amount }) => ({
+        amount,
+        bucketId: bucket.id,
+        bucketName: bucket.name,
+        prevSaved: bucket.saved,
+        target: bucket.target,
+        wasPaused: bucket.isPaused,
+      }));
+    if (rows.length === 0) return;
+    setDepositSubmitting(true);
+    setSplitError(null);
+    const result = await recordDepositBatch(rows);
+    setDepositSubmitting(false);
+    if (result.error) {
+      setSplitError(result.error);
+      return;
+    }
+    setDepositSuccess({
+      rows: result.rows.map(rowResult => {
+        const src = rows.find(x => x.bucketId === rowResult.bucketId);
+        return {
+          amount: rowResult.amount,
+          bucketName: rowResult.bucketName,
+          newSaved: (src?.prevSaved ?? 0) + rowResult.amount,
+          target: src?.target ?? 0,
+          reachedTarget: rowResult.reachedTarget,
+          wasPaused: rowResult.wasPaused,
+        };
+      }),
+      totalAmount: rows.reduce((sum, x) => sum + x.amount, 0),
+    });
+    setSplitMode(false);
   }
 
   // Deposit → "check next": refresh the verified balance (the new deposit is
@@ -257,6 +390,9 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
     setDepositBucketId(null);
     setDepositSuccess(null);
     setDepositError(null);
+    setSplitMode(false);
+    setSplitAmounts({});
+    setSplitError(null);
     setError(null);
     setStep('enter');
     setMode('check');
@@ -544,7 +680,7 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
           )}
           </>)}
 
-          {mode === 'deposit' && !depositSuccess && (
+          {mode === 'deposit' && !depositSuccess && !splitMode && (
             <section className="flex flex-col gap-4 rounded-xl bg-surface p-4 shadow-soft">
               {depositBuckets.length === 0 ? (
                 <p className="py-4 text-center font-mono-th text-sm text-ink-muted">{dep.emptyBuckets}</p>
@@ -615,6 +751,17 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
                     </p>
                   )}
 
+                  {depositBuckets.length > 1 && depositAmount > 0 && (
+                    <button
+                      type="button"
+                      onClick={openSplit}
+                      className="self-start font-mono-th text-xs font-semibold text-brand-800 underline-offset-2 transition-opacity hover:underline disabled:opacity-60"
+                      disabled={depositSubmitting}
+                    >
+                      {dep.splitEntry}
+                    </button>
+                  )}
+
                   {depositError && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{depositError}</p>}
 
                   <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
@@ -636,33 +783,155 @@ export function CheckBalanceSheet({ open, onClose, initialMode = 'check' }: Chec
             </section>
           )}
 
-          {mode === 'deposit' && depositSuccess && (
-            <section className="flex flex-col items-center gap-4 rounded-xl bg-surface p-5 text-center shadow-soft">
-              <IconBubble tone={depositSuccess.reachedTarget ? 'solid' : 'peach'} size="md">
-                {depositSuccess.reachedTarget ? <IconCheck size={22} /> : <IconVault size={22} />}
-              </IconBubble>
-              <div className="flex flex-col gap-1">
-                <p className="font-mono-th text-lg font-semibold text-ink">{dep.successTitle}</p>
-                <p className="font-mono-th text-sm leading-6 text-ink-muted">
-                  {dep.successBody(formatCurrency(depositSuccess.amount), depositSuccess.bucketName)}
-                </p>
-                {depositSuccess.target > 0 && (
-                  <p className="font-mono text-xs font-semibold text-ink-muted">
-                    {dep.successSavedSummary(formatCurrency(depositSuccess.newSaved), formatCurrency(depositSuccess.target))}
-                  </p>
-                )}
-                {depositSuccess.wasPaused && (
-                  <p className="font-mono-th text-xs text-ink-dim">{dep.successPausedNote}</p>
+          {mode === 'deposit' && !depositSuccess && splitMode && (
+            <section className="flex flex-col gap-4 rounded-xl bg-surface p-4 shadow-soft">
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-surfaceAlt px-3 py-2.5">
+                <span className="font-mono-th text-xs font-semibold text-ink-muted">{dep.splitTotalLabel}</span>
+                <span className="font-mono text-lg font-semibold tabular-nums text-ink">{formatCurrency(splitTotal)}</span>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                {depositBuckets.map(b => {
+                  const rowAmount = Number(splitAmounts[b.id]) || 0;
+                  return (
+                    <div key={b.id} className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate font-mono-th text-sm font-semibold text-ink">{b.name}</span>
+                          {b.target > 0 && (
+                            <span className="block font-mono text-[11px] font-semibold text-ink-muted">
+                              {dep.bucketProgress(formatCurrency(b.saved), formatCurrency(b.target))}
+                            </span>
+                          )}
+                        </div>
+                        <div className="w-28 shrink-0">
+                          <TextInput
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            placeholder="0"
+                            value={splitAmounts[b.id] ?? ''}
+                            leadingIcon={<span className="font-mono font-semibold">฿</span>}
+                            onChange={event => setSplitRow(b.id, event.target.value)}
+                          />
+                        </div>
+                      </div>
+                      {b.isPaused && rowAmount > 0 && (
+                        <p className="rounded-lg bg-accent-slate/10 px-3 py-2 font-mono-th text-[11px] leading-5 text-ink-muted">
+                          {dep.pausedHelper}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <span className={`font-mono-th text-xs font-semibold ${splitValid ? 'text-accent-leaf' : 'text-ink-muted'}`}>
+                  {dep.splitTracker(formatCurrency(splitAllocated), formatCurrency(splitTotal))}
+                </span>
+                {splitRemaining !== 0 && (
+                  <span className="font-mono-th text-xs font-semibold text-danger">
+                    {splitRemaining > 0
+                      ? dep.splitUnderWarning(formatCurrency(splitRemaining))
+                      : dep.splitOverWarning(formatCurrency(-splitRemaining))}
+                  </span>
                 )}
               </div>
-              <div className="flex w-full flex-col gap-2">
-                <Button variant="action" fullWidth onClick={handleClose}>{dep.doneButton}</Button>
-                <Button variant="ghost" fullWidth className={MODAL_SECONDARY_BUTTON_CLASS} onClick={handleContinueCheck}>
-                  {dep.continueCheckButton}
+
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: dep.splitBackToSingle, onClick: closeSplit },
+                  { label: dep.splitFill, onClick: splitFill },
+                  { label: dep.splitEven, onClick: splitEven },
+                ].map(shortcut => (
+                  <button
+                    key={shortcut.label}
+                    type="button"
+                    onClick={shortcut.onClick}
+                    disabled={depositSubmitting}
+                    className="rounded-pill bg-surfaceAlt px-3 py-1.5 font-mono-th text-xs font-semibold text-ink shadow-soft transition-colors hover:bg-brand-50 disabled:opacity-60"
+                  >
+                    {shortcut.label}
+                  </button>
+                ))}
+              </div>
+
+              {splitError && <p className="rounded-lg bg-danger-soft px-4 py-3 font-mono text-xs text-danger">{splitError}</p>}
+
+              <div className={MODAL_ACTION_ROW_REVERSE_CLASS}>
+                <Button
+                  variant="action"
+                  fullWidth
+                  size="md"
+                  onClick={handleConfirmSplit}
+                  disabled={depositSubmitting || !splitValid}
+                >
+                  {depositSubmitting ? dep.confirmingButton : dep.splitConfirmButton}
+                </Button>
+                <Button variant="ghost" fullWidth size="md" className={MODAL_SECONDARY_BUTTON_CLASS} onClick={handleClose}>
+                  {r.cancelButton}
                 </Button>
               </div>
             </section>
           )}
+
+          {mode === 'deposit' && depositSuccess && (() => {
+            const isSplit = depositSuccess.rows.length > 1;
+            const single = depositSuccess.rows[0];
+            const reached = depositSuccess.rows.some(row => row.reachedTarget);
+            return (
+              <section className="flex flex-col items-center gap-4 rounded-xl bg-surface p-5 text-center shadow-soft">
+                <IconBubble tone={reached ? 'solid' : 'peach'} size="md">
+                  {reached ? <IconCheck size={22} /> : <IconVault size={22} />}
+                </IconBubble>
+                <div className="flex w-full flex-col gap-1">
+                  <p className="font-mono-th text-lg font-semibold text-ink">
+                    {isSplit ? dep.splitSuccessTitle : dep.successTitle}
+                  </p>
+                  {isSplit ? (
+                    <>
+                      <p className="font-mono-th text-sm leading-6 text-ink-muted">
+                        {dep.splitSuccessSubtitle(formatCurrency(depositSuccess.totalAmount))}
+                      </p>
+                      <ul className="mt-2 flex flex-col gap-1.5">
+                        {depositSuccess.rows.map(row => (
+                          <li key={row.bucketName} className="flex flex-col gap-0.5 rounded-lg bg-surfaceAlt px-3 py-2 text-left">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="min-w-0 truncate font-mono-th text-sm font-semibold text-ink">{row.bucketName}</span>
+                              <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-ink">{formatCurrency(row.amount)}</span>
+                            </div>
+                            {row.wasPaused && (
+                              <span className="font-mono-th text-[11px] text-ink-dim">{dep.successPausedNote}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-mono-th text-sm leading-6 text-ink-muted">
+                        {dep.successBody(formatCurrency(single.amount), single.bucketName)}
+                      </p>
+                      {single.target > 0 && (
+                        <p className="font-mono text-xs font-semibold text-ink-muted">
+                          {dep.successSavedSummary(formatCurrency(single.newSaved), formatCurrency(single.target))}
+                        </p>
+                      )}
+                      {single.wasPaused && (
+                        <p className="font-mono-th text-xs text-ink-dim">{dep.successPausedNote}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="flex w-full flex-col gap-2">
+                  <Button variant="action" fullWidth onClick={handleClose}>{dep.doneButton}</Button>
+                  <Button variant="ghost" fullWidth className={MODAL_SECONDARY_BUTTON_CLASS} onClick={handleContinueCheck}>
+                    {dep.continueCheckButton}
+                  </Button>
+                </div>
+              </section>
+            );
+          })()}
         </div>
       )}
     </Modal>

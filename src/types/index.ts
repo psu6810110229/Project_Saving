@@ -124,6 +124,71 @@ export interface Bucket {
   completed_at?: string | null;
 }
 
+/** Single pause/resume record for a bucket-level saving plan. */
+export interface BucketPlanPause {
+  id: string;
+  bucket_id: string;
+  room_id: string;
+  user_id: string;
+  /** Bangkok date the pause starts, inclusive. */
+  paused_from: string;
+  /** Bangkok date the bucket plan resumes, exclusive boundary. Null = open. */
+  resumed_from: string | null;
+  created_at: string;
+  resumed_at: string | null;
+  client_request_id: string | null;
+  resume_client_request_id: string | null;
+}
+
+export type BucketPlanRevisionSource = 'migration_backfill' | 'resume_recalculated';
+
+/** Historical snapshot of a bucket's saving rule/read-model fields. */
+export interface BucketPlanRevision {
+  id: string;
+  bucket_id: string;
+  room_id: string;
+  user_id: string;
+  /** Bangkok-local date the snapshot starts to apply. */
+  effective_from_date: string;
+  deadline: string | null;
+  target_amount: number;
+  saving_rule_type: SavingRuleType | null;
+  saving_rule_amount: number | null;
+  saving_rule_start_amount: number | null;
+  saving_rule_increment: number | null;
+  saving_rule_cap: number | null;
+  saving_rule_day_count: number | null;
+  saving_rule_start_date: string | null;
+  reminder_day: number | null;
+  source: BucketPlanRevisionSource;
+  created_at: string;
+}
+
+/** Sanitized partner-visible bucket pause state. Raw pause dates stay owner-only. */
+export interface BucketPauseStatus {
+  bucket_id: string;
+  room_id: string;
+  user_id: string;
+  status: 'active' | 'paused';
+  is_paused: boolean;
+}
+
+/** Return shape shared by `pause_bucket_plan` and `resume_bucket_plan`. */
+export interface BucketPlanPauseMutationResult {
+  pause_id: string;
+  bucket_id: string;
+  room_id: string;
+  user_id: string;
+  paused_from: string;
+  resumed_from: string | null;
+  created_at: string;
+  resumed_at: string | null;
+  reused: boolean;
+}
+
+export type PauseBucketPlanResult = BucketPlanPauseMutationResult;
+export type ResumeBucketPlanResult = BucketPlanPauseMutationResult;
+
 /**
  * Same-user, same-room bucket-to-bucket money movement. Append-only
  * ledger written by `transfer_bucket_money` (migration 0059). Per

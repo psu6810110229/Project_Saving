@@ -38,7 +38,15 @@ export function DataProvider({ roomId, children }: { roomId: string; children: R
   // adjustments) into the leaderboard so their card/%/rank and the room
   // total stay consistent with Check Balance. Other members keep recorded
   // deposits since their verified balance is private.
-  const leaderboard = useLeaderboard(user?.id, roomId, streakFreeze.frozenDates, reconcile.appBalance);
+  const leaderboard = useLeaderboard(
+    user?.id,
+    roomId,
+    streakFreeze.frozenDates,
+    reconcile.appBalance,
+    buckets.buckets,
+    bucketTransfers.transfers,
+    bucketPlanPauses.pauses,
+  );
   const goal = useGoal(roomId);
 
   // N-safe per-member data layer. The plural fields below are the

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { calcStreak, calcStreakWithFreezes, localDateKey, APP_TZ } from '../lib/streak';
-import type { ProfileTheme, SavingsLog } from '../types';
+import { calcPeriodAwareStreak } from '../lib/streakCalculation';
+import type { Bucket, BucketPlanPause, BucketTransfer, ProfileTheme, SavingsLog } from '../types';
 
 const EMPTY_FROZEN_DATES: ReadonlySet<string> = new Set<string>();
 
@@ -41,12 +42,12 @@ export interface LeaderboardState {
 
 interface RawProfile { id: string; display_name: string; avatar_url?: string | null; }
 interface RawGoal { user_id: string; target_amount: string | number; }
-interface RawLeaderboardLog { user_id: string; amount: string | number; created_at: string; }
+interface RawLeaderboardLog { user_id: string; amount: string | number; created_at: string; bucket_id: string | null; }
 interface RawRoomMemberRow { user_id: string; }
 interface RawVisibleBalanceRow { user_id: string; total: string | number; }
 interface RawMemberThemeRow { user_id: string; theme_color: ProfileTheme | null; }
 
-async function fetchAllRoomLogs(roomId: string): Promise<Array<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id'>>> {
+async function fetchAllRoomLogs(roomId: string): Promise<Array<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id' | 'bucket_id'>>> {
   const { data, error } = await supabase.rpc('room_savings_logs_for_room', {
     p_room_id: roomId,
   });
@@ -59,6 +60,7 @@ async function fetchAllRoomLogs(roomId: string): Promise<Array<Pick<SavingsLog, 
     user_id: row.user_id,
     amount: Number(row.amount),
     created_at: row.created_at,
+    bucket_id: row.bucket_id ?? undefined,
   }));
 }
 
@@ -88,10 +90,13 @@ export function useLeaderboard(
   // `saved` value so the %, rank, and room total match Check Balance.
   // Other members' verified balance is private, so they stay on recorded.
   currentUserVerifiedBalance: number | null = null,
+  currentUserBuckets: Bucket[] = [],
+  currentUserTransfers: BucketTransfer[] = [],
+  currentUserBucketPauses: BucketPlanPause[] = [],
 ): LeaderboardState {
   const [profiles, setProfiles] = useState<RawProfile[]>([]);
   const [goals, setGoals] = useState<RawGoal[]>([]);
-  const [roomLogs, setRoomLogs] = useState<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id'>[]>([]);
+  const [roomLogs, setRoomLogs] = useState<Pick<SavingsLog, 'amount' | 'created_at' | 'user_id' | 'bucket_id'>[]>([]);
   const [visibleBalancesByUserId, setVisibleBalancesByUserId] = useState<Map<string, number>>(new Map());
   const [themeByUserId, setThemeByUserId] = useState<Map<string, ProfileTheme | null>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -246,10 +251,25 @@ export function useLeaderboard(
       const rawPercent = target && target > 0 ? (saved / target) * 100 : 0;
       const percent = target && target > 0 ? Math.min(100, Math.round(rawPercent)) : 0;
       const hasGoal = target !== null && target > 0;
-      const streak = isYou
-        ? calcStreakWithFreezes(userLogs, today, currentUserFrozenDates)
-        : calcStreak(userLogs, today);
-      const hasLoggedToday = userLogs.some(l => localDateKey(l.created_at) === today);
+      const currentUserHasBucketPlan = isYou && currentUserBuckets.some(bucket => bucket.deadline && bucket.saving_rule_type);
+      const bucketStreak = currentUserHasBucketPlan
+        ? calcPeriodAwareStreak(
+            currentUserBuckets,
+            userLogs as SavingsLog[],
+            today,
+            currentUserFrozenDates,
+            currentUserTransfers,
+            currentUserBucketPauses,
+          )
+        : null;
+      const streak = bucketStreak
+        ? bucketStreak.streak
+        : isYou
+          ? calcStreakWithFreezes(userLogs, today, currentUserFrozenDates)
+          : calcStreak(userLogs, today);
+      const hasLoggedToday = bucketStreak
+        ? bucketStreak.hasLoggedToday
+        : userLogs.some(l => localDateKey(l.created_at) === today);
       return { userId: p.id, displayName: p.display_name, avatarUrl: p.avatar_url, themeColor: themeByUserId.get(p.id) ?? undefined, saved, target, _rawPercent: rawPercent, percent, hasGoal, streak, hasLoggedToday, isYou };
     });
 
@@ -275,5 +295,5 @@ export function useLeaderboard(
     }));
 
     return { entries, loading: false };
-  }, [profiles, goals, roomLogs, loading, today, myUserId, currentUserFrozenDates, currentUserVerifiedBalance, visibleBalancesByUserId, themeByUserId]);
+  }, [profiles, goals, roomLogs, loading, today, myUserId, currentUserFrozenDates, currentUserVerifiedBalance, currentUserBuckets, currentUserTransfers, currentUserBucketPauses, visibleBalancesByUserId, themeByUserId]);
 }

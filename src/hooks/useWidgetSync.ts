@@ -20,7 +20,7 @@ import { themeSwatches, DEFAULT_THEME } from '../lib/theme';
  * Mount once inside the DataProvider subtree (where `useSharedData` is valid).
  */
 export function useWidgetSync(): void {
-  const { reconcile, goal, logs, buckets, bucketTransfers, balanceAllocations, streakFreeze, leaderboard } = useSharedData();
+  const { reconcile, goal, logs, buckets, bucketPlanPauses, bucketTransfers, balanceAllocations, streakFreeze, leaderboard } = useSharedData();
   const { activeRoom } = useRoom();
   const { user } = useAuth();
 
@@ -30,6 +30,7 @@ export function useWidgetSync(): void {
     streakFreeze.frozenDates,
     buckets.buckets,
     bucketTransfers.transfers,
+    bucketPlanPauses.pauses,
   );
 
   const saved = reconcile.appBalance ?? 0;
@@ -39,8 +40,8 @@ export function useWidgetSync(): void {
   const todayKey = todayBangkokKey();
 
   const todaySummary = useMemo(
-    () => calcDailySummary(buckets.buckets, logs.allLogs, todayKey, bucketTransfers.transfers),
-    [buckets.buckets, logs.allLogs, todayKey, bucketTransfers.transfers],
+    () => calcDailySummary(buckets.buckets, logs.allLogs, todayKey, bucketTransfers.transfers, bucketPlanPauses.pauses),
+    [buckets.buckets, logs.allLogs, todayKey, bucketTransfers.transfers, bucketPlanPauses.pauses],
   );
 
   const todayDue = useMemo(

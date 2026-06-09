@@ -78,6 +78,7 @@ import { useSmartDefaultAmount } from '../hooks/useSmartDefaultAmount';
 import { useI18n } from '../i18n/useI18n';
 import { bucketSaved, hasDuplicateBucketName, shouldAutofillBucketName, sumTargets } from '../lib/buckets';
 import { calcBucketPace } from '../lib/paceCalculation';
+import { isBucketPausedOnDate } from '../lib/bucketPlanPause';
 import { cumulativeAmountSeries, cumulativeNetAmountSeries } from '../lib/dashboardStats';
 import { haptic } from '../lib/haptics';
 import { roomCoverErrorMessage } from '../lib/roomCoverImage';
@@ -239,6 +240,7 @@ export function Dashboard() {
   const heroCoverTint = activeRoom?.member_cover_image_url ? (activeRoom?.member_cover_tint ?? null) : null;
   const { logIntentEvent } = useBucketIntentSettings(activeRoomId);
   const { buckets, loading: bucketsLoading, saveBuckets, reviewBucketCategories, refetch: refetchBuckets } = data.buckets;
+  const { pauses: bucketPlanPauses } = data.bucketPlanPauses;
   const { transfers: bucketTransfers, upsertTransfer } = data.bucketTransfers;
   const { allocations: balanceAllocations, refetch: refetchAllocations } = data.balanceAllocations;
   const { addOptimisticFlow } = data.roomVisibleMomentumFlows;
@@ -675,8 +677,13 @@ export function Dashboard() {
     next.delete('action');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams, bucketsLoading, displayedActiveBucketItems]);
+  const todayKey = todayBangkokKey();
   const actionAlertBuckets = useMemo<ActionAlertBucket[]>(() => buckets
-    .filter(bucket => !doneBucketIds.has(bucket.id) && bucket.deadline)
+    .filter(bucket => (
+      !doneBucketIds.has(bucket.id)
+      && bucket.deadline
+      && !isBucketPausedOnDate(bucketPlanPauses, bucket.id, todayKey)
+    ))
     .map(bucket => {
       const pace = calcBucketPace(bucket, logs, undefined, bucketTransfers, balanceAllocations);
       if (pace.status !== 'behind' && pace.status !== 'critical') return null;
@@ -693,20 +700,19 @@ export function Dashboard() {
     .sort((a, b) => {
       if (a.status !== b.status) return a.status === 'critical' ? -1 : 1;
       return (b.requiredPerDay ?? 0) - (a.requiredPerDay ?? 0);
-    }), [buckets, doneBucketIds, logs, bucketTransfers, balanceAllocations]);
+    }), [buckets, doneBucketIds, bucketPlanPauses, todayKey, logs, bucketTransfers, balanceAllocations]);
   const actionAlertStorageKey = useMemo(() => {
     const signature = actionAlertBuckets.map(bucket => `${bucket.id}:${bucket.status}`).join('|') || 'none';
     return `dashboard-action-alert:${activeRoomId ?? 'no-room'}:${user?.id ?? 'anon'}:${signature}`;
   }, [actionAlertBuckets, activeRoomId, user?.id]);
   /* eslint-enable react-hooks/preserve-manual-memoization */
-  const todayKey = todayBangkokKey();
   const bucketSummaryItems = useMemo(
-    () => calcDailySummary(buckets, logs, todayKey, bucketTransfers),
-    [buckets, logs, todayKey, bucketTransfers],
+    () => calcDailySummary(buckets, logs, todayKey, bucketTransfers, bucketPlanPauses),
+    [buckets, logs, todayKey, bucketTransfers, bucketPlanPauses],
   );
   const bucketStreak = useMemo(
-    () => calcPeriodAwareStreak(buckets, logs, todayKey, streakFrozenDates, bucketTransfers),
-    [buckets, logs, todayKey, streakFrozenDates, bucketTransfers],
+    () => calcPeriodAwareStreak(buckets, logs, todayKey, streakFrozenDates, bucketTransfers, bucketPlanPauses),
+    [buckets, logs, todayKey, streakFrozenDates, bucketTransfers, bucketPlanPauses],
   );
   const migrationBuckets = useMemo(
     () => buckets.filter(bucket => !bucket.deadline || migration.state.completedBucketIds.includes(bucket.id)),
@@ -724,7 +730,9 @@ export function Dashboard() {
   // dashboard.
   const displayedHabitStatus = {
     state: bucketStreak.trackable
-      ? bucketStreak.hasMetCurrentPeriod
+      ? bucketStreak.allTrackedPaused
+        ? 'plan_paused' as const
+        : bucketStreak.hasMetCurrentPeriod
         ? 'active' as const
         : 'at_risk' as const
       : 'no_deposits_yet' as const,

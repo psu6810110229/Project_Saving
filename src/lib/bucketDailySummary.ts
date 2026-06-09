@@ -1,6 +1,7 @@
 import type {
   Bucket,
   BucketCategory,
+  BucketPlanPause,
   BucketTransfer,
   DailySummaryItem,
   SavingRuleType,
@@ -8,6 +9,7 @@ import type {
 } from '../types';
 import { addDays, daysBetween, todayBangkokKey } from './savingPlan';
 import { calcBucketFocusStates } from './bucketFocus';
+import { isBucketPausedOnDate } from './bucketPlanPause';
 
 function weekEnd(dateKey: string): string {
   const [y, m, d] = dateKey.split('-').map(Number);
@@ -69,6 +71,7 @@ export function calcDailySummary(
   logs: SavingsLog[],
   today?: string,
   transfers?: BucketTransfer[],
+  pauses: BucketPlanPause[] = [],
 ): DailySummaryItem[] {
   const todayKey = today ?? todayBangkokKey();
   const active = buckets.filter(b => b.archived_at == null);
@@ -81,6 +84,7 @@ export function calcDailySummary(
 
     const rule: SavingRuleType = b.saving_rule_type ?? 'flexible';
     const category: BucketCategory = b.category ?? 'other';
+    const pausedToday = isBucketPausedOnDate(pauses, b.id, todayKey);
 
     let amountDue: number | null = null;
     let periodLabel: string;
@@ -157,6 +161,11 @@ export function calcDailySummary(
         periodDeadline = null;
         break;
       }
+    }
+
+    if (pausedToday) {
+      amountDue = null;
+      periodDeadline = null;
     }
 
     items.push({

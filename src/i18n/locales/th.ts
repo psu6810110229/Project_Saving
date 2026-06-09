@@ -718,7 +718,7 @@ export const th: Messages = {
     ruleHardHint: (amount: string) => `แผนค่อนข้างตึง เกิน ${amount}/วัน`,
     customStartAmount: 'ยอดเริ่มต้น',
     customDailyIncrease: 'เพิ่มขึ้นต่อวัน',
-    customCap: 'ยอดสูงสุด (ไม่บังคับ)',
+    customCap: 'ยอดสูงสุด',
     reminderDayLabel: 'เตือนให้ออมทุกวันที่เท่าไร?',
     reminderDayValue: (day: number) => `วันที่ ${day}`,
     reminderDayDecrease: 'เลือกวันเตือนก่อนหน้า',

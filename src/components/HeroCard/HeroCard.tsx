@@ -327,7 +327,7 @@ export const HeroCard = memo(function HeroCard({
       icon: <IconCheckCircle size={13} />,
       label: 'CHECKED',
       value: latestLabel,
-      helper: '?????????????',
+      helper: 'เช็คเงินจริงล่าสุด',
     },
   ];
 
